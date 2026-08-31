@@ -20,16 +20,10 @@ export async function GET(request: NextRequest) {
       .order('nombre')
       .limit(limit)
 
-    if (provincia_id) {
-      query = query.eq('provincia_id', provincia_id)
-    }
-
-    if (search) {
-      query = query.ilike('nombre', `%${search}%`)
-    }
+    if (provincia_id) query = query.eq('provincia_id', provincia_id)
+    if (search) query = query.ilike('nombre', `%${search}%`)
 
     const { data, error } = await query
-
     if (error) throw error
 
     return NextResponse.json({ data: data || [], error: null, count: data?.length ?? 0 })

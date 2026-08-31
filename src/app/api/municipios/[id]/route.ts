@@ -1,14 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServer } from '@/lib/supabase-server'
-import type { ComunidadAutonoma, FuenteGeoportal, Municipio, Provincia } from '@/lib/types'
-
-const RATE_LIMIT = 100
-
-interface MunicipioConProvincia extends Municipio {
-  provincia: Provincia & {
-    comunidad_autonoma: ComunidadAutonoma
-  }
-}
 
 export async function GET(
   request: NextRequest,
@@ -40,26 +31,21 @@ export async function GET(
       return NextResponse.json({ data: null, error: 'Municipio no encontrado', count: 0 }, { status: 404 })
     }
 
-    const typedMunicipio = municipio as MunicipioConProvincia
-    const comunidadAutonomaId = typedMunicipio.provincia?.comunidad_autonoma?.id
+    // Get lat/lng via RPC function
+    let lat: number | null = null
+    let lng: number | null = null
+    try {
+      const { data: coords } = await supabase.rpc('get_municipio_coords' as never, { p_id: id } as never).single()
+      if (coords && typeof coords === 'object') {
+        const c = coords as { lat: number; lng: number }
+        lat = c.lat
+        lng = c.lng
+      }
+    } catch { /* function may not exist yet */ }
 
-    let fuentesGeoportales: FuenteGeoportal[] = []
-    if (comunidadAutonomaId) {
-      const { data: fuentes } = await supabase
-        .from('fuentes_geoportales')
-        .select('*')
-        .eq('comunidad_autonoma_id', comunidadAutonomaId)
-        .eq('activo', true)
+    const data = { ...municipio, lat, lng }
 
-      fuentesGeoportales = (fuentes as FuenteGeoportal[]) || []
-    }
-
-    const data = { ...municipio, fuentes_geoportales: fuentesGeoportales }
-
-    const response = NextResponse.json({ data, error: null, count: 1 })
-    response.headers.set('X-RateLimit-Limit', String(RATE_LIMIT))
-    response.headers.set('X-RateLimit-Remaining', String(RATE_LIMIT - 1))
-    return response
+    return NextResponse.json({ data, error: null, count: 1 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error interno del servidor'
     return NextResponse.json({ data: null, error: message, count: 0 }, { status: 500 })

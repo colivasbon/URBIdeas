@@ -16,23 +16,11 @@ interface MunicipioMapaProps {
   municipios?: MunicipioMarker[]
 }
 
-const MARKER_COLORS = [
-  "#3E665C",
-  "#D4543B",
-  "#2563EB",
-  "#D97706",
-  "#7C3AED",
-  "#059669",
-  "#DC2626",
-  "#0891B2",
-  "#C026D3",
-  "#65A30D",
-]
+const MARKER_COLORS = ["#3E665C","#D4543B","#2563EB","#D97706","#7C3AED","#059669","#DC2626","#0891B2","#C026D3","#65A30D"]
 
 export default function MunicipioMapa({ lat, lng, nombre, municipios }: MunicipioMapaProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<unknown>(null)
-
   const isMulti = Array.isArray(municipios) && municipios.length > 0
 
   useEffect(() => {
@@ -47,76 +35,48 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
 
       if (mapInstanceRef.current) {
         (mapInstanceRef.current as { remove: () => void }).remove()
+        mapInstanceRef.current = null
       }
+
+      // Force container size before creating map
+      const container = mapRef.current!
+      container.style.width = "100%"
+      container.style.height = "300px"
+      container.style.overflow = "hidden"
 
       if (isMulti) {
-        const validMarkers = municipios.filter(
-          (m) => typeof m.lat === "number" && typeof m.lng === "number" && !isNaN(m.lat) && !isNaN(m.lng)
-        )
+        const valid = municipios.filter(m => typeof m.lat === "number" && typeof m.lng === "number" && !isNaN(m.lat) && !isNaN(m.lng))
+        if (valid.length === 0) return
 
-        if (validMarkers.length === 0) return
+        const bounds = L.latLngBounds(valid.map(m => [m.lat, m.lng] as [number, number]))
+        map = L.map(container, { zoomControl: true, scrollWheelZoom: false })
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap", maxZoom: 19 }).addTo(map)
 
-        const bounds = L.latLngBounds(validMarkers.map((m) => [m.lat, m.lng] as [number, number]))
-        const center = bounds.getCenter()
-
-        const m = L.map(mapRef.current!, {
-          center: [center.lat, center.lng],
-          zoom: 6,
-          zoomControl: true,
-          scrollWheelZoom: false,
-        })
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: "© OpenStreetMap",
-          maxZoom: 19,
-        }).addTo(m)
-
-        validMarkers.forEach((mun, index) => {
-          const color = MARKER_COLORS[index % MARKER_COLORS.length]
+        valid.forEach((m, i) => {
+          const color = MARKER_COLORS[i % MARKER_COLORS.length]
           const icon = L.divIcon({
-            className: "custom-marker",
-            html: `<div style="background:${color};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:bold">${index + 1}</div>`,
-            iconSize: [24, 24],
-            iconAnchor: [12, 12],
+            className: "",
+            html: `<div style="background:${color};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:bold">${i + 1}</div>`,
+            iconSize: [24, 24], iconAnchor: [12, 12],
           })
-
-          L.marker([mun.lat, mun.lng], { icon })
-            .addTo(m)
-            .bindPopup(`<strong>${mun.nombre}</strong>`)
+          L.marker([m.lat, m.lng], { icon }).addTo(map).bindPopup(`<strong>${m.nombre}</strong>`)
         })
-
-        m.fitBounds(bounds, { padding: [40, 40] })
-
-        map = m
-        mapInstanceRef.current = m
+        map.fitBounds(bounds, { padding: [50, 50] })
       } else {
-        const safeLat = lat as number
-        const safeLng = lng as number
-
-        const m = L.map(mapRef.current!, {
-          center: [safeLat, safeLng],
-          zoom: 12,
-          zoomControl: true,
-          scrollWheelZoom: false,
-        })
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: `© OpenStreetMap · ${nombre ?? ""}`,
-          maxZoom: 19,
-        }).addTo(m)
-
+        map = L.map(container, { center: [lat!, lng!], zoom: 12, zoomControl: true, scrollWheelZoom: false })
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: `© OpenStreetMap · ${nombre ?? ""}`, maxZoom: 19 }).addTo(map)
         const icon = L.divIcon({
-          className: "custom-marker",
-          html: `<div style="background:var(--color-primary,#3E665C);width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3)"></div>`,
-          iconSize: [12, 12],
-          iconAnchor: [6, 6],
+          className: "",
+          html: `<div style="background:#3E665C;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
+          iconSize: [14, 14], iconAnchor: [7, 7],
         })
-
-        L.marker([safeLat, safeLng], { icon }).addTo(m)
-
-        map = m
-        mapInstanceRef.current = m
+        L.marker([lat!, lng!], { icon }).addTo(map).bindPopup(`<strong>${nombre ?? ""}</strong>`)
       }
+
+      mapInstanceRef.current = map
+
+      // Fix: invalidateSize after a short delay to ensure tiles render correctly
+      setTimeout(() => { (map as { invalidateSize: () => void })?.invalidateSize() }, 200)
     }
 
     initMap()
@@ -130,28 +90,13 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
   }, [lat, lng, nombre, isMulti, municipios])
 
   if (isMulti) {
-    const validMarkers = municipios.filter(
-      (m) => typeof m.lat === "number" && typeof m.lng === "number" && !isNaN(m.lat) && !isNaN(m.lng)
-    )
-    if (validMarkers.length === 0) {
-      return (
-        <div className="flex items-center justify-center h-[300px] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] text-sm text-[var(--color-text-secondary)]">
-          No hay coordenadas disponibles para los municipios seleccionados
-        </div>
-      )
+    const valid = municipios.filter(m => typeof m.lat === "number" && typeof m.lng === "number" && !isNaN(m.lat) && !isNaN(m.lng))
+    if (valid.length === 0) {
+      return <div className="flex items-center justify-center h-[300px] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] text-sm text-[var(--color-text-secondary)]">No hay coordenadas disponibles</div>
     }
   } else if (!lat || !lng) {
-    return (
-      <div className="flex items-center justify-center h-[300px] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] text-sm text-[var(--color-text-secondary)]">
-        No hay coordenadas verificadas disponibles para este municipio
-      </div>
-    )
+    return <div className="flex items-center justify-center h-[300px] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] text-sm text-[var(--color-text-secondary)]">No hay coordenadas verificadas</div>
   }
 
-  return (
-    <div
-      ref={mapRef}
-      className="h-[300px] w-full rounded-[var(--border-radius)] border border-[var(--color-border)] overflow-hidden"
-    />
-  )
+  return <div ref={mapRef} className="h-[300px] w-full rounded-[var(--border-radius)] border border-[var(--color-border)]" style={{ overflow: "hidden" }} />
 }

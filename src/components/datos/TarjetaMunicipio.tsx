@@ -31,7 +31,7 @@ export default function TarjetaMunicipio({ municipio, instrumento }: TarjetaMuni
     <Card className="group transition-colors hover:border-[var(--color-secondary)]">
       <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-semibold text-white leading-snug">
+          <h3 className="text-lg font-semibold text-[var(--color-text-primary)] leading-snug">
             {municipio.nombre}
           </h3>
           <Badge variant="primary" className="shrink-0">
@@ -46,7 +46,7 @@ export default function TarjetaMunicipio({ municipio, instrumento }: TarjetaMuni
 
         <div className="flex items-center gap-2 text-sm">
           <span className="text-[var(--color-text-secondary)]">Población:</span>
-          <span className="font-medium text-white">
+          <span className="font-medium text-[var(--color-text-primary)]">
             {formatearPoblacion(municipio.poblacion)}
           </span>
         </div>

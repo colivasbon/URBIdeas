@@ -19,6 +19,9 @@ export function GetFeatureInfoPopup({ features, coordenadas }: GetFeatureInfoPop
           No se encontraron elementos en esta ubicación.
         </p>
         <p style={{ color: 'var(--color-text-secondary)', margin: '4px 0 0', fontSize: 11 }}>
+          Activa al menos una capa WMS para consultar información.
+        </p>
+        <p style={{ color: 'var(--color-text-secondary)', margin: '4px 0 0', fontSize: 11 }}>
           {coordenadas.lat.toFixed(5)}, {coordenadas.lng.toFixed(5)}
         </p>
       </div>

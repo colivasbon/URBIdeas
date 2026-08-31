@@ -100,7 +100,7 @@ export default function BuscadorTextoLibre() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar municipios o legislación..."
-          className="w-full pl-9 pr-3 py-2 text-sm text-white bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] placeholder:text-[var(--color-text-secondary)]"
+          className="w-full pl-9 pr-3 py-2 text-sm text-[var(--color-text-primary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] placeholder:text-[var(--color-text-secondary)]"
         />
         {loading && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -129,7 +129,7 @@ export default function BuscadorTextoLibre() {
                   <li key={mun.id}>
                     <Link
                       href={`/municipio/${mun.slug || mun.codigo_ine}`}
-                      className="flex items-center justify-between px-3 py-2 text-sm text-white bg-[var(--color-card-bg)] hover:bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] transition-colors"
+                      className="flex items-center justify-between px-3 py-2 text-sm text-[var(--color-text-primary)] bg-[var(--color-card-bg)] hover:bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] transition-colors"
                     >
                       <div className="flex flex-col">
                         <span className="font-medium">{mun.nombre}</span>
@@ -158,7 +158,7 @@ export default function BuscadorTextoLibre() {
                   <li key={norm.id}>
                     <Link
                       href={`/normativa/${norm.slug || norm.id}`}
-                      className="flex items-center justify-between px-3 py-2 text-sm text-white bg-[var(--color-card-bg)] hover:bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] transition-colors"
+                      className="flex items-center justify-between px-3 py-2 text-sm text-[var(--color-text-primary)] bg-[var(--color-card-bg)] hover:bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] transition-colors"
                     >
                       <div className="flex flex-col">
                         <span className="font-medium">{norm.titulo}</span>

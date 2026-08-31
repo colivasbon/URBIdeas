@@ -101,16 +101,16 @@ export default function TablaPlaneamiento({ municipioId }: TablaPlaneamientoProp
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-[var(--color-border)]">
-            <th className="px-4 py-3 text-left font-semibold text-white">Tipo</th>
-            <th className="px-4 py-3 text-left font-semibold text-white">Estado</th>
-            <th className="px-4 py-3 text-left font-semibold text-white">
+            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Tipo</th>
+            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Estado</th>
+            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">
               Fecha Aprobación Inicial
             </th>
-            <th className="px-4 py-3 text-left font-semibold text-white">
+            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">
               Fecha Aprobación Definitiva
             </th>
-            <th className="px-4 py-3 text-left font-semibold text-white">Fuente</th>
-            <th className="px-4 py-3 text-left font-semibold text-white">Enlace</th>
+            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Fuente</th>
+            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Enlace</th>
           </tr>
         </thead>
         <tbody>
@@ -119,7 +119,7 @@ export default function TablaPlaneamiento({ municipioId }: TablaPlaneamientoProp
               key={inst.id}
               className="border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-input-bg)]"
             >
-              <td className="px-4 py-3 font-medium text-white">{inst.tipo}</td>
+              <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{inst.tipo}</td>
               <td className="px-4 py-3">
                 <Badge variant={estadoBadgeVariant[inst.estado] ?? "primary"}>
                   {inst.estado}

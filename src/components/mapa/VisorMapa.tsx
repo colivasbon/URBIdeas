@@ -1,10 +1,13 @@
 "use client"
-import React, { useState, useCallback, useRef } from 'react'
-import { MapContainer, TileLayer, LayersControl, Popup, useMap, useMapEvents } from 'react-leaflet'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
+import { MapContainer, TileLayer, Popup, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { WmsTileLayer } from './WmsTileLayer'
 import { GetFeatureInfoPopup, type FeatureInfo } from './GetFeatureInfoPopup'
+import { FileGeoJsonLayer } from './FileGeoJsonLayer'
+import type { FileLayer } from './fileLayerUtils'
+import { getFileLayerBounds } from './fileLayerUtils'
 
 interface CapaActiva {
   id: string
@@ -15,6 +18,37 @@ interface CapaActiva {
 
 interface VisorMapaProps {
   capasActivas: CapaActiva[]
+  fileLayers?: FileLayer[]
+  center?: [number, number]
+  zoom?: number
+  baseLayer?: string
+  onMapMove?: (lat: number, lng: number, zoom: number) => void
+  onBaseLayerChange?: (layer: string) => void
+  zoomToLayerId?: string | null
+  onZoomToDone?: () => void
+}
+
+const BASE_LAYERS: Record<string, { url: string; attribution: string; name: string }> = {
+  osm: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    name: 'Callejero',
+  },
+  pnoa: {
+    url: 'https://tile-a.ign.es/imagery/pnoa-ma/{z}/{x}/{y}.jpeg',
+    attribution: '&copy; <a href="https://www.ign.es/">IGN - PNOA</a>',
+    name: 'Satélite (PNOA)',
+  },
+  esri: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; <a href="https://www.esri.com/">Esri</a> - World Imagery',
+    name: 'Satélite (Esri)',
+  },
+  ignBase: {
+    url: 'https://www.ign.es/wmts/ign-base?service=WMTS&request=GetTile&version=1.0.0&layer=IGNBaseTodo&style=default&tilematrixset=EPSG%3A3857&tilematrix={z}&tilecol={x}&tilerow={y}&format=image/jpeg',
+    attribution: '&copy; <a href="https://www.ign.es/">IGN</a>',
+    name: 'IGN Base',
+  },
 }
 
 function MapEventsHandler({ onMapClick }: { onMapClick: (latlng: L.LatLng) => void }) {
@@ -23,6 +57,63 @@ function MapEventsHandler({ onMapClick }: { onMapClick: (latlng: L.LatLng) => vo
       onMapClick(e.latlng)
     },
   })
+  return null
+}
+
+function MapMoveReporter({ onMove }: { onMove: (lat: number, lng: number, zoom: number) => void }) {
+  const map = useMap()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useMapEvents({
+    moveend() {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => {
+        const center = map.getCenter()
+        onMove(center.lat, center.lng, map.getZoom())
+      }, 300)
+    },
+  })
+
+  return null
+}
+
+function MapInitializer({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap()
+  const initializedRef = useRef(false)
+
+  useEffect(() => {
+    if (!initializedRef.current) {
+      map.setView(center, zoom)
+      initializedRef.current = true
+    }
+  }, [map, center, zoom])
+
+  return null
+}
+
+function ZoomToLayer({
+  layerId,
+  fileLayers,
+  onDone,
+}: {
+  layerId: string | null
+  fileLayers: FileLayer[]
+  onDone: () => void
+}) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (!layerId) return
+    const layer = fileLayers.find(l => l.id === layerId)
+    if (!layer) { onDone(); return }
+
+    const bounds = getFileLayerBounds(layer)
+    if (bounds) {
+      map.fitBounds(bounds, { padding: [20, 20], maxZoom: 14 })
+    }
+    onDone()
+  }, [layerId, fileLayers, map, onDone])
+
   return null
 }
 
@@ -39,7 +130,6 @@ function FeatureInfoFetcher({
   const handleClick = useCallback(
     async (latlng: L.LatLng) => {
       if (fetchingRef.current || capasActivas.length === 0) {
-        onInfo([], latlng)
         return
       }
 
@@ -152,7 +242,84 @@ function FeatureInfoPopup({
   )
 }
 
-function VisorMapaInner({ capasActivas = [] }: VisorMapaProps) {
+function BaseLayerControl({
+  activeLayer,
+  onChange,
+}: {
+  activeLayer: string
+  onChange: (layer: string) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="absolute top-2 right-2 z-[1000]" style={{ fontFamily: 'var(--font-family)' }}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-[var(--border-radius)] border shadow-sm transition-colors"
+        style={{
+          background: 'var(--color-card-bg)',
+          color: 'var(--color-text-primary)',
+          borderColor: 'var(--color-border)',
+        }}
+        title="Capa base"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418" />
+        </svg>
+        {BASE_LAYERS[activeLayer]?.name || 'Callejero'}
+        <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div
+          className="absolute top-full right-0 mt-1 rounded-[var(--border-radius)] border shadow-lg overflow-hidden min-w-[180px]"
+          style={{
+            background: 'var(--color-card-bg)',
+            borderColor: 'var(--color-border)',
+          }}
+        >
+          {Object.entries(BASE_LAYERS).map(([key, layer]) => (
+            <button
+              key={key}
+              onClick={() => { onChange(key); setExpanded(false) }}
+              className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2 ${
+                activeLayer === key
+                  ? 'font-medium'
+                  : 'hover:opacity-80'
+              }`}
+              style={{
+                color: activeLayer === key ? 'var(--color-secondary)' : 'var(--color-text-primary)',
+                background: activeLayer === key ? 'var(--color-primary)' + '20' : 'transparent',
+              }}
+            >
+              <span
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{
+                  background: activeLayer === key ? 'var(--color-secondary)' : 'var(--color-border)',
+                }}
+              />
+              {layer.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function VisorMapaInner({
+  capasActivas = [],
+  fileLayers = [],
+  center = [40.0, -3.7],
+  zoom = 6,
+  baseLayer = 'osm',
+  onMapMove,
+  onBaseLayerChange,
+  zoomToLayerId = null,
+  onZoomToDone,
+}: VisorMapaProps) {
   const [featureInfo, setFeatureInfo] = useState<FeatureInfo[]>([])
   const [popupPos, setPopupPos] = useState<L.LatLng | null>(null)
 
@@ -166,29 +333,22 @@ function VisorMapaInner({ capasActivas = [] }: VisorMapaProps) {
     setFeatureInfo([])
   }, [])
 
+  const activeBase = BASE_LAYERS[baseLayer] || BASE_LAYERS.osm
+
   return (
     <div className="relative w-full h-full" style={{ fontFamily: 'var(--font-family)' }}>
       <MapContainer
-        center={[40.0, -3.7]}
-        zoom={6}
+        center={center}
+        zoom={zoom}
         className="w-full h-full"
         style={{ background: 'var(--color-dark-bg)' }}
         zoomControl={false}
       >
-        <LayersControl position="topleft">
-          <LayersControl.BaseLayer checked name="OpenStreetMap">
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Grayscale (Dark)">
-            <TileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            />
-          </LayersControl.BaseLayer>
-        </LayersControl>
+        <TileLayer
+          key={baseLayer}
+          attribution={activeBase.attribution}
+          url={activeBase.url}
+        />
 
         {capasActivas.map(capa => (
           <WmsTileLayer
@@ -200,6 +360,18 @@ function VisorMapaInner({ capasActivas = [] }: VisorMapaProps) {
             visible={true}
           />
         ))}
+
+        {fileLayers.map(layer => (
+          <FileGeoJsonLayer key={layer.id} layer={layer} />
+        ))}
+
+        <MapInitializer center={center} zoom={zoom} />
+        <MapMoveReporter onMove={onMapMove || (() => {})} />
+        <ZoomToLayer
+          layerId={zoomToLayerId}
+          fileLayers={fileLayers}
+          onDone={onZoomToDone || (() => {})}
+        />
 
         <FeatureInfoFetcher
           capasActivas={capasActivas}
@@ -214,6 +386,11 @@ function VisorMapaInner({ capasActivas = [] }: VisorMapaProps) {
           />
         )}
       </MapContainer>
+
+      <BaseLayerControl
+        activeLayer={baseLayer}
+        onChange={onBaseLayerChange || (() => {})}
+      />
 
       <div
         className="absolute bottom-3 left-3 z-[1000] px-3 py-1.5 flex items-center gap-2"

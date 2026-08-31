@@ -17,7 +17,7 @@ export function Select({ options, placeholder, label, className = '', ...props }
     <div className="flex flex-col gap-1">
       {label && <label className="text-sm font-medium text-[var(--color-text-secondary)]">{label}</label>}
       <select
-        className={`bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] ${className}`}
+        className={`bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] ${className}`}
         {...props}
       >
         {placeholder && <option value="">{placeholder}</option>}

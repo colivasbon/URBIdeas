@@ -18,7 +18,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-[var(--color-border)] bg-[var(--color-dark-bg)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--color-dark-bg)]/80 transition-colors duration-200">
+    <header className="sticky top-0 z-50 w-full border-b border-[var(--color-border)] bg-[var(--color-dark-bg)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--color-dark-bg)]/80 transition-colors duration-200" style={{ isolation: 'isolate' }}>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-3 shrink-0">
           <Image

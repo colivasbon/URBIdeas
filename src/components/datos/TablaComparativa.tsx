@@ -136,18 +136,18 @@ export default function TablaComparativa({ municipioIds }: TablaComparativaProps
         <table className="w-full min-w-[800px] text-sm">
           <thead>
             <tr className="border-b border-[var(--color-border)] bg-[var(--color-input-bg)]">
-              <th className="px-4 py-3 text-left font-semibold text-white">Municipio</th>
-              <th className="px-4 py-3 text-left font-semibold text-white">Provincia</th>
-              <th className="px-4 py-3 text-left font-semibold text-white">CCAA</th>
-              <th className="px-4 py-3 text-left font-semibold text-white">Tipo Planeamiento</th>
-              <th className="px-4 py-3 text-left font-semibold text-white">Estado</th>
-              <th className="px-4 py-3 text-left font-semibold text-white">
+              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Municipio</th>
+              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Provincia</th>
+              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">CCAA</th>
+              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Tipo Planeamiento</th>
+              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Estado</th>
+              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">
                 Fecha Aprobación
               </th>
-              <th className="px-4 py-3 text-left font-semibold text-white">
+              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">
                 Enlace al Documento
               </th>
-              <th className="px-4 py-3 text-left font-semibold text-white">
+              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">
                 Enlace al Geoportal
               </th>
             </tr>
@@ -166,7 +166,7 @@ export default function TablaComparativa({ municipioIds }: TablaComparativaProps
                       : "border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-input-bg)]"
                   }
                 >
-                  <td className="px-4 py-3 font-medium text-white">{fila.municipio.nombre}</td>
+                  <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{fila.municipio.nombre}</td>
                   <td className="px-4 py-3 text-[var(--color-text-secondary)]">
                     {fila.provincia?.nombre || "—"}
                   </td>
@@ -253,12 +253,12 @@ export default function TablaComparativa({ municipioIds }: TablaComparativaProps
 
       <div className="mt-4 flex items-center justify-between text-sm text-[var(--color-text-secondary)]">
         <span>
-          Mostrando <strong className="text-white">{filas.length}</strong>{" "}
+          Mostrando <strong className="text-[var(--color-text-primary)]">{filas.length}</strong>{" "}
           {filas.length === 1 ? "municipio" : "municipios"}
         </span>
         <span>
-          Total instrumentos:{" "}
-          <strong className="text-white">
+Total instrumentos:{" "}
+           <strong className="text-[var(--color-text-primary)]">
             {filas.reduce((acc, f) => acc + f.instrumentos.length, 0)}
           </strong>
         </span>

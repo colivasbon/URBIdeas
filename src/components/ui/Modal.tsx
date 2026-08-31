@@ -26,8 +26,8 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       <div className="relative bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto">
         {title && (
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-3">
-            <h2 className="text-lg font-semibold text-white">{title}</h2>
-            <button onClick={onClose} className="text-[var(--color-text-secondary)] hover:text-white text-xl">&times;</button>
+            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
+            <button onClick={onClose} className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xl">&times;</button>
           </div>
         )}
         <div className="p-5">{children}</div>

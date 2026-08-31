@@ -130,7 +130,7 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
           }}
           placeholder={`Buscar municipio... (${selected.length}/${MAX_SELECTIONS})`}
           disabled={selected.length >= MAX_SELECTIONS}
-          className="w-full pl-9 pr-3 py-2 text-sm text-white bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] disabled:opacity-50 placeholder:text-[var(--color-text-secondary)]"
+          className="w-full pl-9 pr-3 py-2 text-sm text-[var(--color-text-primary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] disabled:opacity-50 placeholder:text-[var(--color-text-secondary)]"
         />
       </div>
 
@@ -144,8 +144,8 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
               disabled={isSelected(mun.id) || (!isSelected(mun.id) && selected.length >= MAX_SELECTIONS)}
               className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors border-b border-[var(--color-border)] last:border-b-0 ${
                 isSelected(mun.id)
-                  ? "bg-[var(--color-primary)] text-white cursor-default"
-                  : "hover:bg-[var(--color-input-bg)] text-white disabled:opacity-50"
+                  ? "bg-[var(--color-primary)] text-[var(--color-text-primary)] cursor-default"
+                  : "hover:bg-[var(--color-input-bg)] text-[var(--color-text-primary)] disabled:opacity-50"
               }`}
             >
               <input

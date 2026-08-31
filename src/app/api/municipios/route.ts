@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   const comunidad_autonoma_id = searchParams.get('comunidad_autonoma_id')
   const provincia_id = searchParams.get('provincia_id')
   const search = searchParams.get('search')
-  const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
+  const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 500)
   const offset = parseInt(searchParams.get('offset') || '0')
 
   try {

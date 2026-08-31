@@ -148,7 +148,7 @@ export default function FiltroCascada() {
     async function fetchMunicipios() {
       setLoadingMunicipios(true)
       try {
-        const res = await fetch(`/api/municipios?provincia_id=${selectedProvincia}`)
+        const res = await fetch(`/api/municipios?provincia_id=${selectedProvincia}&limit=500`)
         const json = await res.json()
         if (!json.error && json.data) setMunicipios(json.data)
       } catch { /* silently ignore */ }
@@ -232,7 +232,14 @@ export default function FiltroCascada() {
       try {
         const res = await fetch(`/api/legislacion-aplicable?municipio_id=${selectedMunicipio}`)
         const json = await res.json()
-        if (!json.error && json.data) setNormativa(json.data)
+        if (!json.error && json.data) {
+          const all = [
+            ...(json.data.estatal || []),
+            ...(json.data.autonomico || []),
+            ...(json.data.municipal || []),
+          ]
+          setNormativa(all)
+        }
       } catch { /* silently ignore */ }
       setLoadingNormativa(false)
     }
@@ -242,7 +249,10 @@ export default function FiltroCascada() {
       try {
         const res = await fetch(`/api/capas-aplicables?municipio_id=${selectedMunicipio}`)
         const json = await res.json()
-        if (!json.error && json.data) setCapas(json.data)
+        if (!json.error && json.data) {
+          const all = Object.values(json.data).flat() as CapaAplicable[]
+          setCapas(all)
+        }
       } catch { /* silently ignore */ }
       setLoadingCapas(false)
     }

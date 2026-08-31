@@ -75,8 +75,6 @@ export default function MapaPage() {
   })
   const [fileLayers, setFileLayers] = useState<FileLayer[]>([])
   const [zoomToLayerId, setZoomToLayerId] = useState<string | null>(null)
-  const [capasPanelOpen, setCapasPanelOpen] = useState(false)
-  const [filePanelOpen, setFilePanelOpen] = useState(false)
   const initializedRef = useRef(false)
   const initialCapasRef = useRef<string[]>([])
 
@@ -130,7 +128,7 @@ export default function MapaPage() {
   }, [])
 
   const removeFileLayer = useCallback((id: string) => {
-    setFileLayers(prev => prev.filter(l => l.id !== id))
+    setFileLayers(prev => prev.filter(l => l.id === id))
   }, [])
 
   const toggleFileLayer = useCallback((id: string) => {
@@ -165,7 +163,7 @@ export default function MapaPage() {
 
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <section className="mb-4">
+          <section className="mb-8">
             <h1 className="text-2xl font-bold text-[var(--color-text-primary)] sm:text-3xl">
               Visor de Mapa
             </h1>
@@ -174,104 +172,65 @@ export default function MapaPage() {
             </p>
           </section>
 
-          {/* Barra de herramientas superior */}
+          {/* Botones de acción arriba del todo */}
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <button
-              onClick={() => { setCapasPanelOpen(!capasPanelOpen); setFilePanelOpen(false) }}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-[var(--border-radius)] border transition-colors ${
-                capasPanelOpen
-                  ? 'bg-[var(--color-secondary)] text-[#1A1A1A] border-[var(--color-secondary)]'
-                  : 'bg-[var(--color-card-bg)] text-[var(--color-text-primary)] border-[var(--color-border)] hover:border-[var(--color-secondary)]'
-              }`}
+              onClick={() => setActiveCapas([])}
+              disabled={activeCapas.length === 0}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:text-red-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
-              Capas WMS
-              {activeCapas.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-secondary)]/20 text-[var(--color-secondary)]">
-                  {activeCapas.length}
-                </span>
-              )}
+              Desactivar todas{activeCapas.length > 0 ? ` (${activeCapas.length})` : ''}
             </button>
-
-            <button
-              onClick={() => { setFilePanelOpen(!filePanelOpen); setCapasPanelOpen(false) }}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-[var(--border-radius)] border transition-colors ${
-                filePanelOpen
-                  ? 'bg-[var(--color-secondary)] text-[#1A1A1A] border-[var(--color-secondary)]'
-                  : 'bg-[var(--color-card-bg)] text-[var(--color-text-primary)] border-[var(--color-border)] hover:border-[var(--color-secondary)]'
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
-              </svg>
-              Mis capas
-              {fileLayers.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-secondary)]/20 text-[var(--color-secondary)]">
-                  {fileLayers.length}
-                </span>
-              )}
-            </button>
-
-            {activeCapas.length > 0 && (
-              <button
-                onClick={() => setActiveCapas([])}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:text-red-400 transition-colors"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Desactivar todas ({activeCapas.length})
-              </button>
-            )}
           </div>
 
-          {/* Paneles desplegables */}
-          {capasPanelOpen && (
-            <div className="mb-3 bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] overflow-hidden" style={{ maxHeight: '400px' }}>
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="h-5 w-5 animate-spin rounded-full border-4 border-[var(--color-secondary)] border-t-transparent" />
-                  <span className="ml-2 text-sm text-[var(--color-text-secondary)]">Cargando capas...</span>
-                </div>
-              ) : (
-                <ControlCapas
-                  capasSeleccionadas={activeCapas}
-                  onToggleCapa={toggleCapa}
+          <div className="flex flex-col gap-6 lg:flex-row">
+            <div className="flex-1 min-h-[500px]">
+              <div className="h-full rounded-[var(--border-radius)] border border-[var(--color-border)]" style={{ position: 'relative', zIndex: 0 }}>
+                <VisorMapa
+                  capasActivas={selectedCapas}
+                  fileLayers={fileLayers}
+                  center={mapCenter}
+                  zoom={mapZoom}
+                  baseLayer={baseLayer}
+                  baseOpacity={baseOpacity}
+                  onMapMove={handleMapMove}
+                  onBaseLayerChange={handleBaseLayerChange}
+                  onBaseOpacityChange={setBaseOpacity}
+                  zoomToLayerId={zoomToLayerId}
+                  onZoomToDone={() => setZoomToLayerId(null)}
                 />
-              )}
+              </div>
             </div>
-          )}
 
-          {filePanelOpen && (
-            <div className="mb-3 bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] p-4">
-              <FileLayerPanel
-                fileLayers={fileLayers}
-                onAdd={addFileLayer}
-                onRemove={removeFileLayer}
-                onToggle={toggleFileLayer}
-                onColorChange={changeFileLayerColor}
-                onZoomTo={zoomToFileLayer}
-              />
+            <div className="w-full shrink-0 lg:w-80">
+              <div className="sticky top-20 bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="h-6 w-6 animate-spin rounded-full border-4 border-[var(--color-secondary)] border-t-transparent" />
+                    <span className="ml-2 text-sm text-[var(--color-text-secondary)]">
+                      Cargando capas...
+                    </span>
+                  </div>
+                ) : (
+                  <ControlCapas
+                    capasSeleccionadas={activeCapas}
+                    onToggleCapa={toggleCapa}
+                  />
+                )}
+
+                <FileLayerPanel
+                  fileLayers={fileLayers}
+                  onAdd={addFileLayer}
+                  onRemove={removeFileLayer}
+                  onToggle={toggleFileLayer}
+                  onColorChange={changeFileLayerColor}
+                  onZoomTo={zoomToFileLayer}
+                />
+              </div>
             </div>
-          )}
-
-          {/* Mapa */}
-          <div className="h-[600px] rounded-[var(--border-radius)] border border-[var(--color-border)]" style={{ position: 'relative', zIndex: 0 }}>
-            <VisorMapa
-              capasActivas={selectedCapas}
-              fileLayers={fileLayers}
-              center={mapCenter}
-              zoom={mapZoom}
-              baseLayer={baseLayer}
-              baseOpacity={baseOpacity}
-              onMapMove={handleMapMove}
-              onBaseLayerChange={handleBaseLayerChange}
-              onBaseOpacityChange={setBaseOpacity}
-              zoomToLayerId={zoomToLayerId}
-              onZoomToDone={() => setZoomToLayerId(null)}
-            />
           </div>
         </div>
       </main>

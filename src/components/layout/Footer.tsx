@@ -2,7 +2,7 @@ import Image from "next/image"
 
 export default function Footer() {
   return (
-    <footer className="border-t border-[var(--color-border)] bg-[var(--color-dark-bg)]">
+    <footer className="border-t border-[var(--color-border)] bg-[var(--color-dark-bg)] transition-colors duration-200">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
           <div className="flex items-center gap-3">
@@ -14,7 +14,7 @@ export default function Footer() {
               className="h-7 w-auto"
             />
             <div>
-              <p className="text-sm font-semibold text-white">Ideas Medioambientales</p>
+              <p className="text-sm font-semibold text-[var(--color-text-primary)]">Ideas Medioambientales</p>
               <p className="text-xs text-[var(--color-text-secondary)]">
                 Registro Urbanístico España v1.0
               </p>

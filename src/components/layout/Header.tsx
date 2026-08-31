@@ -10,7 +10,7 @@ const navLinks = [
   { href: "/municipios", label: "Municipios" },
   { href: "/mapa", label: "Mapa" },
   { href: "/legislacion", label: "Legislación" },
-  { href: "/api", label: "API" },
+  { href: "/api-docs", label: "API" },
   { href: "/admin", label: "Admin" },
 ]
 
@@ -18,7 +18,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-[var(--color-border)] bg-[var(--color-dark-bg)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--color-dark-bg)]/80">
+    <header className="sticky top-0 z-50 w-full border-b border-[var(--color-border)] bg-[var(--color-dark-bg)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--color-dark-bg)]/80 transition-colors duration-200">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-3 shrink-0">
           <Image
@@ -29,7 +29,7 @@ export default function Header() {
             className="h-9 w-auto"
             priority
           />
-          <span className="hidden text-sm font-semibold text-white sm:block leading-tight">
+          <span className="hidden text-sm font-semibold text-[var(--color-text-primary)] sm:block leading-tight transition-colors duration-200">
             Registro<br />Urbanístico España
           </span>
         </Link>
@@ -49,7 +49,7 @@ export default function Header() {
 
         <button
           type="button"
-          className="inline-flex items-center justify-center rounded-[var(--border-radius)] p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-input-bg)] hover:text-white md:hidden"
+          className="inline-flex items-center justify-center rounded-[var(--border-radius)] p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)] md:hidden"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Menú de navegación"
         >
@@ -66,7 +66,7 @@ export default function Header() {
       </div>
 
       {menuOpen && (
-        <nav className="border-t border-[var(--color-border)] bg-[var(--color-dark-bg)] md:hidden">
+        <nav className="border-t border-[var(--color-border)] bg-[var(--color-dark-bg)] md:hidden transition-colors duration-200">
           <div className="mx-auto max-w-7xl px-4 py-2 sm:px-6">
             {navLinks.map((link) => (
               <Link

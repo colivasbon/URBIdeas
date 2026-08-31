@@ -162,13 +162,13 @@ const methodColors: Record<string, string> = {
 
 export default function ApiDocsPage() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col transition-colors duration-200">
       <Header />
 
       <main className="flex-1">
         <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
           <section className="mb-10">
-            <h1 className="text-2xl font-bold text-white sm:text-3xl">
+            <h1 className="text-2xl font-bold text-[var(--color-text-primary)] sm:text-3xl">
               API REST — Registro Urbanístico España
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
@@ -185,7 +185,7 @@ export default function ApiDocsPage() {
                 </svg>
               </div>
               <div>
-                <p className="font-semibold text-white">Autenticación y rate limiting</p>
+                <p className="font-semibold text-[var(--color-text-primary)]">Autenticación y rate limiting</p>
                 <p className="mt-1 text-sm leading-relaxed text-[var(--color-text-secondary)]">
                   La API es de acceso público sin autenticación. Se aplica un límite de{" "}
                   <span className="font-medium text-[var(--color-accent)]">100 peticiones por minuto</span>{" "}
@@ -203,7 +203,7 @@ export default function ApiDocsPage() {
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-wrap items-center gap-3">
                     <span
-                      className={`inline-flex items-center rounded-[var(--border-radius)] px-2.5 py-1 text-xs font-bold text-white ${methodColors[ep.method]}`}
+                      className={`inline-flex items-center rounded-[var(--border-radius)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-primary)] ${methodColors[ep.method]}`}
                     >
                       {ep.method}
                     </span>
@@ -223,10 +223,10 @@ export default function ApiDocsPage() {
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-[var(--color-border)] bg-[var(--color-input-bg)]">
-                              <th className="px-3 py-2 text-left font-semibold text-white">Nombre</th>
-                              <th className="px-3 py-2 text-left font-semibold text-white">Tipo</th>
-                              <th className="px-3 py-2 text-left font-semibold text-white">Obligatorio</th>
-                              <th className="px-3 py-2 text-left font-semibold text-white">Descripción</th>
+                              <th className="px-3 py-2 text-left font-semibold text-[var(--color-text-primary)]">Nombre</th>
+                              <th className="px-3 py-2 text-left font-semibold text-[var(--color-text-primary)]">Tipo</th>
+                              <th className="px-3 py-2 text-left font-semibold text-[var(--color-text-primary)]">Obligatorio</th>
+                              <th className="px-3 py-2 text-left font-semibold text-[var(--color-text-primary)]">Descripción</th>
                             </tr>
                           </thead>
                           <tbody>

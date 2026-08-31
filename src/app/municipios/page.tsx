@@ -84,13 +84,13 @@ export default function MunicipiosPage() {
   }, [])
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col transition-colors duration-200">
       <Header />
 
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <section className="mb-8">
-            <h1 className="text-2xl font-bold text-white sm:text-3xl">
+            <h1 className="text-2xl font-bold text-[var(--color-text-primary)] sm:text-3xl">
               Municipios
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
@@ -144,22 +144,22 @@ export default function MunicipiosPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-[var(--color-border)]">
-                          <th className="px-4 py-3 text-left font-semibold text-white">Municipio</th>
-                          <th className="px-4 py-3 text-left font-semibold text-white">Provincia</th>
-                          <th className="px-4 py-3 text-left font-semibold text-white">CCAA</th>
-                          <th className="px-4 py-3 text-left font-semibold text-white">Tipo Planeamiento</th>
-                          <th className="px-4 py-3 text-left font-semibold text-white">Estado</th>
-                          <th className="px-4 py-3 text-left font-semibold text-white">Fecha Aprobación</th>
-                          <th className="px-4 py-3 text-left font-semibold text-white">Enlace</th>
+                          <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Municipio</th>
+                          <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Provincia</th>
+                          <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">CCAA</th>
+                          <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Tipo Planeamiento</th>
+                          <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Estado</th>
+                          <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Fecha Aprobación</th>
+                          <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Enlace</th>
                         </tr>
                       </thead>
                       <tbody>
                         {municipiosComparados.map((m) => (
                           <tr
                             key={m.id}
-                            className="border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-input-bg)]"
+                            className="border-b border-[var(--color-border)] transition-colors duration-200 hover:bg-[var(--color-input-bg)]"
                           >
-                            <td className="px-4 py-3 font-medium text-white">{m.nombre}</td>
+                            <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{m.nombre}</td>
                             <td className="px-4 py-3 text-[var(--color-text-secondary)]">{m.provincia}</td>
                             <td className="px-4 py-3 text-[var(--color-text-secondary)]">{m.ccaa}</td>
                             <td className="px-4 py-3 text-[var(--color-text-secondary)]">{m.tipo_planeamiento}</td>
@@ -183,7 +183,7 @@ export default function MunicipiosPage() {
                                   href={m.enlace}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-[var(--color-secondary)] hover:text-[var(--color-accent)] transition-colors underline underline-offset-2"
+                                  className="text-[var(--color-secondary)] hover:text-[var(--color-accent)] transition-colors duration-200 underline underline-offset-2"
                                 >
                                   Ver documento
                                 </a>
@@ -204,7 +204,7 @@ export default function MunicipiosPage() {
                       setComparando(false)
                       setMunicipiosComparados([])
                     }}
-                    className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-white rounded-[var(--border-radius)] transition-colors hover:bg-[var(--color-input-bg)]"
+                    className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] rounded-[var(--border-radius)] transition-colors duration-200 hover:bg-[var(--color-input-bg)]"
                   >
                     Cerrar comparativa
                   </button>

@@ -96,13 +96,13 @@ export default async function Home() {
   ]
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col transition-colors duration-200">
       <Header />
 
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <section className="mb-10">
-            <h1 className="text-2xl font-bold text-white sm:text-3xl">
+            <h1 className="text-2xl font-bold text-[var(--color-text-primary)] sm:text-3xl">
               Registro Urbanístico de España
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
@@ -116,7 +116,7 @@ export default async function Home() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {statCards.map((stat) => (
                 <Link key={stat.label} href={stat.href} className="group block">
-                  <Card className="transition-all hover:border-[var(--color-primary)] hover:shadow-lg hover:shadow-[var(--color-primary)]/10">
+                  <Card className="transition-all duration-200 hover:border-[var(--color-primary)] hover:shadow-lg hover:shadow-[var(--color-primary)]/10">
                     <div
                       className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-[var(--border-radius)]"
                       style={{ backgroundColor: stat.color }}
@@ -128,7 +128,7 @@ export default async function Home() {
                         {stat.value.charAt(0)}
                       </span>
                     </div>
-                    <p className="text-2xl font-bold text-white">{stat.value}</p>
+                    <p className="text-2xl font-bold text-[var(--color-text-primary)]">{stat.value}</p>
                     <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
                       {stat.label}
                     </p>
@@ -139,16 +139,16 @@ export default async function Home() {
           </section>
 
           <section>
-            <h2 className="mb-5 text-lg font-semibold text-white">Acceso rápido</h2>
+            <h2 className="mb-5 text-lg font-semibold text-[var(--color-text-primary)]">Acceso rápido</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {quickAccess.map((item) => (
                 <Link key={item.title} href={item.href} className="group block">
-                  <Card className="flex items-start gap-4 transition-all hover:border-[var(--color-secondary)] hover:shadow-lg hover:shadow-[var(--color-secondary)]/10">
-                    <div className="shrink-0 rounded-[var(--border-radius)] bg-[var(--color-primary)]/20 p-2.5 text-[var(--color-secondary)] transition-colors group-hover:bg-[var(--color-secondary)]/20">
+                  <Card className="flex items-start gap-4 transition-all duration-200 hover:border-[var(--color-secondary)] hover:shadow-lg hover:shadow-[var(--color-secondary)]/10">
+                    <div className="shrink-0 rounded-[var(--border-radius)] bg-[var(--color-primary)]/20 p-2.5 text-[var(--color-secondary)] transition-colors duration-200 group-hover:bg-[var(--color-secondary)]/20">
                       {item.icon}
                     </div>
                     <div>
-                      <p className="font-semibold text-white group-hover:text-[var(--color-secondary)]">
+                      <p className="font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-secondary)]">
                         {item.title}
                       </p>
                       <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">

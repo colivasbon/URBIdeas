@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ThemeProvider } from "@/components/ui/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "Registro Urbanístico España | Ideas Medioambientales",
@@ -8,9 +9,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className="h-full antialiased">
-      <body className="min-h-full flex flex-col" style={{ fontFamily: "var(--font-family)" }}>
-        {children}
+    <html lang="es" className="h-full antialiased" suppressHydrationWarning>
+      <body className="min-h-full flex flex-col transition-colors duration-200" style={{ fontFamily: "var(--font-family)" }}>
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

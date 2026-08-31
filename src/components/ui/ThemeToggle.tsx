@@ -1,32 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useTheme } from "@/components/ui/ThemeProvider"
 
 export default function ThemeToggle() {
-  const [dark, setDark] = useState(true)
-
-  useEffect(() => {
-    const stored = localStorage.getItem("theme")
-    const prefersDark =
-      !stored || stored === "dark" || window.matchMedia("(prefers-color-scheme: dark)").matches
-    setDark(prefersDark)
-    document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light")
-  }, [])
-
-  function toggle() {
-    const next = !dark
-    setDark(next)
-    document.documentElement.setAttribute("data-theme", next ? "dark" : "light")
-    localStorage.setItem("theme", next ? "dark" : "light")
-  }
+  const { theme, toggle } = useTheme()
+  const isDark = theme === "dark"
 
   return (
     <button
       onClick={toggle}
-      aria-label={dark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-      className="inline-flex items-center justify-center rounded-[var(--border-radius)] p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)]"
+      aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+      className="inline-flex items-center justify-center rounded-[var(--border-radius)] p-2 text-[var(--color-text-secondary)] transition-colors duration-200 hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)]"
     >
-      {dark ? (
+      {isDark ? (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
         </svg>

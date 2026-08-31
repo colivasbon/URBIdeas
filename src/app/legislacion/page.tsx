@@ -105,7 +105,7 @@ export default function LegislacionPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col transition-colors duration-200">
       <Header />
 
       <main className="flex-1">
@@ -122,9 +122,9 @@ export default function LegislacionPage() {
           <div className="mb-6 flex gap-2">
             <button
               onClick={() => setTab("estatal")}
-              className={`rounded-[var(--border-radius)] px-4 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-[var(--border-radius)] px-4 py-2 text-sm font-medium transition-colors duration-200 ${
                 tab === "estatal"
-                  ? "bg-[var(--color-primary)] text-white"
+                  ? "bg-[var(--color-primary)] text-[var(--color-text-primary)]"
                   : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               }`}
             >
@@ -132,9 +132,9 @@ export default function LegislacionPage() {
             </button>
             <button
               onClick={() => setTab("autonomico")}
-              className={`rounded-[var(--border-radius)] px-4 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-[var(--border-radius)] px-4 py-2 text-sm font-medium transition-colors duration-200 ${
                 tab === "autonomico"
-                  ? "bg-[var(--color-primary)] text-white"
+                  ? "bg-[var(--color-primary)] text-[var(--color-text-primary)]"
                   : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               }`}
             >
@@ -204,15 +204,15 @@ export default function LegislacionPage() {
                     return (
                       <div
                         key={ccaa}
-                        className="rounded-[var(--border-radius)] border border-[var(--color-border)] bg-[var(--color-card-bg)] overflow-hidden"
+                        className="rounded-[var(--border-radius)] border border-[var(--color-border)] bg-[var(--color-card-bg)] overflow-hidden transition-colors duration-200"
                       >
                         <button
                           onClick={() => toggleGroup(ccaa)}
-                          className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-[var(--color-input-bg)]"
+                          className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors duration-200 hover:bg-[var(--color-input-bg)]"
                         >
                           <div className="flex items-center gap-3">
                             <svg
-                              className={`h-5 w-5 shrink-0 text-[var(--color-text-secondary)] transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                              className={`h-5 w-5 shrink-0 text-[var(--color-text-secondary)] transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
                               fill="none"
                               viewBox="0 0 24 24"
                               strokeWidth={2}
@@ -224,7 +224,11 @@ export default function LegislacionPage() {
                           </div>
                           <Badge variant="primary">{leyes.length}</Badge>
                         </button>
-                        {isExpanded && (
+                        <div
+                          className={`overflow-hidden transition-all duration-200 ease-in-out ${
+                            isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+                          }`}
+                        >
                           <div className="border-t border-[var(--color-border)] px-5 py-4">
                             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                               {leyes.map((ley) => (
@@ -266,7 +270,7 @@ export default function LegislacionPage() {
                               ))}
                             </div>
                           </div>
-                        )}
+                        </div>
                       </div>
                     )
                   })}

@@ -5,7 +5,6 @@ import Header from "@/components/layout/Header"
 import Footer from "@/components/layout/Footer"
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
-import { supabase } from "@/lib/supabase"
 
 interface NormativaItem {
   id: string
@@ -52,44 +51,58 @@ const leyesEstatales = [
   },
 ]
 
+function groupByComunidad(items: NormativaItem[]) {
+  const groups: Record<string, NormativaItem[]> = {}
+  for (const item of items) {
+    const key = item.comunidad_autonoma?.nombre ?? "Sin asignar"
+    if (!groups[key]) groups[key] = []
+    groups[key].push(item)
+  }
+  return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]))
+}
+
 export default function LegislacionPage() {
   const [tab, setTab] = useState<"estatal" | "autonomico">("estatal")
   const [normativa, setNormativa] = useState<NormativaItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [expandedCCAA, setExpandedCCAA] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (tab !== "autonomico") return
 
     async function fetchNormativa() {
       setLoading(true)
-      const { data, error } = await supabase
-        .from("normativa_vigente")
-        .select(`
-          id,
-          ambito,
-          titulo,
-          referencia_legal,
-          fecha_publicacion,
-          enlace_boe_boletin,
-          estado_vigencia,
-          comunidad_autonoma:comunidades_autonomas(nombre)
-        `)
-        .eq("ambito", "autonomico")
-        .order("titulo")
-
-      if (!error && data) {
-        const mapped = data.map((n) => ({
-          ...n,
-          comunidad_autonoma: Array.isArray(n.comunidad_autonoma)
-            ? n.comunidad_autonoma[0]
-            : n.comunidad_autonoma,
-        }))
-        setNormativa(mapped)
+      try {
+        const response = await fetch("/api/legislacion?ambito=autonomico")
+        const json = await response.json()
+        if (json.data) {
+          const mapped = json.data.map((n: Record<string, unknown>) => ({
+            ...n,
+            comunidad_autonoma: Array.isArray(n.comunidad_autonoma)
+              ? (n.comunidad_autonoma as Record<string, unknown>[])[0]
+              : n.comunidad_autonoma,
+          }))
+          setNormativa(mapped)
+          const groups: Record<string, boolean> = {}
+          mapped.forEach((n: NormativaItem) => {
+            const key = n.comunidad_autonoma?.nombre ?? "Sin asignar"
+            groups[key] = false
+          })
+          setExpandedCCAA(groups)
+        }
+      } catch {
+        setNormativa([])
       }
       setLoading(false)
     }
     fetchNormativa()
   }, [tab])
+
+  const grouped = groupByComunidad(normativa)
+
+  function toggleGroup(name: string) {
+    setExpandedCCAA((prev) => ({ ...prev, [name]: !prev[name] }))
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -98,7 +111,7 @@ export default function LegislacionPage() {
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <section className="mb-8">
-            <h1 className="text-2xl font-bold text-white sm:text-3xl">
+            <h1 className="text-2xl font-bold text-[var(--color-text-primary)] sm:text-3xl">
               Legislación Urbanística
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
@@ -112,7 +125,7 @@ export default function LegislacionPage() {
               className={`rounded-[var(--border-radius)] px-4 py-2 text-sm font-medium transition-colors ${
                 tab === "estatal"
                   ? "bg-[var(--color-primary)] text-white"
-                  : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:text-white"
+                  : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               }`}
             >
               Legislación Estatal
@@ -122,7 +135,7 @@ export default function LegislacionPage() {
               className={`rounded-[var(--border-radius)] px-4 py-2 text-sm font-medium transition-colors ${
                 tab === "autonomico"
                   ? "bg-[var(--color-primary)] text-white"
-                  : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:text-white"
+                  : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               }`}
             >
               Legislación Autonómica
@@ -142,11 +155,11 @@ export default function LegislacionPage() {
                     </p>
                     <div className="flex flex-col gap-1 text-sm">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-white">Referencia:</span>
+                        <span className="font-medium text-[var(--color-text-primary)]">Referencia:</span>
                         <Badge variant="primary">{ley.referencia}</Badge>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-white">Fecha:</span>
+                        <span className="font-medium text-[var(--color-text-primary)]">Fecha:</span>
                         <span className="text-[var(--color-text-secondary)]">{ley.fecha}</span>
                       </div>
                     </div>
@@ -178,66 +191,83 @@ export default function LegislacionPage() {
                     Cargando legislación autonómica...
                   </span>
                 </div>
-              ) : normativa.length === 0 ? (
+              ) : grouped.length === 0 ? (
                 <Card>
                   <p className="py-12 text-center text-sm text-[var(--color-text-secondary)]">
                     No se encontró legislación autonómica registrada.
                   </p>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {normativa.map((n) => {
-                    const ccaa = n.comunidad_autonoma?.nombre ?? "Sin asignar"
+                <div className="flex flex-col gap-3">
+                  {grouped.map(([ccaa, leyes]) => {
+                    const isExpanded = expandedCCAA[ccaa] ?? false
                     return (
-                      <Card key={n.id} className="flex flex-col">
-                        <CardHeader>
-                          <div className="flex items-start justify-between gap-2">
-                            <CardTitle className="text-base">{ccaa}</CardTitle>
-                            <Badge variant={vigenciaVariant[n.estado_vigencia] ?? "primary"}>
-                              {n.estado_vigencia}
-                            </Badge>
+                      <div
+                        key={ccaa}
+                        className="rounded-[var(--border-radius)] border border-[var(--color-border)] bg-[var(--color-card-bg)] overflow-hidden"
+                      >
+                        <button
+                          onClick={() => toggleGroup(ccaa)}
+                          className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-[var(--color-input-bg)]"
+                        >
+                          <div className="flex items-center gap-3">
+                            <svg
+                              className={`h-5 w-5 shrink-0 text-[var(--color-text-secondary)] transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              strokeWidth={2}
+                              stroke="currentColor"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                            <span className="font-semibold text-[var(--color-text-primary)]">{ccaa}</span>
                           </div>
-                        </CardHeader>
-                        <div className="flex flex-1 flex-col gap-3">
-                          <div>
-                            <p className="text-sm font-medium text-white">{n.titulo}</p>
-                            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                              {n.referencia_legal}
-                            </p>
+                          <Badge variant="primary">{leyes.length}</Badge>
+                        </button>
+                        {isExpanded && (
+                          <div className="border-t border-[var(--color-border)] px-5 py-4">
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                              {leyes.map((ley) => (
+                                <Card key={ley.id} className="flex flex-col">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className="text-sm font-medium text-[var(--color-text-primary)]">{ley.titulo}</p>
+                                    <Badge variant={vigenciaVariant[ley.estado_vigencia] ?? "primary"}>
+                                      {ley.estado_vigencia}
+                                    </Badge>
+                                  </div>
+                                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                                    {ley.referencia_legal}
+                                  </p>
+                                  {ley.fecha_publicacion && (
+                                    <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                                      Publicación: {new Date(ley.fecha_publicacion).toLocaleDateString("es-ES")}
+                                    </p>
+                                  )}
+                                  <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
+                                    {ley.enlace_boe_boletin ? (
+                                      <a
+                                        href={ley.enlace_boe_boletin}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-secondary)] hover:text-[var(--color-accent)] transition-colors"
+                                      >
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                        </svg>
+                                        Ver en boletín oficial
+                                      </a>
+                                    ) : (
+                                      <span className="text-xs text-[var(--color-text-secondary)]">
+                                        Enlace no disponible
+                                      </span>
+                                    )}
+                                  </div>
+                                </Card>
+                              ))}
+                            </div>
                           </div>
-
-                          <div className="flex flex-col gap-1 text-sm">
-                            {n.fecha_publicacion && (
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-white">Publicación:</span>
-                                <span className="text-[var(--color-text-secondary)]">
-                                  {new Date(n.fecha_publicacion).toLocaleDateString("es-ES")}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="mt-auto pt-3 border-t border-[var(--color-border)]">
-                            {n.enlace_boe_boletin ? (
-                              <a
-                                href={n.enlace_boe_boletin}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-secondary)] hover:text-[var(--color-accent)] transition-colors"
-                              >
-                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                                </svg>
-                                Ver en boletín oficial
-                              </a>
-                            ) : (
-                              <span className="text-xs text-[var(--color-text-secondary)]">
-                                Enlace no disponible
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </Card>
+                        )}
+                      </div>
                     )
                   })}
                 </div>

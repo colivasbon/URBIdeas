@@ -1,11 +1,6 @@
 "use client"
-import React, { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import type { CapaWMS, ComunidadAutonoma } from '@/lib/types'
-
-interface CapaConComunidad extends CapaWMS {
-  comunidad_autonoma?: ComunidadAutonoma
-}
+import React, { useEffect, useState, useMemo } from 'react'
+import type { CapaWMS } from '@/lib/types'
 
 interface ControlCapasProps {
   capasSeleccionadas: string[]
@@ -13,57 +8,53 @@ interface ControlCapasProps {
 }
 
 export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasProps) {
-  const [capas, setCapas] = useState<CapaConComunidad[]>([])
-  const [agrupadas, setAgrupadas] = useState<Record<string, CapaConComunidad[]>>({})
+  const [capas, setCapas] = useState<CapaWMS[]>([])
   const [colapsadas, setColapsadas] = useState<Record<string, boolean>>({})
-  const [leyendas, setLeyendas] = useState<Record<string, string>>({})
   const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function cargarCapas() {
-      const { data, error } = await supabase
-        .from('capas_wms')
-        .select('*, comunidad_autonoma:comunidades_autonomas(*)')
-        .eq('activo', true)
-        .order('nombre_capa')
+      try {
+        const res = await fetch('/api/capas-wms')
+        const json = await res.json()
 
-      if (error || !data) {
+        if (json.error) {
+          setError(json.error)
+          setCargando(false)
+          return
+        }
+
+        setCapas(json.data || [])
+
+        const groups: Record<string, boolean> = {}
+        for (const capa of json.data || []) {
+          const nombre = capa.comunidad_autonoma?.nombre || 'Sin comunidad'
+          if (!(nombre in groups)) groups[nombre] = true
+        }
+        setColapsadas(groups)
+      } catch {
+        setError('Error al cargar capas')
+      } finally {
         setCargando(false)
-        return
       }
-
-      const grouped: Record<string, CapaConComunidad[]> = {}
-      for (const capa of data) {
-        const ca = capa.comunidad_autonoma
-        const nombreCA = ca?.nombre || 'Sin comunidad'
-        if (!grouped[nombreCA]) grouped[nombreCA] = []
-        grouped[nombreCA].push(capa)
-      }
-
-      const sortedKeys = Object.keys(grouped).sort()
-      const sorted: Record<string, CapaConComunidad[]> = {}
-      for (const k of sortedKeys) {
-        sorted[k] = grouped[k]
-      }
-
-      setCapas(data)
-      setAgrupadas(sorted)
-      setColapsadas(
-        Object.fromEntries(sortedKeys.map(k => [k, true]))
-      )
-      setCargando(false)
     }
-
     cargarCapas()
   }, [])
 
-  useEffect(() => {
+  const agrupadas = useMemo(() => {
+    const grouped: Record<string, CapaWMS[]> = {}
     for (const capa of capas) {
-      if (leyendas[capa.id]) continue
-      const legendUrl = `${capa.url_servicio}?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=${capa.nombre_capa}&format=image/png&width=20&height=20`
-      setLeyendas(prev => ({ ...prev, [capa.id]: legendUrl }))
+      const nombre = capa.comunidad_autonoma?.nombre || 'Sin comunidad'
+      if (!grouped[nombre]) grouped[nombre] = []
+      grouped[nombre].push(capa)
     }
-  }, [capas, leyendas])
+    const sorted: Record<string, CapaWMS[]> = {}
+    for (const k of Object.keys(grouped).sort()) {
+      sorted[k] = grouped[k]
+    }
+    return sorted
+  }, [capas])
 
   function toggleGrupo(nombreCA: string) {
     setColapsadas(prev => ({ ...prev, [nombreCA]: !prev[nombreCA] }))
@@ -73,15 +64,9 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
     const capasGrupo = agrupadas[nombreCA] || []
     const todasActivas = capasGrupo.every(c => capasSeleccionadas.includes(c.id))
     for (const capa of capasGrupo) {
-      if (todasActivas) {
-        if (capasSeleccionadas.includes(capa.id)) {
-          onToggleCapa(capa.id)
-        }
-      } else {
-        if (!capasSeleccionadas.includes(capa.id)) {
-          onToggleCapa(capa.id)
-        }
-      }
+      const estaActiva = capasSeleccionadas.includes(capa.id)
+      if (todasActivas && estaActiva) onToggleCapa(capa.id)
+      if (!todasActivas && !estaActiva) onToggleCapa(capa.id)
     }
   }
 
@@ -90,6 +75,14 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
       <div className="p-4 text-center" style={{ color: 'var(--color-text-secondary)' }}>
         <div className="animate-spin inline-block w-5 h-5 border-2 border-[var(--color-secondary)] border-t-transparent rounded-full mb-2" />
         <p className="text-xs">Cargando capas...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>
       </div>
     )
   }
@@ -112,7 +105,7 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {Object.entries(agrupadas).length === 0 ? (
+        {Object.keys(agrupadas).length === 0 ? (
           <div className="p-4 text-center" style={{ color: 'var(--color-text-secondary)' }}>
             <p className="text-xs">No hay capas disponibles</p>
           </div>
@@ -165,6 +158,7 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
                   <div className="pb-1">
                     {capasGrupo.map(capa => {
                       const activa = capasSeleccionadas.includes(capa.id)
+                      const legendUrl = `${capa.url_servicio}?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=${capa.nombre_capa}&format=image/png&width=20&height=20`
                       return (
                         <div
                           key={capa.id}
@@ -188,9 +182,9 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
                             <p className={`text-xs leading-tight ${activa ? 'text-white font-medium' : 'text-[var(--color-text-secondary)]'}`}>
                               {capa.nombre_capa}
                             </p>
-                            {leyendas[capa.id] && activa && (
+                            {activa && (
                               <img
-                                src={leyendas[capa.id]}
+                                src={legendUrl}
                                 alt={`Leyenda: ${capa.nombre_capa}`}
                                 className="mt-1 max-h-6"
                                 style={{ imageRendering: 'auto' }}

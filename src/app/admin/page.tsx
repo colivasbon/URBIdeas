@@ -34,9 +34,6 @@ interface SystemStats {
   totalMunicipios: number
   totalCapasActivas: number
   totalLegislacion: number
-  ultimaActualizacionMunicipios: string | null
-  ultimaActualizacionCapas: string | null
-  ultimaActualizacionLegislacion: string | null
 }
 
 export default function AdminPage() {
@@ -51,52 +48,34 @@ export default function AdminPage() {
       setLoading(true)
 
       const [fuentesRes, capasRes, municipiosRes, legisRes] = await Promise.all([
-        supabase
-          .from("fuentes_geoportales")
-          .select("id, nombre, url, tipo_servicio, ultima_actualizacion, activo")
-          .order("nombre"),
-        supabase
-          .from("capas_wms")
-          .select(`
-            id,
-            nombre_capa,
-            url_servicio,
-            tipo_servicio,
-            sistema_referencia,
-            fecha_verificacion,
-            activo,
-            comunidad_autonoma:comunidades_autonomas(nombre)
-          `)
-          .order("nombre_capa"),
+        fetch("/api/fuentes").then((r) => r.json()),
+        fetch("/api/capas-wms").then((r) => r.json()),
         supabase
           .from("municipios")
-          .select("id, updated_at", { count: "exact", head: true }),
+          .select("id", { count: "exact", head: true }),
         supabase
           .from("normativa_vigente")
-          .select("id, updated_at", { count: "exact", head: true }),
+          .select("id", { count: "exact", head: true }),
       ])
 
       if (fuentesRes.data) setFuentes(fuentesRes.data)
 
       if (capasRes.data) {
-        const mapped = capasRes.data.map((c) => ({
+        const mapped = capasRes.data.map((c: Record<string, unknown>) => ({
           ...c,
           comunidad_autonoma: Array.isArray(c.comunidad_autonoma)
-            ? c.comunidad_autonoma[0]
+            ? (c.comunidad_autonoma as Record<string, unknown>[])[0]
             : c.comunidad_autonoma,
         }))
         setCapas(mapped)
       }
 
-      const capasActivas = capasRes.data?.filter((c) => c.activo).length ?? 0
+      const capasActivas = capasRes.data?.filter((c: CapaWMSAdmin) => c.activo).length ?? 0
 
       setStats({
         totalMunicipios: municipiosRes.count ?? 0,
         totalCapasActivas: capasActivas,
         totalLegislacion: legisRes.count ?? 0,
-        ultimaActualizacionMunicipios: null,
-        ultimaActualizacionCapas: null,
-        ultimaActualizacionLegislacion: null,
       })
 
       setLoading(false)
@@ -117,7 +96,7 @@ export default function AdminPage() {
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <section className="mb-8">
-            <h1 className="text-2xl font-bold text-white sm:text-3xl">
+            <h1 className="text-2xl font-bold text-[var(--color-text-primary)] sm:text-3xl">
               Panel de Administración
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
@@ -133,7 +112,7 @@ export default function AdminPage() {
                 className={`whitespace-nowrap rounded-[var(--border-radius)] px-4 py-2 text-sm font-medium transition-colors ${
                   tab === t.key
                     ? "bg-[var(--color-primary)] text-white"
-                    : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:text-white"
+                    : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                 }`}
               >
                 {t.label}
@@ -164,12 +143,12 @@ export default function AdminPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-[var(--color-border)]">
-                            <th className="px-4 py-3 text-left font-semibold text-white">Nombre</th>
-                            <th className="px-4 py-3 text-left font-semibold text-white">URL</th>
-                            <th className="px-4 py-3 text-left font-semibold text-white">Tipo</th>
-                            <th className="px-4 py-3 text-left font-semibold text-white">Última actualización</th>
-                            <th className="px-4 py-3 text-left font-semibold text-white">Activo</th>
-                            <th className="px-4 py-3 text-left font-semibold text-white">Acciones</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Nombre</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">URL</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Tipo</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Última actualización</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Activo</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Acciones</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -178,7 +157,7 @@ export default function AdminPage() {
                               key={f.id}
                               className="border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-input-bg)]"
                             >
-                              <td className="px-4 py-3 font-medium text-white">{f.nombre}</td>
+                              <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{f.nombre}</td>
                               <td className="px-4 py-3">
                                 <a
                                   href={f.url}
@@ -230,13 +209,13 @@ export default function AdminPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-[var(--color-border)]">
-                            <th className="px-4 py-3 text-left font-semibold text-white">Comunidad</th>
-                            <th className="px-4 py-3 text-left font-semibold text-white">Nombre Capa</th>
-                            <th className="px-4 py-3 text-left font-semibold text-white">URL</th>
-                            <th className="px-4 py-3 text-left font-semibold text-white">Tipo</th>
-                            <th className="px-4 py-3 text-left font-semibold text-white">CRS</th>
-                            <th className="px-4 py-3 text-left font-semibold text-white">Última verificación</th>
-                            <th className="px-4 py-3 text-left font-semibold text-white">Activo</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Comunidad</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Nombre Capa</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">URL</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Tipo</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">CRS</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Última verificación</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Activo</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -248,7 +227,7 @@ export default function AdminPage() {
                               <td className="px-4 py-3 text-[var(--color-text-secondary)]">
                                 {c.comunidad_autonoma?.nombre ?? "—"}
                               </td>
-                              <td className="px-4 py-3 font-medium text-white">{c.nombre_capa}</td>
+                              <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{c.nombre_capa}</td>
                               <td className="px-4 py-3">
                                 <a
                                   href={c.url_servicio}
@@ -295,7 +274,7 @@ export default function AdminPage() {
                         </svg>
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-white">
+                        <p className="text-2xl font-bold text-[var(--color-text-primary)]">
                           {stats.totalMunicipios.toLocaleString("es-ES")}
                         </p>
                         <p className="text-sm text-[var(--color-text-secondary)]">Municipios registrados</p>
@@ -311,7 +290,7 @@ export default function AdminPage() {
                         </svg>
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-white">{stats.totalCapasActivas}</p>
+                        <p className="text-2xl font-bold text-[var(--color-text-primary)]">{stats.totalCapasActivas}</p>
                         <p className="text-sm text-[var(--color-text-secondary)]">Capas WMS activas</p>
                       </div>
                     </div>
@@ -325,42 +304,10 @@ export default function AdminPage() {
                         </svg>
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-white">
+                        <p className="text-2xl font-bold text-[var(--color-text-primary)]">
                           {stats.totalLegislacion.toLocaleString("es-ES")}
                         </p>
                         <p className="text-sm text-[var(--color-text-secondary)]">Entradas de legislación</p>
-                      </div>
-                    </div>
-                  </Card>
-
-                  <Card className="sm:col-span-2 lg:col-span-3">
-                    <CardHeader>
-                      <CardTitle>Últimas actualizaciones</CardTitle>
-                    </CardHeader>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                      <div className="rounded-[var(--border-radius)] bg-[var(--color-input-bg)] p-4">
-                        <p className="text-sm font-medium text-white">Municipios</p>
-                        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                          {stats.ultimaActualizacionMunicipios
-                            ? new Date(stats.ultimaActualizacionMunicipios).toLocaleString("es-ES")
-                            : "Sin datos de actualización"}
-                        </p>
-                      </div>
-                      <div className="rounded-[var(--border-radius)] bg-[var(--color-input-bg)] p-4">
-                        <p className="text-sm font-medium text-white">Capas WMS</p>
-                        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                          {stats.ultimaActualizacionCapas
-                            ? new Date(stats.ultimaActualizacionCapas).toLocaleString("es-ES")
-                            : "Sin datos de actualización"}
-                        </p>
-                      </div>
-                      <div className="rounded-[var(--border-radius)] bg-[var(--color-input-bg)] p-4">
-                        <p className="text-sm font-medium text-white">Legislación</p>
-                        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                          {stats.ultimaActualizacionLegislacion
-                            ? new Date(stats.ultimaActualizacionLegislacion).toLocaleString("es-ES")
-                            : "Sin datos de actualización"}
-                        </p>
                       </div>
                     </div>
                   </Card>

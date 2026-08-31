@@ -4,12 +4,17 @@ import { MapContainer, TileLayer, LayersControl, Popup, useMap, useMapEvents } f
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { WmsTileLayer } from './WmsTileLayer'
-import { ControlCapas } from './ControlCapas'
 import { GetFeatureInfoPopup, type FeatureInfo } from './GetFeatureInfoPopup'
-import type { CapaWMS } from '@/lib/types'
+
+interface CapaActiva {
+  id: string
+  nombre_capa: string
+  url_servicio: string
+  formato_soportado: string
+}
 
 interface VisorMapaProps {
-  capasWMS?: CapaWMS[]
+  capasActivas: CapaActiva[]
 }
 
 function MapEventsHandler({ onMapClick }: { onMapClick: (latlng: L.LatLng) => void }) {
@@ -23,11 +28,9 @@ function MapEventsHandler({ onMapClick }: { onMapClick: (latlng: L.LatLng) => vo
 
 function FeatureInfoFetcher({
   capasActivas,
-  capasWMS,
   onInfo,
 }: {
-  capasActivas: string[]
-  capasWMS: CapaWMS[]
+  capasActivas: CapaActiva[]
   onInfo: (features: FeatureInfo[], latlng: L.LatLng) => void
 }) {
   const map = useMap()
@@ -48,11 +51,7 @@ function FeatureInfoFetcher({
 
       const results: FeatureInfo[] = []
 
-      const capasActivasData = capasWMS.filter(
-        c => capasActivas.includes(c.id) && c.tipo_servicio === 'WMS'
-      )
-
-      for (const capa of capasActivasData) {
+      for (const capa of capasActivas) {
         try {
           const params = new URLSearchParams({
             service: 'WMS',
@@ -111,7 +110,7 @@ function FeatureInfoFetcher({
       onInfo(results, latlng)
       fetchingRef.current = false
     },
-    [capasActivas, capasWMS, map, onInfo]
+    [capasActivas, map, onInfo]
   )
 
   return <MapEventsHandler onMapClick={handleClick} />
@@ -153,19 +152,9 @@ function FeatureInfoPopup({
   )
 }
 
-function VisorMapaInner({ capasWMS = [] }: VisorMapaProps) {
-  const [capasActivas, setCapasActivas] = useState<string[]>([])
+function VisorMapaInner({ capasActivas = [] }: VisorMapaProps) {
   const [featureInfo, setFeatureInfo] = useState<FeatureInfo[]>([])
   const [popupPos, setPopupPos] = useState<L.LatLng | null>(null)
-  const [panelAbierto, setPanelAbierto] = useState(true)
-
-  const toggleCapa = useCallback((capaId: string) => {
-    setCapasActivas(prev =>
-      prev.includes(capaId)
-        ? prev.filter(id => id !== capaId)
-        : [...prev, capaId]
-    )
-  }, [])
 
   const handleFeatureInfo = useCallback((features: FeatureInfo[], latlng: L.LatLng) => {
     setFeatureInfo(features)
@@ -201,23 +190,19 @@ function VisorMapaInner({ capasWMS = [] }: VisorMapaProps) {
           </LayersControl.BaseLayer>
         </LayersControl>
 
-        {capasWMS
-          .filter(c => c.tipo_servicio === 'WMS')
-          .map(capa => (
-            <WmsTileLayer
-              key={capa.id}
-              url={capa.url_servicio}
-              layers={capa.nombre_capa}
-              name={capa.nombre_capa}
-              format={capa.formato_soportado || 'image/png'}
-              crs={capa.sistema_referencia || 'EPSG:3857'}
-              visible={capasActivas.includes(capa.id)}
-            />
-          ))}
+        {capasActivas.map(capa => (
+          <WmsTileLayer
+            key={capa.id}
+            url={capa.url_servicio}
+            layers={capa.nombre_capa}
+            name={capa.nombre_capa}
+            format={capa.formato_soportado || 'image/png'}
+            visible={true}
+          />
+        ))}
 
         <FeatureInfoFetcher
           capasActivas={capasActivas}
-          capasWMS={capasWMS}
           onInfo={handleFeatureInfo}
         />
 
@@ -229,40 +214,6 @@ function VisorMapaInner({ capasWMS = [] }: VisorMapaProps) {
           />
         )}
       </MapContainer>
-
-      <button
-        onClick={() => setPanelAbierto(!panelAbierto)}
-        className="absolute top-3 right-3 z-[1000] w-9 h-9 flex items-center justify-center rounded-[var(--border-radius)] transition-colors"
-        style={{
-          background: 'var(--color-card-bg)',
-          border: '1px solid var(--color-border)',
-          color: 'var(--color-text-primary)',
-        }}
-        title={panelAbierto ? 'Ocultar panel de capas' : 'Mostrar panel de capas'}
-      >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-
-      {panelAbierto && (
-        <div
-          className="absolute top-14 right-3 z-[1000] flex flex-col"
-          style={{
-            width: 300,
-            maxHeight: 'calc(100% - 80px)',
-            background: 'var(--color-card-bg)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--border-radius)',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-          }}
-        >
-          <ControlCapas
-            capasSeleccionadas={capasActivas}
-            onToggleCapa={toggleCapa}
-          />
-        </div>
-      )}
 
       <div
         className="absolute bottom-3 left-3 z-[1000] px-3 py-1.5 flex items-center gap-2"

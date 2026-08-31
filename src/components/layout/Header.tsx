@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import ThemeToggle from "@/components/ui/ThemeToggle"
 
 const navLinks = [
   { href: "/", label: "Dashboard" },
@@ -38,11 +39,12 @@ export default function Header() {
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-[var(--border-radius)] px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-input-bg)] hover:text-white"
+              className="rounded-[var(--border-radius)] px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)]"
             >
               {link.label}
             </Link>
           ))}
+          <ThemeToggle />
         </nav>
 
         <button
@@ -70,12 +72,15 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="block rounded-[var(--border-radius)] px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-input-bg)] hover:text-white"
+                className="block rounded-[var(--border-radius)] px-3 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)]"
                 onClick={() => setMenuOpen(false)}
               >
                 {link.label}
               </Link>
             ))}
+            <div className="px-3 py-2.5">
+              <ThemeToggle />
+            </div>
           </div>
         </nav>
       )}

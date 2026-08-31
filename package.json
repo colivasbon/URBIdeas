@@ -1,0 +1,38 @@
+{
+  "name": "urbideas-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:scraper": "echo 'Scraper scripts ready'",
+    "start": "next start",
+    "lint": "eslint",
+    "scrape:wms": "npx tsx scripts/scraper/wms-discovery.ts",
+    "scrape:boe": "npx tsx scripts/scraper/boletines.ts",
+    "scrape:cataluna": "npx tsx scripts/scraper/cataluna.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.5",
+    "@supabase/supabase-js": "^2.112.4",
+    "@types/leaflet": "^1.9.22",
+    "fast-xml-parser": "^5.11.1",
+    "leaflet": "^1.9.4",
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-leaflet": "^5.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.3",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.13",
+    "typescript": "^5"
+  }
+}

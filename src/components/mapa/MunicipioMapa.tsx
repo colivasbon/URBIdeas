@@ -28,8 +28,6 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
       }
 
       const container = mapRef.current!
-      // Force dimensions and overflow BEFORE creating map
-      container.setAttribute("style", "width:100%;height:300px;overflow:hidden;position:relative;")
 
       map = L.map(container, {
         center: isMulti ? undefined : [lat!, lng!],
@@ -70,17 +68,9 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
 
       mapInstanceRef.current = map
 
-      // Critical: invalidateSize after render to fix tile positioning
-      setTimeout(() => {
+      map.whenReady(() => {
         map.invalidateSize()
-        // Force re-render tiles
-        map.eachLayer((layer: unknown) => {
-          if (layer && typeof layer === 'object' && 'redraw' in layer) {
-            (layer as { redraw: () => void }).redraw()
-          }
-        })
-      }, 100)
-      setTimeout(() => map.invalidateSize(), 500)
+      })
     }
 
     initMap()
@@ -102,5 +92,5 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
     return <div className="flex items-center justify-center h-[300px] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] text-sm text-[var(--color-text-secondary)]">No hay coordenadas verificadas</div>
   }
 
-  return <div ref={mapRef} className="rounded-[var(--border-radius)] border border-[var(--color-border)]" style={{ width: "100%", height: "300px", overflow: "hidden", position: "relative" }} />
+  return <div ref={mapRef} className="rounded-[var(--border-radius)] border border-[var(--color-border)]" style={{ width: "100%", height: "300px", position: "relative" }} />
 }

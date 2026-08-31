@@ -47,6 +47,9 @@
 
 * {
   box-sizing: border-box;
+}
+
+button, a, input, select, textarea {
   transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
 }
 
@@ -98,18 +101,10 @@ a:hover {
   color: var(--color-primary);
 }
 
-/* Leaflet map container fix — prevent tile overflow */
+/* Leaflet map container */
 .leaflet-container {
-  overflow: hidden !important;
   position: relative;
-}
-
-.leaflet-pane {
-  overflow: hidden !important;
-}
-
-.leaflet-tile-pane {
-  overflow: hidden !important;
+  isolation: isolate;
 }
 
 /* Accordion transition */
@@ -181,11 +176,6 @@ a:hover {
 .leaflet-control-layers-toggle {
   background-color: var(--color-card-bg) !important;
   border-color: var(--color-border) !important;
-}
-
-/* Leaflet container — isolate stacking context */
-.leaflet-container {
-  isolation: isolate;
 }
 
 /* Light mode: Leaflet controls */

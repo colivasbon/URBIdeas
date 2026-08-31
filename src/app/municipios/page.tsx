@@ -344,7 +344,7 @@ export default function MunicipiosPage() {
                     )}
                   </div>
 
-                  <div className="overflow-hidden rounded-[var(--border-radius)]">
+                  <div className="rounded-[var(--border-radius)]">
                     <MunicipioMapa
                       lat={selectedMunicipio.lat ?? null}
                       lng={selectedMunicipio.lng ?? null}
@@ -629,7 +629,7 @@ export default function MunicipiosPage() {
                       </p>
                     ) : (
                       <>
-                        <div className="mb-4 overflow-hidden rounded-[var(--border-radius)]">
+                        <div className="mb-4 rounded-[var(--border-radius)]">
                           <MunicipioMapa
                             municipios={municipiosComparados
                               .filter((m) => m.lat != null && m.lng != null)

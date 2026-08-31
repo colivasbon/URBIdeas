@@ -76,7 +76,8 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
         for (const capa of json.data || []) {
           const ca = capa.comunidad_autonoma
           const nombre = Array.isArray(ca) ? ca[0]?.nombre : ca?.nombre
-          if (!(nombre || 'Sin comunidad' in groups)) groups[nombre || 'Sin comunidad'] = true
+          const key = nombre || 'Sin comunidad'
+          if (!(key in groups)) groups[key] = true
         }
         setColapsadas(groups)
       } catch {

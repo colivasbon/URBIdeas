@@ -43,12 +43,14 @@ export async function GET(request: NextRequest) {
 
     const comunidad_autonoma_id = provincia.comunidad_autonoma_id
 
+    const NORMATIVA_FIELDS = 'id, ambito, titulo, referencia_legal, fecha_publicacion, enlace_boe_boletin, estado_vigencia, fuente_oficial, administracion_emisora, fecha_verificacion'
+
     // 2. Fetch normativa estatal (applies to all)
     const { data: estatal, error: estatalError } = await supabase
       .from('normativa_vigente')
-      .select('*')
+      .select(NORMATIVA_FIELDS)
       .eq('ambito', 'estatal')
-      .eq('estado_vigencia', 'vigente')
+      .in('estado_vigencia', ['vigente', 'parcialmente derogada'])
       .order('fecha_publicacion', { ascending: false })
 
     if (estatalError) throw estatalError
@@ -56,21 +58,22 @@ export async function GET(request: NextRequest) {
     // 3. Fetch normativa autonómica for this comunidad
     const { data: autonomico, error: autonomicoError } = await supabase
       .from('normativa_vigente')
-      .select('*')
+      .select(NORMATIVA_FIELDS)
       .eq('ambito', 'autonomico')
       .eq('comunidad_autonoma_id', comunidad_autonoma_id)
-      .eq('estado_vigencia', 'vigente')
+      .in('estado_vigencia', ['vigente', 'parcialmente derogada'])
       .order('fecha_publicacion', { ascending: false })
 
     if (autonomicoError) throw autonomicoError
 
-    // 4. Fetch instrumentos de planeamiento vigentes para el municipio
+    // 4. Fetch normativa municipal for this municipio
     const { data: municipal, error: municipalError } = await supabase
-      .from('instrumentos_planeamiento')
-      .select('*')
+      .from('normativa_vigente')
+      .select(NORMATIVA_FIELDS)
+      .eq('ambito', 'municipal')
       .eq('municipio_id', municipio_id)
-      .eq('estado', 'vigente')
-      .order('fecha_aprobacion_definitiva', { ascending: false })
+      .in('estado_vigencia', ['vigente', 'parcialmente derogada'])
+      .order('fecha_publicacion', { ascending: false })
 
     if (municipalError) throw municipalError
 
@@ -81,15 +84,6 @@ export async function GET(request: NextRequest) {
         autonomico: autonomico || [],
         municipal: municipal || [],
       },
-      municipio: {
-        id: municipio.id,
-        nombre: municipio.nombre,
-      },
-      provincia: {
-        id: provincia.id,
-        nombre: provincia.nombre,
-      },
-      comunidad_autonoma_id,
       error: null,
     })
 

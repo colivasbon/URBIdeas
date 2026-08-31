@@ -1,18 +1,17 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { supabase } from "@/lib/supabase"
 
 interface MunicipioResult {
-  id: number
+  id: string
   nombre: string
   codigo_ine: string
-  provincia_id: number
-  provincias: { nombre: string } | null
+  provincia_id: string
+  provincia_nombre: string
 }
 
 interface SelectedMunicipio {
-  id: number
+  id: string
   nombre: string
   codigo_ine: string
   provincia_nombre: string
@@ -21,7 +20,7 @@ interface SelectedMunicipio {
 const MAX_SELECTIONS = 10
 
 interface SelectorMultiMunicipioProps {
-  onCompare?: (municipioIds: number[]) => void
+  onCompare?: (municipioIds: string[]) => void
 }
 
 export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunicipioProps) {
@@ -30,8 +29,10 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
   const [selected, setSelected] = useState<SelectedMunicipio[]>([])
   const [loading, setLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -45,26 +46,53 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
+    abortRef.current?.abort()
 
     if (query.trim().length < 2) {
       setResults([])
+      setError(null)
       return
     }
 
+    const controller = new AbortController()
+    abortRef.current = controller
+
     debounceRef.current = setTimeout(async () => {
       setLoading(true)
-      const { data, error } = await supabase
-        .from("municipios")
-        .select("id, nombre, codigo_ine, provincia_id, provincias(nombre)")
-        .ilike("nombre", `%${query.trim()}%`)
-        .limit(20)
+      setError(null)
+      try {
+        const res = await fetch(`/api/busqueda?q=${encodeURIComponent(query.trim())}&limit=20`, {
+          signal: controller.signal,
+        })
+        const json = await res.json()
 
-      if (!error && data) {
-        const mapped = data.map((m) => ({
-          ...m,
-          provincias: Array.isArray(m.provincias) ? m.provincias[0] : m.provincias,
-        })) as MunicipioResult[]
-        setResults(mapped)
+        if (controller.signal.aborted) return
+
+        if (json.error) {
+          setError(json.error)
+          setResults([])
+        } else if (json.data) {
+          const municipios = json.data
+            .filter((item: { tipo?: string }) => item.tipo === "municipio")
+            .map((m: {
+              id: string
+              nombre: string
+              codigo_ine: string
+              provincia_id?: string
+              provincia?: { id?: string; nombre?: string }
+            }) => ({
+              id: String(m.id),
+              nombre: m.nombre,
+              codigo_ine: m.codigo_ine,
+              provincia_id: m.provincia?.id ?? m.provincia_id ?? "",
+              provincia_nombre: m.provincia?.nombre ?? "—",
+            })) as MunicipioResult[]
+          setResults(municipios)
+        }
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return
+        setError("Error al buscar municipios")
+        setResults([])
       }
       setLoading(false)
       setIsOpen(true)
@@ -72,10 +100,11 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
+      controller.abort()
     }
   }, [query])
 
-  function isSelected(id: number) {
+  function isSelected(id: string): boolean {
     return selected.some((s) => s.id === id)
   }
 
@@ -90,7 +119,7 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
           id: mun.id,
           nombre: mun.nombre,
           codigo_ine: mun.codigo_ine,
-          provincia_nombre: mun.provincias?.nombre ?? "—",
+          provincia_nombre: mun.provincia_nombre,
         },
       ])
     }
@@ -99,7 +128,7 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
     setIsOpen(false)
   }
 
-  function removeSelection(id: number) {
+  function removeSelection(id: string) {
     setSelected((prev) => prev.filter((s) => s.id !== id))
   }
 
@@ -107,6 +136,8 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
     if (selected.length === 0 || !onCompare) return
     onCompare(selected.map((s) => s.id))
   }
+
+  const maxReached = selected.length >= MAX_SELECTIONS
 
   return (
     <div ref={wrapperRef} className="flex flex-col gap-3 relative">
@@ -128,20 +159,40 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
           onFocus={() => {
             if (results.length > 0) setIsOpen(true)
           }}
-          placeholder={`Buscar municipio... (${selected.length}/${MAX_SELECTIONS})`}
-          disabled={selected.length >= MAX_SELECTIONS}
+          placeholder={maxReached ? `Máximo ${MAX_SELECTIONS} alcanzado` : `Buscar municipio... (${selected.length}/${MAX_SELECTIONS})`}
+          disabled={maxReached}
           className="w-full pl-9 pr-3 py-2 text-sm text-[var(--color-text-primary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] disabled:opacity-50 placeholder:text-[var(--color-text-secondary)]"
         />
       </div>
 
+      {/* Max reached message */}
+      {maxReached && (
+        <p className="text-xs text-[var(--color-accent)] font-medium">
+          Límite de {MAX_SELECTIONS} municipios alcanzado. Retira alguno para añadir más.
+        </p>
+      )}
+
+      {/* Error message */}
+      {error && (
+        <p className="text-xs text-red-400 font-medium">{error}</p>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center gap-2 py-2">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
+          <span className="text-xs text-[var(--color-text-secondary)]">Buscando...</span>
+        </div>
+      )}
+
       {/* Dropdown results */}
-      {isOpen && results.length > 0 && (
+      {isOpen && results.length > 0 && !loading && (
         <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] shadow-lg">
           {results.map((mun) => (
             <button
               key={mun.id}
               onClick={() => toggleSelection(mun)}
-              disabled={isSelected(mun.id) || (!isSelected(mun.id) && selected.length >= MAX_SELECTIONS)}
+              disabled={isSelected(mun.id) || (!isSelected(mun.id) && maxReached)}
               className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors border-b border-[var(--color-border)] last:border-b-0 ${
                 isSelected(mun.id)
                   ? "bg-[var(--color-primary)] text-[var(--color-text-primary)] cursor-default"
@@ -157,7 +208,7 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
               <div className="flex flex-col">
                 <span className="font-medium">{mun.nombre}</span>
                 <span className="text-xs text-[var(--color-text-secondary)]">
-                  {mun.provincias?.nombre} · INE: {mun.codigo_ine}
+                  {mun.provincia_nombre} · INE: {mun.codigo_ine}
                 </span>
               </div>
             </button>

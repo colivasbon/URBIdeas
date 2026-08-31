@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
       .from('municipios')
       .select(`
         *,
+        lat:st_y(geom),
+        lng:st_x(geom),
         provincia:provincias(
           *,
           comunidad_autonoma:comunidades_autonomas(*)

@@ -12,10 +12,10 @@ import type { CapaWMS } from "@/lib/types"
 const VisorMapa = dynamic(() => import("@/components/mapa/VisorMapa"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full min-h-[500px] items-center justify-center bg-[var(--color-input-bg)]">
+    <div className="flex h-full min-h-[400px] sm:min-h-[500px] items-center justify-center bg-[var(--color-input-bg)] rounded-[var(--border-radius-lg)]">
       <div className="text-center">
         <div className="animate-spin inline-block w-8 h-8 border-2 border-[var(--color-secondary)] border-t-transparent rounded-full mb-3" />
-        <p className="text-sm text-[var(--color-text-secondary)]">Cargando mapa...</p>
+        <p className="text-sm text-[var(--color-text-muted)]">Cargando mapa...</p>
       </div>
     </div>
   ),
@@ -75,6 +75,7 @@ export default function MapaPage() {
   })
   const [fileLayers, setFileLayers] = useState<FileLayer[]>([])
   const [zoomToLayerId, setZoomToLayerId] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const initializedRef = useRef(false)
   const initialCapasRef = useRef<string[]>([])
 
@@ -128,7 +129,7 @@ export default function MapaPage() {
   }, [])
 
   const removeFileLayer = useCallback((id: string) => {
-    setFileLayers(prev => prev.filter(l => l.id === id))
+    setFileLayers(prev => prev.filter(l => l.id !== id))
   }, [])
 
   const toggleFileLayer = useCallback((id: string) => {
@@ -162,9 +163,9 @@ export default function MapaPage() {
       <Header />
 
       <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <section className="mb-8">
-            <h1 className="text-2xl font-bold text-[var(--color-text-primary)] sm:text-3xl">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+          <section className="mb-6 sm:mb-8">
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
               Visor de Mapa
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
@@ -172,9 +173,10 @@ export default function MapaPage() {
             </p>
           </section>
 
-          <div className="flex flex-col gap-6 lg:flex-row">
-            <div className="flex-1 min-h-[500px]">
-              <div className="h-full rounded-[var(--border-radius)] border border-[var(--color-border)]" style={{ position: 'relative', zIndex: 0 }}>
+          <div className="flex flex-col gap-4 lg:gap-6 lg:flex-row">
+            {/* Map */}
+            <div className="flex-1 min-h-[400px] sm:min-h-[500px] order-1 lg:order-none">
+              <div className="h-full rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] overflow-hidden shadow-[var(--shadow-sm)]" style={{ position: 'relative', zIndex: 0 }}>
                 <VisorMapa
                   capasActivas={selectedCapas}
                   fileLayers={fileLayers}
@@ -191,9 +193,25 @@ export default function MapaPage() {
               </div>
             </div>
 
-            <div className="w-full shrink-0 lg:w-80">
-              <div className="sticky top-20 bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] overflow-y-auto" style={{ maxHeight: 'calc(100vh - 120px)' }}>
-                {/* Mis capas + Desactivar arriba */}
+            {/* Mobile sidebar toggle */}
+            <div className="lg:hidden order-2">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] transition-all duration-[var(--duration-normal)] hover:border-[var(--color-border)] hover:text-[var(--color-text-primary)]"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L12 12.75 6.429 9.75m11.142 0l4.179 2.25-9.75 5.25-9.75-5.25 4.179-2.25" />
+                </svg>
+                Capas{activeCapas.length > 0 && ` (${activeCapas.length})`}
+                <svg className={`h-4 w-4 transition-transform duration-[var(--duration-normal)] ${sidebarOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Sidebar */}
+            <div className={`w-full shrink-0 lg:w-80 order-3 lg:block ${sidebarOpen ? 'block' : 'hidden'}`}>
+              <div className="bg-[var(--color-card-bg)] backdrop-blur-sm border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] overflow-hidden shadow-[var(--shadow-sm)] lg:sticky lg:top-20" style={{ maxHeight: sidebarOpen ? 'none' : 'calc(100vh - 120px)' }}>
                 <FileLayerPanel
                   fileLayers={fileLayers}
                   onAdd={addFileLayer}
@@ -204,21 +222,20 @@ export default function MapaPage() {
                 />
 
                 {activeCapas.length > 0 && (
-                  <div className="px-4 py-2 border-t border-[var(--color-border)]">
+                  <div className="px-4 py-2.5 border-t border-[var(--color-border-subtle)]">
                     <button
                       onClick={() => setActiveCapas([])}
-                      className="text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-accent)] transition-colors"
+                      className="text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors duration-[var(--duration-fast)]"
                     >
                       Desactivar todas ({activeCapas.length})
                     </button>
                   </div>
                 )}
 
-                {/* Capas WMS debajo */}
                 {loading ? (
-                  <div className="flex items-center justify-center py-8 border-t border-[var(--color-border)]">
-                    <div className="h-6 w-6 animate-spin rounded-full border-4 border-[var(--color-secondary)] border-t-transparent" />
-                    <span className="ml-2 text-sm text-[var(--color-text-secondary)]">
+                  <div className="flex items-center justify-center py-8 border-t border-[var(--color-border-subtle)]">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
+                    <span className="ml-2 text-sm text-[var(--color-text-muted)]">
                       Cargando capas...
                     </span>
                   </div>

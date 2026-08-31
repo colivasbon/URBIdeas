@@ -153,11 +153,11 @@ const endpoints: Endpoint[] = [
   },
 ]
 
-const methodColors: Record<string, string> = {
-  GET: "bg-green-600",
-  POST: "bg-blue-600",
-  PUT: "bg-yellow-600",
-  DELETE: "bg-red-600",
+const methodStyles: Record<string, string> = {
+  GET: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25",
+  POST: "bg-blue-500/15 text-blue-400 border border-blue-500/25",
+  PUT: "bg-amber-500/15 text-amber-400 border border-amber-500/25",
+  DELETE: "bg-red-500/15 text-red-400 border border-red-500/25",
 }
 
 export default function ApiDocsPage() {
@@ -166,12 +166,12 @@ export default function ApiDocsPage() {
       <Header />
 
       <main className="flex-1">
-        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-          <section className="mb-10">
-            <h1 className="text-2xl font-bold text-[var(--color-text-primary)] sm:text-3xl">
-              API REST — Registro Urbanístico España
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+          <section className="mb-8">
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
+              API REST
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
               API pública para consulta del registro de planeamiento urbanístico de España.
               Todas las respuestas están en formato JSON.
             </p>
@@ -179,8 +179,8 @@ export default function ApiDocsPage() {
 
           <Card className="mb-8">
             <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--border-radius)] bg-[var(--color-accent)]">
-                <svg className="h-4 w-4 text-[var(--color-dark-bg)]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--border-radius)] bg-[var(--color-accent)]/15 text-[var(--color-accent)]">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                 </svg>
               </div>
@@ -189,55 +189,57 @@ export default function ApiDocsPage() {
                 <p className="mt-1 text-sm leading-relaxed text-[var(--color-text-secondary)]">
                   La API es de acceso público sin autenticación. Se aplica un límite de{" "}
                   <span className="font-medium text-[var(--color-accent)]">100 peticiones por minuto</span>{" "}
-                  por dirección IP. Las cabeceras <code className="rounded bg-[var(--color-input-bg)] px-1.5 py-0.5 text-xs text-[var(--color-secondary)]">X-RateLimit-Limit</code>{" "}
-                  y <code className="rounded bg-[var(--color-input-bg)] px-1.5 py-0.5 text-xs text-[var(--color-secondary)]">X-RateLimit-Remaining</code>{" "}
+                  por dirección IP. Las cabeceras{" "}
+                  <code className="px-1.5 py-0.5 text-xs bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded text-[var(--color-secondary)] font-mono">X-RateLimit-Limit</code>{" "}
+                  y{" "}
+                  <code className="px-1.5 py-0.5 text-xs bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded text-[var(--color-secondary)] font-mono">X-RateLimit-Remaining</code>{" "}
                   se incluyen en cada respuesta.
                 </p>
               </div>
             </div>
           </Card>
 
-          <section className="flex flex-col gap-4">
+          <section className="flex flex-col gap-3">
             {endpoints.map((ep) => (
               <Card key={ep.path} className="overflow-hidden">
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-wrap items-center gap-3">
                     <span
-                      className={`inline-flex items-center rounded-[var(--border-radius)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-primary)] ${methodColors[ep.method]}`}
+                      className={`inline-flex items-center rounded-[var(--border-radius)] px-2.5 py-1 text-xs font-bold ${methodStyles[ep.method]}`}
                     >
                       {ep.method}
                     </span>
-                    <code className="text-sm font-semibold text-[var(--color-accent)]">
+                    <code className="text-sm font-semibold text-[var(--color-accent)] font-mono">
                       {ep.path}
                     </code>
                   </div>
 
-                  <p className="text-sm text-[var(--color-text-secondary)]">{ep.description}</p>
+                  <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{ep.description}</p>
 
                   {ep.params && ep.params.length > 0 && (
                     <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                         Parámetros
                       </p>
-                      <div className="overflow-x-auto rounded-[var(--border-radius)] border border-[var(--color-border)]">
-                        <table className="w-full text-sm">
+                      <div className="overflow-x-auto rounded-[var(--border-radius)] border border-[var(--color-border-subtle)]">
+                        <table className="w-full text-sm min-w-[500px]">
                           <thead>
-                            <tr className="border-b border-[var(--color-border)] bg-[var(--color-input-bg)]">
-                              <th className="px-3 py-2 text-left font-semibold text-[var(--color-text-primary)]">Nombre</th>
-                              <th className="px-3 py-2 text-left font-semibold text-[var(--color-text-primary)]">Tipo</th>
-                              <th className="px-3 py-2 text-left font-semibold text-[var(--color-text-primary)]">Obligatorio</th>
-                              <th className="px-3 py-2 text-left font-semibold text-[var(--color-text-primary)]">Descripción</th>
+                            <tr className="border-b border-[var(--color-border-subtle)] bg-[var(--color-input-bg)]">
+                              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Nombre</th>
+                              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Tipo</th>
+                              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Obligatorio</th>
+                              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Descripción</th>
                             </tr>
                           </thead>
                           <tbody>
                             {ep.params.map((p) => (
-                              <tr key={p.name} className="border-b border-[var(--color-border)] last:border-b-0">
+                              <tr key={p.name} className="border-b border-[var(--color-border-subtle)] last:border-b-0 transition-colors hover:bg-[var(--color-input-bg)]">
                                 <td className="px-3 py-2">
-                                  <code className="text-xs text-[var(--color-secondary)]">{p.name}</code>
+                                  <code className="text-xs text-[var(--color-secondary)] font-mono">{p.name}</code>
                                 </td>
                                 <td className="px-3 py-2 text-[var(--color-text-secondary)]">{p.type}</td>
                                 <td className="px-3 py-2">
-                                  <Badge variant={p.required ? "accent" : "primary"}>
+                                  <Badge variant={p.required ? "accent" : "muted"}>
                                     {p.required ? "Sí" : "No"}
                                   </Badge>
                                 </td>
@@ -251,10 +253,10 @@ export default function ApiDocsPage() {
                   )}
 
                   <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                       Ejemplo de respuesta
                     </p>
-                    <pre className="overflow-x-auto rounded-[var(--border-radius)] bg-[var(--color-input-bg)] p-4 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+                    <pre className="overflow-x-auto rounded-[var(--border-radius)] bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] p-4 text-xs leading-relaxed text-[var(--color-text-secondary)] font-mono">
                       <code>{ep.example}</code>
                     </pre>
                   </div>

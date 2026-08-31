@@ -87,9 +87,8 @@ export default function BuscadorTextoLibre() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Search input */}
       <div className="relative">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -100,25 +99,23 @@ export default function BuscadorTextoLibre() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar municipios o legislación..."
-          className="w-full pl-9 pr-3 py-2 text-sm text-[var(--color-text-primary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] placeholder:text-[var(--color-text-secondary)]"
+          className="w-full pl-9 pr-3 py-2.5 text-sm text-[var(--color-text-primary)] bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] transition-all duration-[var(--duration-normal)] hover:border-[var(--color-border)] hover:bg-[var(--color-input-bg-hover)] focus:outline-none focus:border-[var(--color-secondary)] focus:ring-2 focus:ring-[var(--color-secondary)]/20 placeholder:text-[var(--color-text-muted)]"
         />
         {loading && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <span className="animate-spin inline-block w-4 h-4 border-2 border-[var(--color-text-secondary)] border-t-transparent rounded-full" />
+            <span className="animate-spin inline-block w-4 h-4 border-2 border-[var(--color-text-muted)] border-t-transparent rounded-full" />
           </div>
         )}
       </div>
 
-      {/* Results */}
       {hasSearched && !loading && !hasResults && (
-        <p className="text-sm text-[var(--color-text-secondary)] py-2">
+        <p className="text-sm text-[var(--color-text-muted)] py-2">
           No se encontraron resultados para &quot;{query}&quot;
         </p>
       )}
 
       {hasResults && (
         <div className="flex flex-col gap-4 max-h-96 overflow-y-auto">
-          {/* Municipios */}
           {municipios.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-secondary)] mb-2">
@@ -129,15 +126,15 @@ export default function BuscadorTextoLibre() {
                   <li key={mun.id}>
                     <Link
                       href={`/municipio/${mun.slug || mun.codigo_ine}`}
-                      className="flex items-center justify-between px-3 py-2 text-sm text-[var(--color-text-primary)] bg-[var(--color-card-bg)] hover:bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] transition-colors"
+                      className="flex items-center justify-between px-3 py-2.5 text-sm text-[var(--color-text-primary)] bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] transition-all duration-[var(--duration-fast)] hover:bg-[var(--color-input-bg)] hover:border-[var(--color-border)]"
                     >
-                      <div className="flex flex-col">
+                      <div className="flex flex-col min-w-0">
                         <span className="font-medium">{mun.nombre}</span>
-                        <span className="text-xs text-[var(--color-text-secondary)]">
+                        <span className="text-xs text-[var(--color-text-muted)]">
                           {mun.provincias?.nombre} · INE: {mun.codigo_ine}
                         </span>
                       </div>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-secondary)]">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-muted)] shrink-0 ml-2">
                         <polyline points="9 18 15 12 9 6" />
                       </svg>
                     </Link>
@@ -147,7 +144,6 @@ export default function BuscadorTextoLibre() {
             </div>
           )}
 
-          {/* Legislación / Normativa */}
           {normativa.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-accent)] mb-2">
@@ -158,17 +154,17 @@ export default function BuscadorTextoLibre() {
                   <li key={norm.id}>
                     <Link
                       href={`/normativa/${norm.slug || norm.id}`}
-                      className="flex items-center justify-between px-3 py-2 text-sm text-[var(--color-text-primary)] bg-[var(--color-card-bg)] hover:bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] transition-colors"
+                      className="flex items-center justify-between px-3 py-2.5 text-sm text-[var(--color-text-primary)] bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] transition-all duration-[var(--duration-fast)] hover:bg-[var(--color-input-bg)] hover:border-[var(--color-border)]"
                     >
-                      <div className="flex flex-col">
+                      <div className="flex flex-col min-w-0">
                         <span className="font-medium">{norm.titulo}</span>
                         {norm.tipo && (
-                          <span className="text-xs text-[var(--color-text-secondary)]">
+                          <span className="text-xs text-[var(--color-text-muted)]">
                             {norm.tipo}
                           </span>
                         )}
                       </div>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-secondary)]">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-muted)] shrink-0 ml-2">
                         <polyline points="9 18 15 12 9 6" />
                       </svg>
                     </Link>

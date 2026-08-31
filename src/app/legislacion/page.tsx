@@ -218,14 +218,20 @@ export default function LegislacionPage() {
     setExpandedCCAA((prev) => ({ ...prev, [name]: !prev[name] }))
   }
 
+  const tabs = [
+    { key: "estatal" as const, label: "Estatal" },
+    { key: "autonomico" as const, label: "Autonómico" },
+    { key: "geoespacial" as const, label: "Geoespacial" },
+  ]
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
 
       <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
           <section className="mb-8">
-            <h1 className="text-2xl font-bold text-[var(--color-text-primary)] sm:text-3xl">
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
               Legislación Urbanística
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
@@ -236,53 +242,39 @@ export default function LegislacionPage() {
             </p>
           </section>
 
-          <div className="mb-6 flex gap-2">
-            <button
-              onClick={() => setTab("estatal")}
-              className={`rounded-[var(--border-radius)] px-4 py-2 text-sm font-medium transition-colors duration-200 ${
-                tab === "estatal"
-                  ? "bg-[var(--color-primary)] text-[var(--color-text-primary)]"
-                  : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              Legislación Estatal
-            </button>
-            <button
-              onClick={() => setTab("autonomico")}
-              className={`rounded-[var(--border-radius)] px-4 py-2 text-sm font-medium transition-colors duration-200 ${
-                tab === "autonomico"
-                  ? "bg-[var(--color-primary)] text-[var(--color-text-primary)]"
-                  : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              Legislación Autonómica
-            </button>
-            <button
-              onClick={() => setTab("geoespacial")}
-              className={`rounded-[var(--border-radius)] px-4 py-2 text-sm font-medium transition-colors duration-200 ${
-                tab === "geoespacial"
-                  ? "bg-[var(--color-primary)] text-[var(--color-text-primary)]"
-                  : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-              }`}
-            >
-              Fuentes Geoespaciales
-            </button>
+          {/* Tabs */}
+          <div className="mb-6 flex gap-1 p-1 bg-[var(--color-input-bg)] rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)]">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={[
+                  'flex-1 rounded-[var(--border-radius)] px-4 py-2 text-sm font-medium transition-all duration-[var(--duration-normal)]',
+                  tab === t.key
+                    ? 'bg-[var(--color-primary)] text-white shadow-[var(--shadow-sm)]'
+                    : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg-hover)]',
+                ].join(' ')}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
 
+          {/* Estatal */}
           {tab === "estatal" && (
-            <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
               {leyesEstatales.map((ley) => (
-                <Card key={ley.referencia} className="flex flex-col">
+                <Card key={ley.referencia} className="flex flex-col" hover>
                   <CardHeader>
-                    <CardTitle className="text-base">{ley.titulo}</CardTitle>
+                    <CardTitle className="text-base leading-snug">{ley.titulo}</CardTitle>
                   </CardHeader>
                   <div className="flex flex-1 flex-col gap-3">
                     <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
                       {ley.descripcion}
                     </p>
-                    <div className="flex flex-col gap-1 text-sm">
+                    <div className="flex flex-col gap-1.5 text-sm">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-[var(--color-text-primary)]">Referencia:</span>
+                        <span className="font-medium text-[var(--color-text-primary)]">Ref:</span>
                         <Badge variant="primary">{ley.referencia}</Badge>
                       </div>
                       <div className="flex items-center gap-2">
@@ -290,12 +282,12 @@ export default function LegislacionPage() {
                         <span className="text-[var(--color-text-secondary)]">{ley.fecha}</span>
                       </div>
                     </div>
-                    <div className="mt-auto pt-3 border-t border-[var(--color-border)]">
+                    <div className="mt-auto pt-3 border-t border-[var(--color-border-subtle)]">
                       <a
                         href={ley.enlace}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-secondary)] hover:text-[var(--color-accent)] transition-colors"
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors duration-[var(--duration-fast)]"
                       >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
@@ -309,37 +301,38 @@ export default function LegislacionPage() {
             </section>
           )}
 
+          {/* Autonómico */}
           {tab === "autonomico" && (
             <section>
               {loading ? (
                 <div className="flex items-center justify-center py-16">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-secondary)] border-t-transparent" />
-                  <span className="ml-3 text-sm text-[var(--color-text-secondary)]">
+                  <span className="ml-3 text-sm text-[var(--color-text-muted)]">
                     Cargando legislación autonómica...
                   </span>
                 </div>
               ) : grouped.length === 0 ? (
                 <Card>
-                  <p className="py-12 text-center text-sm text-[var(--color-text-secondary)]">
+                  <p className="py-12 text-center text-sm text-[var(--color-text-muted)]">
                     No se encontró legislación autonómica registrada.
                   </p>
                 </Card>
               ) : (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
                   {grouped.map(([ccaa, leyes]) => {
                     const isExpanded = expandedCCAA[ccaa] ?? false
                     return (
                       <div
                         key={ccaa}
-                        className="rounded-[var(--border-radius)] border border-[var(--color-border)] bg-[var(--color-card-bg)] overflow-hidden transition-colors duration-200"
+                        className="rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] backdrop-blur-sm overflow-hidden transition-all duration-[var(--duration-normal)] hover:border-[var(--color-border)]"
                       >
                         <button
                           onClick={() => toggleGroup(ccaa)}
-                          className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors duration-200 hover:bg-[var(--color-input-bg)]"
+                          className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-input-bg)]/50"
                         >
                           <div className="flex items-center gap-3">
                             <svg
-                              className={`h-5 w-5 shrink-0 text-[var(--color-text-secondary)] transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
+                              className={`h-4 w-4 shrink-0 text-[var(--color-text-muted)] transition-transform duration-[var(--duration-normal)] ${isExpanded ? "rotate-90" : ""}`}
                               fill="none"
                               viewBox="0 0 24 24"
                               strokeWidth={2}
@@ -352,52 +345,52 @@ export default function LegislacionPage() {
                           <Badge variant="primary">{leyes.length}</Badge>
                         </button>
                         <div
-                          className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${
+                          className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-[var(--duration-slow)] ease-[var(--ease-out)] ${
                             isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
                           }`}
                         >
                           <div className="overflow-hidden">
-                          <div className="border-t border-[var(--color-border)] px-5 py-4">
-                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                              {leyes.map((ley) => (
-                                <Card key={ley.id} className="flex flex-col">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <p className="text-sm font-medium text-[var(--color-text-primary)]">{ley.titulo}</p>
-                                    <Badge variant={vigenciaVariant[ley.estado_vigencia] ?? "primary"}>
-                                      {ley.estado_vigencia}
-                                    </Badge>
-                                  </div>
-                                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                                    {ley.referencia_legal}
-                                  </p>
-                                  {ley.fecha_publicacion && (
-                                    <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-                                      Publicación: {new Date(ley.fecha_publicacion).toLocaleDateString("es-ES")}
+                            <div className="border-t border-[var(--color-border-subtle)] px-5 py-4">
+                              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                                {leyes.map((ley) => (
+                                  <Card key={ley.id} className="flex flex-col" hover>
+                                    <div className="flex items-start justify-between gap-2">
+                                      <p className="text-sm font-medium text-[var(--color-text-primary)] leading-snug">{ley.titulo}</p>
+                                      <Badge variant={vigenciaVariant[ley.estado_vigencia] ?? "primary"}>
+                                        {ley.estado_vigencia}
+                                      </Badge>
+                                    </div>
+                                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                                      {ley.referencia_legal}
                                     </p>
-                                  )}
-                                  <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
-                                    {ley.enlace_boe_boletin ? (
-                                      <a
-                                        href={ley.enlace_boe_boletin}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-secondary)] hover:text-[var(--color-accent)] transition-colors"
-                                      >
-                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                                        </svg>
-                                        Ver en boletín oficial
-                                      </a>
-                                    ) : (
-                                      <span className="text-xs text-[var(--color-text-secondary)]">
-                                        Enlace no disponible
-                                      </span>
+                                    {ley.fecha_publicacion && (
+                                      <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                                        Publicación: {new Date(ley.fecha_publicacion).toLocaleDateString("es-ES")}
+                                      </p>
                                     )}
-                                  </div>
-                                </Card>
-                              ))}
+                                    <div className="mt-3 pt-3 border-t border-[var(--color-border-subtle)]">
+                                      {ley.enlace_boe_boletin ? (
+                                        <a
+                                          href={ley.enlace_boe_boletin}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors duration-[var(--duration-fast)]"
+                                        >
+                                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                          </svg>
+                                          Ver en boletín oficial
+                                        </a>
+                                      ) : (
+                                        <span className="text-xs text-[var(--color-text-muted)]">
+                                          Enlace no disponible
+                                        </span>
+                                      )}
+                                    </div>
+                                  </Card>
+                                ))}
+                              </div>
                             </div>
-                          </div>
                           </div>
                         </div>
                       </div>
@@ -408,9 +401,10 @@ export default function LegislacionPage() {
             </section>
           )}
 
+          {/* Geoespacial */}
           {tab === "geoespacial" && (
             <section>
-              <Card className="mb-6 border-l-4 border-l-blue-500">
+              <Card className="mb-6">
                 <CardHeader>
                   <CardTitle>Fuentes geoespaciales estatales</CardTitle>
                 </CardHeader>
@@ -419,15 +413,15 @@ export default function LegislacionPage() {
                 </p>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   {fuentesEstatalesGeo.map((fuente) => (
-                    <Card key={fuente.titulo} className="flex flex-col">
+                    <Card key={fuente.titulo} className="flex flex-col" hover>
                       <p className="text-sm font-medium text-[var(--color-text-primary)]">{fuente.titulo}</p>
-                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{fuente.descripcion}</p>
-                      <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
+                      <p className="mt-1 text-xs text-[var(--color-text-secondary)] leading-relaxed">{fuente.descripcion}</p>
+                      <div className="mt-3 pt-3 border-t border-[var(--color-border-subtle)]">
                         <a
                           href={fuente.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-secondary)] hover:text-[var(--color-accent)] transition-colors"
+                          className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors duration-[var(--duration-fast)]"
                         >
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />

@@ -77,23 +77,23 @@ const estadoBadgeVariant: Record<string, "success" | "primary" | "accent" | "dan
 }
 
 function getEstadoBadge(estado: string) {
-  const base = "inline-block px-2 py-0.5 rounded-full text-xs font-medium transition-colors duration-200"
+  const base = "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
   switch (estado.toLowerCase()) {
     case "aprobado":
     case "vigente":
-      return `${base} bg-green-900/50 text-green-300 border border-green-700/50`
+      return `${base} bg-emerald-500/15 text-emerald-400 border border-emerald-500/25`
     case "en tramite":
     case "en trámite":
     case "pendiente":
-      return `${base} bg-yellow-900/50 text-yellow-300 border border-yellow-700/50`
+      return `${base} bg-amber-500/15 text-amber-400 border border-amber-500/25`
     case "borrador":
     case "avance":
-      return `${base} bg-blue-900/50 text-blue-300 border border-blue-700/50`
+      return `${base} bg-blue-500/15 text-blue-400 border border-blue-500/25`
     case "derogado":
     case "caducado":
-      return `${base} bg-red-900/50 text-red-300 border border-red-700/50`
+      return `${base} bg-red-500/15 text-red-400 border border-red-500/25`
     default:
-      return `${base} bg-gray-900/50 text-gray-300 border border-gray-700/50`
+      return `${base} bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)]`
   }
 }
 
@@ -280,9 +280,9 @@ export default function MunicipiosPage() {
       <Header />
 
       <main className="flex-1">
-        <div className="mx-auto max-w-[1400px] px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
           <section className="mb-8">
-            <h1 className="text-2xl font-bold text-[var(--color-text-primary)] sm:text-3xl">
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
               Municipios
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
@@ -313,13 +313,12 @@ export default function MunicipiosPage() {
 
             {/* Right content area */}
             <div className="flex-1 min-w-0">
-              {/* Municipio Info Card */}
               {selectedMunicipio && (
-                <Card>
+                <Card className="animate-fade-in">
                   <CardHeader>
                     <CardTitle>{selectedMunicipio.nombre}</CardTitle>
                   </CardHeader>
-                  <div className="flex flex-col gap-1 text-sm text-[var(--color-text-secondary)] mb-4">
+                  <div className="flex flex-col gap-1.5 text-sm text-[var(--color-text-secondary)] mb-4">
                     {selectedMunicipio.provincia?.comunidad_autonoma?.nombre && (
                       <p>
                         <span className="font-medium text-[var(--color-text-primary)]">CCAA:</span>{" "}
@@ -344,7 +343,7 @@ export default function MunicipiosPage() {
                     )}
                   </div>
 
-                  <div className="rounded-[var(--border-radius)]">
+                  <div className="rounded-[var(--border-radius-lg)] overflow-hidden">
                     <MunicipioMapa
                       lat={selectedMunicipio.lat ?? null}
                       lng={selectedMunicipio.lng ?? null}
@@ -354,14 +353,17 @@ export default function MunicipiosPage() {
 
                   {/* Instrumentos de Planeamiento */}
                   {(loadingPlaneamiento || instrumentos.length > 0) && (
-                    <div className="pt-3 border-t border-[var(--color-border)]">
-                      <p className="text-sm font-medium text-[var(--color-secondary)] mb-2">
+                    <div className="pt-4 mt-4 border-t border-[var(--color-border-subtle)]">
+                      <p className="text-sm font-semibold text-[var(--color-secondary)] mb-3">
                         Instrumentos de Planeamiento
                       </p>
                       {loadingPlaneamiento ? (
-                        <p className="text-sm text-[var(--color-text-secondary)]">Cargando...</p>
+                        <div className="flex items-center gap-2 py-4">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
+                          <span className="text-sm text-[var(--color-text-muted)]">Cargando...</span>
+                        </div>
                       ) : instrumentos.length === 0 ? (
-                        <p className="text-sm text-[var(--color-text-secondary)] italic">
+                        <p className="text-sm text-[var(--color-text-muted)] italic">
                           Sin datos de planeamiento verificados para este municipio
                         </p>
                       ) : (
@@ -369,9 +371,9 @@ export default function MunicipiosPage() {
                           {instrumentos.map((inst) => (
                             <div
                               key={inst.id}
-                              className="p-3 bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)]"
+                              className="p-3 bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] transition-colors hover:border-[var(--color-border)]"
                             >
-                              <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center justify-between gap-2 mb-1">
                                 <span className="text-sm font-medium text-[var(--color-text-primary)]">{inst.tipo}</span>
                                 <span className={getEstadoBadge(inst.estado)}>{inst.estado}</span>
                               </div>
@@ -386,7 +388,7 @@ export default function MunicipiosPage() {
                                 </p>
                               )}
                               {inst.fuente && (
-                                <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                                <p className="text-xs text-[var(--color-text-muted)] mt-1">
                                   Fuente: {inst.fuente}
                                 </p>
                               )}
@@ -396,8 +398,11 @@ export default function MunicipiosPage() {
                                     href={inst.enlace_documento_oficial}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-xs text-[var(--color-secondary)] underline hover:text-[var(--color-accent)] transition-colors duration-200"
+                                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
                                   >
+                                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                    </svg>
                                     Documento oficial
                                   </a>
                                 )}
@@ -406,8 +411,11 @@ export default function MunicipiosPage() {
                                     href={inst.enlace_geoportal}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-xs text-[var(--color-secondary)] underline hover:text-[var(--color-accent)] transition-colors duration-200"
+                                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
                                   >
+                                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                    </svg>
                                     Geoportal
                                   </a>
                                 )}
@@ -419,14 +427,17 @@ export default function MunicipiosPage() {
                     </div>
                   )}
 
-                  {/* Legislación Aplicable Accordion */}
+                  {/* Legislación Aplicable */}
                   {(loadingNormativa || normativa.length > 0) && (
-                    <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
-                      <p className="text-sm font-medium text-[var(--color-secondary)] mb-2">
+                    <div className="pt-4 mt-4 border-t border-[var(--color-border-subtle)]">
+                      <p className="text-sm font-semibold text-[var(--color-secondary)] mb-3">
                         Legislación Aplicable
                       </p>
                       {loadingNormativa ? (
-                        <p className="text-sm text-[var(--color-text-secondary)]">Cargando...</p>
+                        <div className="flex items-center gap-2 py-4">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
+                          <span className="text-sm text-[var(--color-text-muted)]">Cargando...</span>
+                        </div>
                       ) : (
                         <div className="flex flex-col gap-2">
                           {(["estatal", "autonomica", "municipal"] as const).map((ambito) => {
@@ -441,53 +452,55 @@ export default function MunicipiosPage() {
                             return (
                               <div
                                 key={ambito}
-                                className="bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)]"
+                                className="bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] overflow-hidden"
                               >
                                 <button
                                   type="button"
                                   onClick={() => setOpenNormativa(isOpen ? "" : ambito)}
-                                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-border)] rounded-[var(--border-radius)] transition-colors duration-200"
+                                  className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg-hover)] transition-colors duration-[var(--duration-fast)]"
                                 >
                                   <span>{labels[ambito]}</span>
-                                  <span className="text-[var(--color-text-secondary)] text-xs">
-                                    {items.length} {items.length === 1 ? "norma" : "normas"}
-                                  </span>
-                                  <svg
-                                    className={`w-4 h-4 text-[var(--color-text-secondary)] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  </svg>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[var(--color-text-muted)] text-xs">
+                                      {items.length} {items.length === 1 ? "norma" : "normas"}
+                                    </span>
+                                    <svg
+                                      className={`w-4 h-4 text-[var(--color-text-muted)] transition-transform duration-[var(--duration-normal)] ${isOpen ? "rotate-180" : ""}`}
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </div>
                                 </button>
                                 {isOpen && (
                                   <div className="px-3 pb-3 flex flex-col gap-2">
                                     {items.map((norm) => (
                                       <div
                                         key={norm.id}
-                                        className="p-2 border-t border-[var(--color-border)]"
+                                        className="p-2.5 border-t border-[var(--color-border-subtle)]"
                                       >
                                         <p className="text-sm font-medium text-[var(--color-text-primary)]">
                                           {norm.titulo}
                                         </p>
                                         {norm.referencia_legal && (
-                                          <p className="text-xs text-[var(--color-text-secondary)]">
+                                          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                                             Ref: {norm.referencia_legal}
                                           </p>
                                         )}
                                         {norm.fecha_publicacion && (
-                                          <p className="text-xs text-[var(--color-text-secondary)]">
+                                          <p className="text-xs text-[var(--color-text-muted)]">
                                             Publicación: {norm.fecha_publicacion}
                                           </p>
                                         )}
-                                        <div className="flex items-center gap-3 mt-1">
-                                          <span className={`text-xs px-1.5 py-0.5 rounded transition-colors duration-200 ${
+                                        <div className="flex items-center gap-3 mt-1.5">
+                                          <span className={`inline-flex items-center text-xs px-1.5 py-0.5 rounded-full ${
                                             norm.estado_vigencia === "vigente"
-                                              ? "bg-green-900/50 text-green-300"
+                                              ? "bg-emerald-500/15 text-emerald-400"
                                               : norm.estado_vigencia === "derogada"
-                                                ? "bg-red-900/50 text-red-300"
-                                                : "bg-gray-900/50 text-gray-300"
+                                                ? "bg-red-500/15 text-red-400"
+                                                : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)]"
                                           }`}>
                                             {norm.estado_vigencia}
                                           </span>
@@ -496,7 +509,7 @@ export default function MunicipiosPage() {
                                               href={norm.enlace_boe_boletin}
                                               target="_blank"
                                               rel="noopener noreferrer"
-                                              className="text-xs text-[var(--color-secondary)] underline hover:text-[var(--color-accent)] transition-colors duration-200"
+                                              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
                                             >
                                               Ver boletín
                                             </a>
@@ -516,12 +529,15 @@ export default function MunicipiosPage() {
 
                   {/* Capas Aplicables */}
                   {(loadingCapas || capas.length > 0) && (
-                    <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
-                      <p className="text-sm font-medium text-[var(--color-secondary)] mb-2">
+                    <div className="pt-4 mt-4 border-t border-[var(--color-border-subtle)]">
+                      <p className="text-sm font-semibold text-[var(--color-secondary)] mb-3">
                         Capas disponibles para informe
                       </p>
                       {loadingCapas ? (
-                        <p className="text-sm text-[var(--color-text-secondary)]">Cargando...</p>
+                        <div className="flex items-center gap-2 py-4">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
+                          <span className="text-sm text-[var(--color-text-muted)]">Cargando...</span>
+                        </div>
                       ) : (
                         <div className="flex flex-col gap-2">
                           {Object.entries(groupedCapas).map(([categoria, capasGrupo]) => {
@@ -529,38 +545,40 @@ export default function MunicipiosPage() {
                             return (
                               <div
                                 key={categoria}
-                                className="bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)]"
+                                className="bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] overflow-hidden"
                               >
                                 <button
                                   type="button"
                                   onClick={() => toggleCapaCategoria(categoria)}
-                                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-border)] rounded-[var(--border-radius)] transition-colors duration-200"
+                                  className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg-hover)] transition-colors duration-[var(--duration-fast)]"
                                 >
                                   <span>{categoria}</span>
-                                  <span className="text-[var(--color-text-secondary)] text-xs">
-                                    {capasGrupo.length} {capasGrupo.length === 1 ? "capa" : "capas"}
-                                  </span>
-                                  <svg
-                                    className={`w-4 h-4 text-[var(--color-text-secondary)] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  </svg>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[var(--color-text-muted)] text-xs">
+                                      {capasGrupo.length} {capasGrupo.length === 1 ? "capa" : "capas"}
+                                    </span>
+                                    <svg
+                                      className={`w-4 h-4 text-[var(--color-text-muted)] transition-transform duration-[var(--duration-normal)] ${isOpen ? "rotate-180" : ""}`}
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </div>
                                 </button>
                                 {isOpen && (
-                                  <div className="px-3 pb-3 flex flex-col gap-2">
+                                  <div className="px-3 pb-3 flex flex-col gap-1.5">
                                     {capasGrupo.map((capa) => (
                                       <div
                                         key={capa.id}
-                                        className="flex items-center justify-between p-2 border-t border-[var(--color-border)]"
+                                        className="flex items-center justify-between p-2.5 border-t border-[var(--color-border-subtle)]"
                                       >
-                                        <div className="flex flex-col">
-                                          <span className="text-sm text-[var(--color-text-primary)]">
+                                        <div className="flex flex-col min-w-0">
+                                          <span className="text-sm text-[var(--color-text-primary)] truncate">
                                             {capa.nombre_capa}
                                           </span>
-                                          <span className="text-xs text-[var(--color-text-secondary)]">
+                                          <span className="text-xs text-[var(--color-text-muted)]">
                                             {capa.tipo_servicio}
                                           </span>
                                         </div>
@@ -568,7 +586,7 @@ export default function MunicipiosPage() {
                                           href={`/mapa?layers=${capa.id}&center=${selectedMunicipio?.lng || 0},${selectedMunicipio?.lat || 0}&zoom=12`}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="text-xs px-2 py-1 bg-[var(--color-secondary)] text-[#1A1A1A] rounded-[var(--border-radius)] hover:opacity-80 transition-colors duration-200"
+                                          className="shrink-0 ml-3 inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 bg-[var(--color-primary)] text-white rounded-[var(--border-radius)] hover:bg-[var(--color-primary-light)] transition-colors duration-[var(--duration-fast)] active:scale-[0.97]"
                                         >
                                           Ver en mapa
                                         </a>
@@ -584,10 +602,9 @@ export default function MunicipiosPage() {
                     </div>
                   )}
 
-                  {/* Empty state when nothing loaded */}
                   {!loadingPlaneamiento && !loadingNormativa && !loadingCapas &&
                     instrumentos.length === 0 && normativa.length === 0 && capas.length === 0 && (
-                    <p className="text-sm text-[var(--color-text-secondary)] italic mt-2">
+                    <p className="text-sm text-[var(--color-text-muted)] italic mt-2">
                       Cargando datos del municipio...
                     </p>
                   )}
@@ -596,7 +613,7 @@ export default function MunicipiosPage() {
 
               {/* Comparison Table */}
               {comparando && (
-                <div ref={comparisonRef} className="mt-6">
+                <div ref={comparisonRef} className="mt-6 animate-fade-in">
                   <Card>
                     <CardHeader>
                       <CardTitle>Comparativa de municipios</CardTitle>
@@ -605,7 +622,7 @@ export default function MunicipiosPage() {
                     {loadingComparacion ? (
                       <div className="flex items-center justify-center py-12">
                         <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-secondary)] border-t-transparent" />
-                        <span className="ml-3 text-sm text-[var(--color-text-secondary)]">
+                        <span className="ml-3 text-sm text-[var(--color-text-muted)]">
                           Cargando datos...
                         </span>
                       </div>
@@ -618,18 +635,18 @@ export default function MunicipiosPage() {
                             setMunicipiosComparados([])
                             setErrorComparacion(null)
                           }}
-                          className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] rounded-[var(--border-radius)] transition-colors duration-200 hover:bg-[var(--color-input-bg)]"
+                          className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] rounded-[var(--border-radius)] transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-input-bg)]"
                         >
                           Cerrar
                         </button>
                       </div>
                     ) : municipiosComparados.length === 0 ? (
-                      <p className="py-8 text-center text-sm text-[var(--color-text-secondary)]">
+                      <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
                         No se encontraron datos para los municipios seleccionados.
                       </p>
                     ) : (
                       <>
-                        <div className="mb-4 rounded-[var(--border-radius)]">
+                        <div className="mb-4 rounded-[var(--border-radius-lg)] overflow-hidden">
                           <MunicipioMapa
                             municipios={municipiosComparados
                               .filter((m) => m.lat != null && m.lng != null)
@@ -641,62 +658,62 @@ export default function MunicipiosPage() {
                               }))}
                           />
                         </div>
-                        <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-[var(--color-border)]">
-                              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Municipio</th>
-                              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Provincia</th>
-                              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">CCAA</th>
-                              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Tipo Planeamiento</th>
-                              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Estado</th>
-                              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Fecha Aprobación</th>
-                              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Enlace</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {municipiosComparados.map((m) => (
-                              <tr
-                                key={m.id}
-                                className="border-b border-[var(--color-border)] transition-colors duration-200 hover:bg-[var(--color-input-bg)]"
-                              >
-                                <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{m.nombre}</td>
-                                <td className="px-4 py-3 text-[var(--color-text-secondary)]">{m.provincia}</td>
-                                <td className="px-4 py-3 text-[var(--color-text-secondary)]">{m.ccaa}</td>
-                                <td className="px-4 py-3 text-[var(--color-text-secondary)]">{m.tipo_planeamiento}</td>
-                                <td className="px-4 py-3">
-                                  {m.estado ? (
-                                    <Badge variant={estadoBadgeVariant[m.estado] ?? "primary"}>
-                                      {m.estado}
-                                    </Badge>
-                                  ) : (
-                                    <span className="text-[var(--color-text-secondary)]">—</span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 text-[var(--color-text-secondary)]">
-                                  {m.fecha_aprobacion
-                                    ? new Date(m.fecha_aprobacion).toLocaleDateString("es-ES")
-                                    : "—"}
-                                </td>
-                                <td className="px-4 py-3">
-                                  {m.enlace ? (
-                                    <a
-                                      href={m.enlace}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-[var(--color-secondary)] hover:text-[var(--color-accent)] transition-colors duration-200 underline underline-offset-2"
-                                    >
-                                      Ver documento
-                                    </a>
-                                  ) : (
-                                    <span className="text-[var(--color-text-secondary)]">—</span>
-                                  )}
-                                </td>
+                        <div className="overflow-x-auto -mx-5 sm:-mx-6 px-5 sm:px-6">
+                          <table className="w-full text-sm min-w-[600px]">
+                            <thead>
+                              <tr className="border-b border-[var(--color-border-subtle)]">
+                                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Municipio</th>
+                                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Provincia</th>
+                                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">CCAA</th>
+                                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Tipo</th>
+                                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Estado</th>
+                                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Fecha</th>
+                                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Enlace</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody>
+                              {municipiosComparados.map((m) => (
+                                <tr
+                                  key={m.id}
+                                  className="border-b border-[var(--color-border-subtle)] transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-input-bg)]"
+                                >
+                                  <td className="px-3 py-2.5 font-medium text-[var(--color-text-primary)]">{m.nombre}</td>
+                                  <td className="px-3 py-2.5 text-[var(--color-text-secondary)]">{m.provincia}</td>
+                                  <td className="px-3 py-2.5 text-[var(--color-text-secondary)]">{m.ccaa}</td>
+                                  <td className="px-3 py-2.5 text-[var(--color-text-secondary)]">{m.tipo_planeamiento}</td>
+                                  <td className="px-3 py-2.5">
+                                    {m.estado ? (
+                                      <Badge variant={estadoBadgeVariant[m.estado] ?? "primary"}>
+                                        {m.estado}
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-[var(--color-text-muted)]">—</span>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-[var(--color-text-secondary)]">
+                                    {m.fecha_aprobacion
+                                      ? new Date(m.fecha_aprobacion).toLocaleDateString("es-ES")
+                                      : "—"}
+                                  </td>
+                                  <td className="px-3 py-2.5">
+                                    {m.enlace ? (
+                                      <a
+                                        href={m.enlace}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors font-medium"
+                                      >
+                                        Ver documento
+                                      </a>
+                                    ) : (
+                                      <span className="text-[var(--color-text-muted)]">—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </>
                     )}
 
@@ -707,7 +724,7 @@ export default function MunicipiosPage() {
                           setMunicipiosComparados([])
                           setErrorComparacion(null)
                         }}
-                        className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] rounded-[var(--border-radius)] transition-colors duration-200 hover:bg-[var(--color-input-bg)]"
+                        className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] rounded-[var(--border-radius)] transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-input-bg)]"
                       >
                         Cerrar comparativa
                       </button>

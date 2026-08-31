@@ -10,6 +10,10 @@ const navLinks = [
   { href: "/municipios", label: "Municipios" },
   { href: "/mapa", label: "Mapa" },
   { href: "/legislacion", label: "Legislación" },
+  { href: "/fuentes-normativas", label: "Fuentes Normativas" },
+  { href: "/servicios-geoespaciales", label: "Servicios Geo" },
+  { href: "/siose", label: "SIOSE" },
+  { href: "/calificacion-suelo", label: "Calificación Suelo" },
   { href: "/api-docs", label: "API" },
   { href: "/admin", label: "Admin" },
 ]

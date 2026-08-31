@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { supabase } from "@/lib/supabase"
 
-type Tab = "fuentes" | "capas" | "estado"
+type Tab = "fuentes" | "capas" | "geo_services" | "legal" | "estado"
 
 interface FuenteGeoportal {
   id: string
@@ -30,16 +30,46 @@ interface CapaWMSAdmin {
   comunidad_autonoma?: { nombre: string } | null
 }
 
+interface GeoService {
+  id: string
+  ccaa: string
+  scope: string
+  service_name: string
+  service_type: string
+  url: string
+  endpoint_status: string
+  legal_value: string
+  provider: string | null
+  theme: string | null
+  notes: string | null
+}
+
+interface LegalSource {
+  id: string
+  territory: string
+  level: string
+  name: string
+  type: string
+  url: string | null
+  authority: string | null
+  legal_value: string
+  status: string
+}
+
 interface SystemStats {
   totalMunicipios: number
   totalCapasActivas: number
   totalLegislacion: number
+  totalGeoServices: number
+  totalLegalSources: number
 }
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("fuentes")
   const [fuentes, setFuentes] = useState<FuenteGeoportal[]>([])
   const [capas, setCapas] = useState<CapaWMSAdmin[]>([])
+  const [geoServices, setGeoServices] = useState<GeoService[]>([])
+  const [legalSources, setLegalSources] = useState<LegalSource[]>([])
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -47,15 +77,24 @@ export default function AdminPage() {
     async function loadData() {
       setLoading(true)
 
-      const [fuentesRes, capasRes, municipiosRes, legisRes] = await Promise.all([
+      const [fuentesRes, capasRes, municipiosRes, legisRes, geoRes, legalRes] = await Promise.all([
         fetch("/api/fuentes").then((r) => r.json()),
-        fetch("/api/capas-wms").then((r) => r.json()),
+        fetch("/api/capas-wms?include_geo=false").then((r) => r.json()),
         supabase
           .from("municipios")
           .select("id", { count: "exact" }),
         supabase
           .from("normativa_vigente")
           .select("id", { count: "exact" }),
+        supabase
+          .from("geo_services")
+          .select("*")
+          .order("ccaa"),
+        supabase
+          .from("legal_sources")
+          .select("*")
+          .order("level")
+          .order("territory"),
       ])
 
       if (fuentesRes.data) setFuentes(fuentesRes.data)
@@ -70,12 +109,17 @@ export default function AdminPage() {
         setCapas(mapped)
       }
 
+      if (geoRes.data) setGeoServices(geoRes.data as GeoService[])
+      if (legalRes.data) setLegalSources(legalRes.data as LegalSource[])
+
       const capasActivas = capasRes.data?.filter((c: CapaWMSAdmin) => c.activo).length ?? 0
 
       setStats({
         totalMunicipios: municipiosRes.count ?? 0,
         totalCapasActivas: capasActivas,
         totalLegislacion: legisRes.count ?? 0,
+        totalGeoServices: geoRes.count ?? 0,
+        totalLegalSources: legalRes.count ?? 0,
       })
 
       setLoading(false)
@@ -86,6 +130,8 @@ export default function AdminPage() {
   const tabs: { key: Tab; label: string }[] = [
     { key: "fuentes", label: "Fuentes Geoportales" },
     { key: "capas", label: "Capas WMS" },
+    { key: "geo_services", label: "Servicios Geo" },
+    { key: "legal", label: "Fuentes Normativas" },
     { key: "estado", label: "Estado del Sistema" },
   ]
 
@@ -100,7 +146,8 @@ export default function AdminPage() {
               Panel de Administración
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
-              Gestiona las fuentes geoportales, capas WMS y supervisa el estado del sistema.
+              Gestiona fuentes geoportales, capas WMS, servicios geoespaciales,
+              fuentes normativas y supervisa el estado del sistema.
             </p>
           </section>
 
@@ -148,7 +195,6 @@ export default function AdminPage() {
                             <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Tipo</th>
                             <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Última actualización</th>
                             <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Activo</th>
-                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Acciones</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -181,11 +227,6 @@ export default function AdminPage() {
                                   {f.activo ? "Sí" : "No"}
                                 </Badge>
                               </td>
-                              <td className="px-4 py-3">
-                                <Button variant="ghost" size="sm">
-                                  Editar
-                                </Button>
-                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -198,7 +239,7 @@ export default function AdminPage() {
               {tab === "capas" && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Capas WMS</CardTitle>
+                    <CardTitle>Capas WMS (Legacy)</CardTitle>
                   </CardHeader>
                   {capas.length === 0 ? (
                     <p className="py-8 text-center text-sm text-[var(--color-text-secondary)]">
@@ -213,8 +254,6 @@ export default function AdminPage() {
                             <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Nombre Capa</th>
                             <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">URL</th>
                             <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Tipo</th>
-                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">CRS</th>
-                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Última verificación</th>
                             <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Activo</th>
                           </tr>
                         </thead>
@@ -241,18 +280,154 @@ export default function AdminPage() {
                               <td className="px-4 py-3">
                                 <Badge variant="secondary">{c.tipo_servicio}</Badge>
                               </td>
-                              <td className="px-4 py-3 text-[var(--color-text-secondary)]">
-                                {c.sistema_referencia}
-                              </td>
-                              <td className="px-4 py-3 text-[var(--color-text-secondary)]">
-                                {c.fecha_verificacion
-                                  ? new Date(c.fecha_verificacion).toLocaleDateString("es-ES")
-                                  : "—"}
-                              </td>
                               <td className="px-4 py-3">
                                 <Badge variant={c.activo ? "success" : "danger"}>
                                   {c.activo ? "Sí" : "No"}
                                 </Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Card>
+              )}
+
+              {tab === "geo_services" && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Servicios Geoespaciales (OGC)</CardTitle>
+                  </CardHeader>
+                  {geoServices.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-[var(--color-text-secondary)]">
+                      No hay servicios geoespaciales registrados.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-[var(--color-border)]">
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">CCAA</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Servicio</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Tipo</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Estado</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Valor Legal</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">URL</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {geoServices.map((s) => (
+                            <tr
+                              key={s.id}
+                              className="border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-input-bg)]"
+                            >
+                              <td className="px-4 py-3 text-[var(--color-text-secondary)]">{s.ccaa}</td>
+                              <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{s.service_name}</td>
+                              <td className="px-4 py-3">
+                                <Badge variant="secondary">{s.service_type}</Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge variant={
+                                  s.endpoint_status === "confirmed" ? "success" :
+                                  s.endpoint_status === "pending" ? "accent" : "danger"
+                                }>
+                                  {s.endpoint_status}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge variant={
+                                  s.legal_value === "vinculante" ? "success" :
+                                  s.legal_value === "oficial_referencia" ? "primary" : "accent"
+                                }>
+                                  {s.legal_value}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <a
+                                  href={s.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="max-w-[180px] truncate text-[var(--color-secondary)] hover:text-[var(--color-accent)] transition-colors underline underline-offset-2 inline-block"
+                                >
+                                  {s.url}
+                                </a>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Card>
+              )}
+
+              {tab === "legal" && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Fuentes Normativas</CardTitle>
+                  </CardHeader>
+                  {legalSources.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-[var(--color-text-secondary)]">
+                      No hay fuentes normativas registradas.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-[var(--color-border)]">
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Territorio</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Nivel</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Nombre</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Tipo</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Valor Legal</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Estado</th>
+                            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">URL</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {legalSources.map((s) => (
+                            <tr
+                              key={s.id}
+                              className="border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-input-bg)]"
+                            >
+                              <td className="px-4 py-3 text-[var(--color-text-secondary)]">{s.territory}</td>
+                              <td className="px-4 py-3">
+                                <Badge variant={
+                                  s.level === "estatal" ? "primary" :
+                                  s.level === "autonomico" ? "secondary" : "accent"
+                                }>
+                                  {s.level}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3 font-medium text-[var(--color-text-primary)] max-w-[300px] truncate">{s.name}</td>
+                              <td className="px-4 py-3 text-[var(--color-text-secondary)]">{s.type?.replace(/_/g, " ")}</td>
+                              <td className="px-4 py-3">
+                                <Badge variant={
+                                  s.legal_value === "vinculante" ? "success" :
+                                  s.legal_value === "oficial_referencia" ? "primary" : "accent"
+                                }>
+                                  {s.legal_value}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge variant={s.status === "vigente" ? "success" : "danger"}>
+                                  {s.status}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                {s.url ? (
+                                  <a
+                                    href={s.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="max-w-[150px] truncate text-[var(--color-secondary)] hover:text-[var(--color-accent)] transition-colors underline underline-offset-2 inline-block"
+                                  >
+                                    {s.url}
+                                  </a>
+                                ) : (
+                                  <span className="text-[var(--color-text-secondary)]">—</span>
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -308,6 +483,38 @@ export default function AdminPage() {
                           {stats.totalLegislacion.toLocaleString("es-ES")}
                         </p>
                         <p className="text-sm text-[var(--color-text-secondary)]">Entradas de legislación</p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card>
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--border-radius)] bg-emerald-500">
+                        <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L12 12.75 6.429 9.75m11.142 0l4.179 2.25-9.75 5.25-9.75-5.25 4.179-2.25" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-[var(--color-text-primary)]">
+                          {stats.totalGeoServices.toLocaleString("es-ES")}
+                        </p>
+                        <p className="text-sm text-[var(--color-text-secondary)]">Servicios geoespaciales</p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card>
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--border-radius)] bg-violet-500">
+                        <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-[var(--color-text-primary)]">
+                          {stats.totalLegalSources.toLocaleString("es-ES")}
+                        </p>
+                        <p className="text-sm text-[var(--color-text-secondary)]">Fuentes normativas</p>
                       </div>
                     </div>
                   </Card>

@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const comunidad_autonoma_id = searchParams.get('comunidad_autonoma_id')
   const categoria = searchParams.get('categoria')
+  const include_geo = searchParams.get('include_geo') !== 'false'
 
   try {
     const supabase = createSupabaseServer()
@@ -45,7 +46,58 @@ export async function GET(request: NextRequest) {
       return true
     })
 
-    const response = NextResponse.json({ data: deduped, error: null, count: deduped.length })
+    let geoLayers: Record<string, unknown>[] = []
+
+    if (include_geo) {
+      const { data: geoData } = await supabase
+        .from('geo_layers')
+        .select(`
+          id,
+          layer_name,
+          layer_title,
+          thematic_category,
+          queryable,
+          geo_services(
+            service_name,
+            url,
+            ccaa,
+            scope,
+            endpoint_status
+          )
+        `)
+        .order('layer_name')
+
+      if (geoData) {
+        geoLayers = geoData
+          .filter((layer: Record<string, unknown>) => {
+            const service = layer.geo_services as Record<string, unknown> | null
+            return service?.endpoint_status === 'confirmed'
+          })
+          .map((layer: Record<string, unknown>) => {
+            const service = layer.geo_services as Record<string, unknown>
+            return {
+              id: `geo-${layer.id}`,
+              nombre_capa: layer.layer_name,
+              url_servicio: service?.url || '',
+              formato_soportado: 'image/png',
+              sistema_referencia: 'EPSG:4326',
+              comunidad_autonoma: {
+                id: null,
+                nombre: service?.ccaa || 'Desconocido',
+              },
+              categoria: layer.thematic_category || 'otro',
+              geo_layer: true,
+              layer_title: layer.layer_title,
+              queryable: layer.queryable,
+              scope: service?.scope,
+            }
+          })
+      }
+    }
+
+    const allLayers = [...deduped, ...geoLayers]
+
+    const response = NextResponse.json({ data: allLayers, error: null, count: allLayers.length })
     response.headers.set('X-RateLimit-Limit', String(RATE_LIMIT))
     response.headers.set('X-RateLimit-Remaining', String(RATE_LIMIT - 1))
     return response

@@ -2,6 +2,7 @@
 
 import { kml } from "@mapbox/togeojson"
 import shp from "shpjs"
+import JSZip from "jszip"
 
 export interface FileLayer {
   id: string
@@ -23,7 +24,9 @@ function nextColor(): string {
   return c
 }
 
-const MAX_SIZE_BYTES = 20 * 1024 * 1024 // 20MB
+const MAX_SIZE_BYTES = 20 * 1024 * 1024
+
+const SUPPORTED_EXTENSIONS = [".geojson", ".json", ".kml", ".kmz", ".shp", ".zip"]
 
 function getExtension(filename: string): string {
   const lower = filename.toLowerCase()
@@ -32,16 +35,22 @@ function getExtension(filename: string): string {
   if (lower.endsWith(".kmz")) return "kmz"
   if (lower.endsWith(".shp")) return "shp"
   if (lower.endsWith(".zip")) return "zip"
-  if (lower.endsWith(".gpkg")) return "gpkg"
   return "unknown"
 }
 
 async function parseGeoJson(file: File): Promise<GeoJSON.FeatureCollection> {
-  const text = await file.text()
-  const parsed = JSON.parse(text)
-  if (parsed.type === "FeatureCollection") return parsed
-  if (parsed.type === "Feature") return { type: "FeatureCollection", features: [parsed] }
-  throw new Error("Archivo GeoJSON no válido")
+  try {
+    const text = await file.text()
+    const parsed = JSON.parse(text)
+    if (parsed.type === "FeatureCollection") return parsed
+    if (parsed.type === "Feature") return { type: "FeatureCollection", features: [parsed] }
+    throw new Error("El archivo no es un GeoJSON válido (se esperaba Feature o FeatureCollection).")
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      throw new Error("El archivo no contiene JSON válido. Verifica que el formato sea correcto.")
+    }
+    throw err
+  }
 }
 
 async function parseKml(file: File): Promise<GeoJSON.FeatureCollection> {
@@ -49,42 +58,85 @@ async function parseKml(file: File): Promise<GeoJSON.FeatureCollection> {
   const parser = new DOMParser()
   const xml = parser.parseFromString(text, "application/xml")
   const errorNode = xml.querySelector("parsererror")
-  if (errorNode) throw new Error("Archivo KML no válido")
+  if (errorNode) throw new Error("El archivo KML no es válido (error de formato XML).")
   const geojson = kml(xml)
   if (geojson.type !== "FeatureCollection") {
-    throw new Error("No se pudo convertir KML a GeoJSON")
+    throw new Error("No se pudo convertir el KML a GeoJSON.")
   }
   return geojson as GeoJSON.FeatureCollection
 }
 
 async function parseKmz(file: File): Promise<GeoJSON.FeatureCollection> {
-  const JSZip = (await import("jszip")).default
-  const buffer = await file.arrayBuffer()
-  const zip = await JSZip.loadAsync(buffer)
-  const kmlFile = zip.file(/\.kml$/i)?.[0]
-  if (!kmlFile) throw new Error("El archivo KMZ no contiene un archivo KML")
-  const kmlText = await kmlFile.async("text")
-  const parser = new DOMParser()
-  const xml = parser.parseFromString(kmlText, "application/xml")
-  const geojson = kml(xml)
-  if (geojson.type !== "FeatureCollection") {
-    throw new Error("No se pudo convertir KMZ a GeoJSON")
+  try {
+    const buffer = await file.arrayBuffer()
+    const zip = await JSZip.loadAsync(buffer)
+    const kmlFile = zip.file(/\.kml$/i)?.[0]
+    if (!kmlFile) throw new Error("El KMZ no contiene ningún archivo KML interno.")
+    const kmlText = await kmlFile.async("text")
+    const parser = new DOMParser()
+    const xml = parser.parseFromString(kmlText, "application/xml")
+    const errorNode = xml.querySelector("parsererror")
+    if (errorNode) throw new Error("El KML interno del KMZ no es válido.")
+    const geojson = kml(xml)
+    if (geojson.type !== "FeatureCollection") {
+      throw new Error("No se pudo convertir el KML del KMZ a GeoJSON.")
+    }
+    return geojson as GeoJSON.FeatureCollection
+  } catch (err) {
+    if (err instanceof Error) throw err
+    throw new Error("No se pudo leer el archivo KMZ. Verifica que no esté dañado.")
   }
-  return geojson as GeoJSON.FeatureCollection
 }
 
 async function parseShapefileZip(file: File): Promise<GeoJSON.FeatureCollection> {
-  const buffer = await file.arrayBuffer()
-  const geojson = await shp(buffer) as unknown as GeoJSON.FeatureCollection
-  return geojson
+  let zip: JSZip
+  try {
+    const buffer = await file.arrayBuffer()
+    zip = await JSZip.loadAsync(buffer)
+  } catch {
+    throw new Error("El archivo ZIP no se pudo leer. Asegúrate de que no está dañado o protegido con contraseña.")
+  }
+
+  const fileNames = Object.keys(zip.files)
+  const hasShp = fileNames.some(n => n.toLowerCase().endsWith(".shp"))
+  const hasDbf = fileNames.some(n => n.toLowerCase().endsWith(".dbf"))
+  const hasShx = fileNames.some(n => n.toLowerCase().endsWith(".shx"))
+
+  if (!hasShp) {
+    throw new Error("El ZIP no contiene un archivo .shp. Para shapefiles, el ZIP debe incluir al menos .shp, .dbf y .shx.")
+  }
+  if (!hasDbf) {
+    throw new Error("El ZIP no contiene un archivo .dbf (atributos). El shapefile está incompleto.")
+  }
+  if (!hasShx) {
+    throw new Error("El ZIP no contiene un archivo .shx (índice). El shapefile está incompleto.")
+  }
+
+  try {
+    const buffer = await file.arrayBuffer()
+    const geojson = await shp(buffer) as unknown as GeoJSON.FeatureCollection
+    return geojson
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes("but-unzip") || msg.includes("unzip") || msg.includes("corrupt")) {
+      throw new Error("El ZIP no se pudo procesar internamente. Intenta re-exportar el shapefile desde tu GIS y generar un nuevo ZIP.")
+    }
+    throw new Error(`Error al procesar el shapefile: ${msg.length > 120 ? msg.substring(0, 120) + "..." : msg}`)
+  }
 }
 
 export async function parseFile(file: File): Promise<FileLayer> {
   if (file.size > MAX_SIZE_BYTES) {
-    throw new Error(`El archivo supera el límite de ${MAX_SIZE_BYTES / 1024 / 1024}MB`)
+    throw new Error(`El archivo supera el límite de ${MAX_SIZE_BYTES / 1024 / 1024}MB (${(file.size / 1024 / 1024).toFixed(1)}MB recibidos).`)
   }
 
   const ext = getExtension(file.name)
+
+  if (ext === "unknown") {
+    const supported = SUPPORTED_EXTENSIONS.join(", ")
+    throw new Error(`Formato no soportado (${file.name}). Formatos válidos: ${supported}`)
+  }
+
   let geojson: GeoJSON.FeatureCollection
 
   switch (ext) {
@@ -101,18 +153,12 @@ export async function parseFile(file: File): Promise<FileLayer> {
     case "zip":
       geojson = await parseShapefileZip(file)
       break
-    case "gpkg":
-      throw new Error(
-        "GeoPackage (.gpkg) no soportado directamente. Convierte el archivo a GeoJSON o SHP antes de cargarlo."
-      )
     default:
-      throw new Error(
-        "Formato no soportado. Usa archivos GeoJSON, KML, KMZ o SHP (en .zip)."
-      )
+      throw new Error("Formato no soportado.")
   }
 
   if (!geojson.features || geojson.features.length === 0) {
-    throw new Error("El archivo no contiene elementos geométricos")
+    throw new Error("El archivo no contiene elementos geométricos.")
   }
 
   return {

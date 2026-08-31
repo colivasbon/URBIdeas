@@ -58,7 +58,7 @@ export function FileLayerPanel({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".geojson,.json,.kml,.kmz,.shp,.zip,.gpkg"
+          accept=".geojson,.json,.kml,.kmz,.shp,.zip"
           onChange={handleFileChange}
           className="hidden"
         />

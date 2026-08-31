@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import type { CapaWMS } from '@/lib/types'
 
 interface ControlCapasProps {
@@ -7,11 +7,38 @@ interface ControlCapasProps {
   onToggleCapa: (capaId: string) => void
 }
 
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .trim()
+}
+
+function highlightMatch(text: string, query: string): React.ReactNode {
+  if (!query) return text
+  const normalized = normalizeText(text)
+  const normalizedQuery = normalizeText(query)
+  const idx = normalized.indexOf(normalizedQuery)
+  if (idx === -1) return text
+  return (
+    <>
+      {text.substring(0, idx)}
+      <span style={{ fontWeight: 700, color: 'var(--color-secondary)' }}>
+        {text.substring(idx, idx + query.length)}
+      </span>
+      {text.substring(idx + query.length)}
+    </>
+  )
+}
+
 export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasProps) {
   const [capas, setCapas] = useState<CapaWMS[]>([])
   const [colapsadas, setColapsadas] = useState<Record<string, boolean>>({})
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [busqueda, setBusqueda] = useState('')
 
   useEffect(() => {
     async function cargarCapas() {
@@ -29,8 +56,9 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
 
         const groups: Record<string, boolean> = {}
         for (const capa of json.data || []) {
-          const nombre = capa.comunidad_autonoma?.nombre || 'Sin comunidad'
-          if (!(nombre in groups)) groups[nombre] = true
+          const ca = capa.comunidad_autonoma
+          const nombre = Array.isArray(ca) ? ca[0]?.nombre : ca?.nombre
+          if (!(nombre || 'Sin comunidad' in groups)) groups[nombre || 'Sin comunidad'] = true
         }
         setColapsadas(groups)
       } catch {
@@ -43,8 +71,17 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
   }, [])
 
   const agrupadas = useMemo(() => {
-    const grouped: Record<string, CapaWMS[]> = {}
+    const deduped: CapaWMS[] = []
+    const seen = new Set<string>()
     for (const capa of capas) {
+      const key = `${capa.nombre_capa}|${capa.url_servicio}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      deduped.push(capa)
+    }
+
+    const grouped: Record<string, CapaWMS[]> = {}
+    for (const capa of deduped) {
       const nombre = capa.comunidad_autonoma?.nombre || 'Sin comunidad'
       if (!grouped[nombre]) grouped[nombre] = []
       grouped[nombre].push(capa)
@@ -56,11 +93,37 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
     return sorted
   }, [capas])
 
-  function toggleGrupo(nombreCA: string) {
-    setColapsadas(prev => ({ ...prev, [nombreCA]: !prev[nombreCA] }))
-  }
+  const agrupadasFiltradas = useMemo(() => {
+    if (!busqueda.trim()) return agrupadas
+    const q = normalizeText(busqueda)
+    const result: Record<string, CapaWMS[]> = {}
+    for (const [nombreCA, capasGrupo] of Object.entries(agrupadas)) {
+      if (normalizeText(nombreCA).includes(q)) {
+        result[nombreCA] = capasGrupo
+      } else {
+        const filtered = capasGrupo.filter(c =>
+          normalizeText(c.nombre_capa).includes(q)
+        )
+        if (filtered.length > 0) result[nombreCA] = filtered
+      }
+    }
+    return result
+  }, [agrupadas, busqueda])
 
-  function toggleGrupoCompleto(nombreCA: string) {
+  const colapsadasConBusqueda = useMemo(() => {
+    if (!busqueda.trim()) return colapsadas
+    const next = { ...colapsadas }
+    for (const nombreCA of Object.keys(agrupadasFiltradas)) {
+      next[nombreCA] = false
+    }
+    return next
+  }, [colapsadas, busqueda, agrupadasFiltradas])
+
+  const toggleGrupo = useCallback((nombreCA: string) => {
+    setColapsadas(prev => ({ ...prev, [nombreCA]: !prev[nombreCA] }))
+  }, [])
+
+  const toggleGrupoCompleto = useCallback((nombreCA: string) => {
     const capasGrupo = agrupadas[nombreCA] || []
     const todasActivas = capasGrupo.every(c => capasSeleccionadas.includes(c.id))
     for (const capa of capasGrupo) {
@@ -68,7 +131,7 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
       if (todasActivas && estaActiva) onToggleCapa(capa.id)
       if (!todasActivas && !estaActiva) onToggleCapa(capa.id)
     }
-  }
+  }, [agrupadas, capasSeleccionadas, onToggleCapa])
 
   if (cargando) {
     return (
@@ -104,16 +167,46 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
         </p>
       </div>
 
+      <div className="px-3 py-2 border-b border-[var(--color-border)]">
+        <div className="relative">
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--color-text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar capa o comunidad..."
+            className="w-full pl-8 pr-7 py-1.5 text-xs rounded-[var(--border-radius)] border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-secondary)]"
+          />
+          {busqueda && (
+            <button
+              onClick={() => setBusqueda('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto">
-        {Object.keys(agrupadas).length === 0 ? (
+        {Object.keys(agrupadasFiltradas).length === 0 ? (
           <div className="p-4 text-center" style={{ color: 'var(--color-text-secondary)' }}>
-            <p className="text-xs">No hay capas disponibles</p>
+            <p className="text-xs">
+              {busqueda
+                ? `No se encontraron capas para "${busqueda}"`
+                : "No hay capas disponibles"
+              }
+            </p>
           </div>
         ) : (
-          Object.entries(agrupadas).map(([nombreCA, capasGrupo]) => {
+          Object.entries(agrupadasFiltradas).map(([nombreCA, capasGrupo]) => {
             const todasActivas = capasGrupo.every(c => capasSeleccionadas.includes(c.id))
             const algunasActivas = capasGrupo.some(c => capasSeleccionadas.includes(c.id)) && !todasActivas
-            const colapsado = colapsadas[nombreCA]
+            const colapsado = colapsadasConBusqueda[nombreCA]
 
             return (
               <div key={nombreCA} className="border-b border-[var(--color-border)]">
@@ -147,7 +240,9 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
                          </svg>
                        )}
                      </div>
-                     <span className="text-xs font-medium text-[var(--color-text-primary)] truncate">{nombreCA}</span>
+                     <span className="text-xs font-medium text-[var(--color-text-primary)] truncate">
+                       {busqueda ? highlightMatch(nombreCA, busqueda) : nombreCA}
+                     </span>
                     <span className="text-[10px] ml-auto" style={{ color: 'var(--color-text-secondary)' }}>
                       {capasGrupo.filter(c => capasSeleccionadas.includes(c.id)).length}/{capasGrupo.length}
                     </span>
@@ -180,7 +275,7 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className={`text-xs leading-tight ${activa ? 'text-[var(--color-text-primary)] font-medium' : 'text-[var(--color-text-secondary)]'}`}>
-                              {capa.nombre_capa}
+                              {busqueda ? highlightMatch(capa.nombre_capa, busqueda) : capa.nombre_capa}
                             </p>
                             {activa && (
                               <img

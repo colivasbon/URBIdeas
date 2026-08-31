@@ -22,8 +22,10 @@ interface VisorMapaProps {
   center?: [number, number]
   zoom?: number
   baseLayer?: string
+  baseOpacity?: number
   onMapMove?: (lat: number, lng: number, zoom: number) => void
   onBaseLayerChange?: (layer: string) => void
+  onBaseOpacityChange?: (opacity: number) => void
   zoomToLayerId?: string | null
   onZoomToDone?: () => void
 }
@@ -35,7 +37,7 @@ const BASE_LAYERS: Record<string, { url: string; attribution: string; name: stri
     name: 'Callejero',
   },
   pnoa: {
-    url: 'https://tile-a.ign.es/imagery/pnoa-ma/{z}/{x}/{y}.jpeg',
+    url: 'https://www.ign.es/wmts/pnoa-ma?service=WMTS&request=GetTile&version=1.0.0&layer=OI.OrthoimageCoverage&style=default&tilematrixset=EPSG%3A3857&tilematrix={z}&tilecol={x}&tilerow={y}&format=image/jpeg',
     attribution: '&copy; <a href="https://www.ign.es/">IGN - PNOA</a>',
     name: 'Satélite (PNOA)',
   },
@@ -91,6 +93,40 @@ function MapInitializer({ center, zoom }: { center: [number, number]; zoom: numb
   return null
 }
 
+function TileErrorFallback({
+  activeLayer,
+  onFallback,
+}: {
+  activeLayer: string
+  onFallback: (layer: string) => void
+}) {
+  const map = useMap()
+  const errorCountRef = useRef(0)
+  const warnedRef = useRef(false)
+
+  useEffect(() => {
+    if (activeLayer === 'osm') return
+
+    errorCountRef.current = 0
+    warnedRef.current = false
+
+    function handleTileError() {
+      errorCountRef.current++
+      if (errorCountRef.current >= 3 && !warnedRef.current) {
+        warnedRef.current = true
+        onFallback('osm')
+      }
+    }
+
+    map.on('tileerror', handleTileError)
+    return () => {
+      map.off('tileerror', handleTileError)
+    }
+  }, [map, activeLayer, onFallback])
+
+  return null
+}
+
 function ZoomToLayer({
   layerId,
   fileLayers,
@@ -117,6 +153,89 @@ function ZoomToLayer({
   return null
 }
 
+function parseWmsResponse(text: string, contentType: string): Record<string, string> {
+  const atributos: Record<string, string> = {}
+
+  if (contentType.includes('application/json')) {
+    try {
+      const json = JSON.parse(text)
+      if (json.features?.length > 0) {
+        return json.features[0].properties || {}
+      }
+    } catch { /* ignore */ }
+    return atributos
+  }
+
+  if (contentType.includes('text/html')) {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(text, 'text/html')
+    const rows = doc.querySelectorAll('tr')
+    for (const row of rows) {
+      const cells = row.querySelectorAll('td')
+      if (cells.length >= 2) {
+        const key = cells[0].textContent?.trim() || ''
+        const val = cells[1].textContent?.trim() || ''
+        if (key) atributos[key] = val
+      }
+    }
+    if (Object.keys(atributos).length > 0) return atributos
+  }
+
+  if (contentType.includes('text/plain') || contentType.includes('text/xml') || contentType.includes('application/vnd.ogc.gml')) {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(text, 'text/xml')
+
+    const featureMembers = doc.querySelectorAll('gml\\:featureMember, featureMember')
+    if (featureMembers.length > 0) {
+      for (const fm of featureMembers) {
+        const children = fm.children
+        if (children.length > 0) {
+          const attrs = children[0].children
+          for (const attr of attrs) {
+            const name = attr.localName || attr.tagName?.split(':').pop() || ''
+            const value = attr.textContent?.trim() || ''
+            if (name && value) atributos[name] = value
+          }
+          if (Object.keys(atributos).length > 0) return atributos
+        }
+      }
+    }
+
+    const ogcFeatures = doc.querySelectorAll('ogc\\:Feature, Feature')
+    for (const feat of ogcFeatures) {
+      const attrs = feat.querySelectorAll('Attribute')
+      for (const attr of attrs) {
+        const name = attr.getAttribute('name') || ''
+        const value = attr.textContent?.trim() || ''
+        if (name) atributos[name] = value
+      }
+      if (Object.keys(atributos).length > 0) return atributos
+    }
+
+    const plainAttrs = doc.querySelectorAll('[name]')
+    for (const el of plainAttrs) {
+      const name = el.getAttribute('name') || ''
+      const value = el.textContent?.trim() || ''
+      if (name && value && name !== 'name') atributos[name] = value
+    }
+    if (Object.keys(atributos).length > 0) return atributos
+  }
+
+  if (contentType.includes('text/plain') || (!contentType.includes('xml') && !contentType.includes('html') && !contentType.includes('json'))) {
+    const lines = text.split('\n')
+    for (const line of lines) {
+      const eqIdx = line.indexOf('=')
+      if (eqIdx > 0) {
+        const key = line.substring(0, eqIdx).trim()
+        const val = line.substring(eqIdx + 1).trim()
+        if (key && val) atributos[key] = val
+      }
+    }
+  }
+
+  return atributos
+}
+
 function FeatureInfoFetcher({
   capasActivas,
   onInfo,
@@ -137,7 +256,7 @@ function FeatureInfoFetcher({
       const size = 256
       const point = map.latLngToContainerPoint(latlng)
       const bounds = map.getBounds()
-      const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`
+      const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`
 
       const results: FeatureInfo[] = []
 
@@ -149,7 +268,7 @@ function FeatureInfoFetcher({
             request: 'GetFeatureInfo',
             layers: capa.nombre_capa,
             query_layers: capa.nombre_capa,
-            info_format: 'application/json',
+            info_format: 'text/plain',
             feature_count: '10',
             srs: 'EPSG:4326',
             bbox,
@@ -160,40 +279,36 @@ function FeatureInfoFetcher({
           })
 
           const url = `${capa.url_servicio}?${params.toString()}`
-          const response = await fetch(url)
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 10000)
 
-          if (!response.ok) continue
-
-          const contentType = response.headers.get('content-type') || ''
-          let atributos: Record<string, string> = {}
-
-          if (contentType.includes('application/json')) {
-            const json = await response.json()
-            if (json.features && json.features.length > 0) {
-              atributos = json.features[0].properties || {}
-            }
-          } else {
-            const text = await response.text()
-            if (text.includes('<Layer')) {
-              const parser = new DOMParser()
-              const doc = parser.parseFromString(text, 'text/xml')
-              const features = doc.querySelectorAll('Feature')
-              if (features.length > 0) {
-                const attrs = features[0].querySelectorAll('Attribute')
-                for (const attr of attrs) {
-                  const name = attr.getAttribute('name') || ''
-                  const value = attr.textContent || ''
-                  if (name) atributos[name] = value
-                }
-              }
-            }
+          let response: Response
+          try {
+            response = await fetch(url, { signal: controller.signal })
+          } catch (fetchErr) {
+            clearTimeout(timeout)
+            const msg = fetchErr instanceof DOMException && fetchErr.name === 'AbortError'
+              ? 'Tiempo de espera agotado'
+              : 'Error de red'
+            results.push({ capa: capa.nombre_capa, atributos: {}, error: msg })
+            continue
           }
+          clearTimeout(timeout)
+
+          if (!response.ok) {
+            results.push({ capa: capa.nombre_capa, atributos: {}, error: `Servidor respondió ${response.status}` })
+            continue
+          }
+
+          const respContentType = response.headers.get('content-type') || ''
+          const text = await response.text()
+          const atributos = parseWmsResponse(text, respContentType)
 
           if (Object.keys(atributos).length > 0) {
             results.push({ capa: capa.nombre_capa, atributos })
           }
         } catch {
-          // Silently skip failed GetFeatureInfo requests
+          results.push({ capa: capa.nombre_capa, atributos: {}, error: 'Error inesperado' })
         }
       }
 
@@ -244,10 +359,14 @@ function FeatureInfoPopup({
 
 function BaseLayerControl({
   activeLayer,
+  opacity,
   onChange,
+  onOpacityChange,
 }: {
   activeLayer: string
+  opacity: number
   onChange: (layer: string) => void
+  onOpacityChange: (opacity: number) => void
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -303,6 +422,20 @@ function BaseLayerControl({
               {layer.name}
             </button>
           ))}
+          <div className="px-3 py-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
+            <label className="text-[10px] text-[var(--color-text-secondary)] block mb-1">
+              Opacidad: {opacity}%
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={opacity}
+              onChange={(e) => onOpacityChange(Number(e.target.value))}
+              className="w-full h-1 accent-[var(--color-secondary)]"
+              style={{ cursor: 'pointer' }}
+            />
+          </div>
         </div>
       )}
     </div>
@@ -315,8 +448,10 @@ function VisorMapaInner({
   center = [40.0, -3.7],
   zoom = 6,
   baseLayer = 'osm',
+  baseOpacity = 100,
   onMapMove,
   onBaseLayerChange,
+  onBaseOpacityChange,
   zoomToLayerId = null,
   onZoomToDone,
 }: VisorMapaProps) {
@@ -348,6 +483,12 @@ function VisorMapaInner({
           key={baseLayer}
           attribution={activeBase.attribution}
           url={activeBase.url}
+          opacity={baseOpacity / 100}
+        />
+
+        <TileErrorFallback
+          activeLayer={baseLayer}
+          onFallback={onBaseLayerChange || (() => {})}
         />
 
         {capasActivas.map(capa => (
@@ -389,7 +530,9 @@ function VisorMapaInner({
 
       <BaseLayerControl
         activeLayer={baseLayer}
+        opacity={baseOpacity}
         onChange={onBaseLayerChange || (() => {})}
+        onOpacityChange={onBaseOpacityChange || (() => {})}
       />
 
       <div

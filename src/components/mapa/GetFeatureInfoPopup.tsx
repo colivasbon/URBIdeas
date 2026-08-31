@@ -4,6 +4,7 @@ import React from 'react'
 export interface FeatureInfo {
   capa: string
   atributos: Record<string, string>
+  error?: string
 }
 
 interface GetFeatureInfoPopupProps {
@@ -17,9 +18,6 @@ export function GetFeatureInfoPopup({ features, coordenadas }: GetFeatureInfoPop
       <div style={{ fontFamily: 'var(--font-family)', minWidth: 200 }}>
         <p style={{ color: 'var(--color-text-secondary)', margin: 0, fontSize: 13 }}>
           No se encontraron elementos en esta ubicación.
-        </p>
-        <p style={{ color: 'var(--color-text-secondary)', margin: '4px 0 0', fontSize: 11 }}>
-          Activa al menos una capa WMS para consultar información.
         </p>
         <p style={{ color: 'var(--color-text-secondary)', margin: '4px 0 0', fontSize: 11 }}>
           {coordenadas.lat.toFixed(5)}, {coordenadas.lng.toFixed(5)}
@@ -40,7 +38,7 @@ export function GetFeatureInfoPopup({ features, coordenadas }: GetFeatureInfoPop
       {features.map((feature, i) => (
         <div key={i} style={{ marginBottom: i < features.length - 1 ? 10 : 0 }}>
           <div style={{
-            background: 'var(--color-primary)',
+            background: feature.error ? '#92400e' : 'var(--color-primary)',
             color: '#fff',
             padding: '3px 8px',
             borderRadius: 'var(--border-radius)',
@@ -50,30 +48,36 @@ export function GetFeatureInfoPopup({ features, coordenadas }: GetFeatureInfoPop
           }}>
             {feature.capa}
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <tbody>
-              {Object.entries(feature.atributos).map(([key, value]) => (
-                <tr key={key}>
-                  <td style={{
-                    padding: '2px 6px 2px 0',
-                    color: 'var(--color-text-secondary)',
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                    verticalAlign: 'top',
-                  }}>
-                    {key}
-                  </td>
-                  <td style={{
-                    padding: '2px 0',
-                    color: 'var(--color-text-primary)',
-                    wordBreak: 'break-word',
-                  }}>
-                    {value || '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {feature.error ? (
+            <p style={{ color: '#fbbf24', fontSize: 11, margin: '2px 0 0' }}>
+              {feature.error}
+            </p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <tbody>
+                {Object.entries(feature.atributos).map(([key, value]) => (
+                  <tr key={key}>
+                    <td style={{
+                      padding: '2px 6px 2px 0',
+                      color: 'var(--color-text-secondary)',
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                      verticalAlign: 'top',
+                    }}>
+                      {key}
+                    </td>
+                    <td style={{
+                      padding: '2px 0',
+                      color: 'var(--color-text-primary)',
+                      wordBreak: 'break-word',
+                    }}>
+                      {value || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       ))}
     </div>

@@ -29,22 +29,25 @@ function readUrlParams() {
   const zoom = parseInt(params.get("zoom") || "", 10)
   const capas = params.get("capas") || ""
   const base = params.get("base") || ""
+  const opacity = params.get("opacity") || ""
   return {
     lat: isNaN(lat) ? 40.0 : lat,
     lng: isNaN(lng) ? -3.7 : lng,
     zoom: isNaN(zoom) ? 6 : zoom,
     capas: capas ? capas.split(",").filter(Boolean) : [],
     base: base || "osm",
+    opacity,
   }
 }
 
-function writeUrlParams(lat: number, lng: number, zoom: number, capas: string[], base: string) {
+function writeUrlParams(lat: number, lng: number, zoom: number, capas: string[], base: string, opacity: number) {
   const params = new URLSearchParams()
   params.set("lat", lat.toFixed(4))
   params.set("lng", lng.toFixed(4))
   params.set("zoom", String(zoom))
   if (capas.length > 0) params.set("capas", capas.join(","))
   if (base && base !== "osm") params.set("base", base)
+  if (opacity < 100) params.set("opacity", String(opacity))
   const url = `${window.location.pathname}?${params.toString()}`
   window.history.replaceState({}, "", url)
 }
@@ -64,6 +67,11 @@ export default function MapaPage() {
   const [baseLayer, setBaseLayer] = useState(() => {
     const params = readUrlParams()
     return params ? params.base : "osm"
+  })
+  const [baseOpacity, setBaseOpacity] = useState(() => {
+    const params = readUrlParams()
+    const o = parseInt(params?.opacity || "", 10)
+    return isNaN(o) ? 100 : Math.min(100, Math.max(0, o))
   })
   const [fileLayers, setFileLayers] = useState<FileLayer[]>([])
   const [zoomToLayerId, setZoomToLayerId] = useState<string | null>(null)
@@ -137,8 +145,8 @@ export default function MapaPage() {
 
   useEffect(() => {
     if (!initializedRef.current) return
-    writeUrlParams(mapCenter[0], mapCenter[1], mapZoom, activeCapas, baseLayer)
-  }, [mapCenter, mapZoom, activeCapas, baseLayer])
+    writeUrlParams(mapCenter[0], mapCenter[1], mapZoom, activeCapas, baseLayer, baseOpacity)
+  }, [mapCenter, mapZoom, activeCapas, baseLayer, baseOpacity])
 
   const selectedCapas = capas
     .filter(c => activeCapas.includes(c.id))
@@ -173,8 +181,10 @@ export default function MapaPage() {
                   center={mapCenter}
                   zoom={mapZoom}
                   baseLayer={baseLayer}
+                  baseOpacity={baseOpacity}
                   onMapMove={handleMapMove}
                   onBaseLayerChange={handleBaseLayerChange}
+                  onBaseOpacityChange={setBaseOpacity}
                   zoomToLayerId={zoomToLayerId}
                   onZoomToDone={() => setZoomToLayerId(null)}
                 />

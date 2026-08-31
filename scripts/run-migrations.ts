@@ -1,6 +1,14 @@
 import postgres from 'postgres'
+import { config } from 'dotenv'
 
-const DATABASE_URL = 'postgresql://postgres.nkfepxuyrbcxolljykwk:ClaveUrb12-@aws-1-eu-west-1.pooler.supabase.com:6543/postgres'
+config({ path: '.env.local' })
+
+const DATABASE_URL = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL
+if (!DATABASE_URL) {
+  console.error('ERROR: Necesitas la variable DATABASE_URL o SUPABASE_DB_URL en .env.local')
+  console.error('Formato: postgresql://postgres.[ref]:[password]@aws-1-eu-west-1.pooler.supabase.com:6543/postgres')
+  process.exit(1)
+}
 
 const sql = postgres(DATABASE_URL, { ssl: 'require' })
 

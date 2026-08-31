@@ -39,6 +39,16 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busqueda, setBusqueda] = useState('')
+  const [categoriaActiva, setCategoriaActiva] = useState<string | null>(null)
+
+  const categorias = [
+    { key: null, label: 'Todas' },
+    { key: 'planeamiento_general', label: 'Planeamiento' },
+    { key: 'clasificacion_suelo', label: 'Clasificación suelo' },
+    { key: 'calificacion_urbanistica', label: 'Calificación urbanística' },
+    { key: 'infraestructuras', label: 'Infraestructuras' },
+    { key: 'medio_ambiente', label: 'Medio ambiente' },
+  ]
 
   useEffect(() => {
     async function cargarCapas() {
@@ -94,30 +104,36 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
   }, [capas])
 
   const agrupadasFiltradas = useMemo(() => {
-    if (!busqueda.trim()) return agrupadas
-    const q = normalizeText(busqueda)
+    const hasBusqueda = busqueda.trim().length > 0
+    const hasCategoria = categoriaActiva !== null
+    if (!hasBusqueda && !hasCategoria) return agrupadas
+    const q = hasBusqueda ? normalizeText(busqueda) : ''
     const result: Record<string, CapaWMS[]> = {}
     for (const [nombreCA, capasGrupo] of Object.entries(agrupadas)) {
-      if (normalizeText(nombreCA).includes(q)) {
-        result[nombreCA] = capasGrupo
+      if (hasBusqueda && normalizeText(nombreCA).includes(q)) {
+        result[nombreCA] = hasCategoria
+          ? capasGrupo.filter(c => c.categoria === categoriaActiva)
+          : capasGrupo
       } else {
-        const filtered = capasGrupo.filter(c =>
-          normalizeText(c.nombre_capa).includes(q)
-        )
+        const filtered = capasGrupo.filter(c => {
+          const matchBusqueda = !hasBusqueda || normalizeText(c.nombre_capa).includes(q)
+          const matchCategoria = !hasCategoria || c.categoria === categoriaActiva
+          return matchBusqueda && matchCategoria
+        })
         if (filtered.length > 0) result[nombreCA] = filtered
       }
     }
     return result
-  }, [agrupadas, busqueda])
+  }, [agrupadas, busqueda, categoriaActiva])
 
   const colapsadasConBusqueda = useMemo(() => {
-    if (!busqueda.trim()) return colapsadas
+    if (!busqueda.trim() && categoriaActiva === null) return colapsadas
     const next = { ...colapsadas }
     for (const nombreCA of Object.keys(agrupadasFiltradas)) {
       next[nombreCA] = false
     }
     return next
-  }, [colapsadas, busqueda, agrupadasFiltradas])
+  }, [colapsadas, busqueda, categoriaActiva, agrupadasFiltradas])
 
   const toggleGrupo = useCallback((nombreCA: string) => {
     setColapsadas(prev => ({ ...prev, [nombreCA]: !prev[nombreCA] }))
@@ -189,6 +205,24 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
               </svg>
             </button>
           )}
+        </div>
+      </div>
+
+      <div className="px-3 py-2 border-b border-[var(--color-border)]">
+        <div className="flex flex-wrap gap-1">
+          {categorias.map(cat => (
+            <button
+              key={cat.key ?? 'all'}
+              onClick={() => setCategoriaActiva(cat.key)}
+              className={`px-2 py-0.5 text-[10px] rounded-full border transition-colors ${
+                categoriaActiva === cat.key
+                  ? 'bg-[var(--color-secondary)] text-white border-[var(--color-secondary)]'
+                  : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-secondary)] hover:text-[var(--color-secondary)]'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
         </div>
       </div>
 

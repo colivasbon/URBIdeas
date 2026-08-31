@@ -76,5 +76,6 @@ export interface CapaWMS {
   fecha_verificacion: string
   activo: boolean
   created_at: string
+  categoria?: string
   comunidad_autonoma?: ComunidadAutonoma
 }

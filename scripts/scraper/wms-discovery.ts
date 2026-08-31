@@ -34,7 +34,7 @@ const CCAA_ENDPOINTS: CCAAEndpoint[] = [
   {
     name: 'Aragón',
     urls: [
-      'https://portalgeoespacial.aragon.es/arcgis/services/WMTS/MapServer/WMTS?SERVICE=WMTS&REQUEST=GetCapabilities',
+      'https://servicios.arcgis.com/rnbLGQsFGs8dmAZj/arcgis/services/SIOSE_Aragon/MapServer/WMS?SERVICE=WMS&REQUEST=GetCapabilities',
     ],
   },
   {
@@ -52,13 +52,13 @@ const CCAA_ENDPOINTS: CCAAEndpoint[] = [
   {
     name: 'Canarias',
     urls: [
-      'https://idelectron.canarias.es/arcgis/services?SERVICE=WMS&REQUEST=GetCapabilities',
+      'https://idelectron.canarias.es/wms/ground?q=&SERVICE=WMS&REQUEST=GetCapabilities',
     ],
   },
   {
     name: 'Cantabria',
     urls: [
-      'https://www.secantabria.es/arcgis/services?SERVICE=WMS&REQUEST=GetCapabilities',
+      'https://sitcantabria.cantabria.es/wms/CNT100?SERVICE=WMS&REQUEST=GetCapabilities',
     ],
   },
   {
@@ -70,7 +70,7 @@ const CCAA_ENDPOINTS: CCAAEndpoint[] = [
   {
     name: 'Castilla-La Mancha',
     urls: [
-      'https://ide.kepler.es/arcgis/services?SERVICE=WMS&REQUEST=GetCapabilities',
+      'https://idekepler.jccm.es/arcgis/services/SIGCARRETEROS/MapServer/WMS?SERVICE=WMS&REQUEST=GetCapabilities',
     ],
   },
   {
@@ -82,19 +82,19 @@ const CCAA_ENDPOINTS: CCAAEndpoint[] = [
   {
     name: 'Extremadura',
     urls: [
-      'https://idearagon.es/arcgis/services?SERVICE=WMS&REQUEST=GetCapabilities',
+      'https://ideextremadura.es/wms/iter?SERVICE=WMS&REQUEST=GetCapabilities',
     ],
   },
   {
     name: 'Galicia',
     urls: [
-      'https://www.cartography.igac.gov.co/arcgis/services?SERVICE=WMS&REQUEST=GetCapabilities',
+      'https://servizos.xunta.es/gw/wms/ign?SERVICE=WMS&REQUEST=GetCapabilities',
     ],
   },
   {
     name: 'La Rioja',
     urls: [
-      'http://www.ign.es/ign/resources/serviciosOCG/wms_ign.html?SERVICE=WMS&REQUEST=GetCapabilities',
+      'https://www.larioja SIG.es/wms/8d5f7c8a-44c0-4626-8e39-4f41c051e1e2?SERVICE=WMS&REQUEST=GetCapabilities',
     ],
   },
   {
@@ -106,7 +106,7 @@ const CCAA_ENDPOINTS: CCAAEndpoint[] = [
   {
     name: 'Murcia',
     urls: [
-      'https://mapas-gis-inter.carm.es/arcgis/services?SERVICE=WMS&REQUEST=GetCapabilities',
+      'https://mapas-gis-inter.carm.es/arcgis/services/SIGPAS/MapServer/WMS?SERVICE=WMS&REQUEST=GetCapabilities',
     ],
   },
   {
@@ -118,7 +118,7 @@ const CCAA_ENDPOINTS: CCAAEndpoint[] = [
   {
     name: 'País Vasco',
     urls: [
-      'https://www.geo.euskadi.eus/arcgis/services?SERVICE=WMS&REQUEST=GetCapabilities',
+      'https://www.geo.euskadi.eus/mapserver/serviciossrs?SERVICE=WMS&REQUEST=GetCapabilities',
     ],
   },
   {

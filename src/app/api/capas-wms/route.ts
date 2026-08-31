@@ -6,6 +6,7 @@ const RATE_LIMIT = 100
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const comunidad_autonoma_id = searchParams.get('comunidad_autonoma_id')
+  const categoria = searchParams.get('categoria')
 
   try {
     const supabase = createSupabaseServer()
@@ -21,6 +22,10 @@ export async function GET(request: NextRequest) {
 
     if (comunidad_autonoma_id) {
       query = query.eq('comunidad_autonoma_id', comunidad_autonoma_id)
+    }
+
+    if (categoria) {
+      query = query.eq('categoria', categoria)
     }
 
     const { data, error, count } = await query

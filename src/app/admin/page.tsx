@@ -77,25 +77,39 @@ export default function AdminPage() {
     async function loadData() {
       setLoading(true)
 
-      const [fuentesRes, capasRes, municipiosRes, legisRes, geoRes, legalRes] = await Promise.all([
-        fetch("/api/fuentes").then((r) => r.json()),
-        fetch("/api/capas-wms?include_geo=false").then((r) => r.json()),
-        supabase
-          .from("municipios")
-          .select("id", { count: "exact" }),
-        supabase
-          .from("normativa_vigente")
-          .select("id", { count: "exact" }),
-        supabase
-          .from("geo_services")
-          .select("*")
-          .order("ccaa"),
-        supabase
-          .from("legal_sources")
-          .select("*")
-          .order("level")
-          .order("territory"),
-      ])
+      const fuentesRes = await fetch("/api/fuentes").then((r) => r.json()).catch(() => ({ data: [] }))
+      const capasRes = await fetch("/api/capas-wms").then((r) => r.json()).catch(() => ({ data: [] }))
+
+      let totalMunicipios = 0
+      let totalLegislacion = 0
+      let totalGeoServices = 0
+      let totalLegalSources = 0
+
+      try {
+        const { count } = await supabase.from("municipios").select("id", { count: "exact", head: true })
+        totalMunicipios = count ?? 0
+      } catch { /* table may not exist */ }
+
+      try {
+        const { count } = await supabase.from("normativa_vigente").select("id", { count: "exact", head: true })
+        totalLegislacion = count ?? 0
+      } catch { /* table may not exist */ }
+
+      try {
+        const { data } = await supabase.from("geo_services").select("*").order("ccaa")
+        if (data) {
+          setGeoServices(data as GeoService[])
+          totalGeoServices = data.length
+        }
+      } catch { /* table may not exist */ }
+
+      try {
+        const { data } = await supabase.from("legal_sources").select("*").order("level").order("territory")
+        if (data) {
+          setLegalSources(data as LegalSource[])
+          totalLegalSources = data.length
+        }
+      } catch { /* table may not exist */ }
 
       if (fuentesRes.data) setFuentes(fuentesRes.data)
 
@@ -109,17 +123,14 @@ export default function AdminPage() {
         setCapas(mapped)
       }
 
-      if (geoRes.data) setGeoServices(geoRes.data as GeoService[])
-      if (legalRes.data) setLegalSources(legalRes.data as LegalSource[])
-
       const capasActivas = capasRes.data?.filter((c: CapaWMSAdmin) => c.activo).length ?? 0
 
       setStats({
-        totalMunicipios: municipiosRes.count ?? 0,
+        totalMunicipios,
         totalCapasActivas: capasActivas,
-        totalLegislacion: legisRes.count ?? 0,
-        totalGeoServices: geoRes.count ?? 0,
-        totalLegalSources: legalRes.count ?? 0,
+        totalLegislacion,
+        totalGeoServices,
+        totalLegalSources,
       })
 
       setLoading(false)

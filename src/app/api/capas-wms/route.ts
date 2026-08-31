@@ -7,7 +7,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const comunidad_autonoma_id = searchParams.get('comunidad_autonoma_id')
   const categoria = searchParams.get('categoria')
-  const include_geo = searchParams.get('include_geo') !== 'false'
 
   try {
     const supabase = createSupabaseServer()
@@ -48,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     let geoLayers: Record<string, unknown>[] = []
 
-    if (include_geo) {
+    try {
       const { data: geoData } = await supabase
         .from('geo_layers')
         .select(`
@@ -93,6 +92,8 @@ export async function GET(request: NextRequest) {
             }
           })
       }
+    } catch {
+      // geo_layers table may not exist yet - continue without it
     }
 
     const allLayers = [...deduped, ...geoLayers]

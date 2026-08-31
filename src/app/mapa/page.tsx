@@ -172,20 +172,6 @@ export default function MapaPage() {
             </p>
           </section>
 
-          {/* Botones de acción arriba del todo */}
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setActiveCapas([])}
-              disabled={activeCapas.length === 0}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:text-red-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Desactivar todas{activeCapas.length > 0 ? ` (${activeCapas.length})` : ''}
-            </button>
-          </div>
-
           <div className="flex flex-col gap-6 lg:flex-row">
             <div className="flex-1 min-h-[500px]">
               <div className="h-full rounded-[var(--border-radius)] border border-[var(--color-border)]" style={{ position: 'relative', zIndex: 0 }}>
@@ -207,8 +193,30 @@ export default function MapaPage() {
 
             <div className="w-full shrink-0 lg:w-80">
               <div className="sticky top-20 bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+                {/* Mis capas + Desactivar arriba */}
+                <FileLayerPanel
+                  fileLayers={fileLayers}
+                  onAdd={addFileLayer}
+                  onRemove={removeFileLayer}
+                  onToggle={toggleFileLayer}
+                  onColorChange={changeFileLayerColor}
+                  onZoomTo={zoomToFileLayer}
+                />
+
+                {activeCapas.length > 0 && (
+                  <div className="px-4 py-2 border-t border-[var(--color-border)]">
+                    <button
+                      onClick={() => setActiveCapas([])}
+                      className="text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-accent)] transition-colors"
+                    >
+                      Desactivar todas ({activeCapas.length})
+                    </button>
+                  </div>
+                )}
+
+                {/* Capas WMS debajo */}
                 {loading ? (
-                  <div className="flex items-center justify-center py-8">
+                  <div className="flex items-center justify-center py-8 border-t border-[var(--color-border)]">
                     <div className="h-6 w-6 animate-spin rounded-full border-4 border-[var(--color-secondary)] border-t-transparent" />
                     <span className="ml-2 text-sm text-[var(--color-text-secondary)]">
                       Cargando capas...
@@ -220,15 +228,6 @@ export default function MapaPage() {
                     onToggleCapa={toggleCapa}
                   />
                 )}
-
-                <FileLayerPanel
-                  fileLayers={fileLayers}
-                  onAdd={addFileLayer}
-                  onRemove={removeFileLayer}
-                  onToggle={toggleFileLayer}
-                  onColorChange={changeFileLayerColor}
-                  onZoomTo={zoomToFileLayer}
-                />
               </div>
             </div>
           </div>

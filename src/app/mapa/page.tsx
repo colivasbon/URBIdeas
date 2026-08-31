@@ -192,7 +192,7 @@ export default function MapaPage() {
             </div>
 
             <div className="w-full shrink-0 lg:w-80">
-              <div className="sticky top-20 bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+              <div className="sticky top-20 bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] overflow-y-auto" style={{ maxHeight: 'calc(100vh - 120px)' }}>
                 {/* Mis capas + Desactivar arriba */}
                 <FileLayerPanel
                   fileLayers={fileLayers}

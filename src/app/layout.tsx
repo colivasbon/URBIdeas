@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className="h-full antialiased" suppressHydrationWarning>
-      <body className="min-h-full flex flex-col transition-colors duration-200" style={{ fontFamily: "var(--font-family)" }}>
+      <body className="min-h-full flex flex-col" style={{ fontFamily: "var(--font-family)" }}>
         <ThemeProvider>
           {children}
         </ThemeProvider>

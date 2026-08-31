@@ -219,7 +219,7 @@ export default function LegislacionPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col transition-colors duration-200">
+    <div className="flex min-h-screen flex-col">
       <Header />
 
       <main className="flex-1">
@@ -352,10 +352,11 @@ export default function LegislacionPage() {
                           <Badge variant="primary">{leyes.length}</Badge>
                         </button>
                         <div
-                          className={`overflow-hidden transition-all duration-200 ease-in-out ${
-                            isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+                          className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${
+                            isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
                           }`}
                         >
+                          <div className="overflow-hidden">
                           <div className="border-t border-[var(--color-border)] px-5 py-4">
                             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                               {leyes.map((ley) => (
@@ -396,6 +397,7 @@ export default function LegislacionPage() {
                                 </Card>
                               ))}
                             </div>
+                          </div>
                           </div>
                         </div>
                       </div>

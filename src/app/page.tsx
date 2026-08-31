@@ -100,7 +100,7 @@ export default async function Home() {
   ]
 
   return (
-    <div className="flex min-h-screen flex-col transition-colors duration-200">
+    <div className="flex min-h-screen flex-col">
       <Header />
 
       <main className="flex-1">
@@ -120,7 +120,7 @@ export default async function Home() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {statCards.map((stat) => (
                 <Link key={stat.label} href={stat.href} className="group block">
-                  <Card className="transition-all duration-200 hover:border-[var(--color-primary)] hover:shadow-lg hover:shadow-[var(--color-primary)]/10">
+                  <Card className="transition-[border-color] duration-200 ease-out hover:border-[var(--color-primary)]">
                     <div
                       className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-[var(--border-radius)]"
                       style={{ backgroundColor: stat.color }}
@@ -147,8 +147,8 @@ export default async function Home() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {quickAccess.map((item) => (
                 <Link key={item.title} href={item.href} className="group block">
-                  <Card className="flex items-start gap-4 transition-all duration-200 hover:border-[var(--color-secondary)] hover:shadow-lg hover:shadow-[var(--color-secondary)]/10">
-                    <div className="shrink-0 rounded-[var(--border-radius)] bg-[var(--color-primary)]/20 p-2.5 text-[var(--color-secondary)] transition-colors duration-200 group-hover:bg-[var(--color-secondary)]/20">
+                  <Card className="flex items-start gap-4 transition-[border-color] duration-200 ease-out hover:border-[var(--color-secondary)]">
+                    <div className="shrink-0 rounded-[var(--border-radius)] bg-[var(--color-primary)]/20 p-2.5 text-[var(--color-secondary)] transition-[background-color] duration-200 ease-out group-hover:bg-[var(--color-secondary)]/20">
                       {item.icon}
                     </div>
                     <div>

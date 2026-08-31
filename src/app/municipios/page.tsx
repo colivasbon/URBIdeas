@@ -276,7 +276,7 @@ export default function MunicipiosPage() {
   }, [comparando, municipiosComparados])
 
   return (
-    <div className="flex min-h-screen flex-col transition-colors duration-200">
+    <div className="flex min-h-screen flex-col">
       <Header />
 
       <main className="flex-1">

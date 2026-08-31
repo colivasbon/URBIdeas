@@ -17,6 +17,11 @@
   --border-radius: 6px;
   --background: var(--color-dark-bg);
   --foreground: var(--color-text-primary);
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 @theme inline {
@@ -50,7 +55,7 @@
 }
 
 button, a, input, select, textarea {
-  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
+  transition: background-color var(--duration-normal) var(--ease-out), color var(--duration-normal) var(--ease-out), border-color var(--duration-normal) var(--ease-out);
 }
 
 body {
@@ -109,8 +114,17 @@ a:hover {
 
 /* Accordion transition */
 .accordion-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-normal) var(--ease-out), opacity var(--duration-normal) var(--ease-out);
+  opacity: 0;
+}
+.accordion-content[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.accordion-content > * {
   overflow: hidden;
-  transition: max-height 300ms ease, opacity 200ms ease;
 }
 
 /* Leaflet popup overrides — corporate design */
@@ -209,4 +223,12 @@ a:hover {
 
 [data-theme="light"] .leaflet-popup-close-button {
   color: var(--color-text-secondary) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

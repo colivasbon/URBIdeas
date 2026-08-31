@@ -42,7 +42,7 @@ export function WmsTileLayer({
       format,
       transparent,
       crs: leafletCrs,
-      attribution: `${name} | Ideas Medioambientales`
+      attribution: ''
     })
 
     wmsLayer.addTo(map)

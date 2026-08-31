@@ -478,6 +478,7 @@ function VisorMapaInner({
         className="w-full h-full"
         style={{ background: 'var(--color-dark-bg)' }}
         zoomControl={false}
+        attributionControl={false}
       >
         <TileLayer
           key={baseLayer}

@@ -112,6 +112,7 @@ export default function MunicipiosPage() {
   const [municipiosComparados, setMunicipiosComparados] = useState<MunicipioComparado[]>([])
   const [loadingComparacion, setLoadingComparacion] = useState(false)
   const [errorComparacion, setErrorComparacion] = useState<string | null>(null)
+  const [provinciaId, setProvinciaId] = useState<string | null>(null)
   const comparisonRef = useRef<HTMLDivElement>(null)
 
   const abortPlaneamientoRef = useRef<AbortController | null>(null)
@@ -296,7 +297,7 @@ export default function MunicipiosPage() {
                 <CardHeader>
                   <CardTitle>Filtro por ubicación</CardTitle>
                 </CardHeader>
-                <FiltroCascada onMunicipioSeleccionado={handleMunicipioSeleccionado} />
+                <FiltroCascada onMunicipioSeleccionado={handleMunicipioSeleccionado} onProvinciaSeleccionada={setProvinciaId} />
               </Card>
 
               <Card className="mt-4">
@@ -306,7 +307,7 @@ export default function MunicipiosPage() {
                 <p className="mb-4 text-sm text-[var(--color-text-secondary)]">
                   Busca y selecciona hasta 10 municipios para comparar.
                 </p>
-                <SelectorMultiMunicipio onCompare={handleCompare} />
+                <SelectorMultiMunicipio onCompare={handleCompare} provinciaId={provinciaId} />
               </Card>
             </div>
 

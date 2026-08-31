@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef } from "react"
 
 interface Comunidad { id: string; nombre: string }
 interface Provincia { id: string; nombre: string; codigo_ine: string; comunidad_autonoma_id: string }
 interface Municipio { id: string; nombre: string; codigo_ine: string; poblacion: number | null; provincia_id: string; lat?: number; lng?: number; provincia?: { nombre: string; comunidad_autonoma?: { nombre: string } } }
+
 function useDebounce<T>(value: T, delay: number): T {
   const [v, setV] = useState(value)
   useEffect(() => { const t = setTimeout(() => setV(value), delay); return () => clearTimeout(t) }, [value, delay])
@@ -15,9 +16,12 @@ function normalize(s: string): string {
   return s.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
 }
 
-interface Props { onMunicipioSeleccionado?: (municipio: Municipio | null) => void }
+interface Props {
+  onMunicipioSeleccionado?: (municipio: Municipio | null) => void
+  onProvinciaSeleccionada?: (provinciaId: string | null) => void
+}
 
-export default function FiltroCascada({ onMunicipioSeleccionado }: Props) {
+export default function FiltroCascada({ onMunicipioSeleccionado, onProvinciaSeleccionada }: Props) {
   const [comunidades, setComunidades] = useState<Comunidad[]>([])
   const [provincias, setProvincias] = useState<Provincia[]>([])
   const [municipios, setMunicipios] = useState<Municipio[]>([])
@@ -31,14 +35,14 @@ export default function FiltroCascada({ onMunicipioSeleccionado }: Props) {
   const [loadingProv, setLoadingProv] = useState(false)
   const [loadingMun, setLoadingMun] = useState(false)
 
-  const [municipioInfo, setMunicipioInfo] = useState<Municipio | null>(null)
-
   const debounceSearch = useDebounce(municipioSearch, 200)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const munFetchRef = useRef(0)
   const onMunRef = useRef(onMunicipioSeleccionado)
   onMunRef.current = onMunicipioSeleccionado
+  const onProvRef = useRef(onProvinciaSeleccionada)
+  onProvRef.current = onProvinciaSeleccionada
 
   useEffect(() => {
     fetch("/api/comunidades").then(r => r.json()).then(j => { if (!j.error && j.data) setComunidades(j.data) }).catch(() => {})
@@ -52,25 +56,26 @@ export default function FiltroCascada({ onMunicipioSeleccionado }: Props) {
       .then(j => { if (!j.error && j.data) setProvincias(j.data) })
       .catch(() => {})
       .finally(() => setLoadingProv(false))
-    setSelProv(""); setMunicipios([]); setSelMun(""); setMunicipioSearch(""); setShowDropdown(false); setMunicipioInfo(null)
+    setSelProv(""); setMunicipios([]); setSelMun(""); setMunicipioSearch(""); setShowDropdown(false)
     onMunRef.current?.(null)
+    onProvRef.current?.(null)
   }, [selCCAA])
 
   useEffect(() => {
-    if (!selProv) { setMunicipios([]); return }
+    if (!selProv) { setMunicipios([]); onProvRef.current?.(null); return }
     const fetchId = ++munFetchRef.current
     setLoadingMun(true)
+    onProvRef.current?.(selProv)
     fetch(`/api/municipios?provincia_id=${selProv}&limit=500`)
       .then(r => r.json())
       .then(j => { if (fetchId === munFetchRef.current && !j.error && j.data) setMunicipios(j.data) })
       .catch(() => {})
       .finally(() => { if (fetchId === munFetchRef.current) setLoadingMun(false) })
-    setSelMun(""); setMunicipioSearch(""); setShowDropdown(false); setMunicipioInfo(null)
+    setSelMun(""); setMunicipioSearch(""); setShowDropdown(false)
     onMunRef.current?.(null)
   }, [selProv])
 
   const filtered = municipios.filter(m => normalize(m.nombre).includes(normalize(debounceSearch))).slice(0, 50)
-
   useEffect(() => { setHighlighted(-1) }, [debounceSearch])
 
   useEffect(() => {
@@ -83,22 +88,10 @@ export default function FiltroCascada({ onMunicipioSeleccionado }: Props) {
 
   function selectMunicipio(mun: Municipio) {
     setSelMun(mun.id); setMunicipioSearch(mun.nombre); setShowDropdown(false)
-    // Fetch full municipio data with lat/lng from [id] endpoint
     fetch(`/api/municipios/${mun.id}`)
       .then(r => r.json())
-      .then(j => {
-        if (!j.error && j.data) {
-          setMunicipioInfo(j.data)
-          onMunRef.current?.(j.data)
-        } else {
-          setMunicipioInfo(mun)
-          onMunRef.current?.(mun)
-        }
-      })
-      .catch(() => {
-        setMunicipioInfo(mun)
-        onMunRef.current?.(mun)
-      })
+      .then(j => { const data = !j.error && j.data ? j.data : mun; onMunRef.current?.(data) })
+      .catch(() => { onMunRef.current?.(mun) })
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -109,7 +102,6 @@ export default function FiltroCascada({ onMunicipioSeleccionado }: Props) {
     else if (e.key === "Escape") setShowDropdown(false)
   }
 
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
@@ -119,7 +111,6 @@ export default function FiltroCascada({ onMunicipioSeleccionado }: Props) {
           {comunidades.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
       </div>
-
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-[var(--color-text-secondary)]">Provincia</label>
         <select value={selProv} onChange={e => setSelProv(e.target.value)} disabled={!selCCAA || loadingProv} className="w-full px-3 py-2 text-sm text-[var(--color-text-primary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] disabled:opacity-50">
@@ -127,14 +118,13 @@ export default function FiltroCascada({ onMunicipioSeleccionado }: Props) {
           {provincias.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
         </select>
       </div>
-
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-[var(--color-text-secondary)]">
           Municipio{municipios.length > 0 && <span className="ml-2 text-xs opacity-70">{municipios.length} disponibles</span>}
         </label>
         <div className="relative">
           <input ref={inputRef} type="text" value={municipioSearch}
-            onChange={e => { setMunicipioSearch(e.target.value); setShowDropdown(true); if (!e.target.value) { setSelMun(""); setMunicipioInfo(null); onMunRef.current?.(null) } }}
+            onChange={e => { setMunicipioSearch(e.target.value); setShowDropdown(true); if (!e.target.value) { setSelMun(""); onMunRef.current?.(null) } }}
             onFocus={() => { if (municipios.length > 0) setShowDropdown(true) }}
             onKeyDown={handleKeyDown}
             disabled={!selProv || loadingMun}
@@ -153,18 +143,6 @@ export default function FiltroCascada({ onMunicipioSeleccionado }: Props) {
           )}
         </div>
       </div>
-
-      {municipioInfo && (
-        <div className="mt-2 p-4 bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)]">
-          <h4 className="text-base font-semibold text-[var(--color-accent)] mb-2">{municipioInfo.nombre}</h4>
-          <div className="flex flex-col gap-1 text-sm text-[var(--color-text-secondary)]">
-            {municipioInfo.provincia?.comunidad_autonoma?.nombre && <p><span className="font-medium text-[var(--color-text-primary)]">CCAA:</span> {municipioInfo.provincia.comunidad_autonoma.nombre}</p>}
-            {municipioInfo.provincia?.nombre && <p><span className="font-medium text-[var(--color-text-primary)]">Provincia:</span> {municipioInfo.provincia.nombre}</p>}
-            <p><span className="font-medium text-[var(--color-text-primary)]">Código INE:</span> {municipioInfo.codigo_ine}</p>
-            {municipioInfo.poblacion != null && <p><span className="font-medium text-[var(--color-text-primary)]">Población:</span> {municipioInfo.poblacion.toLocaleString("es-ES")} hab.</p>}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

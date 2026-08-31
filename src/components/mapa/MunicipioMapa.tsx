@@ -151,8 +151,7 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
   return (
     <div
       ref={mapRef}
-      className="h-[300px] w-full rounded-[var(--border-radius)] border border-[var(--color-border)]"
-      style={{ zIndex: 0 }}
+      className="h-[300px] w-full rounded-[var(--border-radius)] border border-[var(--color-border)] overflow-hidden"
     />
   )
 }

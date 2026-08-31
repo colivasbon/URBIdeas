@@ -21,9 +21,10 @@ const MAX_SELECTIONS = 10
 
 interface SelectorMultiMunicipioProps {
   onCompare?: (municipioIds: string[]) => void
+  provinciaId?: string | null
 }
 
-export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunicipioProps) {
+export default function SelectorMultiMunicipio({ onCompare, provinciaId }: SelectorMultiMunicipioProps) {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<MunicipioResult[]>([])
   const [selected, setSelected] = useState<SelectedMunicipio[]>([])
@@ -61,7 +62,10 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch(`/api/busqueda?q=${encodeURIComponent(query.trim())}&limit=20`, {
+        const url = provinciaId
+          ? `/api/municipios?provincia_id=${provinciaId}&search=${encodeURIComponent(query.trim())}&limit=20`
+          : `/api/busqueda?q=${encodeURIComponent(query.trim())}&limit=20`
+        const res = await fetch(url, {
           signal: controller.signal,
         })
         const json = await res.json()
@@ -73,24 +77,37 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
           setResults([])
           setIsOpen(true)
         } else if (json.data) {
-          const municipios = json.data
-            .filter((item: { tipo?: string }) => item.tipo === "municipio")
-            .map((m: {
-              id: string
-              nombre: string
-              codigo_ine: string
-              provincia_id?: string
-              provincia?: { id?: string; nombre?: string } | Array<{ id?: string; nombre?: string }>
-            }) => {
-              const prov = Array.isArray(m.provincia) ? m.provincia[0] : m.provincia
-              return {
-                id: String(m.id),
-                nombre: m.nombre,
-                codigo_ine: m.codigo_ine,
-                provincia_id: prov?.id ?? m.provincia_id ?? "",
-                provincia_nombre: prov?.nombre ?? "—",
-              }
-            }) as MunicipioResult[]
+          let municipios: MunicipioResult[]
+          if (provinciaId) {
+            // From /api/municipios - flat array
+            municipios = json.data.map((m: { id: string; nombre: string; codigo_ine: string; provincia_id: string }) => ({
+              id: String(m.id),
+              nombre: m.nombre,
+              codigo_ine: m.codigo_ine,
+              provincia_id: m.provincia_id,
+              provincia_nombre: "",
+            }))
+          } else {
+            // From /api/busqueda - mixed results with tipo field
+            municipios = json.data
+              .filter((item: { tipo?: string }) => item.tipo === "municipio")
+              .map((m: {
+                id: string
+                nombre: string
+                codigo_ine: string
+                provincia_id?: string
+                provincia?: { id?: string; nombre?: string } | Array<{ id?: string; nombre?: string }>
+              }) => {
+                const prov = Array.isArray(m.provincia) ? m.provincia[0] : m.provincia
+                return {
+                  id: String(m.id),
+                  nombre: m.nombre,
+                  codigo_ine: m.codigo_ine,
+                  provincia_id: prov?.id ?? m.provincia_id ?? "",
+                  provincia_nombre: prov?.nombre ?? "—",
+                }
+              }) as MunicipioResult[]
+          }
           setResults(municipios)
           setIsOpen(true)
         }

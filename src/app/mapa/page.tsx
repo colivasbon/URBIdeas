@@ -53,21 +53,27 @@ export default function MapaPage() {
   const [capas, setCapas] = useState<CapaWMS[]>([])
   const [activeCapas, setActiveCapas] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
-  const [mapCenter, setMapCenter] = useState<[number, number]>([40.0, -3.7])
-  const [mapZoom, setMapZoom] = useState(6)
-  const [baseLayer, setBaseLayer] = useState("osm")
+  const [mapCenter, setMapCenter] = useState<[number, number]>(() => {
+    const params = readUrlParams()
+    return params ? [params.lat, params.lng] : [40.0, -3.7]
+  })
+  const [mapZoom, setMapZoom] = useState(() => {
+    const params = readUrlParams()
+    return params ? params.zoom : 6
+  })
+  const [baseLayer, setBaseLayer] = useState(() => {
+    const params = readUrlParams()
+    return params ? params.base : "osm"
+  })
   const [fileLayers, setFileLayers] = useState<FileLayer[]>([])
   const [zoomToLayerId, setZoomToLayerId] = useState<string | null>(null)
-  const urlParamsRef = useRef<ReturnType<typeof readUrlParams>>(null)
   const initializedRef = useRef(false)
+  const initialCapasRef = useRef<string[]>([])
 
   useEffect(() => {
     const params = readUrlParams()
-    urlParamsRef.current = params
-    if (params) {
-      setMapCenter([params.lat, params.lng])
-      setMapZoom(params.zoom)
-      setBaseLayer(params.base)
+    if (params && params.capas.length > 0) {
+      initialCapasRef.current = params.capas
     }
   }, [])
 
@@ -78,10 +84,10 @@ export default function MapaPage() {
         const json = await res.json()
         if (!json.error && json.data) {
           setCapas(json.data)
-          const params = urlParamsRef.current
-          if (params && params.capas.length > 0) {
+          const initialCapas = initialCapasRef.current
+          if (initialCapas.length > 0) {
             const validIds = json.data.map((c: CapaWMS) => c.id)
-            setActiveCapas(params.capas.filter(id => validIds.includes(id)))
+            setActiveCapas(initialCapas.filter(id => validIds.includes(id)))
           }
           initializedRef.current = true
         }

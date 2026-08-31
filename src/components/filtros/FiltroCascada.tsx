@@ -295,7 +295,7 @@ export default function FiltroCascada({ onMunicipioSeleccionado }: FiltroCascada
                   onClick={() => handleMunicipioSelect(mun)}
                   className={`w-full text-left px-3 py-2 text-sm transition-colors duration-200 ${
                     index === highlightedIndex
-                      ? "bg-[var(--color-secondary)] text-[var(--color-text-primary)]"
+                      ? "bg-[var(--color-secondary)] text-[#1A1A1A]"
                       : "text-[var(--color-text-primary)] hover:bg-[var(--color-border)]"
                   }`}
                 >

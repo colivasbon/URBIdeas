@@ -60,6 +60,8 @@ interface MunicipioComparado {
   nombre: string
   provincia: string
   ccaa: string
+  lat: number | null
+  lng: number | null
   tipo_planeamiento: string | null
   estado: string | null
   fecha_aprobacion: string | null
@@ -230,6 +232,8 @@ export default function MunicipiosPage() {
       const comparados: MunicipioComparado[] = (json.data || []).map((m: {
         id: string
         nombre: string
+        lat?: number | null
+        lng?: number | null
         provincia?: { nombre?: string; comunidad_autonoma?: { nombre?: string } } | null
         instrumentos_planeamiento?: { tipo?: string; estado?: string; fecha_aprobacion_definitiva?: string; enlace_documento_oficial?: string }[] | null
       }) => {
@@ -246,6 +250,8 @@ export default function MunicipiosPage() {
           nombre: m.nombre,
           provincia: prov?.nombre ?? "—",
           ccaa: ccaa?.nombre ?? "—",
+          lat: m.lat ?? null,
+          lng: m.lng ?? null,
           tipo_planeamiento: inst?.tipo ?? "Sin datos verificados",
           estado: inst?.estado ?? null,
           fecha_aprobacion: inst?.fecha_aprobacion_definitiva ?? null,
@@ -559,7 +565,7 @@ export default function MunicipiosPage() {
                                           href={`/mapa?layers=${capa.id}&center=${selectedMunicipio?.lng || 0},${selectedMunicipio?.lat || 0}&zoom=12`}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="text-xs px-2 py-1 bg-[var(--color-secondary)] text-[var(--color-text-primary)] rounded-[var(--border-radius)] hover:opacity-80 transition-colors duration-200"
+                                          className="text-xs px-2 py-1 bg-[var(--color-secondary)] text-[#1A1A1A] rounded-[var(--border-radius)] hover:opacity-80 transition-colors duration-200"
                                         >
                                           Ver en mapa
                                         </a>
@@ -619,7 +625,20 @@ export default function MunicipiosPage() {
                         No se encontraron datos para los municipios seleccionados.
                       </p>
                     ) : (
-                      <div className="overflow-x-auto">
+                      <>
+                        <div className="mb-4">
+                          <MunicipioMapa
+                            municipios={municipiosComparados
+                              .filter((m) => m.lat != null && m.lng != null)
+                              .map((m) => ({
+                                id: m.id,
+                                nombre: m.nombre,
+                                lat: m.lat!,
+                                lng: m.lng!,
+                              }))}
+                          />
+                        </div>
+                        <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-[var(--color-border)]">
@@ -675,6 +694,7 @@ export default function MunicipiosPage() {
                           </tbody>
                         </table>
                       </div>
+                      </>
                     )}
 
                     <div className="mt-4 flex justify-end">

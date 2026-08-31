@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const { data: municipios, error: municipiosError } = await supabase
       .from('municipios')
       .select(`
-        id, nombre, codigo_ine, poblacion,
+        id, nombre, codigo_ine, poblacion, lat, lng,
         provincia:provincias(
           id, nombre,
           comunidad_autonoma:comunidades_autonomas(id, nombre)
@@ -75,6 +75,8 @@ export async function GET(request: NextRequest) {
         nombre: m.nombre,
         codigo_ine: m.codigo_ine,
         poblacion: m.poblacion,
+        lat: m.lat ?? null,
+        lng: m.lng ?? null,
         provincia: provincia?.nombre || null,
         comunidad_autonoma: comunidad_autonoma?.nombre || null,
         instrumentos_planeamiento: m.instrumentos_planeamiento || [],

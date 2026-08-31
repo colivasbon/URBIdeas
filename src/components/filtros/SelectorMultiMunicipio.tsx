@@ -71,6 +71,7 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
         if (json.error) {
           setError(json.error)
           setResults([])
+          setIsOpen(true)
         } else if (json.data) {
           const municipios = json.data
             .filter((item: { tipo?: string }) => item.tipo === "municipio")
@@ -79,23 +80,27 @@ export default function SelectorMultiMunicipio({ onCompare }: SelectorMultiMunic
               nombre: string
               codigo_ine: string
               provincia_id?: string
-              provincia?: { id?: string; nombre?: string }
-            }) => ({
-              id: String(m.id),
-              nombre: m.nombre,
-              codigo_ine: m.codigo_ine,
-              provincia_id: m.provincia?.id ?? m.provincia_id ?? "",
-              provincia_nombre: m.provincia?.nombre ?? "—",
-            })) as MunicipioResult[]
+              provincia?: { id?: string; nombre?: string } | Array<{ id?: string; nombre?: string }>
+            }) => {
+              const prov = Array.isArray(m.provincia) ? m.provincia[0] : m.provincia
+              return {
+                id: String(m.id),
+                nombre: m.nombre,
+                codigo_ine: m.codigo_ine,
+                provincia_id: prov?.id ?? m.provincia_id ?? "",
+                provincia_nombre: prov?.nombre ?? "—",
+              }
+            }) as MunicipioResult[]
           setResults(municipios)
+          setIsOpen(true)
         }
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") return
         setError("Error al buscar municipios")
         setResults([])
+        setIsOpen(true)
       }
       setLoading(false)
-      setIsOpen(true)
     }, 300)
 
     return () => {

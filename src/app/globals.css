@@ -98,6 +98,20 @@ a:hover {
   color: var(--color-primary);
 }
 
+/* Leaflet map container fix — prevent tile overflow */
+.leaflet-container {
+  overflow: hidden !important;
+  position: relative;
+}
+
+.leaflet-pane {
+  overflow: hidden !important;
+}
+
+.leaflet-tile-pane {
+  overflow: hidden !important;
+}
+
 /* Accordion transition */
 .accordion-content {
   overflow: hidden;

@@ -36,14 +36,29 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error
 
+    // Get lat/lng for all municipios via RPC
+    const coordMap = new Map<string, { lat: number; lng: number }>()
+    for (const id of ids) {
+      try {
+        const { data: coords } = await supabase.rpc('get_municipio_coords' as never, { p_id: id } as never).single()
+        if (coords && typeof coords === 'object' && 'lat' in coords) {
+          const c = coords as { lat: number; lng: number }
+          if (c.lat != null && c.lng != null) coordMap.set(id, { lat: c.lat, lng: c.lng })
+        }
+      } catch { /* skip */ }
+    }
+
     const data = (municipios || []).map(m => {
       const prov = Array.isArray(m.provincia) ? m.provincia[0] : m.provincia
       const ccaa = prov ? (Array.isArray(prov.comunidad_autonoma) ? prov.comunidad_autonoma[0] : prov.comunidad_autonoma) : null
+      const coords = coordMap.get(m.id)
       return {
         id: m.id,
         nombre: m.nombre,
         codigo_ine: m.codigo_ine,
         poblacion: m.poblacion,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
         provincia: prov?.nombre || null,
         comunidad_autonoma: ccaa?.nombre || null,
         instrumentos_planeamiento: m.instrumentos_planeamiento || [],

@@ -2,19 +2,8 @@
 
 import { useEffect, useRef } from "react"
 
-interface MunicipioMarker {
-  id: string
-  nombre: string
-  lat: number
-  lng: number
-}
-
-interface MunicipioMapaProps {
-  lat?: number | null
-  lng?: number | null
-  nombre?: string
-  municipios?: MunicipioMarker[]
-}
+interface MunicipioMarker { id: string; nombre: string; lat: number; lng: number }
+interface MunicipioMapaProps { lat?: number | null; lng?: number | null; nombre?: string; municipios?: MunicipioMarker[] }
 
 const MARKER_COLORS = ["#3E665C","#D4543B","#2563EB","#D97706","#7C3AED","#059669","#DC2626","#0891B2","#C026D3","#65A30D"]
 
@@ -38,19 +27,26 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
         mapInstanceRef.current = null
       }
 
-      // Force container size before creating map
       const container = mapRef.current!
-      container.style.width = "100%"
-      container.style.height = "300px"
-      container.style.overflow = "hidden"
+      // Force dimensions and overflow BEFORE creating map
+      container.setAttribute("style", "width:100%;height:300px;overflow:hidden;position:relative;")
+
+      map = L.map(container, {
+        center: isMulti ? undefined : [lat!, lng!],
+        zoom: isMulti ? 6 : 12,
+        zoomControl: true,
+        scrollWheelZoom: false,
+        attributionControl: true,
+      })
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: isMulti ? "© OpenStreetMap" : `© OpenStreetMap · ${nombre ?? ""}`,
+        maxZoom: 19,
+      }).addTo(map)
 
       if (isMulti) {
         const valid = municipios.filter(m => typeof m.lat === "number" && typeof m.lng === "number" && !isNaN(m.lat) && !isNaN(m.lng))
         if (valid.length === 0) return
-
-        const bounds = L.latLngBounds(valid.map(m => [m.lat, m.lng] as [number, number]))
-        map = L.map(container, { zoomControl: true, scrollWheelZoom: false })
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap", maxZoom: 19 }).addTo(map)
 
         valid.forEach((m, i) => {
           const color = MARKER_COLORS[i % MARKER_COLORS.length]
@@ -61,10 +57,9 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
           })
           L.marker([m.lat, m.lng], { icon }).addTo(map).bindPopup(`<strong>${m.nombre}</strong>`)
         })
+        const bounds = L.latLngBounds(valid.map(m => [m.lat, m.lng] as [number, number]))
         map.fitBounds(bounds, { padding: [50, 50] })
       } else {
-        map = L.map(container, { center: [lat!, lng!], zoom: 12, zoomControl: true, scrollWheelZoom: false })
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: `© OpenStreetMap · ${nombre ?? ""}`, maxZoom: 19 }).addTo(map)
         const icon = L.divIcon({
           className: "",
           html: `<div style="background:#3E665C;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
@@ -75,8 +70,17 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
 
       mapInstanceRef.current = map
 
-      // Fix: invalidateSize after a short delay to ensure tiles render correctly
-      setTimeout(() => { (map as { invalidateSize: () => void })?.invalidateSize() }, 200)
+      // Critical: invalidateSize after render to fix tile positioning
+      setTimeout(() => {
+        map.invalidateSize()
+        // Force re-render tiles
+        map.eachLayer((layer: unknown) => {
+          if (layer && typeof layer === 'object' && 'redraw' in layer) {
+            (layer as { redraw: () => void }).redraw()
+          }
+        })
+      }, 100)
+      setTimeout(() => map.invalidateSize(), 500)
     }
 
     initMap()
@@ -98,5 +102,5 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
     return <div className="flex items-center justify-center h-[300px] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] text-sm text-[var(--color-text-secondary)]">No hay coordenadas verificadas</div>
   }
 
-  return <div ref={mapRef} className="h-[300px] w-full rounded-[var(--border-radius)] border border-[var(--color-border)]" style={{ overflow: "hidden" }} />
+  return <div ref={mapRef} className="rounded-[var(--border-radius)] border border-[var(--color-border)]" style={{ width: "100%", height: "300px", overflow: "hidden", position: "relative" }} />
 }

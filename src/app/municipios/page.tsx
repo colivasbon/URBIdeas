@@ -344,11 +344,13 @@ export default function MunicipiosPage() {
                     )}
                   </div>
 
-                  <MunicipioMapa
-                    lat={selectedMunicipio.lat ?? null}
-                    lng={selectedMunicipio.lng ?? null}
-                    nombre={selectedMunicipio.nombre}
-                  />
+                  <div className="overflow-hidden rounded-[var(--border-radius)]">
+                    <MunicipioMapa
+                      lat={selectedMunicipio.lat ?? null}
+                      lng={selectedMunicipio.lng ?? null}
+                      nombre={selectedMunicipio.nombre}
+                    />
+                  </div>
 
                   {/* Instrumentos de Planeamiento */}
                   {(loadingPlaneamiento || instrumentos.length > 0) && (
@@ -627,7 +629,7 @@ export default function MunicipiosPage() {
                       </p>
                     ) : (
                       <>
-                        <div className="mb-4">
+                        <div className="mb-4 overflow-hidden rounded-[var(--border-radius)]">
                           <MunicipioMapa
                             municipios={municipiosComparados
                               .filter((m) => m.lat != null && m.lng != null)

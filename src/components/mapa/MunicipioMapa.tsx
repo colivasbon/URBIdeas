@@ -30,7 +30,6 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
       const container = mapRef.current!
 
       map = L.map(container, {
-        center: isMulti ? undefined : [lat!, lng!],
         zoom: isMulti ? 6 : 12,
         zoomControl: true,
         scrollWheelZoom: false,
@@ -68,9 +67,13 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
 
       mapInstanceRef.current = map
 
-      map.whenReady(() => {
+      setTimeout(() => {
         map.invalidateSize()
-      })
+        if (!isMulti && lat && lng) {
+          map.setView([lat, lng], map.getZoom())
+        }
+      }, 200)
+      setTimeout(() => map.invalidateSize(), 500)
     }
 
     initMap()

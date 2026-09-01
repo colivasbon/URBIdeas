@@ -94,6 +94,7 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
   return (
     <div style={{ width: "100%", height: "300px", borderRadius: "var(--border-radius)", border: "1px solid var(--color-border)", overflow: "hidden" }}>
       <MapContainer
+        key={`${center[0].toFixed(4)},${center[1].toFixed(4)}`}
         center={center}
         zoom={isMulti ? 6 : 12}
         style={{ width: "100%", height: "100%", background: "#e5e3df" }}

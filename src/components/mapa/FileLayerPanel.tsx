@@ -1,7 +1,14 @@
 "use client"
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useCallback, useEffect } from 'react'
 import type { FileLayer } from './fileLayerUtils'
 import { parseFile } from './fileLayerUtils'
+import { ProvinceSelector } from './ProvinceSelector'
+
+interface SoilFeature {
+  type: 'Feature'
+  properties: Record<string, unknown>
+  geometry: unknown
+}
 
 interface FileLayerPanelProps {
   fileLayers: FileLayer[]
@@ -10,6 +17,16 @@ interface FileLayerPanelProps {
   onToggle: (id: string) => void
   onColorChange: (id: string, color: string) => void
   onZoomTo: (id: string) => void
+  onSoilToggle?: (geojson: GeoJSON.FeatureCollection | null) => void
+}
+
+const CLASE_SUELO_COLORS: Record<string, string> = {
+  'SUELO URBANO': '#e74c3c',
+  'SUELO URBANO NO CONSOLIDADO': '#e67e22',
+  'SUELO URBANIZABLE DELIMITADO O SECTORIZADO': '#f1c40f',
+  'SUELO URBANIZABLE NO DELIMITADO O SECTORIZADO': '#2ecc71',
+  'SUELO NO URBANIZABLE': '#3498db',
+  'SISTEMAS GENERALES': '#9b59b6',
 }
 
 export function FileLayerPanel({
@@ -19,10 +36,60 @@ export function FileLayerPanel({
   onToggle,
   onColorChange,
   onZoomTo,
+  onSoilToggle,
 }: FileLayerPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showProvinceSelector, setShowProvinceSelector] = useState(false)
+  const [selectedProvinces, setSelectedProvinces] = useState<string[]>([])
+  const [loadingProvinces, setLoadingProvinces] = useState<Record<string, boolean>>({})
+  const [soilGeoJSON, setSoilGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null)
+
+  const toggleProvince = useCallback((code: string) => {
+    setSelectedProvinces(prev =>
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    )
+  }, [])
+
+  useEffect(() => {
+    if (selectedProvinces.length === 0) {
+      setSoilGeoJSON(null)
+      onSoilToggle?.(null)
+      return
+    }
+
+    async function loadProvinces() {
+      const allFeatures: SoilFeature[] = []
+      const toLoad = selectedProvinces.filter(p => !loadingProvinces[p])
+
+      for (const code of toLoad) {
+        setLoadingProvinces(prev => ({ ...prev, [code]: true }))
+        try {
+          const res = await fetch(`/data/soil/province_${code}.geojson`)
+          if (res.ok) {
+            const data = await res.json()
+            allFeatures.push(...data.features)
+          }
+        } catch { /* ignore */ }
+        setLoadingProvinces(prev => ({ ...prev, [code]: false }))
+      }
+
+      if (allFeatures.length > 0) {
+        const merged: GeoJSON.FeatureCollection = {
+          type: 'FeatureCollection',
+          features: allFeatures as unknown as GeoJSON.Feature[]
+        }
+        setSoilGeoJSON(merged)
+        onSoilToggle?.(merged)
+      } else {
+        setSoilGeoJSON(null)
+        onSoilToggle?.(null)
+      }
+    }
+
+    loadProvinces()
+  }, [selectedProvinces])
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -43,7 +110,55 @@ export function FileLayerPanel({
   }
 
   return (
-    <div className="border-t border-[var(--color-border)]">
+    <div className="border-t border-[var(--color-border-subtle)]">
+      {/* Soil Classification Section */}
+      <div className="border-b border-[var(--color-border-subtle)]">
+        <button
+          onClick={() => setShowProvinceSelector(!showProvinceSelector)}
+          className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-[var(--color-input-bg)] transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-[var(--color-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
+            </svg>
+            <span className="text-sm font-medium text-[var(--color-text-primary)]">Clasificación de suelo</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedProvinces.length > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-secondary)]/20 text-[var(--color-secondary)]">
+                {selectedProvinces.length}
+              </span>
+            )}
+            <svg className={`w-4 h-4 text-[var(--color-text-muted)] transition-transform ${showProvinceSelector ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </div>
+        </button>
+
+        {showProvinceSelector && (
+          <ProvinceSelector
+            selectedProvinces={selectedProvinces}
+            onToggle={toggleProvince}
+          />
+        )}
+      </div>
+
+      {/* Legend */}
+      {soilGeoJSON && (
+        <div className="px-4 py-2 border-b border-[var(--color-border-subtle)]">
+          <p className="text-[10px] font-medium text-[var(--color-text-muted)] mb-1">Leyenda:</p>
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
+            {Object.entries(CLASE_SUELO_COLORS).map(([name, color]) => (
+              <div key={name} className="flex items-center gap-1">
+                <div className="w-2.5 h-2.5 rounded-sm" style={{ background: color }} />
+                <span className="text-[9px] text-[var(--color-text-muted)]">{name.replace('SUELO ', '').replace(' DELIMITADO O SECTORIZADO', '').replace(' NO DELIMITADO O SECTORIZADO', ' (no delim.)').replace('SISTEMAS GENERALES', 'Sist. generales')}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* File Upload Section */}
       <div className="px-4 py-3">
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2 mb-2">
           <svg className="w-4 h-4 text-[var(--color-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -51,7 +166,7 @@ export function FileLayerPanel({
           </svg>
           Mis capas (sesión)
         </h3>
-        <p className="text-[10px] text-[var(--color-text-secondary)] mb-3">
+        <p className="text-[10px] text-[var(--color-text-muted)] mb-3">
           GeoJSON, KML, KMZ, SHP — desaparecen al recargar
         </p>
 
@@ -66,7 +181,7 @@ export function FileLayerPanel({
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-[var(--border-radius)] border border-dashed border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-secondary)] hover:text-[var(--color-secondary)] transition-colors disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-[var(--border-radius)] border border-dashed border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:border-[var(--color-secondary)] hover:text-[var(--color-secondary)] transition-colors disabled:opacity-50"
         >
           {loading ? (
             <>
@@ -88,12 +203,13 @@ export function FileLayerPanel({
         )}
       </div>
 
+      {/* Active file layers */}
       {fileLayers.length > 0 && (
         <div className="px-4 pb-3 flex flex-col gap-1.5">
           {fileLayers.map(layer => (
             <div
               key={layer.id}
-              className="flex items-center gap-2 p-2 rounded-[var(--border-radius)] border border-[var(--color-border)] bg-[var(--color-input-bg)]/50"
+              className="flex items-center gap-2 p-2 rounded-[var(--border-radius)] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)]/50"
             >
               <button
                 onClick={() => onToggle(layer.id)}
@@ -129,7 +245,7 @@ export function FileLayerPanel({
 
               <button
                 onClick={() => onZoomTo(layer.id)}
-                className="text-[var(--color-text-secondary)] hover:text-[var(--color-secondary)] transition-colors"
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-secondary)] transition-colors"
                 title="Zoom a extensión"
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -139,7 +255,7 @@ export function FileLayerPanel({
 
               <button
                 onClick={() => onRemove(layer.id)}
-                className="text-[var(--color-text-secondary)] hover:text-red-400 transition-colors"
+                className="text-[var(--color-text-muted)] hover:text-red-400 transition-colors"
                 title="Eliminar"
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

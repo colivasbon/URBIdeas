@@ -76,6 +76,7 @@ export default function MapaPage() {
   const [fileLayers, setFileLayers] = useState<FileLayer[]>([])
   const [zoomToLayerId, setZoomToLayerId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [soilGeoJSON, setSoilGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null)
   const initializedRef = useRef(false)
   const initialCapasRef = useRef<string[]>([])
 
@@ -144,6 +145,10 @@ export default function MapaPage() {
     setZoomToLayerId(id)
   }, [])
 
+  const handleSoilToggle = useCallback((geojson: GeoJSON.FeatureCollection | null) => {
+    setSoilGeoJSON(geojson)
+  }, [])
+
   useEffect(() => {
     if (!initializedRef.current) return
     writeUrlParams(mapCenter[0], mapCenter[1], mapZoom, activeCapas, baseLayer, baseOpacity)
@@ -180,6 +185,7 @@ export default function MapaPage() {
                 <VisorMapa
                   capasActivas={selectedCapas}
                   fileLayers={fileLayers}
+                  soilGeoJSON={soilGeoJSON}
                   center={mapCenter}
                   zoom={mapZoom}
                   baseLayer={baseLayer}
@@ -219,6 +225,7 @@ export default function MapaPage() {
                   onToggle={toggleFileLayer}
                   onColorChange={changeFileLayerColor}
                   onZoomTo={zoomToFileLayer}
+                  onSoilToggle={handleSoilToggle}
                 />
 
                 {activeCapas.length > 0 && (

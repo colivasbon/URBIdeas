@@ -1,0 +1,366 @@
+{
+  "10": {
+    "name": "Cáceres",
+    "ccaa": "Extremadura",
+    "filename": "province_10.geojson",
+    "features": 535,
+    "size": 1054685
+  },
+  "11": {
+    "name": "Cádiz",
+    "ccaa": "Andalucía",
+    "filename": "province_11.geojson",
+    "features": 163,
+    "size": 677816
+  },
+  "12": {
+    "name": "Castellón",
+    "ccaa": "Comunitat Valenciana",
+    "filename": "province_12.geojson",
+    "features": 72,
+    "size": 286183
+  },
+  "13": {
+    "name": "Ciudad Real",
+    "ccaa": "Castilla-La Mancha",
+    "filename": "province_13.geojson",
+    "features": 180,
+    "size": 511035
+  },
+  "14": {
+    "name": "Córdoba",
+    "ccaa": "Andalucía",
+    "filename": "province_14.geojson",
+    "features": 167,
+    "size": 615605
+  },
+  "15": {
+    "name": "A Coruña",
+    "ccaa": "Galicia",
+    "filename": "province_15.geojson",
+    "features": 379,
+    "size": 3804657
+  },
+  "16": {
+    "name": "Cuenca",
+    "ccaa": "Castilla-La Mancha",
+    "filename": "province_16.geojson",
+    "features": 136,
+    "size": 338671
+  },
+  "17": {
+    "name": "Girona",
+    "ccaa": "Cataluña",
+    "filename": "province_17.geojson",
+    "features": 805,
+    "size": 1609912
+  },
+  "18": {
+    "name": "Granada",
+    "ccaa": "Andalucía",
+    "filename": "province_18.geojson",
+    "features": 224,
+    "size": 702868
+  },
+  "19": {
+    "name": "Guadalajara",
+    "ccaa": "Castilla-La Mancha",
+    "filename": "province_19.geojson",
+    "features": 161,
+    "size": 384175
+  },
+  "20": {
+    "name": "Gipuzkoa",
+    "ccaa": "País Vasco",
+    "filename": "province_20.geojson",
+    "features": 415,
+    "size": 3567802
+  },
+  "21": {
+    "name": "Huelva",
+    "ccaa": "Andalucía",
+    "filename": "province_21.geojson",
+    "features": 116,
+    "size": 416002
+  },
+  "22": {
+    "name": "Huesca",
+    "ccaa": "Aragón",
+    "filename": "province_22.geojson",
+    "features": 153,
+    "size": 373792
+  },
+  "23": {
+    "name": "Jaén",
+    "ccaa": "Andalucía",
+    "filename": "province_23.geojson",
+    "features": 149,
+    "size": 521124
+  },
+  "24": {
+    "name": "León",
+    "ccaa": "Castilla y León",
+    "filename": "province_24.geojson",
+    "features": 447,
+    "size": 1516472
+  },
+  "25": {
+    "name": "Lleida",
+    "ccaa": "Cataluña",
+    "filename": "province_25.geojson",
+    "features": 790,
+    "size": 1404958
+  },
+  "26": {
+    "name": "La Rioja",
+    "ccaa": "La Rioja",
+    "filename": "province_26.geojson",
+    "features": 73,
+    "size": 244046
+  },
+  "27": {
+    "name": "Lugo",
+    "ccaa": "Galicia",
+    "filename": "province_27.geojson",
+    "features": 147,
+    "size": 1105436
+  },
+  "28": {
+    "name": "Madrid",
+    "ccaa": "Comunidad de Madrid",
+    "filename": "province_28.geojson",
+    "features": 725,
+    "size": 1850501
+  },
+  "29": {
+    "name": "Málaga",
+    "ccaa": "Andalucía",
+    "filename": "province_29.geojson",
+    "features": 177,
+    "size": 1081701
+  },
+  "30": {
+    "name": "Murcia",
+    "ccaa": "Región de Murcia",
+    "filename": "province_30.geojson",
+    "features": 237,
+    "size": 2739316
+  },
+  "31": {
+    "name": "Navarra",
+    "ccaa": "Comunidad Foral de Navarra",
+    "filename": "province_31.geojson",
+    "features": 190,
+    "size": 552559
+  },
+  "32": {
+    "name": "Ourense",
+    "ccaa": "Galicia",
+    "filename": "province_32.geojson",
+    "features": 209,
+    "size": 1260485
+  },
+  "33": {
+    "name": "Asturias",
+    "ccaa": "Principado de Asturias",
+    "filename": "province_33.geojson",
+    "features": 367,
+    "size": 3311581
+  },
+  "34": {
+    "name": "Palencia",
+    "ccaa": "Castilla y León",
+    "filename": "province_34.geojson",
+    "features": 362,
+    "size": 651860
+  },
+  "35": {
+    "name": "Las Palmas",
+    "ccaa": "Canarias",
+    "filename": "province_35.geojson",
+    "features": 181,
+    "size": 1072902
+  },
+  "36": {
+    "name": "Pontevedra",
+    "ccaa": "Galicia",
+    "filename": "province_36.geojson",
+    "features": 267,
+    "size": 2379828
+  },
+  "37": {
+    "name": "Salamanca",
+    "ccaa": "Castilla y León",
+    "filename": "province_37.geojson",
+    "features": 833,
+    "size": 1359000
+  },
+  "38": {
+    "name": "S/C Tenerife",
+    "ccaa": "Canarias",
+    "filename": "province_38.geojson",
+    "features": 286,
+    "size": 1436615
+  },
+  "39": {
+    "name": "Cantabria",
+    "ccaa": "Cantabria",
+    "filename": "province_39.geojson",
+    "features": 336,
+    "size": 1521853
+  },
+  "40": {
+    "name": "Segovia",
+    "ccaa": "Castilla y León",
+    "filename": "province_40.geojson",
+    "features": 405,
+    "size": 704004
+  },
+  "41": {
+    "name": "Sevilla",
+    "ccaa": "Andalucía",
+    "filename": "province_41.geojson",
+    "features": 325,
+    "size": 926384
+  },
+  "42": {
+    "name": "Soria",
+    "ccaa": "Castilla y León",
+    "filename": "province_42.geojson",
+    "features": 184,
+    "size": 378703
+  },
+  "43": {
+    "name": "Tarragona",
+    "ccaa": "Cataluña",
+    "filename": "province_43.geojson",
+    "features": 637,
+    "size": 1281053
+  },
+  "44": {
+    "name": "Teruel",
+    "ccaa": "Aragón",
+    "filename": "province_44.geojson",
+    "features": 194,
+    "size": 299692
+  },
+  "45": {
+    "name": "Toledo",
+    "ccaa": "Castilla y León",
+    "filename": "province_45.geojson",
+    "features": 265,
+    "size": 801885
+  },
+  "46": {
+    "name": "Valencia",
+    "ccaa": "Comunitat Valenciana",
+    "filename": "province_46.geojson",
+    "features": 439,
+    "size": 1180891
+  },
+  "47": {
+    "name": "Valladolid",
+    "ccaa": "Castilla y León",
+    "filename": "province_47.geojson",
+    "features": 604,
+    "size": 1002341
+  },
+  "48": {
+    "name": "Bizkaia",
+    "ccaa": "País Vasco",
+    "filename": "province_48.geojson",
+    "features": 589,
+    "size": 3933453
+  },
+  "49": {
+    "name": "Zamora",
+    "ccaa": "Castilla y León",
+    "filename": "province_49.geojson",
+    "features": 506,
+    "size": 801091
+  },
+  "50": {
+    "name": "Zaragoza",
+    "ccaa": "Aragón",
+    "filename": "province_50.geojson",
+    "features": 294,
+    "size": 706007
+  },
+  "51": {
+    "name": "Ceuta",
+    "ccaa": "Ceuta",
+    "filename": "province_51.geojson",
+    "features": 5,
+    "size": 14417
+  },
+  "52": {
+    "name": "Melilla",
+    "ccaa": "Melilla",
+    "filename": "province_52.geojson",
+    "features": 6,
+    "size": 26244
+  },
+  "08": {
+    "name": "Barcelona",
+    "ccaa": "Cataluña",
+    "filename": "province_08.geojson",
+    "features": 1200,
+    "size": 2655567
+  },
+  "06": {
+    "name": "Badajoz",
+    "ccaa": "Extremadura",
+    "filename": "province_06.geojson",
+    "features": 421,
+    "size": 933931
+  },
+  "05": {
+    "name": "Ávila",
+    "ccaa": "Castilla y León",
+    "filename": "province_05.geojson",
+    "features": 325,
+    "size": 571010
+  },
+  "02": {
+    "name": "Albacete",
+    "ccaa": "Castilla-La Mancha",
+    "filename": "province_02.geojson",
+    "features": 142,
+    "size": 391567
+  },
+  "03": {
+    "name": "Alicante",
+    "ccaa": "Comunitat Valenciana",
+    "filename": "province_03.geojson",
+    "features": 294,
+    "size": 1116426
+  },
+  "09": {
+    "name": "Burgos",
+    "ccaa": "Castilla y León",
+    "filename": "province_09.geojson",
+    "features": 576,
+    "size": 1362452
+  },
+  "07": {
+    "name": "Baleares",
+    "ccaa": "Islas Baleares",
+    "filename": "province_07.geojson",
+    "features": 190,
+    "size": 832811
+  },
+  "01": {
+    "name": "Álava",
+    "ccaa": "País Vasco",
+    "filename": "province_01.geojson",
+    "features": 243,
+    "size": 3228533
+  },
+  "04": {
+    "name": "Almería",
+    "ccaa": "Andalucía",
+    "filename": "province_04.geojson",
+    "features": 142,
+    "size": 863709
+  }
+}

@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import { WmsTileLayer } from './WmsTileLayer'
 import { GetFeatureInfoPopup, type FeatureInfo } from './GetFeatureInfoPopup'
 import { FileGeoJsonLayer } from './FileGeoJsonLayer'
+import { SoilGeoJsonLayer } from './SoilGeoJsonLayer'
 import type { FileLayer } from './fileLayerUtils'
 import { getFileLayerBounds } from './fileLayerUtils'
 
@@ -19,6 +20,7 @@ interface CapaActiva {
 interface VisorMapaProps {
   capasActivas: CapaActiva[]
   fileLayers?: FileLayer[]
+  soilGeoJSON?: GeoJSON.FeatureCollection | null
   center?: [number, number]
   zoom?: number
   baseLayer?: string
@@ -456,6 +458,7 @@ function BaseLayerControl({
 function VisorMapaInner({
   capasActivas = [],
   fileLayers = [],
+  soilGeoJSON = null,
   center = [40.0, -3.7],
   zoom = 6,
   baseLayer = 'osm',
@@ -520,6 +523,8 @@ function VisorMapaInner({
         {fileLayers.map(layer => (
           <FileGeoJsonLayer key={layer.id} layer={layer} />
         ))}
+
+        <SoilGeoJsonLayer geojson={soilGeoJSON} />
 
         <MapInitializer center={center} zoom={zoom} />
         <MapMoveReporter onMove={onMapMove || (() => {})} />

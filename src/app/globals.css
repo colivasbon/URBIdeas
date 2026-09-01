@@ -157,6 +157,20 @@ a:hover {
   isolation: isolate;
 }
 
+/* Mapa de municipios - asegurar que llene el contenedor */
+.leaflet-map-municipio {
+  width: 100% !important;
+  height: 100% !important;
+}
+.leaflet-map-municipio .leaflet-pane {
+  width: 100%;
+  height: 100%;
+}
+.leaflet-map-municipio .leaflet-tile-pane {
+  width: 100%;
+  height: 100%;
+}
+
 /* Accordion transition */
 .accordion-content {
   display: grid;

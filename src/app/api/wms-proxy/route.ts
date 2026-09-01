@@ -3,11 +3,21 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const url = searchParams.get('url')
+  if (!url) return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 })
+  return proxyUrl(url)
+}
 
-  if (!url) {
-    return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 })
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    if (!body.url) return NextResponse.json({ error: 'Missing url in body' }, { status: 400 })
+    return proxyUrl(body.url)
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
+}
 
+async function proxyUrl(url: string) {
   try {
     const targetUrl = new URL(url)
 

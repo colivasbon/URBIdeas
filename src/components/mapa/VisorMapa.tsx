@@ -256,7 +256,7 @@ function FeatureInfoFetcher({
       const size = 256
       const point = map.latLngToContainerPoint(latlng)
       const bounds = map.getBounds()
-      const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`
+      const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`
 
       const results: FeatureInfo[] = []
 
@@ -268,7 +268,7 @@ function FeatureInfoFetcher({
             request: 'GetFeatureInfo',
             layers: capa.nombre_capa,
             query_layers: capa.nombre_capa,
-            info_format: 'application/json',
+            info_format: 'text/plain',
             feature_count: '10',
             srs: 'EPSG:4326',
             bbox,
@@ -276,16 +276,26 @@ function FeatureInfoFetcher({
             height: String(size),
             x: String(Math.floor(point.x * (size / map.getSize().x))),
             y: String(Math.floor(point.y * (size / map.getSize().y))),
+            styles: '',
           })
 
           const wmsUrl = `${capa.url_servicio}?${params.toString()}`
-          const proxyUrl = `/api/wms-proxy?url=${encodeURIComponent(wmsUrl)}`
           const controller = new AbortController()
           const timeout = setTimeout(() => controller.abort(), 15000)
 
           let response: Response
           try {
-            response = await fetch(proxyUrl, { signal: controller.signal })
+            if (wmsUrl.length > 2000) {
+              response = await fetch('/api/wms-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: wmsUrl }),
+                signal: controller.signal,
+              })
+            } else {
+              const proxyUrl = `/api/wms-proxy?url=${encodeURIComponent(wmsUrl)}`
+              response = await fetch(proxyUrl, { signal: controller.signal })
+            }
           } catch (fetchErr) {
             clearTimeout(timeout)
             const msg = fetchErr instanceof DOMException && fetchErr.name === 'AbortError'

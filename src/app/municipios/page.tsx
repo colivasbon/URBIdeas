@@ -304,6 +304,35 @@ export default function MunicipiosPage() {
       })
 
       setMunicipiosComparados(comparados)
+
+      const enriched = await Promise.all(
+        comparados.map(async (m) => {
+          const cacheKey = `${m.nombre}|${m.provincia}`
+          const cached = nominatimCacheRef.current.get(cacheKey)
+          if (cached) return { ...m, lat: cached.lat, lng: cached.lng }
+
+          const query = m.provincia && m.provincia !== "—"
+            ? `${m.nombre}, ${m.provincia}, España`
+            : `${m.nombre}, España`
+
+          try {
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=es`,
+              { headers: { "Accept": "application/json" } }
+            )
+            if (!res.ok) return m
+            const data = await res.json()
+            if (data.length > 0) {
+              const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+              nominatimCacheRef.current.set(cacheKey, result)
+              return { ...m, lat: result.lat, lng: result.lng }
+            }
+          } catch { /* ignore */ }
+          return m
+        })
+      )
+
+      setMunicipiosComparados(enriched)
     } catch {
       setErrorComparacion("Error al cargar los datos de comparación")
       setMunicipiosComparados([])

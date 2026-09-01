@@ -312,15 +312,20 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
                               </svg>
                             )}
                           </div>
-                          <div className="flex-1 min-w-0">
+                           <div className="flex-1 min-w-0">
                             <p className={`text-xs leading-tight ${activa ? 'text-[var(--color-text-primary)] font-medium' : 'text-[var(--color-text-secondary)]'}`}>
-                              {busqueda ? highlightMatch(capa.nombre_capa, busqueda) : capa.nombre_capa}
+                              {capa.layer_title || (busqueda ? highlightMatch(capa.nombre_capa, busqueda) : capa.nombre_capa)}
                             </p>
+                            {capa.layer_title && (
+                              <p className="text-[10px] leading-tight mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                                {capa.nombre_capa}
+                              </p>
+                            )}
                             {activa && (
                               <img
                                 src={legendUrl}
                                 alt={`Leyenda: ${capa.nombre_capa}`}
-                                className="mt-1 max-h-6"
+                                className="mt-1.5 max-h-10 w-auto"
                                 style={{ imageRendering: 'auto' }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                               />

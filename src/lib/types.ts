@@ -78,4 +78,5 @@ export interface CapaWMS {
   created_at: string
   categoria?: string
   comunidad_autonoma?: ComunidadAutonoma
+  layer_title?: string
 }

@@ -462,8 +462,7 @@ function VisorMapaInner({
   const [popupPos, setPopupPos] = useState<L.LatLng | null>(null)
 
   const handleFeatureInfo = useCallback((features: FeatureInfo[], latlng: L.LatLng) => {
-    const withData = features.filter(f => !f.error && Object.keys(f.atributos).length > 0)
-    if (withData.length > 0) {
+    if (features.length > 0) {
       setFeatureInfo(features)
       setPopupPos(latlng)
     }

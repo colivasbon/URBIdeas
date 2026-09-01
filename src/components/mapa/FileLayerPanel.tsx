@@ -41,9 +41,8 @@ export function FileLayerPanel({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [showProvinceSelector, setShowProvinceSelector] = useState(false)
+  const [showProvinceSelector, setShowProvinceSelector] = useState(true)
   const [selectedProvinces, setSelectedProvinces] = useState<string[]>([])
-  const [loadingProvinces, setLoadingProvinces] = useState<Record<string, boolean>>({})
   const [soilGeoJSON, setSoilGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null)
 
   const toggleProvince = useCallback((code: string) => {
@@ -59,36 +58,37 @@ export function FileLayerPanel({
       return
     }
 
+    let cancelled = false
+
     async function loadProvinces() {
       const allFeatures: SoilFeature[] = []
-      const toLoad = selectedProvinces.filter(p => !loadingProvinces[p])
 
-      for (const code of toLoad) {
-        setLoadingProvinces(prev => ({ ...prev, [code]: true }))
+      for (const code of selectedProvinces) {
+        if (cancelled) break
         try {
           const res = await fetch(`/data/soil/province_${code}.geojson`)
-          if (res.ok) {
+          if (res.ok && !cancelled) {
             const data = await res.json()
             allFeatures.push(...data.features)
           }
         } catch { /* ignore */ }
-        setLoadingProvinces(prev => ({ ...prev, [code]: false }))
       }
 
-      if (allFeatures.length > 0) {
+      if (!cancelled && allFeatures.length > 0) {
         const merged: GeoJSON.FeatureCollection = {
           type: 'FeatureCollection',
           features: allFeatures as unknown as GeoJSON.Feature[]
         }
         setSoilGeoJSON(merged)
         onSoilToggle?.(merged)
-      } else {
+      } else if (!cancelled) {
         setSoilGeoJSON(null)
         onSoilToggle?.(null)
       }
     }
 
     loadProvinces()
+    return () => { cancelled = true }
   }, [selectedProvinces])
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {

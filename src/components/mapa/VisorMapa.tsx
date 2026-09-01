@@ -268,7 +268,7 @@ function FeatureInfoFetcher({
             request: 'GetFeatureInfo',
             layers: capa.nombre_capa,
             query_layers: capa.nombre_capa,
-            info_format: 'text/plain',
+            info_format: 'application/json',
             feature_count: '10',
             srs: 'EPSG:4326',
             bbox,
@@ -280,7 +280,7 @@ function FeatureInfoFetcher({
 
           const url = `${capa.url_servicio}?${params.toString()}`
           const controller = new AbortController()
-          const timeout = setTimeout(() => controller.abort(), 10000)
+          const timeout = setTimeout(() => controller.abort(), 8000)
 
           let response: Response
           try {
@@ -289,14 +289,14 @@ function FeatureInfoFetcher({
             clearTimeout(timeout)
             const msg = fetchErr instanceof DOMException && fetchErr.name === 'AbortError'
               ? 'Tiempo de espera agotado'
-              : 'Error de red'
+              : 'No disponible (CORS o red)'
             results.push({ capa: capa.nombre_capa, atributos: {}, error: msg })
             continue
           }
           clearTimeout(timeout)
 
           if (!response.ok) {
-            results.push({ capa: capa.nombre_capa, atributos: {}, error: `Servidor respondió ${response.status}` })
+            results.push({ capa: capa.nombre_capa, atributos: {}, error: `HTTP ${response.status}` })
             continue
           }
 
@@ -306,6 +306,8 @@ function FeatureInfoFetcher({
 
           if (Object.keys(atributos).length > 0) {
             results.push({ capa: capa.nombre_capa, atributos })
+          } else {
+            results.push({ capa: capa.nombre_capa, atributos: {}, error: 'Sin datos en esta ubicación' })
           }
         } catch {
           results.push({ capa: capa.nombre_capa, atributos: {}, error: 'Error inesperado' })

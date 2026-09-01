@@ -211,7 +211,7 @@ export default function MapaPage() {
 
             {/* Sidebar */}
             <div className={`w-full shrink-0 lg:w-80 order-3 lg:block ${sidebarOpen ? 'block' : 'hidden'}`}>
-              <div className="bg-[var(--color-card-bg)] backdrop-blur-sm border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] overflow-hidden shadow-[var(--shadow-sm)] lg:sticky lg:top-20" style={{ maxHeight: sidebarOpen ? 'none' : 'calc(100vh - 120px)' }}>
+              <div className="bg-[var(--color-card-bg)] backdrop-blur-sm border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] shadow-[var(--shadow-sm)] lg:sticky lg:top-20" style={{ maxHeight: sidebarOpen ? 'none' : 'calc(100vh - 120px)', overflowY: 'auto' }}>
                 <FileLayerPanel
                   fileLayers={fileLayers}
                   onAdd={addFileLayer}

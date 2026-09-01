@@ -33,16 +33,22 @@ function createPinIcon() {
   })
 }
 
-function MapFix() {
+function CenterOnCoords({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap()
-  const initRef = useRef(false)
+  const prevRef = useRef<string>("")
 
   useEffect(() => {
-    if (!initRef.current) {
-      initRef.current = true
-      setTimeout(() => map.invalidateSize(), 100)
-      setTimeout(() => map.invalidateSize(), 400)
+    const key = `${lat},${lng}`
+    if (key !== prevRef.current) {
+      prevRef.current = key
+      map.setView([lat, lng], map.getZoom(), { animate: true })
     }
+  }, [map, lat, lng])
+
+  useEffect(() => {
+    const t1 = setTimeout(() => map.invalidateSize(), 100)
+    const t2 = setTimeout(() => map.invalidateSize(), 400)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [map])
 
   return null
@@ -115,7 +121,7 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
             <Marker position={[lat!, lng!]} icon={createPinIcon()}>
               <Popup><strong>{nombre ?? ""}</strong></Popup>
             </Marker>
-            <MapFix />
+            <CenterOnCoords lat={lat!} lng={lng!} />
           </>
         )}
       </MapContainer>

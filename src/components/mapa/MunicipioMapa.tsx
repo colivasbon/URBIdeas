@@ -1,103 +1,97 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
 
 interface MunicipioMarker { id: string; nombre: string; lat: number; lng: number }
 interface MunicipioMapaProps { lat?: number | null; lng?: number | null; nombre?: string; municipios?: MunicipioMarker[] }
 
 const MARKER_COLORS = ["#3E665C","#D4543B","#2563EB","#D97706","#7C3AED","#059669","#DC2626","#0891B2","#C026D3","#65A30D"]
 
-export default function MunicipioMapa({ lat, lng, nombre, municipios }: MunicipioMapaProps) {
-  const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<unknown>(null)
-  const isMulti = Array.isArray(municipios) && municipios.length > 0
+function MapCenterHandler({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap()
+  const initializedRef = useRef(false)
 
   useEffect(() => {
-    if (!mapRef.current) return
-    if (!isMulti && (!lat || !lng)) return
+    if (!initializedRef.current) {
+      map.setView(center, zoom)
+      initializedRef.current = true
+    }
+  }, [map, center, zoom])
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let map: any
-    let resizeObserver: ResizeObserver | null = null
+  useEffect(() => {
+    const timer = setTimeout(() => map.invalidateSize(), 200)
+    return () => clearTimeout(timer)
+  }, [map])
 
-    async function initMap() {
-      const L = (await import("leaflet")).default
+  return null
+}
 
-      if (mapInstanceRef.current) {
-        (mapInstanceRef.current as { remove: () => void }).remove()
-        mapInstanceRef.current = null
-      }
+function SingleMunicipioMap({ lat, lng, nombre }: { lat: number; lng: number; nombre: string }) {
+  return (
+    <MapContainer
+      center={[lat, lng]}
+      zoom={12}
+      className="w-full h-full"
+      style={{ background: "#e5e3df" }}
+      zoomControl={true}
+      scrollWheelZoom={false}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <Marker position={[lat, lng]}>
+        <Popup><strong>{nombre}</strong></Popup>
+      </Marker>
+      <MapCenterHandler center={[lat, lng]} zoom={12} />
+    </MapContainer>
+  )
+}
 
-      const container = mapRef.current!
+function MultiMunicipioMap({ municipios }: { municipios: MunicipioMarker[] }) {
+  const valid = municipios.filter(m => typeof m.lat === "number" && typeof m.lng === "number" && !isNaN(m.lat) && !isNaN(m.lng))
 
-      map = L.map(container, {
-        zoom: isMulti ? 6 : 12,
-        zoomControl: true,
-        scrollWheelZoom: false,
-        attributionControl: true,
-      })
+  const center: [number, number] = valid.length > 0
+    ? [valid.reduce((s, m) => s + m.lat, 0) / valid.length, valid.reduce((s, m) => s + m.lng, 0) / valid.length]
+    : [40.0, -3.7]
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: isMulti ? "© OpenStreetMap" : `© OpenStreetMap · ${nombre ?? ""}`,
-        maxZoom: 19,
-      }).addTo(map)
-
-      if (isMulti) {
-        const valid = municipios.filter(m => typeof m.lat === "number" && typeof m.lng === "number" && !isNaN(m.lat) && !isNaN(m.lng))
-        if (valid.length === 0) return
-
-        valid.forEach((m, i) => {
-          const color = MARKER_COLORS[i % MARKER_COLORS.length]
-          const icon = L.divIcon({
-            className: "",
-            html: `<div style="background:${color};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:bold">${i + 1}</div>`,
-            iconSize: [24, 24], iconAnchor: [12, 12],
-          })
-          L.marker([m.lat, m.lng], { icon }).addTo(map).bindPopup(`<strong>${m.nombre}</strong>`)
-        })
-        const bounds = L.latLngBounds(valid.map(m => [m.lat, m.lng] as [number, number]))
-        map.fitBounds(bounds, { padding: [50, 50] })
-      } else {
+  return (
+    <MapContainer
+      center={center}
+      zoom={6}
+      className="w-full h-full"
+      style={{ background: "#e5e3df" }}
+      zoomControl={true}
+      scrollWheelZoom={false}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      {valid.map((m, i) => {
+        const color = MARKER_COLORS[i % MARKER_COLORS.length]
         const icon = L.divIcon({
           className: "",
-          html: `<div style="background:#3E665C;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
-          iconSize: [14, 14], iconAnchor: [7, 7],
+          html: `<div style="background:${color};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:bold">${i + 1}</div>`,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
         })
-        L.marker([lat!, lng!], { icon }).addTo(map).bindPopup(`<strong>${nombre ?? ""}</strong>`)
-        map.setView([lat!, lng!], 12)
-      }
+        return (
+          <Marker key={m.id} position={[m.lat, m.lng]} icon={icon}>
+            <Popup><strong>{m.nombre}</strong></Popup>
+          </Marker>
+        )
+      })}
+      <MapCenterHandler center={center} zoom={6} />
+    </MapContainer>
+  )
+}
 
-      mapInstanceRef.current = map
-
-      const invalidate = () => {
-        if (map) {
-          map.invalidateSize()
-          if (!isMulti && lat && lng) {
-            map.setView([lat, lng], map.getZoom())
-          }
-        }
-      }
-
-      invalidate()
-      setTimeout(invalidate, 300)
-      setTimeout(invalidate, 600)
-
-      resizeObserver = new ResizeObserver(() => {
-        if (map) map.invalidateSize()
-      })
-      resizeObserver.observe(container)
-    }
-
-    initMap()
-
-    return () => {
-      resizeObserver?.disconnect()
-      if (mapInstanceRef.current) {
-        (mapInstanceRef.current as { remove: () => void }).remove()
-        mapInstanceRef.current = null
-      }
-    }
-  }, [lat, lng, nombre, isMulti, municipios])
+export default function MunicipioMapa({ lat, lng, nombre, municipios }: MunicipioMapaProps) {
+  const isMulti = Array.isArray(municipios) && municipios.length > 0
 
   if (isMulti) {
     const valid = municipios.filter(m => typeof m.lat === "number" && typeof m.lng === "number" && !isNaN(m.lat) && !isNaN(m.lng))
@@ -109,10 +103,12 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
   }
 
   return (
-    <div
-      ref={mapRef}
-      className="leaflet-map-municipio"
-      style={{ width: "100%", height: "300px", position: "relative", overflow: "hidden" }}
-    />
+    <div className="rounded-[var(--border-radius)] border border-[var(--color-border)]" style={{ width: "100%", height: "300px" }}>
+      {isMulti ? (
+        <MultiMunicipioMap municipios={municipios} />
+      ) : (
+        <SingleMunicipioMap lat={lat!} lng={lng!} nombre={nombre ?? ""} />
+      )}
+    </div>
   )
 }

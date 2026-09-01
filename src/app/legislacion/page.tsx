@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header"
 import Footer from "@/components/layout/Footer"
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
+import MunicipalTab from "@/components/datos/MunicipalTab"
 
 interface NormativaItem {
   id: string
@@ -176,7 +177,7 @@ function groupByComunidad(items: NormativaItem[]) {
 }
 
 export default function LegislacionPage() {
-  const [tab, setTab] = useState<"estatal" | "autonomico" | "geoespacial">("estatal")
+  const [tab, setTab] = useState<"estatal" | "autonomico" | "municipal" | "geoespacial">("estatal")
   const [normativa, setNormativa] = useState<NormativaItem[]>([])
   const [loading, setLoading] = useState(false)
   const [expandedCCAA, setExpandedCCAA] = useState<Record<string, boolean>>({})
@@ -221,6 +222,7 @@ export default function LegislacionPage() {
   const tabs = [
     { key: "estatal" as const, label: "Estatal" },
     { key: "autonomico" as const, label: "Autonómico" },
+    { key: "municipal" as const, label: "Municipal" },
     { key: "geoespacial" as const, label: "Geoespacial" },
   ]
 
@@ -398,6 +400,13 @@ export default function LegislacionPage() {
                   })}
                 </div>
               )}
+            </section>
+          )}
+
+          {/* Municipal */}
+          {tab === "municipal" && (
+            <section>
+              <MunicipalTab />
             </section>
           )}
 

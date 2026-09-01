@@ -8,16 +8,18 @@ interface MunicipioMapaProps { lat?: number | null; lng?: number | null; nombre?
 const MARKER_COLORS = ["#3E665C","#D4543B","#2563EB","#D97706","#7C3AED","#059669","#DC2626","#0891B2","#C026D3","#65A30D"]
 
 export default function MunicipioMapa({ lat, lng, nombre, municipios }: MunicipioMapaProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<unknown>(null)
   const isMulti = Array.isArray(municipios) && municipios.length > 0
 
   useEffect(() => {
-    if (!mapRef.current) return
+    if (!mapRef.current || !wrapperRef.current) return
     if (!isMulti && (!lat || !lng)) return
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let map: any
+    let resizeObserver: ResizeObserver | null = null
 
     async function initMap() {
       const L = (await import("leaflet")).default
@@ -63,22 +65,36 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
           iconSize: [14, 14], iconAnchor: [7, 7],
         })
         L.marker([lat!, lng!], { icon }).addTo(map).bindPopup(`<strong>${nombre ?? ""}</strong>`)
+        map.setView([lat!, lng!], 12)
       }
 
       mapInstanceRef.current = map
 
-      setTimeout(() => {
-        map.invalidateSize()
-        if (!isMulti && lat && lng) {
-          map.setView([lat, lng], map.getZoom())
+      const invalidate = () => {
+        if (map) {
+          map.invalidateSize()
+          if (!isMulti && lat && lng) {
+            map.setView([lat, lng], map.getZoom())
+          }
         }
-      }, 200)
-      setTimeout(() => map.invalidateSize(), 500)
+      }
+
+      invalidate()
+      setTimeout(invalidate, 300)
+      setTimeout(invalidate, 600)
+
+      if (wrapperRef.current) {
+        resizeObserver = new ResizeObserver(() => {
+          if (map) map.invalidateSize()
+        })
+        resizeObserver.observe(wrapperRef.current)
+      }
     }
 
     initMap()
 
     return () => {
+      resizeObserver?.disconnect()
       if (mapInstanceRef.current) {
         (mapInstanceRef.current as { remove: () => void }).remove()
         mapInstanceRef.current = null
@@ -95,5 +111,16 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
     return <div className="flex items-center justify-center h-[300px] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] text-sm text-[var(--color-text-secondary)]">No hay coordenadas verificadas</div>
   }
 
-  return <div ref={mapRef} className="rounded-[var(--border-radius)] border border-[var(--color-border)]" style={{ width: "100%", height: "300px", position: "relative" }} />
+  return (
+    <div
+      ref={wrapperRef}
+      className="rounded-[var(--border-radius)] border border-[var(--color-border)]"
+      style={{ width: "100%", height: "300px", position: "relative" }}
+    >
+      <div
+        ref={mapRef}
+        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
+      />
+    </div>
+  )
 }

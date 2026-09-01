@@ -278,13 +278,14 @@ function FeatureInfoFetcher({
             y: String(Math.floor(point.y * (size / map.getSize().y))),
           })
 
-          const url = `${capa.url_servicio}?${params.toString()}`
+          const wmsUrl = `${capa.url_servicio}?${params.toString()}`
+          const proxyUrl = `/api/wms-proxy?url=${encodeURIComponent(wmsUrl)}`
           const controller = new AbortController()
-          const timeout = setTimeout(() => controller.abort(), 8000)
+          const timeout = setTimeout(() => controller.abort(), 15000)
 
           let response: Response
           try {
-            response = await fetch(url, { signal: controller.signal })
+            response = await fetch(proxyUrl, { signal: controller.signal })
           } catch (fetchErr) {
             clearTimeout(timeout)
             const msg = fetchErr instanceof DOMException && fetchErr.name === 'AbortError'
@@ -461,8 +462,11 @@ function VisorMapaInner({
   const [popupPos, setPopupPos] = useState<L.LatLng | null>(null)
 
   const handleFeatureInfo = useCallback((features: FeatureInfo[], latlng: L.LatLng) => {
-    setFeatureInfo(features)
-    setPopupPos(latlng)
+    const withData = features.filter(f => !f.error && Object.keys(f.atributos).length > 0)
+    if (withData.length > 0) {
+      setFeatureInfo(features)
+      setPopupPos(latlng)
+    }
   }, [])
 
   const closePopup = useCallback(() => {

@@ -307,8 +307,6 @@ function FeatureInfoFetcher({
 
           if (Object.keys(atributos).length > 0) {
             results.push({ capa: capa.nombre_capa, atributos })
-          } else {
-            results.push({ capa: capa.nombre_capa, atributos: {}, error: 'Sin datos en esta ubicación' })
           }
         } catch {
           results.push({ capa: capa.nombre_capa, atributos: {}, error: 'Error inesperado' })
@@ -462,7 +460,8 @@ function VisorMapaInner({
   const [popupPos, setPopupPos] = useState<L.LatLng | null>(null)
 
   const handleFeatureInfo = useCallback((features: FeatureInfo[], latlng: L.LatLng) => {
-    if (features.length > 0) {
+    const hasData = features.some(f => Object.keys(f.atributos).length > 0)
+    if (hasData) {
       setFeatureInfo(features)
       setPopupPos(latlng)
     }

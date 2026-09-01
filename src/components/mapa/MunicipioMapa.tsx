@@ -30,7 +30,6 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
       const container = mapRef.current!
 
       map = L.map(container, {
-        center: isMulti ? undefined : [lat!, lng!],
         zoom: isMulti ? 6 : 12,
         zoomControl: true,
         scrollWheelZoom: false,
@@ -41,6 +40,13 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
         attribution: isMulti ? "© OpenStreetMap" : `© OpenStreetMap · ${nombre ?? ""}`,
         maxZoom: 19,
       }).addTo(map)
+
+      map.whenReady(() => {
+        map.invalidateSize()
+        if (!isMulti && lat && lng) {
+          map.setView([lat, lng], 12)
+        }
+      })
 
       if (isMulti) {
         const valid = municipios.filter(m => typeof m.lat === "number" && typeof m.lng === "number" && !isNaN(m.lat) && !isNaN(m.lng))
@@ -67,10 +73,6 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
       }
 
       mapInstanceRef.current = map
-
-      map.whenReady(() => {
-        map.invalidateSize()
-      })
     }
 
     initMap()

@@ -113,7 +113,9 @@ export default function MunicipiosPage() {
   const [loadingComparacion, setLoadingComparacion] = useState(false)
   const [errorComparacion, setErrorComparacion] = useState<string | null>(null)
   const [provinciaId, setProvinciaId] = useState<string | null>(null)
+  const [nominatimCoords, setNominatimCoords] = useState<{ lat: number; lng: number } | null>(null)
   const comparisonRef = useRef<HTMLDivElement>(null)
+  const nominatimCacheRef = useRef<Map<string, { lat: number; lng: number }>>(new Map())
 
   const abortPlaneamientoRef = useRef<AbortController | null>(null)
   const abortNormativaRef = useRef<AbortController | null>(null)
@@ -126,7 +128,48 @@ export default function MunicipiosPage() {
     setCapas([])
     setOpenNormativa("")
     setOpenCapaCategoria([])
+    setNominatimCoords(null)
   }, [])
+
+  useEffect(() => {
+    if (!selectedMunicipio?.nombre) return
+
+    const cacheKey = `${selectedMunicipio.nombre}|${selectedMunicipio.provincia?.nombre || ""}`
+    const cached = nominatimCacheRef.current.get(cacheKey)
+    if (cached) {
+      setNominatimCoords(cached)
+      return
+    }
+
+    const provincia = selectedMunicipio.provincia?.nombre || ""
+    const query = provincia
+      ? `${selectedMunicipio.nombre}, ${provincia}, España`
+      : `${selectedMunicipio.nombre}, España`
+
+    const controller = new AbortController()
+
+    async function searchNominatim() {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=1&countrycodes=es`
+        const res = await fetch(url, {
+          signal: controller.signal,
+          headers: { "Accept": "application/json" }
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.length > 0) {
+          const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+          nominatimCacheRef.current.set(cacheKey, result)
+          setNominatimCoords(result)
+        }
+      } catch {
+        // Silently ignore errors
+      }
+    }
+
+    searchNominatim()
+    return () => controller.abort()
+  }, [selectedMunicipio])
 
   useEffect(() => {
     if (!selectedMunicipio) return
@@ -345,8 +388,8 @@ export default function MunicipiosPage() {
 
                   <div className="rounded-[var(--border-radius-lg)] overflow-hidden">
                     <MunicipioMapa
-                      lat={selectedMunicipio.lat ?? null}
-                      lng={selectedMunicipio.lng ?? null}
+                      lat={nominatimCoords?.lat ?? selectedMunicipio.lat ?? null}
+                      lng={nominatimCoords?.lng ?? selectedMunicipio.lng ?? null}
                       nombre={selectedMunicipio.nombre}
                     />
                   </div>

@@ -227,31 +227,6 @@ export default function MapaPage() {
                   onZoomTo={zoomToFileLayer}
                   onSoilToggle={handleSoilToggle}
                 />
-
-                {activeCapas.length > 0 && (
-                  <div className="px-4 py-2.5 border-t border-[var(--color-border-subtle)]">
-                    <button
-                      onClick={() => setActiveCapas([])}
-                      className="text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors duration-[var(--duration-fast)]"
-                    >
-                      Desactivar todas ({activeCapas.length})
-                    </button>
-                  </div>
-                )}
-
-                {loading ? (
-                  <div className="flex items-center justify-center py-8 border-t border-[var(--color-border-subtle)]">
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
-                    <span className="ml-2 text-sm text-[var(--color-text-muted)]">
-                      Cargando capas...
-                    </span>
-                  </div>
-                ) : (
-                  <ControlCapas
-                    capasSeleccionadas={activeCapas}
-                    onToggleCapa={toggleCapa}
-                  />
-                )}
               </div>
             </div>
           </div>

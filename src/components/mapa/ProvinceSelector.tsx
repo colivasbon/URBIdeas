@@ -91,7 +91,7 @@ export function ProvinceSelector({ onToggle, selectedProvinces }: ProvinceSelect
         {Object.entries(filtered).map(([ccaa, provinces]) => {
           const allSelected = provinces.every(p => selectedProvinces.includes(p.code))
           const someSelected = provinces.some(p => selectedProvinces.includes(p.code))
-          const expanded = expandedCCAA[ccaa] !== false
+          const expanded = expandedCCAA[ccaa] === true
 
           return (
             <div key={ccaa} className="border-b border-[var(--color-border-subtle)]">

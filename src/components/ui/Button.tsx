@@ -13,25 +13,25 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 const variantStyles: Record<ButtonVariant, string> = {
   primary: [
     'bg-[var(--color-primary)] text-white',
-    'hover:bg-[var(--color-primary-light)] hover:shadow-[var(--shadow-glow-primary)]',
+    'hover:bg-[var(--color-primary-light)] hover:shadow-lg',
     'active:bg-[var(--color-primary-dark)] active:scale-[0.98]',
     'focus-visible:ring-[var(--color-primary)]',
   ].join(' '),
   secondary: [
     'bg-[var(--color-secondary)] text-white',
-    'hover:bg-[var(--color-secondary-light)] hover:shadow-[var(--shadow-glow-secondary)]',
+    'hover:bg-[var(--color-secondary-light)] hover:shadow-lg',
     'active:bg-[var(--color-secondary-dark)] active:scale-[0.98]',
     'focus-visible:ring-[var(--color-secondary)]',
   ].join(' '),
   accent: [
     'bg-[var(--color-accent)] text-[var(--color-dark-bg)]',
-    'hover:bg-[var(--color-accent-light)] hover:shadow-[var(--shadow-glow-accent)]',
+    'hover:bg-[var(--color-accent-light)] hover:shadow-lg',
     'active:bg-[var(--color-accent-dark)] active:scale-[0.98]',
     'focus-visible:ring-[var(--color-accent)]',
   ].join(' '),
   danger: [
     'bg-[var(--color-error)] text-white',
-    'hover:bg-[var(--color-error-light)] hover:shadow-[0_0_20px_rgba(220,38,38,0.4)]',
+    'hover:bg-[var(--color-error-light)] hover:shadow-lg',
     'active:bg-[var(--color-error-dark)] active:scale-[0.98]',
     'focus-visible:ring-[var(--color-error)]',
   ].join(' '),
@@ -44,17 +44,17 @@ const variantStyles: Record<ButtonVariant, string> = {
 }
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-xs gap-1.5',
-  md: 'px-4 py-2 text-sm gap-2',
-  lg: 'px-6 py-2.5 text-base gap-2.5',
+  sm: 'px-3 py-1.5 text-xs gap-1.5 min-h-[32px]',
+  md: 'px-4 py-2 text-sm gap-2 min-h-[40px]',
+  lg: 'px-6 py-3 text-base gap-2.5 min-h-[48px]',
 }
 
 export function Button({ variant = 'primary', size = 'md', loading, className = '', children, disabled, ...props }: ButtonProps) {
   return (
     <button
       className={[
-        'inline-flex items-center justify-center font-medium rounded-[var(--border-radius)]',
-        'transition-all duration-[var(--duration-normal)] ease-[var(--ease-out)]',
+        'inline-flex items-center justify-center font-semibold rounded-lg',
+        'transition-all duration-200 ease-out',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card-bg-solid)]',
         'disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',
         'select-none cursor-pointer',

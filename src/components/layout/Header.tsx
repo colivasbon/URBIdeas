@@ -36,14 +36,14 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full">
       <div className="border-b border-[var(--color-border-subtle)] bg-[var(--color-dark-bg)]/80 backdrop-blur-xl supports-[backdrop-filter]:bg-[var(--color-dark-bg)]/60">
         <div className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
+          <Link href="/" className="flex items-center gap-3 shrink-0 group">
             <div className="relative">
               <Image
                 src="/logo/Logo_Principal_-_color_-_Ideas_Medioambientales.png"
                 alt="Ideas Medioambientales"
                 width={32}
                 height={32}
-                className="h-8 w-auto transition-transform duration-[var(--duration-normal)] group-hover:scale-105"
+                className="h-8 w-auto transition-transform duration-200 group-hover:scale-105"
                 priority
               />
             </div>
@@ -52,7 +52,7 @@ export default function Header() {
             </span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-0.5">
+          <nav className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => {
               const isActive = pathname === link.href
               return (
@@ -60,8 +60,8 @@ export default function Header() {
                   key={link.href}
                   href={link.href}
                   className={[
-                    'relative px-3 py-2 text-sm font-medium rounded-[var(--border-radius)]',
-                    'transition-all duration-[var(--duration-normal)] ease-[var(--ease-out)]',
+                    'relative px-3 py-2 text-sm font-medium rounded-lg',
+                    'transition-all duration-200 ease-out',
                     isActive
                       ? 'text-[var(--color-text-primary)] bg-[var(--color-input-bg)]'
                       : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg)]/50',
@@ -74,7 +74,7 @@ export default function Header() {
                 </Link>
               )
             })}
-            <div className="ml-1 pl-1 border-l border-[var(--color-border-subtle)]">
+            <div className="ml-2 pl-2 border-l border-[var(--color-border-subtle)]">
               <ThemeToggle />
             </div>
           </nav>
@@ -83,12 +83,12 @@ export default function Header() {
             <ThemeToggle />
             <button
               type="button"
-              className="flex items-center justify-center w-10 h-10 rounded-[var(--border-radius)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)]"
+              className="flex items-center justify-center w-10 h-10 rounded-lg text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)]"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
               aria-expanded={menuOpen}
             >
-              <svg className="h-5 w-5 transition-transform duration-[var(--duration-normal)]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <svg className="h-5 w-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 {menuOpen ? (
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 ) : (
@@ -104,7 +104,7 @@ export default function Header() {
       {menuOpen && (
         <div className="fixed inset-0 top-14 sm:top-16 z-40 md:hidden">
           <div className="absolute inset-0 bg-[var(--color-overlay)] backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
-          <nav className="relative bg-[var(--color-dark-bg)] border-b border-[var(--color-border-subtle)] shadow-[var(--shadow-lg)] animate-slide-in-down">
+          <nav className="relative bg-[var(--color-dark-bg)] border-b border-[var(--color-border-subtle)] shadow-lg animate-slide-in-down">
             <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
               {navLinks.map((link, i) => {
                 const isActive = pathname === link.href
@@ -113,8 +113,8 @@ export default function Header() {
                     key={link.href}
                     href={link.href}
                     className={[
-                      'flex items-center gap-3 rounded-[var(--border-radius)] px-4 py-3 text-sm font-medium',
-                      'transition-all duration-[var(--duration-normal)]',
+                      'flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium',
+                      'transition-all duration-200',
                       'active:scale-[0.98]',
                       isActive
                         ? 'text-[var(--color-text-primary)] bg-[var(--color-input-bg)]'

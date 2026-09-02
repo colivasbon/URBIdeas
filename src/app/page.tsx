@@ -38,12 +38,12 @@ export default async function Home() {
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
               <div className="py-12 sm:py-16 lg:py-24 flex flex-col items-center text-center gap-8">
                 <div className="max-w-3xl w-full">
-                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--color-secondary)] mb-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--color-secondary)] mb-3">
                     Herramientas de apoyo
                   </p>
                   <h1 className="font-bold tracking-tighter leading-[0.9] text-center">
-                    <span className="block text-2xl sm:text-3xl lg:text-4xl font-semibold text-[var(--color-text-primary)]">área de urbanismo</span>
-                    <span className="block mt-2 text-5xl sm:text-6xl lg:text-7xl font-extrabold text-[var(--color-secondary)]">Ideas Medioambientales</span>
+                    <span className="block text-xl sm:text-2xl lg:text-3xl font-medium text-[var(--color-text-primary)]">área de urbanismo</span>
+                    <span className="block mt-1.5 text-4xl sm:text-5xl lg:text-6xl font-bold text-[var(--color-secondary)]">Ideas Medioambientales</span>
                   </h1>
                   <p className="mt-6 max-w-xl mx-auto text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed">
                     Centralización y consulta de información pública de planeamiento

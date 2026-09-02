@@ -14,8 +14,8 @@ const VisorMapa = dynamic(() => import("@/components/mapa/VisorMapa"), {
   loading: () => (
     <div className="flex h-full min-h-[400px] sm:min-h-[500px] items-center justify-center bg-[var(--color-input-bg)] rounded-[var(--border-radius-lg)]">
       <div className="text-center">
-        <div className="animate-spin inline-block w-8 h-8 border-2 border-[var(--color-secondary)] border-t-transparent rounded-full mb-3" />
-        <p className="text-sm text-[var(--color-text-muted)]">Cargando mapa...</p>
+        <div className="animate-spin inline-block w-6 h-6 border-2 border-[var(--color-secondary)] border-t-transparent rounded-full mb-2" />
+        <p className="text-xs text-[var(--color-text-muted)]">Cargando mapa...</p>
       </div>
     </div>
   ),
@@ -110,12 +110,6 @@ export default function MapaPage() {
     fetchCapas()
   }, [])
 
-  const toggleCapa = useCallback((id: string) => {
-    setActiveCapas(prev =>
-      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
-    )
-  }, [])
-
   const handleMapMove = useCallback((lat: number, lng: number, zoom: number) => {
     setMapCenter([lat, lng])
     setMapZoom(zoom)
@@ -180,20 +174,24 @@ export default function MapaPage() {
       <Header />
 
       <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-          <section className="mb-6 sm:mb-8">
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          {/* Page header */}
+          <section className="mb-5 border-b border-[var(--color-border-subtle)] pb-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)] mb-2">
+              Visualización
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl" style={{ fontFamily: "var(--font-serif)" }}>
               Visor de Mapa
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
+            <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
               Explora las capas WMS disponibles y visualiza el planeamiento urbanístico sobre el mapa.
             </p>
           </section>
 
-          <div className="flex flex-col gap-4 lg:gap-6 lg:flex-row">
+          <div className="flex flex-col gap-4 lg:gap-5 lg:flex-row">
             {/* Map */}
             <div className="flex-1 min-h-[400px] sm:min-h-[500px] order-1 lg:order-none">
-              <div className="h-full rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] overflow-hidden shadow-[var(--shadow-sm)]" style={{ position: 'relative', zIndex: 0 }}>
+              <div className="h-full rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] overflow-hidden" style={{ position: 'relative', zIndex: 0 }}>
                 <VisorMapa
                   capasActivas={selectedCapas}
                   fileLayers={fileLayers}
@@ -215,21 +213,21 @@ export default function MapaPage() {
             <div className="lg:hidden order-2">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] transition-all duration-[var(--duration-normal)] hover:border-[var(--color-border)] hover:text-[var(--color-text-primary)]"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-[var(--color-text-secondary)] bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] transition-all duration-200 hover:border-[var(--color-border)] hover:text-[var(--color-text-primary)]"
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L12 12.75 6.429 9.75m11.142 0l4.179 2.25-9.75 5.25-9.75-5.25 4.179-2.25" />
                 </svg>
                 Capas{activeCapas.length > 0 && ` (${activeCapas.length})`}
-                <svg className={`h-4 w-4 transition-transform duration-[var(--duration-normal)] ${sidebarOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <svg className={`h-3.5 w-3.5 transition-transform duration-200 ${sidebarOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                 </svg>
               </button>
             </div>
 
             {/* Sidebar */}
-            <div className={`w-full shrink-0 lg:w-80 order-3 lg:block ${sidebarOpen ? 'block' : 'hidden'}`}>
-              <div className="bg-[var(--color-card-bg)] backdrop-blur-sm border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] shadow-[var(--shadow-sm)] lg:sticky lg:top-20" style={{ maxHeight: sidebarOpen ? 'none' : 'calc(100vh - 120px)', overflowY: 'auto' }}>
+            <div className={`w-full shrink-0 lg:w-72 order-3 lg:block ${sidebarOpen ? 'block' : 'hidden'}`}>
+              <div className="bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] lg:sticky lg:top-16" style={{ maxHeight: sidebarOpen ? 'none' : 'calc(100vh - 100px)', overflowY: 'auto' }}>
                 <FileLayerPanel
                   fileLayers={fileLayers}
                   onAdd={addFileLayer}

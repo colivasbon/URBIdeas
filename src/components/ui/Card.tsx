@@ -11,16 +11,13 @@ export function Card({ children, className = '', padding = true, hover = false }
   return (
     <div
       className={[
-        'relative overflow-hidden',
-        'bg-[var(--color-card-bg)] backdrop-blur-sm',
+        'bg-[var(--color-card-bg)]',
         'border border-[var(--color-border-subtle)]',
-        'rounded-xl',
-        'shadow-sm',
+        'rounded-[var(--border-radius-lg)]',
         padding ? 'p-5 sm:p-6' : '',
         hover ? [
-          'transition-all duration-300 ease-out',
-          'hover:shadow-lg hover:border-[var(--color-border)]',
-          'hover:-translate-y-0.5',
+          'transition-all duration-200 ease-out',
+          'hover:border-[var(--color-border)]',
         ].join(' ') : '',
         className,
       ].join(' ')}
@@ -40,7 +37,7 @@ export function CardHeader({ children, className = '' }: { children: React.React
 
 export function CardTitle({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <h3 className={`text-lg font-semibold text-[var(--color-text-primary)] tracking-tight ${className}`}>
+    <h3 className={`text-base font-semibold text-[var(--color-text-primary)] tracking-tight ${className}`}>
       {children}
     </h3>
   )

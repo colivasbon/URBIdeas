@@ -71,48 +71,40 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
       <div className="hero-topo-main" aria-hidden="true">
         <svg viewBox="0 0 1440 700" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
           <g fill="none" strokeLinecap="round" strokeLinejoin="round">
-            {/* Main focus — large irregular concentric at ~880,520 */}
-            <path d="M 640 520 C 670 380, 780 290, 890 300 C 1010 310, 1085 400, 1040 500 C 990 600, 860 630, 740 590 C 660 560, 610 600, 640 520 Z" stroke="#3E665C" strokeWidth="1.3" />
-            <path d="M 675 510 C 695 405, 785 330, 875 335 C 965 340, 1020 415, 985 485 C 945 555, 850 575, 760 545 C 695 520, 650 545, 675 510 Z" stroke="#5A7A52" strokeWidth="0.95" />
-            <path d="M 710 500 C 725 425, 795 365, 860 370 C 925 375, 965 425, 940 470 C 910 515, 840 525, 770 500 C 725 485, 695 515, 710 500 Z" stroke="#86B73D" strokeWidth="0.75" />
-            <path d="M 750 492 C 760 445, 805 395, 852 400 C 895 405, 920 440, 900 465 C 875 490, 825 490, 775 470 C 745 455, 735 485, 750 492 Z" stroke="#3E665C" strokeWidth="0.6" />
-            <path d="M 785 485 C 790 460, 815 425, 845 430 C 875 435, 885 455, 872 470 C 855 485, 820 482, 790 470 Z" stroke="#5A7A52" strokeWidth="0.45" />
-            <path d="M 815 478 C 818 465, 828 445, 842 448 C 856 451, 860 462, 852 472 C 842 478, 822 476, 815 478 Z" stroke="#86B73D" strokeWidth="0.35" />
+            {/* Main focus — 8 niveles organicos, centro-derecha inferior */}
+            <path d="M 612 498 C 618 412, 695 302, 812 278 C 928 254, 1038 318, 1072 412 C 1106 506, 1028 594, 918 628 C 808 662, 682 628, 618 560 C 588 522, 602 542, 612 498 Z" stroke="#2F4A3A" strokeWidth="1.05" opacity="0.95" />
+            <path d="M 648 488 C 658 418, 718 332, 815 315 C 912 298, 998 348, 1022 422 C 1046 496, 980 562, 885 586 C 790 610, 678 580, 642 528 C 622 498, 638 522, 648 488 Z" stroke="#3E665C" strokeWidth="0.9" opacity="0.85" />
+            <path d="M 682 478 C 690 420, 738 352, 812 340 C 886 328, 958 368, 975 428 C 992 488, 938 534, 860 548 C 782 562, 692 532, 672 492 C 662 472, 672 500, 682 478 Z" stroke="#4A6B52" strokeWidth="0.75" opacity="0.78" />
+            <path d="M 715 470 C 722 430, 758 375, 810 368 C 862 361, 918 390, 930 432 C 942 474, 900 508, 838 514 C 776 520, 708 492, 702 468 C 698 452, 708 484, 715 470 Z" stroke="#5A7E52" strokeWidth="0.62" opacity="0.7" />
+            <path d="M 745 462 C 750 435, 775 395, 812 390 C 849 385, 882 410, 888 438 C 894 466, 864 488, 820 490 C 776 492, 732 472, 735 452 C 738 438, 740 472, 745 462 Z" stroke="#3E665C" strokeWidth="0.52" opacity="0.62" />
+            <path d="M 772 456 C 776 438, 792 410, 818 408 C 844 406, 862 426, 858 444 C 854 462, 830 472, 802 468 C 774 464, 762 452, 772 456 Z" stroke="#6A8A5E" strokeWidth="0.42" opacity="0.55" />
+            <path d="M 798 452 C 800 440, 810 422, 825 422 C 840 422, 848 434, 844 446 C 840 458, 822 460, 804 452 C 798 448, 794 456, 798 452 Z" stroke="#3E665C" strokeWidth="0.36" opacity="0.48" />
+            <path d="M 818 448 C 820 440, 826 430, 834 430 C 842 430, 846 438, 842 446 C 838 452, 824 452, 818 448 Z" stroke="#5A7E52" strokeWidth="0.32" opacity="0.42" />
 
-            {/* Secondary focus — top right, subtle */}
-            <path d="M 1080 110 C 1100 70, 1145 45, 1190 70 C 1235 95, 1245 145, 1210 180 C 1170 210, 1100 195, 1080 150 Z" stroke="#3E665C" strokeWidth="0.85" />
-            <path d="M 1105 125 C 1118 95, 1150 80, 1180 98 C 1210 116, 1215 150, 1190 170 C 1160 188, 1115 175, 1105 145 Z" stroke="#5A7A52" strokeWidth="0.6" />
-            <path d="M 1130 138 C 1138 118, 1158 105, 1175 118 C 1192 131, 1190 152, 1175 162 C 1155 172, 1132 160, 1130 138 Z" stroke="#86B73D" strokeWidth="0.4" />
+            {/* Secundario sup. derecha — 3 niveles sutiles */}
+            <path d="M 1078 108 C 1096 68, 1142 42, 1188 66 C 1234 90, 1248 142, 1212 178 C 1172 212, 1102 196, 1080 150 L 1078 108 Z" stroke="#2F4A3A" strokeWidth="0.72" opacity="0.62" />
+            <path d="M 1102 122 C 1116 92, 1150 78, 1180 96 C 1210 114, 1216 148, 1190 168 C 1162 186, 1116 174, 1105 144 Z" stroke="#4A6B52" strokeWidth="0.52" opacity="0.52" />
+            <path d="M 1130 136 C 1138 118, 1158 106, 1174 118 C 1190 130, 1188 150, 1172 160 C 1154 170, 1132 160, 1130 136 Z" stroke="#6A8A5E" strokeWidth="0.36" opacity="0.44" />
 
-            {/* Secondary focus — behind central lower, very subtle */}
-            <path d="M 380 580 C 410 540, 470 520, 520 545 C 570 570, 580 615, 540 640 C 490 665, 410 650, 380 600 Z" stroke="#3E665C" strokeWidth="0.7" />
-            <path d="M 410 588 C 430 560, 470 545, 505 562 C 540 579, 545 610, 520 625 C 485 640, 430 628, 410 595 Z" stroke="#5A7A52" strokeWidth="0.5" />
-            <path d="M 440 595 C 452 575, 475 565, 495 575 C 515 585, 515 605, 500 615 C 480 625, 450 615, 440 595 Z" stroke="#86B73D" strokeWidth="0.38" />
+            {/* Secundario detras zona central inferior — 3 niveles muy sutiles */}
+            <path d="M 378 582 C 406 542, 466 518, 518 542 C 570 566, 582 610, 542 638 C 494 664, 410 648, 380 600 Z" stroke="#2F4A3A" strokeWidth="0.58" opacity="0.48" />
+            <path d="M 408 590 C 426 562, 468 544, 504 560 C 540 576, 546 606, 522 622 C 488 638, 430 626, 410 596 Z" stroke="#4A6B52" strokeWidth="0.42" opacity="0.4" />
+            <path d="M 440 596 C 450 578, 472 566, 492 576 C 512 586, 514 604, 500 614 C 482 624, 452 614, 440 596 Z" stroke="#5A7E52" strokeWidth="0.32" opacity="0.34" />
 
-            {/* Valley connectors — dashed */}
-            <path d="M 420 580 Q 520 610, 620 570" stroke="#3E665C" strokeWidth="0.55" strokeDasharray="7 6" opacity="0.9" />
-            <path d="M 400 610 Q 510 650, 610 610" stroke="#5A7A52" strokeWidth="0.4" strokeDasharray="5 5" opacity="0.7" />
-
-            {/* Hachures on steep slopes */}
-            <g stroke="#5A7A52" strokeWidth="0.55" opacity="1">
-              <path d="M 700 340 L 710 328" />
-              <path d="M 730 315 L 740 302" />
-              <path d="M 970 340 L 982 326" />
-              <path d="M 995 385 L 1007 370" />
-              <path d="M 990 450 L 1002 438" />
-              <path d="M 940 530 L 952 518" />
-            </g>
+            {/* Conectores de valle — discontinuos */}
+            <path d="M 420 582 Q 520 612, 618 568" stroke="#3E665C" strokeWidth="0.45" strokeDasharray="7 6" opacity="0.42" />
+            <path d="M 398 612 Q 508 652, 608 612" stroke="#4A6B52" strokeWidth="0.34" strokeDasharray="5 5" opacity="0.32" />
           </g>
         </svg>
       </div>
 
-      {/* Topo secondary — very slow, blurred */}
+      {/* Topo secondary — muy lento, difuminado */}
       <div className="hero-topo-sec" aria-hidden="true">
         <svg viewBox="0 0 1440 700" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-          <g fill="none" stroke="#3E665C" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M 560 500 C 600 400, 700 340, 800 360 C 900 380, 940 460, 890 530 C 830 600, 680 610, 560 520 Z" strokeWidth="1" />
-            <path d="M 600 495 C 630 425, 710 375, 790 390 C 870 405, 895 465, 855 515 C 810 565, 690 570, 600 510 Z" strokeWidth="0.7" />
-            <path d="M 1060 120 C 1085 85, 1130 65, 1170 90 C 1210 115, 1215 155, 1185 180 C 1150 205, 1080 190, 1060 135 Z" strokeWidth="0.6" />
+          <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M 560 502 C 595 410, 698 338, 798 358 C 898 378, 942 458, 892 528 C 832 598, 678 608, 562 518 Z" stroke="#2F4A3A" strokeWidth="0.85" />
+            <path d="M 600 496 C 628 428, 708 376, 788 390 C 868 404, 894 462, 854 512 C 808 562, 688 568, 600 508 Z" stroke="#3E665C" strokeWidth="0.58" />
+            <path d="M 1060 118 C 1084 84, 1128 64, 1168 88 C 1208 112, 1214 152, 1184 178 C 1148 202, 1080 188, 1060 132 Z" stroke="#4A6B52" strokeWidth="0.48" />
           </g>
         </svg>
       </div>

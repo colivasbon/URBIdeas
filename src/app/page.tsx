@@ -36,7 +36,7 @@ export default async function Home() {
         <HeroParallax>
           <section className="relative border-b border-[var(--color-border-subtle)]">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <div className="py-20 sm:py-28 lg:py-36 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-12">
+              <div className="py-10 sm:py-14 lg:py-20 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
                 <div className="max-w-2xl">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="h-px w-12 bg-[var(--color-secondary)]" />

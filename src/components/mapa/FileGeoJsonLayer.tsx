@@ -29,6 +29,16 @@ export function FileGeoJsonLayer({ layer }: FileGeoJsonLayerProps) {
         fillColor: layer.color,
         fillOpacity: layer.fillOpacity,
       },
+      pointToLayer: (feature, latlng) => {
+        return L.circleMarker(latlng, {
+          radius: 8,
+          fillColor: layer.color,
+          color: layer.borderColor,
+          weight: layer.weight,
+          opacity: 1,
+          fillOpacity: layer.fillOpacity,
+        })
+      },
       onEachFeature: (feature, leafletLayer) => {
         if (feature.properties) {
           const popupContent = Object.entries(feature.properties)

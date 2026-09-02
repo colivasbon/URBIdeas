@@ -141,6 +141,18 @@ export default function MapaPage() {
     setFileLayers(prev => prev.map(l => l.id === id ? { ...l, color } : l))
   }, [])
 
+  const changeFileLayerFillOpacity = useCallback((id: string, fillOpacity: number) => {
+    setFileLayers(prev => prev.map(l => l.id === id ? { ...l, fillOpacity } : l))
+  }, [])
+
+  const changeFileLayerWeight = useCallback((id: string, weight: number) => {
+    setFileLayers(prev => prev.map(l => l.id === id ? { ...l, weight } : l))
+  }, [])
+
+  const changeFileLayerBorderColor = useCallback((id: string, borderColor: string) => {
+    setFileLayers(prev => prev.map(l => l.id === id ? { ...l, borderColor } : l))
+  }, [])
+
   const zoomToFileLayer = useCallback((id: string) => {
     setZoomToLayerId(id)
   }, [])
@@ -224,6 +236,9 @@ export default function MapaPage() {
                   onRemove={removeFileLayer}
                   onToggle={toggleFileLayer}
                   onColorChange={changeFileLayerColor}
+                  onFillOpacityChange={changeFileLayerFillOpacity}
+                  onWeightChange={changeFileLayerWeight}
+                  onBorderColorChange={changeFileLayerBorderColor}
                   onZoomTo={zoomToFileLayer}
                   onSoilToggle={handleSoilToggle}
                 />

@@ -10,6 +10,9 @@ export interface FileLayer {
   geojson: GeoJSON.FeatureCollection
   color: string
   visible: boolean
+  fillOpacity: number
+  weight: number
+  borderColor: string
 }
 
 const LAYER_COLORS = [
@@ -70,8 +73,25 @@ async function parseKmz(file: File): Promise<GeoJSON.FeatureCollection> {
   try {
     const buffer = await file.arrayBuffer()
     const zip = await JSZip.loadAsync(buffer)
-    const kmlFile = zip.file(/\.kml$/i)?.[0]
-    if (!kmlFile) throw new Error("El KMZ no contiene ningún archivo KML interno.")
+
+    // Buscar archivos KML en todo el ZIP (incluyendo subcarpetas)
+    const kmlFiles: JSZip.JSZipObject[] = []
+    zip.forEach((path, obj) => {
+      if (path.toLowerCase().endsWith(".kml") && !obj.dir) {
+        kmlFiles.push(obj)
+      }
+    })
+
+    if (kmlFiles.length === 0) {
+      throw new Error("El KMZ no contiene ningún archivo KML interno.")
+    }
+
+    // Priorizar doc.kml (estándar Google Earth), luego cualquier otro
+    let kmlFile = kmlFiles.find(f => f.name.toLowerCase().endsWith("doc.kml"))
+    if (!kmlFile) {
+      kmlFile = kmlFiles[0]
+    }
+
     const kmlText = await kmlFile.async("text")
     const parser = new DOMParser()
     const xml = parser.parseFromString(kmlText, "application/xml")
@@ -167,6 +187,9 @@ export async function parseFile(file: File): Promise<FileLayer> {
     geojson,
     color: nextColor(),
     visible: true,
+    fillOpacity: 0.25,
+    weight: 2,
+    borderColor: nextColor(),
   }
 }
 

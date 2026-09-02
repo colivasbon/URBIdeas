@@ -16,6 +16,9 @@ interface FileLayerPanelProps {
   onRemove: (id: string) => void
   onToggle: (id: string) => void
   onColorChange: (id: string, color: string) => void
+  onFillOpacityChange: (id: string, fillOpacity: number) => void
+  onWeightChange: (id: string, weight: number) => void
+  onBorderColorChange: (id: string, borderColor: string) => void
   onZoomTo: (id: string) => void
   onSoilToggle?: (geojson: GeoJSON.FeatureCollection | null) => void
 }
@@ -35,6 +38,9 @@ export function FileLayerPanel({
   onRemove,
   onToggle,
   onColorChange,
+  onFillOpacityChange,
+  onWeightChange,
+  onBorderColorChange,
   onZoomTo,
   onSoilToggle,
 }: FileLayerPanelProps) {
@@ -44,6 +50,7 @@ export function FileLayerPanel({
   const [showProvinceSelector, setShowProvinceSelector] = useState(true)
   const [selectedProvinces, setSelectedProvinces] = useState<string[]>([])
   const [soilGeoJSON, setSoilGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null)
+  const [expandedLayer, setExpandedLayer] = useState<string | null>(null)
 
   const toggleProvince = useCallback((code: string) => {
     setSelectedProvinces(prev =>
@@ -209,59 +216,130 @@ export function FileLayerPanel({
           {fileLayers.map(layer => (
             <div
               key={layer.id}
-              className="flex items-center gap-2 p-2 rounded-[var(--border-radius)] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)]/50"
+              className="rounded-[var(--border-radius)] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)]/50"
             >
-              <button
-                onClick={() => onToggle(layer.id)}
-                className="flex-shrink-0"
-                title={layer.visible ? "Ocultar" : "Mostrar"}
-              >
-                <div
-                  className="w-3 h-3 rounded-sm border flex items-center justify-center transition-colors"
-                  style={{
-                    background: layer.visible ? layer.color : 'transparent',
-                    borderColor: layer.color,
-                  }}
+              <div className="flex items-center gap-2 p-2">
+                <button
+                  onClick={() => onToggle(layer.id)}
+                  className="flex-shrink-0"
+                  title={layer.visible ? "Ocultar" : "Mostrar"}
                 >
-                  {layer.visible && (
-                    <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
+                  <div
+                    className="w-3 h-3 rounded-sm border flex items-center justify-center transition-colors"
+                    style={{
+                      background: layer.visible ? layer.color : 'transparent',
+                      borderColor: layer.color,
+                    }}
+                  >
+                    {layer.visible && (
+                      <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                </button>
+
+                <span className="flex-1 text-xs text-[var(--color-text-primary)] truncate">
+                  {layer.nombre}
+                </span>
+
+                <button
+                  onClick={() => setExpandedLayer(expandedLayer === layer.id ? null : layer.id)}
+                  className="text-[var(--color-text-muted)] hover:text-[var(--color-secondary)] transition-colors"
+                  title="Estilos"
+                >
+                  <svg className={`w-3 h-3 transition-transform ${expandedLayer === layer.id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+
+                <button
+                  onClick={() => onZoomTo(layer.id)}
+                  className="text-[var(--color-text-muted)] hover:text-[var(--color-secondary)] transition-colors"
+                  title="Zoom a extensión"
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                  </svg>
+                </button>
+
+                <button
+                  onClick={() => onRemove(layer.id)}
+                  className="text-[var(--color-text-muted)] hover:text-[var(--color-error-light)] transition-colors"
+                  title="Eliminar"
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Panel de estilos expandible */}
+              {expandedLayer === layer.id && (
+                <div className="px-3 pb-3 pt-1 border-t border-[var(--color-border-subtle)]">
+                  <div className="space-y-2">
+                    {/* Color de relleno */}
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] text-[var(--color-text-muted)]">Relleno</label>
+                      <input
+                        type="color"
+                        value={layer.color}
+                        onChange={(e) => onColorChange(layer.id, e.target.value)}
+                        className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
+                      />
+                    </div>
+
+                    {/* Opacidad del relleno */}
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] text-[var(--color-text-muted)]">Opacidad</label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={layer.fillOpacity}
+                          onChange={(e) => onFillOpacityChange(layer.id, parseFloat(e.target.value))}
+                          className="w-16 h-1 accent-[var(--color-secondary)]"
+                        />
+                        <span className="text-[9px] text-[var(--color-text-muted)] w-6 text-right">
+                          {Math.round(layer.fillOpacity * 100)}%
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Color del borde */}
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] text-[var(--color-text-muted)]">Borde</label>
+                      <input
+                        type="color"
+                        value={layer.borderColor}
+                        onChange={(e) => onBorderColorChange(layer.id, e.target.value)}
+                        className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
+                      />
+                    </div>
+
+                    {/* Grosor del borde */}
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] text-[var(--color-text-muted)]">Grosor</label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="range"
+                          min="1"
+                          max="10"
+                          step="1"
+                          value={layer.weight}
+                          onChange={(e) => onWeightChange(layer.id, parseInt(e.target.value))}
+                          className="w-16 h-1 accent-[var(--color-secondary)]"
+                        />
+                        <span className="text-[9px] text-[var(--color-text-muted)] w-6 text-right">
+                          {layer.weight}px
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </button>
-
-              <span className="flex-1 text-xs text-[var(--color-text-primary)] truncate">
-                {layer.nombre}
-              </span>
-
-              <input
-                type="color"
-                value={layer.color}
-                onChange={(e) => onColorChange(layer.id, e.target.value)}
-                className="w-4 h-4 rounded cursor-pointer border-0 p-0 bg-transparent"
-                title="Cambiar color"
-              />
-
-              <button
-                onClick={() => onZoomTo(layer.id)}
-                className="text-[var(--color-text-muted)] hover:text-[var(--color-secondary)] transition-colors"
-                title="Zoom a extensión"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-                </svg>
-              </button>
-
-              <button
-                onClick={() => onRemove(layer.id)}
-                className="text-[var(--color-text-muted)] hover:text-[var(--color-error-light)] transition-colors"
-                title="Eliminar"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              )}
             </div>
           ))}
         </div>

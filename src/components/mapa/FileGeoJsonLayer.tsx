@@ -23,11 +23,11 @@ export function FileGeoJsonLayer({ layer }: FileGeoJsonLayerProps) {
 
     const geoJsonLayer = L.geoJSON(layer.geojson, {
       style: {
-        color: layer.color,
-        weight: 2,
+        color: layer.borderColor,
+        weight: layer.weight,
         opacity: 0.8,
         fillColor: layer.color,
-        fillOpacity: 0.25,
+        fillOpacity: layer.fillOpacity,
       },
       onEachFeature: (feature, leafletLayer) => {
         if (feature.properties) {
@@ -54,7 +54,7 @@ export function FileGeoJsonLayer({ layer }: FileGeoJsonLayerProps) {
         layerRef.current = null
       }
     }
-  }, [map, layer.geojson, layer.color, layer.visible])
+  }, [map, layer.geojson, layer.color, layer.visible, layer.fillOpacity, layer.weight, layer.borderColor])
 
   return null
 }

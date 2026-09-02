@@ -12,8 +12,8 @@ const variantStyles: Record<BadgeVariant, string> = {
   primary: 'bg-[var(--color-primary)]/20 text-[var(--color-primary-light)] border border-[var(--color-primary)]/30',
   secondary: 'bg-[var(--color-secondary)]/20 text-[var(--color-secondary-light)] border border-[var(--color-secondary)]/30',
   accent: 'bg-[var(--color-accent)]/15 text-[var(--color-accent)] border border-[var(--color-accent)]/25',
-  danger: 'bg-red-500/15 text-red-400 border border-red-500/25',
-  success: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25',
+  danger: 'bg-[var(--color-error)]/15 text-[var(--color-error-light)] border border-[var(--color-error)]/25',
+  success: 'bg-[var(--color-success)]/15 text-[var(--color-success-light)] border border-[var(--color-success)]/25',
   muted: 'bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)]',
 }
 

@@ -2,6 +2,7 @@
 @import "tailwindcss";
 
 :root {
+  /* Primary palette */
   --color-primary: #3E665C;
   --color-primary-light: #4A7A6F;
   --color-primary-dark: #2E4F47;
@@ -11,25 +12,67 @@
   --color-accent: #FBE122;
   --color-accent-light: #FCE84D;
   --color-accent-dark: #E5CA11;
+
+  /* Semantic colors */
+  --color-error: #DC2626;
+  --color-error-light: #EF4444;
+  --color-error-dark: #B91C1C;
+  --color-success: #059669;
+  --color-success-light: #10B981;
+  --color-success-dark: #047857;
+  --color-info: #2563EB;
+  --color-info-light: #3B82F6;
+  --color-info-dark: #1D4ED8;
+  --color-warning: #D97706;
+  --color-warning-light: #F59E0B;
+  --color-warning-dark: #B45309;
+
+  /* Backgrounds */
   --color-dark-bg: #2C2F2D;
   --color-dark-bg-elevated: #353836;
   --color-light-bg: #F4F5F3;
+  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-white: #FFFFFF;
+
+  /* Text */
   --color-text-primary: #FFFFFF;
   --color-text-secondary: #A0A5A2;
   --color-text-muted: #6B706D;
   --color-text-dark: #1A1A1A;
+
+  /* Borders */
   --color-border: #404440;
   --color-border-subtle: #363936;
+
+  /* Surfaces */
   --color-card-bg: #33363380;
   --color-card-bg-solid: #3A3D3A;
   --color-input-bg: #2A2D2B;
   --color-input-bg-hover: #303331;
+
+  /* Typography */
   --font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+
+  /* Spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* Border radius */
+  --border-radius-sm: 4px;
   --border-radius: 8px;
   --border-radius-lg: 12px;
   --border-radius-xl: 16px;
+  --border-radius-full: 9999px;
+
+  /* Semantic aliases */
   --background: var(--color-dark-bg);
   --foreground: var(--color-text-primary);
+
+  /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.25);
   --shadow-lg: 0 8px 30px rgba(0,0,0,0.35);
@@ -37,6 +80,8 @@
   --shadow-glow-primary: 0 0 20px rgba(62,102,92,0.4);
   --shadow-glow-secondary: 0 0 20px rgba(134,183,61,0.4);
   --shadow-glow-accent: 0 0 20px rgba(251,225,34,0.3);
+
+  /* Motion */
   --duration-fast: 120ms;
   --duration-normal: 200ms;
   --duration-slow: 300ms;
@@ -46,18 +91,54 @@
 }
 
 @theme inline {
+  /* Colors */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--color-primary);
+  --color-primary-light: var(--color-primary-light);
+  --color-primary-dark: var(--color-primary-dark);
   --color-secondary: var(--color-secondary);
+  --color-secondary-light: var(--color-secondary-light);
+  --color-secondary-dark: var(--color-secondary-dark);
   --color-accent: var(--color-accent);
+  --color-accent-light: var(--color-accent-light);
+  --color-accent-dark: var(--color-accent-dark);
+  --color-error: var(--color-error);
+  --color-error-light: var(--color-error-light);
+  --color-success: var(--color-success);
+  --color-success-light: var(--color-success-light);
+  --color-info: var(--color-info);
+  --color-warning: var(--color-warning);
   --color-dark-bg: var(--color-dark-bg);
   --color-light-bg: var(--color-light-bg);
   --color-card-bg: var(--color-card-bg);
+  --color-card-bg-solid: var(--color-card-bg-solid);
   --color-input-bg: var(--color-input-bg);
   --color-border: var(--color-border);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-overlay: var(--color-overlay);
+  --color-white: var(--color-white);
+
+  /* Typography */
   --font-sans: var(--font-family);
+
+  /* Border radius */
+  --radius-sm: var(--border-radius-sm);
   --radius: var(--border-radius);
+  --radius-lg: var(--border-radius-lg);
+  --radius-xl: var(--border-radius-xl);
+  --radius-full: var(--border-radius-full);
+
+  /* Spacing */
+  --spacing-xs: var(--space-xs);
+  --spacing-sm: var(--space-sm);
+  --spacing-md: var(--space-md);
+  --spacing-lg: var(--space-lg);
+  --spacing-xl: var(--space-xl);
+  --spacing-2xl: var(--space-2xl);
 }
 
 [data-theme="light"] {
@@ -72,6 +153,7 @@
   --color-text-primary: #1A1C1A;
   --color-text-secondary: #5A5F5C;
   --color-text-muted: #8A8F8C;
+  --color-overlay: rgba(0, 0, 0, 0.5);
   --background: #F4F5F3;
   --foreground: #1A1C1A;
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
@@ -224,7 +306,7 @@ a:hover {
 
 .leaflet-popup-close-button:hover {
   color: var(--color-accent) !important;
-  background: rgba(255,255,255,0.1) !important;
+  background: var(--color-input-bg) !important;
 }
 
 /* Leaflet zoom control overrides */
@@ -315,6 +397,11 @@ a:hover {
   50% { opacity: 0.7; }
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
 .animate-fade-in {
   animation: fade-in var(--duration-slow) var(--ease-out) both;
 }
@@ -326,6 +413,19 @@ a:hover {
 .animate-slide-in-down {
   animation: slide-in-down var(--duration-normal) var(--ease-out) both;
 }
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, var(--color-card-bg) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Stagger animation delays for lists */
+.stagger-1 { animation-delay: 60ms; }
+.stagger-2 { animation-delay: 120ms; }
+.stagger-3 { animation-delay: 180ms; }
+.stagger-4 { animation-delay: 240ms; }
+.stagger-5 { animation-delay: 300ms; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -30,10 +30,10 @@ const variantStyles: Record<ButtonVariant, string> = {
     'focus-visible:ring-[var(--color-accent)]',
   ].join(' '),
   danger: [
-    'bg-red-600 text-white',
-    'hover:bg-red-500 hover:shadow-[0_0_20px_rgba(239,68,68,0.4)]',
-    'active:bg-red-700 active:scale-[0.98]',
-    'focus-visible:ring-red-500',
+    'bg-[var(--color-error)] text-white',
+    'hover:bg-[var(--color-error-light)] hover:shadow-[0_0_20px_rgba(220,38,38,0.4)]',
+    'active:bg-[var(--color-error-dark)] active:scale-[0.98]',
+    'focus-visible:ring-[var(--color-error)]',
   ].join(' '),
   ghost: [
     'bg-transparent text-[var(--color-text-secondary)]',

@@ -502,7 +502,7 @@ export default function AdminPage() {
 
                   <Card hover>
                     <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--border-radius-lg)] bg-emerald-500/15 text-emerald-400">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--border-radius-lg)] bg-[var(--color-success)]/15 text-[var(--color-success-light)]">
                         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L12 12.75 6.429 9.75m11.142 0l4.179 2.25-9.75 5.25-9.75-5.25 4.179-2.25" />
                         </svg>
@@ -518,7 +518,7 @@ export default function AdminPage() {
 
                   <Card hover>
                     <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--border-radius-lg)] bg-violet-500/15 text-violet-400">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--border-radius-lg)] bg-[var(--color-info)]/15 text-[var(--color-info-light)]">
                         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
                         </svg>

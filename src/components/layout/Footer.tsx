@@ -48,7 +48,7 @@ export default function Footer() {
           </p>
           <div className="flex items-center gap-4">
             <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
               Sistema operativo
             </span>
           </div>

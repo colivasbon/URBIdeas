@@ -28,7 +28,7 @@ export function Input({ label, icon, error, className = '', ...props }: InputPro
             'transition-all duration-[var(--duration-normal)] ease-[var(--ease-out)]',
             'hover:border-[var(--color-border)] hover:bg-[var(--color-input-bg-hover)]',
             'focus:outline-none focus:border-[var(--color-secondary)] focus:ring-2 focus:ring-[var(--color-secondary)]/20 focus:bg-[var(--color-input-bg-hover)]',
-            error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-[var(--color-border-subtle)]',
+            error ? 'border-[var(--color-error)] focus:border-[var(--color-error)] focus:ring-[var(--color-error)]/20' : 'border-[var(--color-border-subtle)]',
             icon ? 'pl-10' : '',
             className,
           ].join(' ')}
@@ -36,7 +36,7 @@ export function Input({ label, icon, error, className = '', ...props }: InputPro
         />
       </div>
       {error && (
-        <p className="text-xs text-red-400 mt-0.5">{error}</p>
+        <p className="text-xs text-[var(--color-error-light)] mt-0.5">{error}</p>
       )}
     </div>
   )

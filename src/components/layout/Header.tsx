@@ -103,7 +103,7 @@ export default function Header() {
       {/* Mobile menu overlay */}
       {menuOpen && (
         <div className="fixed inset-0 top-14 sm:top-16 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
+          <div className="absolute inset-0 bg-[var(--color-overlay)] backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
           <nav className="relative bg-[var(--color-dark-bg)] border-b border-[var(--color-border-subtle)] shadow-[var(--shadow-lg)] animate-slide-in-down">
             <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
               {navLinks.map((link, i) => {

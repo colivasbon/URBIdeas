@@ -169,7 +169,7 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa }: ControlCapasP
   if (error) {
     return (
       <div className="p-4 text-center">
-        <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>
+        <p className="text-xs" style={{ color: 'var(--color-error-light)' }}>{error}</p>
       </div>
     )
   }

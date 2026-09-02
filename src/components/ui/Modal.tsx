@@ -31,7 +31,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-[var(--color-overlay)] backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
       <div className="relative bg-[var(--color-card-bg-solid)] border border-[var(--color-border)] rounded-[var(--border-radius-xl)] w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-slide-in-down">

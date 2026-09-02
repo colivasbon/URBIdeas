@@ -126,22 +126,28 @@ export default async function Home() {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative overflow-hidden border-b border-[var(--color-border-subtle)]">
-          <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary)]/10 via-transparent to-[var(--color-secondary)]/5" />
-          <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+          <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary)]/15 via-[var(--color-dark-bg)] to-[var(--color-secondary)]/8" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--color-secondary)_0%,_transparent_50%)] opacity-10" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--color-primary)_0%,_transparent_50%)] opacity-10" />
+          <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
             <div className="max-w-2xl">
-              <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-secondary)]/15 border border-[var(--color-secondary)]/25 mb-5">
+                <span className="w-2 h-2 rounded-full bg-[var(--color-secondary)] animate-pulse" />
+                <span className="text-xs font-medium text-[var(--color-secondary)]">Plataforma activa</span>
+              </div>
+              <h1 className="text-4xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-5xl lg:text-6xl">
                 Registro Urbanístico
                 <span className="block text-[var(--color-secondary)]">de España</span>
               </h1>
-              <p className="mt-4 max-w-xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
+              <p className="mt-5 max-w-xl text-base leading-relaxed text-[var(--color-text-secondary)] sm:text-lg">
                 Plataforma de centralización y consulta de información pública de planeamiento
                 urbanístico: legislación, PGOU, instrumentos de planeamiento y capas WMS/WFS de
                 todo el territorio nacional.
               </p>
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/municipios"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[var(--color-primary)] rounded-[var(--border-radius)] hover:bg-[var(--color-primary-light)] hover:shadow-[var(--shadow-glow-primary)] transition-all duration-[var(--duration-normal)] active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-[var(--border-radius)] hover:bg-[var(--color-primary-light)] hover:shadow-[var(--shadow-glow-primary)] transition-all duration-[var(--duration-normal)] active:scale-[0.98]"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -150,7 +156,7 @@ export default async function Home() {
                 </Link>
                 <Link
                   href="/mapa"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)] transition-all duration-[var(--duration-normal)] active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border)] hover:bg-[var(--color-input-bg-hover)] transition-all duration-[var(--duration-normal)] active:scale-[0.98]"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
@@ -172,24 +178,25 @@ export default async function Home() {
                     'relative overflow-hidden rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)]',
                     'bg-[var(--color-card-bg)] backdrop-blur-sm p-4 sm:p-5',
                     'transition-all duration-[var(--duration-normal)] ease-[var(--ease-out)]',
-                    'hover:shadow-[var(--shadow-md)] hover:border-[var(--color-border)] hover:-translate-y-0.5',
-                    'active:scale-[0.99]',
+                    'hover:shadow-[var(--shadow-lg)] hover:border-[var(--color-border)] hover:-translate-y-1',
+                    'active:scale-[0.98]',
                   ].join(' ')} style={{ animationDelay: `${i * 60}ms` }}>
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="absolute inset-0 bg-gradient-to-br from-transparent to-[var(--color-primary)]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-[var(--duration-normal)]" />
+                    <div className="relative flex items-start justify-between mb-3">
                       <div
-                        className="flex h-9 w-9 items-center justify-center rounded-[var(--border-radius)] transition-transform duration-[var(--duration-normal)] group-hover:scale-110"
+                        className="flex h-10 w-10 items-center justify-center rounded-[var(--border-radius)] transition-all duration-[var(--duration-normal)] group-hover:scale-110 group-hover:shadow-[var(--shadow-md)]"
                         style={{ backgroundColor: `${stat.color}20`, color: stat.color }}
                       >
                         {stat.icon}
                       </div>
-                      <svg className="h-4 w-4 text-[var(--color-text-muted)] transition-all duration-[var(--duration-normal)] group-hover:text-[var(--color-text-secondary)] group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <svg className="h-4 w-4 text-[var(--color-text-muted)] transition-all duration-[var(--duration-normal)] group-hover:text-[var(--color-secondary)] group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                       </svg>
                     </div>
-                    <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
+                    <p className="relative text-2xl sm:text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
                       {stat.value}
                     </p>
-                    <p className="mt-1 text-xs sm:text-sm text-[var(--color-text-secondary)]">
+                    <p className="relative mt-1 text-xs sm:text-sm text-[var(--color-text-secondary)]">
                       {stat.label}
                     </p>
                   </div>
@@ -205,23 +212,27 @@ export default async function Home() {
               {quickAccess.map((item, i) => (
                 <Link key={item.title} href={item.href} className="group block">
                   <div className={[
-                    'flex items-start gap-4 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)]',
+                    'relative flex items-start gap-4 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)]',
                     'bg-[var(--color-card-bg)] backdrop-blur-sm p-4 sm:p-5',
                     'transition-all duration-[var(--duration-normal)] ease-[var(--ease-out)]',
-                    'hover:shadow-[var(--shadow-md)] hover:border-[var(--color-border)] hover:-translate-y-0.5',
-                    'active:scale-[0.99]',
+                    'hover:shadow-[var(--shadow-lg)] hover:border-[var(--color-border)] hover:-translate-y-1',
+                    'active:scale-[0.98]',
                   ].join(' ')} style={{ animationDelay: `${i * 60}ms` }}>
-                    <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-[var(--border-radius)] bg-[var(--color-primary)]/15 text-[var(--color-secondary)] transition-all duration-[var(--duration-normal)] group-hover:bg-[var(--color-secondary)]/15 group-hover:text-[var(--color-secondary-light)] group-hover:scale-110">
+                    <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-primary)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-[var(--duration-normal)] rounded-[var(--border-radius-lg)]" />
+                    <div className="relative shrink-0 flex h-11 w-11 items-center justify-center rounded-[var(--border-radius)] bg-[var(--color-primary)]/15 text-[var(--color-secondary)] transition-all duration-[var(--duration-normal)] group-hover:bg-[var(--color-secondary)]/20 group-hover:text-[var(--color-secondary-light)] group-hover:scale-110 group-hover:shadow-[var(--shadow-sm)]">
                       {item.icon}
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="relative min-w-0 flex-1">
                       <p className="font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-secondary)] transition-colors duration-[var(--duration-normal)]">
                         {item.title}
                       </p>
-                      <p className="mt-0.5 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                      <p className="mt-1 text-sm text-[var(--color-text-secondary)] leading-relaxed">
                         {item.description}
                       </p>
                     </div>
+                    <svg className="relative h-5 w-5 text-[var(--color-text-muted)] transition-all duration-[var(--duration-normal)] group-hover:text-[var(--color-secondary)] group-hover:translate-x-1 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
                   </div>
                 </Link>
               ))}

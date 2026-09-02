@@ -116,7 +116,7 @@ export default function TablaComparativa({ municipioIds }: TablaComparativaProps
 
   if (error) {
     return (
-      <p className="py-8 text-center text-sm text-red-400">
+      <p className="py-8 text-center text-sm text-[var(--color-error-light)]">
         Error al cargar datos: {error}
       </p>
     )

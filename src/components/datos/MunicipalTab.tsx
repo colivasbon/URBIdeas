@@ -93,7 +93,7 @@ export default function MunicipalTab() {
         <div className="flex gap-2">
           <button
             onClick={() => setActiveView("siu")}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-4 py-2 text-sm font-medium rounded-[var(--border-radius)] transition-colors ${
               activeView === "siu"
                 ? "bg-[var(--color-primary)] text-white"
                 : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:bg-[var(--color-input-bg-hover)]"
@@ -103,7 +103,7 @@ export default function MunicipalTab() {
           </button>
           <button
             onClick={() => setActiveView("directorio")}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-4 py-2 text-sm font-medium rounded-[var(--border-radius)] transition-colors ${
               activeView === "directorio"
                 ? "bg-[var(--color-primary)] text-white"
                 : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:bg-[var(--color-input-bg-hover)]"
@@ -119,7 +119,7 @@ export default function MunicipalTab() {
             placeholder="Buscar municipio..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 pl-10 text-sm bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+            className="w-full px-4 py-2 pl-10 text-sm bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
           />
           <svg
             className="absolute left-3 top-2.5 h-4 w-4 text-[var(--color-text-muted)]"
@@ -305,7 +305,7 @@ export default function MunicipalTab() {
               <button
                 onClick={() => setPagination(prev => ({ ...prev, offset: Math.max(0, prev.offset - prev.limit) }))}
                 disabled={pagination.offset === 0}
-                className="px-4 py-2 text-sm font-medium bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--color-input-bg-hover)]"
+                className="px-4 py-2 text-sm font-medium bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--color-input-bg-hover)]"
               >
                 Anterior
               </button>
@@ -315,7 +315,7 @@ export default function MunicipalTab() {
               <button
                 onClick={() => setPagination(prev => ({ ...prev, offset: prev.offset + prev.limit }))}
                 disabled={pagination.offset + pagination.limit >= pagination.total}
-                className="px-4 py-2 text-sm font-medium bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--color-input-bg-hover)]"
+                className="px-4 py-2 text-sm font-medium bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--color-input-bg-hover)]"
               >
                 Siguiente
               </button>

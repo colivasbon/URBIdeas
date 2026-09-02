@@ -8,7 +8,7 @@ import "leaflet/dist/leaflet.css"
 interface MunicipioMarker { id: string; nombre: string; lat: number; lng: number }
 interface MunicipioMapaProps { lat?: number | null; lng?: number | null; nombre?: string; municipios?: MunicipioMarker[] }
 
-const MARKER_COLORS = ["#3E665C","#D4543B","#2563EB","#D97706","#7C3AED","#059669","#DC2626","#0891B2","#C026D3","#65A30D"]
+const MARKER_COLORS = ["var(--color-primary)","#D4543B","#2563EB","var(--color-warning)","#7C3AED","var(--color-success)","#DC2626","#0891B2","#C026D3","#65A30D"]
 
 function createNumberIcon(num: number, color: string) {
   return L.divIcon({
@@ -24,7 +24,7 @@ function createPinIcon() {
   return L.divIcon({
     className: "",
     html: `<div style="position:relative;width:24px;height:36px">
-      <div style="width:24px;height:24px;background:#3E665C;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>
+      <div style="width:24px;height:24px;background:var(--color-primary);border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>
       <div style="position:absolute;top:6px;left:6px;width:12px;height:12px;background:white;border-radius:50%"></div>
     </div>`,
     iconSize: [24, 36],

@@ -33,7 +33,7 @@ export function FileGeoJsonLayer({ layer }: FileGeoJsonLayerProps) {
         if (feature.properties) {
           const popupContent = Object.entries(feature.properties)
             .filter(([, v]) => v !== null && v !== undefined)
-            .map(([k, v]) => `<tr><td style="padding:2px 6px 2px 0;font-weight:500;color:#888;white-space:nowrap;vertical-align:top">${k}</td><td style="padding:2px 0">${v}</td></tr>`)
+            .map(([k, v]) => `<tr><td style="padding:2px 6px 2px 0;font-weight:500;color:var(--color-text-muted);white-space:nowrap;vertical-align:top">${k}</td><td style="padding:2px 0">${v}</td></tr>`)
             .join('')
           if (popupContent) {
             leafletLayer.bindPopup(

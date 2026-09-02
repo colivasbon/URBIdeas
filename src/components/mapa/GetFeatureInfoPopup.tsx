@@ -43,7 +43,7 @@ export function GetFeatureInfoPopup({ features, coordenadas }: GetFeatureInfoPop
         <div key={i} style={{ marginBottom: withData.length > 1 ? 10 : 0 }}>
           <div style={{
             background: 'var(--color-primary)',
-            color: '#fff',
+            color: 'var(--color-white)',
             padding: '3px 8px',
             borderRadius: 'var(--border-radius)',
             fontSize: 12,

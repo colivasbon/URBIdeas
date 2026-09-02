@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 
 export default function HeroParallax({ children }: { children: React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [scrollProgress, setScrollProgress] = useState(0)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const bgRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let ticking = false
@@ -13,12 +14,21 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
       if (!ticking) {
         requestAnimationFrame(() => {
           const el = containerRef.current
-          if (!el) { ticking = false; return }
+          const bg = bgRef.current
+          const content = contentRef.current
+          if (!el || !bg || !content) { ticking = false; return }
+
           const rect = el.getBoundingClientRect()
           const vh = window.innerHeight
           if (rect.bottom < 0) { ticking = false; return }
+
           const progress = Math.max(0, Math.min(1, (vh - rect.top) / (vh + rect.height)))
-          setScrollProgress(progress)
+          const offset = progress * 200
+
+          bg.style.opacity = String(0.04 + progress * 0.16)
+          bg.style.transform = `translateY(${-offset * 0.5}px)`
+          content.style.transform = `translateY(${offset * 0.3}px)`
+
           ticking = false
         })
         ticking = true
@@ -30,73 +40,60 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
-  const gridOpacity = Math.max(0, 0.08 - scrollProgress * 0.12)
-  const topoOpacity = Math.min(0.2, scrollProgress * 0.35)
-  const glowY = scrollProgress * -80
-
   return (
     <div ref={containerRef} className="relative">
       {/* Background layers */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
-        {/* Grid layer — fades out on scroll */}
-        <svg
-          className="absolute inset-0 w-full h-full"
-          style={{ opacity: gridOpacity }}
-        >
+      <div
+        ref={bgRef}
+        className="absolute inset-0 pointer-events-none"
+        style={{ zIndex: 0, opacity: 0.04 }}
+      >
+        {/* Grid — fades in from 0.04 base */}
+        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-[var(--color-border-subtle)]" />
+            <pattern id="heroGrid" width="80" height="80" patternUnits="userSpaceOnUse">
+              <path d="M 80 0 L 0 0 0 80" fill="none" stroke="#86B73D" strokeWidth="0.5" />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
+          <rect width="100%" height="100%" fill="url(#heroGrid)" />
         </svg>
 
-        {/* Topo contour layer — fades in on scroll */}
-        <svg
-          className="absolute inset-0 w-full h-full"
-          style={{ opacity: topoOpacity, transform: `translateY(${glowY}px)` }}
-          viewBox="0 0 1200 800"
-          preserveAspectRatio="xMidYMid slice"
-        >
-          <g fill="none" strokeLinecap="round" strokeLinejoin="round">
-            {/* Mountain cluster — left */}
-            <path d="M-50 650 L80 600 L150 560 L200 580 L280 520 L340 545 L420 490 L490 510 L560 460 L640 485 L720 440 L800 460 L880 420 L960 445 L1040 400 L1120 420 L1250 390" stroke="var(--color-secondary)" strokeWidth="1.5" />
-            <path d="M-50 670 L70 625 L140 590 L190 608 L270 555 L330 575 L410 525 L480 542 L550 498 L630 518 L710 478 L790 495 L870 460 L950 480 L1030 445 L1110 462 L1250 435" stroke="var(--color-secondary)" strokeWidth="0.8" />
-            <path d="M-50 688 L65 648 L135 618 L185 632 L265 588 L325 605 L405 560 L475 574 L545 535 L625 552 L705 516 L785 530 L865 498 L945 514 L1025 484 L1105 498 L1250 475" stroke="var(--color-primary)" strokeWidth="0.5" />
+        {/* Topographic contour lines — top-down view */}
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+          <g fill="none" strokeLinecap="round">
+            {/* Peak 1 — left area, concentric ovals */}
+            <ellipse cx="280" cy="350" rx="220" ry="140" stroke="#3E665C" strokeWidth="1.2" transform="rotate(-15 280 350)" />
+            <ellipse cx="280" cy="350" rx="170" ry="105" stroke="#86B73D" strokeWidth="0.9" transform="rotate(-12 280 350)" />
+            <ellipse cx="280" cy="350" rx="120" ry="72" stroke="#3E665C" strokeWidth="0.7" transform="rotate(-10 280 350)" />
+            <ellipse cx="280" cy="350" rx="70" ry="40" stroke="#86B73D" strokeWidth="0.5" transform="rotate(-8 280 350)" />
+            <ellipse cx="280" cy="350" rx="30" ry="16" stroke="#3E665C" strokeWidth="0.4" transform="rotate(-5 280 350)" />
 
-            {/* Central ridge */}
-            <path d="M300 500 L380 420 L430 380 L480 350 L530 310 L580 280 L630 260 L680 240 L730 270 L780 310 L830 350 L880 390 L940 420 L1000 450 L1060 480 L1150 500" stroke="var(--color-secondary)" strokeWidth="1.8" />
-            <path d="M310 520 L390 448 L440 412 L490 385 L540 348 L590 322 L640 305 L690 288 L740 312 L790 345 L840 380 L890 415 L950 442 L1010 468 L1050 492 L1140 518" stroke="var(--color-secondary)" strokeWidth="0.9" />
-            <path d="M320 538 L398 472 L448 442 L498 418 L548 388 L598 365 L648 350 L698 336 L748 355 L798 382 L848 412 L898 440 L958 462 L1018 484 L1045 506 L1130 532" stroke="var(--color-primary)" strokeWidth="0.5" />
-            <path d="M335 555 L408 498 L458 472 L508 452 L558 428 L608 408 L658 395 L708 384 L758 400 L808 422 L858 445 L908 465 L968 482 L1028 500 L1040 518 L1120 548" stroke="var(--color-primary)" strokeWidth="0.35" />
+            {/* Peak 2 — center-right, larger */}
+            <ellipse cx="850" cy="420" rx="280" ry="180" stroke="#86B73D" strokeWidth="1.4" transform="rotate(8 850 420)" />
+            <ellipse cx="850" cy="420" rx="220" ry="140" stroke="#3E665C" strokeWidth="1" transform="rotate(6 850 420)" />
+            <ellipse cx="850" cy="420" rx="160" ry="100" stroke="#86B73D" strokeWidth="0.7" transform="rotate(4 850 420)" />
+            <ellipse cx="850" cy="420" rx="100" ry="60" stroke="#3E665C" strokeWidth="0.5" transform="rotate(3 850 420)" />
+            <ellipse cx="850" cy="420" rx="50" ry="28" stroke="#86B73D" strokeWidth="0.4" />
 
-            {/* Small peak — right */}
-            <path d="M850 520 L900 470 L940 440 L980 420 L1020 400 L1060 425 L1100 455 L1140 480 L1200 510" stroke="var(--color-secondary)" strokeWidth="1.2" />
-            <path d="M855 538 L905 495 L945 468 L985 452 L1025 438 L1065 458 L1105 482 L1145 502 L1195 525" stroke="var(--color-primary)" strokeWidth="0.6" />
+            {/* Peak 3 — top right, small */}
+            <ellipse cx="1150" cy="200" rx="140" ry="90" stroke="#3E665C" strokeWidth="0.9" transform="rotate(20 1150 200)" />
+            <ellipse cx="1150" cy="200" rx="95" ry="58" stroke="#86B73D" strokeWidth="0.6" transform="rotate(18 1150 200)" />
+            <ellipse cx="1150" cy="200" rx="50" ry="30" stroke="#3E665C" strokeWidth="0.4" transform="rotate(15 1150 200)" />
 
-            {/* Valley floor lines */}
-            <path d="M-50 720 L100 712 L250 700 L400 708 L550 695 L700 703 L850 692 L1000 700 L1150 690 L1250 698" stroke="var(--color-primary)" strokeWidth="0.3" />
-            <path d="M-50 740 L120 735 L280 728 L440 733 L600 725 L760 730 L920 723 L1080 728 L1250 720" stroke="var(--color-secondary)" strokeWidth="0.25" />
+            {/* Valley ridge connecting peaks */}
+            <path d="M120 550 Q300 580 500 530 Q700 480 850 520 Q1000 560 1200 510 Q1350 480 1450 500" stroke="#3E665C" strokeWidth="0.6" />
+            <path d="M100 600 Q280 630 480 590 Q680 540 830 580 Q980 620 1180 570 Q1330 540 1450 555" stroke="#86B73D" strokeWidth="0.4" />
+            <path d="M80 650 Q260 675 460 645 Q660 605 810 640 Q960 675 1160 630 Q1310 605 1450 615" stroke="#3E665C" strokeWidth="0.3" />
 
-            {/* Upper contour — small hill */}
-            <path d="M150 280 L200 240 L250 210 L300 190 L350 210 L400 240 L450 260" stroke="var(--color-primary)" strokeWidth="0.6" />
-            <path d="M155 295 L205 260 L255 238 L305 222 L355 238 L405 260 L445 278" stroke="var(--color-secondary)" strokeWidth="0.35" />
+            {/* Small depression — bottom left */}
+            <ellipse cx="150" cy="720" rx="100" ry="60" stroke="#86B73D" strokeWidth="0.5" transform="rotate(-10 150 720)" />
+            <ellipse cx="150" cy="720" rx="55" ry="30" stroke="#3E665C" strokeWidth="0.35" transform="rotate(-8 150 720)" />
           </g>
         </svg>
-
-        {/* Glow orbs — move with parallax */}
-        <div
-          className="absolute top-[5%] right-[8%] w-[500px] h-[500px] rounded-full blur-[120px] bg-[var(--color-primary)]"
-          style={{ opacity: 0.08, transform: `translateY(${glowY * 0.6}px)` }}
-        />
-        <div
-          className="absolute bottom-[15%] left-[0%] w-[400px] h-[400px] rounded-full blur-[100px] bg-[var(--color-secondary)]"
-          style={{ opacity: 0.06, transform: `translateY(${glowY * 0.4}px)` }}
-        />
       </div>
 
-      {/* Content */}
-      <div className="relative" style={{ zIndex: 1 }}>
+      {/* Content — moves down with parallax */}
+      <div ref={contentRef} className="relative" style={{ zIndex: 1 }}>
         {children}
       </div>
     </div>

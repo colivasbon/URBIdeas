@@ -106,8 +106,8 @@ export function FileLayerPanel({
     setLoading(true)
 
     try {
-      const layer = await parseFile(file)
-      onAdd(layer)
+      const layers = await parseFile(file)
+      layers.forEach(layer => onAdd(layer))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al procesar archivo")
     } finally {

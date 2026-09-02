@@ -69,7 +69,12 @@ async function parseKml(file: File): Promise<GeoJSON.FeatureCollection> {
   return geojson as GeoJSON.FeatureCollection
 }
 
-async function parseKmz(file: File): Promise<GeoJSON.FeatureCollection> {
+interface KmlLayer {
+  nombre: string
+  geojson: GeoJSON.FeatureCollection
+}
+
+async function parseKmz(file: File): Promise<KmlLayer[]> {
   try {
     const buffer = await file.arrayBuffer()
     const zip = await JSZip.loadAsync(buffer)
@@ -86,22 +91,32 @@ async function parseKmz(file: File): Promise<GeoJSON.FeatureCollection> {
       throw new Error("El KMZ no contiene ningún archivo KML interno.")
     }
 
-    // Priorizar doc.kml (estándar Google Earth), luego cualquier otro
-    let kmlFile = kmlFiles.find(f => f.name.toLowerCase().endsWith("doc.kml"))
-    if (!kmlFile) {
-      kmlFile = kmlFiles[0]
+    const parser = new DOMParser()
+    const results: KmlLayer[] = []
+
+    for (const kmlFile of kmlFiles) {
+      const kmlText = await kmlFile.async("text")
+      const xml = parser.parseFromString(kmlText, "application/xml")
+      const errorNode = xml.querySelector("parsererror")
+      if (errorNode) continue // Saltar KMLs inválidos
+
+      const geojson = kml(xml)
+      if (geojson.type !== "FeatureCollection") continue
+
+      const fc = geojson as GeoJSON.FeatureCollection
+      if (!fc.features || fc.features.length === 0) continue
+
+      // Nombre del archivo KML sin extensión
+      const nombreKml = kmlFile.name.split("/").pop()?.replace(/\.kml$/i, "") || "Capa"
+
+      results.push({ nombre: nombreKml, geojson: fc })
     }
 
-    const kmlText = await kmlFile.async("text")
-    const parser = new DOMParser()
-    const xml = parser.parseFromString(kmlText, "application/xml")
-    const errorNode = xml.querySelector("parsererror")
-    if (errorNode) throw new Error("El KML interno del KMZ no es válido.")
-    const geojson = kml(xml)
-    if (geojson.type !== "FeatureCollection") {
-      throw new Error("No se pudo convertir el KML del KMZ a GeoJSON.")
+    if (results.length === 0) {
+      throw new Error("El KMZ no contiene KMLs con elementos geométricos válidos.")
     }
-    return geojson as GeoJSON.FeatureCollection
+
+    return results
   } catch (err) {
     if (err instanceof Error) throw err
     throw new Error("No se pudo leer el archivo KMZ. Verifica que no esté dañado.")
@@ -145,7 +160,20 @@ async function parseShapefileZip(file: File): Promise<GeoJSON.FeatureCollection>
   }
 }
 
-export async function parseFile(file: File): Promise<FileLayer> {
+function createLayer(nombre: string, geojson: GeoJSON.FeatureCollection): FileLayer {
+  return {
+    id: `file-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    nombre,
+    geojson,
+    color: nextColor(),
+    visible: true,
+    fillOpacity: 0.25,
+    weight: 2,
+    borderColor: nextColor(),
+  }
+}
+
+export async function parseFile(file: File): Promise<FileLayer[]> {
   if (file.size > MAX_SIZE_BYTES) {
     throw new Error(`El archivo supera el límite de ${MAX_SIZE_BYTES / 1024 / 1024}MB (${(file.size / 1024 / 1024).toFixed(1)}MB recibidos).`)
   }
@@ -157,39 +185,42 @@ export async function parseFile(file: File): Promise<FileLayer> {
     throw new Error(`Formato no soportado (${file.name}). Formatos válidos: ${supported}`)
   }
 
-  let geojson: GeoJSON.FeatureCollection
+  const nombreBase = file.name.replace(/\.[^.]+$/, "")
 
   switch (ext) {
-    case "geojson":
-      geojson = await parseGeoJson(file)
-      break
-    case "kml":
-      geojson = await parseKml(file)
-      break
-    case "kmz":
-      geojson = await parseKmz(file)
-      break
+    case "geojson": {
+      const geojson = await parseGeoJson(file)
+      if (!geojson.features || geojson.features.length === 0) {
+        throw new Error("El archivo no contiene elementos geométricos.")
+      }
+      return [createLayer(nombreBase, geojson)]
+    }
+    case "kml": {
+      const geojson = await parseKml(file)
+      if (!geojson.features || geojson.features.length === 0) {
+        throw new Error("El archivo no contiene elementos geométricos.")
+      }
+      return [createLayer(nombreBase, geojson)]
+    }
+    case "kmz": {
+      const layers = await parseKmz(file)
+      // Si solo hay un KML, usar el nombre del archivo KMZ
+      if (layers.length === 1) {
+        return [createLayer(nombreBase, layers[0].geojson)]
+      }
+      // Si hay varios, prefiere el nombre de cada KML pero con prefijo del KMZ
+      return layers.map(l => createLayer(`${nombreBase} / ${l.nombre}`, l.geojson))
+    }
     case "shp":
-    case "zip":
-      geojson = await parseShapefileZip(file)
-      break
+    case "zip": {
+      const geojson = await parseShapefileZip(file)
+      if (!geojson.features || geojson.features.length === 0) {
+        throw new Error("El archivo no contiene elementos geométricos.")
+      }
+      return [createLayer(nombreBase, geojson)]
+    }
     default:
       throw new Error("Formato no soportado.")
-  }
-
-  if (!geojson.features || geojson.features.length === 0) {
-    throw new Error("El archivo no contiene elementos geométricos.")
-  }
-
-  return {
-    id: `file-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    nombre: file.name.replace(/\.[^.]+$/, ""),
-    geojson,
-    color: nextColor(),
-    visible: true,
-    fillOpacity: 0.25,
-    weight: 2,
-    borderColor: nextColor(),
   }
 }
 

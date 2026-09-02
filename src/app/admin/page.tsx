@@ -152,13 +152,16 @@ export default function AdminPage() {
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           {/* Page header */}
           <section className="mb-6 border-b border-[var(--color-border-subtle)] pb-6">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)] mb-2">
-              Gestión
-            </p>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-px w-8 bg-[var(--color-secondary)]" />
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)]">
+                Gestión
+              </p>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
               Panel de Administración
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
+            <p className="mt-3 max-w-2xl text-sm text-[var(--color-text-muted)]">
               Gestiona fuentes geoportales, capas WMS, servicios geoespaciales,
               fuentes normativas y supervisa el estado del sistema.
             </p>

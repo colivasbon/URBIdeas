@@ -233,13 +233,16 @@ export default function LegislacionPage() {
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           {/* Page header */}
           <section className="mb-6 border-b border-[var(--color-border-subtle)] pb-6">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)] mb-2">
-              Normativa
-            </p>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-px w-8 bg-[var(--color-secondary)]" />
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)]">
+                Normativa
+              </p>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
               Legislación Urbanística
             </h1>
-            <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">
+            <p className="mt-3 max-w-3xl text-sm text-[var(--color-text-muted)]">
               La legislación urbanística española se consulta en cuatro capas: el Estado fija el
               régimen básico del suelo; cada comunidad aprueba la ley urbanística de aplicación
               directa; la provincia publica el planeamiento en su boletín; el municipio aprueba el

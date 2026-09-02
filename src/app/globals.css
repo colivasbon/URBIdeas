@@ -340,10 +340,97 @@ a:hover {
   animation: slide-in-down var(--duration-normal) var(--ease-out) both;
 }
 
+/* Topographic pattern background */
+.topo-pattern {
+  position: relative;
+  overflow: hidden;
+}
+
+.topo-pattern::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 200 Q100 150 200 200 T400 200' fill='none' stroke='%2386B73D' stroke-width='1'/%3E%3Cpath d='M0 180 Q100 130 200 180 T400 180' fill='none' stroke='%2386B73D' stroke-width='0.5'/%3E%3Cpath d='M0 220 Q100 170 200 220 T400 220' fill='none' stroke='%2386B73D' stroke-width='0.5'/%3E%3Cpath d='M0 160 Q100 110 200 160 T400 160' fill='none' stroke='%233E665C' stroke-width='0.3'/%3E%3Cpath d='M0 240 Q100 190 200 240 T400 240' fill='none' stroke='%233E665C' stroke-width='0.3'/%3E%3Cpath d='M0 140 Q100 90 200 140 T400 140' fill='none' stroke='%2386B73D' stroke-width='0.3'/%3E%3Cpath d='M0 260 Q100 210 200 260 T400 260' fill='none' stroke='%2386B73D' stroke-width='0.3'/%3E%3Cpath d='M0 120 Q100 70 200 120 T400 120' fill='none' stroke='%233E665C' stroke-width='0.2'/%3E%3Cpath d='M0 280 Q100 230 200 280 T400 280' fill='none' stroke='%233E665C' stroke-width='0.2'/%3E%3Cpath d='M0 100 Q100 50 200 100 T400 100' fill='none' stroke='%2386B73D' stroke-width='0.2'/%3E%3Cpath d='M0 300 Q100 250 200 300 T400 300' fill='none' stroke='%2386B73D' stroke-width='0.2'/%3E%3C/svg%3E");
+  background-size: 400px 400px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+[data-theme="light"] .topo-pattern::before {
+  opacity: 0.06;
+}
+
+/* Parallax container */
+.parallax-hero {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+.parallax-bg {
+  transform: translateZ(-2px) scale(3);
+  z-index: -1;
+}
+
+.parallax-content {
+  transform: translateZ(0);
+  z-index: 1;
+}
+
+/* Grid pattern */
+.grid-pattern {
+  background-image:
+    linear-gradient(var(--color-border-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border-subtle) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Glow accent line */
+.accent-line {
+  position: relative;
+}
+
+.accent-line::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-secondary), transparent);
+  opacity: 0.3;
+}
+
+/* Section fade-in animation */
+@keyframes section-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal-on-scroll {
+  animation: section-reveal 0.6s var(--ease-out) both;
+}
+
+/* Staggered children */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 80ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 160ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 320ms; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .parallax-bg {
+    transform: none;
   }
 }

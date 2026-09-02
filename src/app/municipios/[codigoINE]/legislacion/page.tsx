@@ -153,10 +153,10 @@ export default function LegislacionMunicipioPage({
 
           {/* Title */}
           <section className="mb-6 border-b border-[var(--color-border-subtle)] pb-6">
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
               {siuData?.nombre || directorioData?.nombre_ayuntamiento || "Municipio"}
             </h1>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            <p className="mt-2 text-sm text-[var(--color-text-muted)]">
               Código INE: {resolvedParams.codigoINE}
             </p>
           </section>

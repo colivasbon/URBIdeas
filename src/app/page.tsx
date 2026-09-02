@@ -38,18 +38,15 @@ export default async function Home() {
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
               <div className="py-12 sm:py-16 lg:py-24 flex flex-col items-center text-center gap-8">
                 <div className="max-w-3xl w-full">
-                  <div className="flex items-center justify-center gap-3 mb-6">
-                    <div className="h-px w-8 bg-[var(--color-secondary)]" />
-                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--color-secondary)]">
-                      Ideas Medioambientales
-                    </p>
-                    <div className="h-px w-8 bg-[var(--color-secondary)]" />
-                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--color-secondary)] mb-3">
+                    Herramientas de apoyo
+                  </p>
                   <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-[var(--color-text-primary)] leading-[0.95]">
-                    Herramienta de apoyo
-                    <br />
-                    <span className="text-[var(--color-secondary)]">al Urbanismo</span>
+                    área de urbanismo
                   </h1>
+                  <p className="mt-3 text-sm font-medium uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
+                    Ideas Medioambientales
+                  </p>
                   <p className="mt-6 max-w-xl mx-auto text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed">
                     Centralización y consulta de información pública de planeamiento
                     urbanístico: legislación, PGOU, instrumentos y capas WMS/WFS de

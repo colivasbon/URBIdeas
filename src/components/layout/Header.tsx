@@ -47,10 +47,10 @@ export default function Header() {
             />
             <div className="hidden sm:block leading-tight">
               <span className="text-sm font-semibold text-[var(--color-text-primary)] block">
-                Registro Urbanístico
+                Urbanismo
               </span>
               <span className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-widest">
-                de España
+                Ideas Medioambientales
               </span>
             </div>
           </Link>

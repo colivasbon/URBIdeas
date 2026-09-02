@@ -3,8 +3,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "Registro Urbanístico España | Ideas Medioambientales",
-  description: "Centralización y consulta de información pública de planeamiento urbanístico de España: legislación, PGOU y capas WMS/WFS.",
+  title: "Herramienta de apoyo al Urbanismo | Ideas Medioambientales",
+  description: "Herramienta de apoyo al urbanismo — centralización y consulta de información pública de planeamiento urbanístico de España: legislación, PGOU y capas WMS/WFS.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -36,27 +36,26 @@ export default async function Home() {
         <HeroParallax>
           <section className="relative border-b border-[var(--color-border-subtle)]">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <div className="py-10 sm:py-14 lg:py-20 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
-                <div className="max-w-2xl">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="h-px w-12 bg-[var(--color-secondary)]" />
+              <div className="py-12 sm:py-16 lg:py-24 flex flex-col items-center text-center gap-8">
+                <div className="max-w-3xl w-full">
+                  <div className="flex items-center justify-center gap-3 mb-6">
+                    <div className="h-px w-8 bg-[var(--color-secondary)]" />
                     <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--color-secondary)]">
                       Ideas Medioambientales
                     </p>
+                    <div className="h-px w-8 bg-[var(--color-secondary)]" />
                   </div>
-                  <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tighter text-[var(--color-text-primary)] leading-[0.95]">
-                    Registro
+                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-[var(--color-text-primary)] leading-[0.95]">
+                    Herramienta de apoyo
                     <br />
-                    Urbanístico
-                    <br />
-                    <span className="text-[var(--color-secondary)]">de España</span>
+                    <span className="text-[var(--color-secondary)]">al Urbanismo</span>
                   </h1>
-                  <p className="mt-8 max-w-lg text-lg text-[var(--color-text-secondary)] leading-relaxed">
+                  <p className="mt-6 max-w-xl mx-auto text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed">
                     Centralización y consulta de información pública de planeamiento
                     urbanístico: legislación, PGOU, instrumentos y capas WMS/WFS de
                     todo el territorio nacional.
                   </p>
-                  <div className="mt-10 flex flex-wrap gap-4">
+                  <div className="mt-8 flex flex-wrap justify-center gap-4">
                     <Link
                       href="/municipios"
                       className="inline-flex items-center gap-3 px-7 py-3.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] hover:shadow-lg hover:shadow-[var(--color-primary)]/20 transition-all duration-300 active:scale-[0.97]"
@@ -73,30 +72,12 @@ export default async function Home() {
                       Explorar mapa
                     </Link>
                   </div>
-                </div>
-
-                {/* Floating coordinates display */}
-                <div className="hidden lg:block">
-                  <div className="bg-[var(--color-card-bg)]/80 backdrop-blur-sm border border-[var(--color-border-subtle)] rounded-2xl p-6 shadow-lg">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)] mb-3">
-                      Cobertura territorial
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-baseline gap-8">
-                        <span className="text-xs text-[var(--color-text-muted)]">Municipios</span>
-                        <span className="text-lg font-bold text-[var(--color-text-primary)] tabular-nums">{stats.totalMunicipios.toLocaleString("es-ES")}</span>
-                      </div>
-                      <div className="h-px bg-[var(--color-border-subtle)]" />
-                      <div className="flex justify-between items-baseline gap-8">
-                        <span className="text-xs text-[var(--color-text-muted)]">Fuentes normativas</span>
-                        <span className="text-lg font-bold text-[var(--color-text-primary)] tabular-nums">{stats.totalLegalSources.toLocaleString("es-ES")}</span>
-                      </div>
-                      <div className="h-px bg-[var(--color-border-subtle)]" />
-                      <div className="flex justify-between items-baseline gap-8">
-                        <span className="text-xs text-[var(--color-text-muted)]">Capas WMS</span>
-                        <span className="text-lg font-bold text-[var(--color-text-primary)] tabular-nums">{stats.totalCapasWMS.toLocaleString("es-ES")}</span>
-                      </div>
-                    </div>
+                  <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-[var(--color-text-muted)]">
+                    <span className="inline-flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-[var(--color-secondary)]" />{stats.totalMunicipios.toLocaleString("es-ES")} municipios</span>
+                    <span className="hidden sm:inline text-[var(--color-border)]">·</span>
+                    <span>{stats.totalLegalSources.toLocaleString("es-ES")} fuentes normativas</span>
+                    <span className="hidden sm:inline text-[var(--color-border)]">·</span>
+                    <span>{stats.totalCapasWMS.toLocaleString("es-ES")} capas WMS</span>
                   </div>
                 </div>
               </div>

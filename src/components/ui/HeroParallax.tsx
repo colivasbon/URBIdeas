@@ -131,14 +131,14 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
         .hero-grid {
           position: absolute;
           inset: 0;
-          right: 62%;
+          right: 58%;
           z-index: 0;
           pointer-events: none;
-          opacity: calc(0.10 + var(--hero-p) * 0.05);
+          opacity: calc(0.18 + var(--hero-p) * 0.08);
           transform: translateY(calc(var(--hero-p) * 22px));
           will-change: transform, opacity;
-          -webkit-mask-image: linear-gradient(to right, black 58%, transparent 100%);
-          mask-image: linear-gradient(to right, black 58%, transparent 100%);
+          -webkit-mask-image: linear-gradient(to right, black 62%, transparent 100%);
+          mask-image: linear-gradient(to right, black 62%, transparent 100%);
         }
         .hero-grid-svg {
           position: absolute;
@@ -148,19 +148,19 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
         }
         .hero-topo-main {
           position: absolute;
-          inset: -6% -2% -6% 32%;
+          inset: -6% -2% -6% 30%;
           z-index: 1;
           pointer-events: none;
-          opacity: calc(0.11 + var(--hero-p) * 0.16);
+          opacity: calc(0.22 + var(--hero-p) * 0.18);
           transform: translateY(calc(var(--hero-p) * -48px)) scale(calc(1 + var(--hero-p) * 0.035));
           will-change: transform, opacity;
         }
         .hero-topo-sec {
           position: absolute;
-          inset: -4% -2% -4% 28%;
+          inset: -4% -2% -4% 26%;
           z-index: 1;
           pointer-events: none;
-          opacity: calc(0.05 + var(--hero-p) * 0.07);
+          opacity: calc(0.10 + var(--hero-p) * 0.10);
           transform: translateY(calc(var(--hero-p) * -16px)) scale(calc(1 + var(--hero-p) * 0.015));
           filter: blur(0.7px);
           will-change: transform, opacity;
@@ -180,7 +180,7 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
           height: 520px;
           border-radius: 9999px;
           background: var(--color-primary);
-          opacity: calc(0.07 + var(--hero-p) * 0.03);
+          opacity: calc(0.09 + var(--hero-p) * 0.04);
           filter: blur(90px);
           transform: translateY(calc(var(--hero-p) * -18px));
           will-change: transform, opacity;
@@ -193,11 +193,18 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
           height: 380px;
           border-radius: 9999px;
           background: var(--color-secondary);
-          opacity: calc(0.05 + var(--hero-p) * 0.02);
+          opacity: calc(0.07 + var(--hero-p) * 0.03);
           filter: blur(80px);
           transform: translateY(calc(var(--hero-p) * 12px));
           will-change: transform, opacity;
         }
+
+        /* Light mode — tonos mas contrastados sobre fondo claro */
+        [data-theme="light"] .hero-grid { opacity: calc(0.14 + var(--hero-p) * 0.06); }
+        [data-theme="light"] .hero-topo-main { opacity: calc(0.18 + var(--hero-p) * 0.14); }
+        [data-theme="light"] .hero-topo-sec { opacity: calc(0.08 + var(--hero-p) * 0.08); }
+        [data-theme="light"] .hero-glow-a { opacity: calc(0.06 + var(--hero-p) * 0.03); }
+        [data-theme="light"] .hero-glow-b { opacity: calc(0.04 + var(--hero-p) * 0.02); }
 
         @media (prefers-reduced-motion: reduce) {
           .hero-grid, .hero-topo-main, .hero-topo-sec, .hero-glow-a, .hero-glow-b {
@@ -206,27 +213,27 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
           .hero-parallax {
             --hero-p: 0 !important;
           }
-          .hero-grid { opacity: 0.09 !important; }
-          .hero-topo-main { opacity: 0.11 !important; }
-          .hero-topo-sec { opacity: 0.05 !important; }
+          .hero-grid { opacity: 0.18 !important; }
+          .hero-topo-main { opacity: 0.22 !important; }
+          .hero-topo-sec { opacity: 0.10 !important; }
         }
 
         @media (max-width: 768px) {
           .hero-grid {
-            right: 45%;
-            opacity: calc(0.06 + var(--hero-p) * 0.02);
+            right: 42%;
+            opacity: calc(0.10 + var(--hero-p) * 0.04);
             -webkit-mask-image: linear-gradient(to right, black 65%, transparent 100%);
             mask-image: linear-gradient(to right, black 65%, transparent 100%);
           }
           .hero-topo-main {
-            left: 18%;
+            left: 16%;
             right: -8%;
-            opacity: calc(0.07 + var(--hero-p) * 0.08);
+            opacity: calc(0.14 + var(--hero-p) * 0.10);
             transform: translateY(calc(var(--hero-p) * -28px)) scale(calc(1 + var(--hero-p) * 0.02));
           }
           .hero-topo-sec {
-            left: 30%;
-            opacity: calc(0.03 + var(--hero-p) * 0.04);
+            left: 28%;
+            opacity: calc(0.06 + var(--hero-p) * 0.06);
           }
           .hero-glow-a { width: 340px; height: 340px; filter: blur(70px); }
           .hero-glow-b { width: 260px; height: 260px; filter: blur(60px); }

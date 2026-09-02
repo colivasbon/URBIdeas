@@ -9,19 +9,19 @@ interface BadgeProps {
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
-  primary: 'bg-[var(--color-primary)]/15 text-[var(--color-primary-light)]',
-  secondary: 'bg-[var(--color-secondary)]/15 text-[var(--color-secondary-light)]',
-  accent: 'bg-[var(--color-accent)]/15 text-[var(--color-accent)]',
-  danger: 'bg-[var(--color-error)]/15 text-[var(--color-error-light)]',
-  success: 'bg-[var(--color-success)]/15 text-[var(--color-success-light)]',
-  muted: 'bg-[var(--color-input-bg)] text-[var(--color-text-secondary)]',
+  primary: 'bg-[var(--color-primary)]/20 text-[var(--color-primary-light)] border border-[var(--color-primary)]/30',
+  secondary: 'bg-[var(--color-secondary)]/20 text-[var(--color-secondary-light)] border border-[var(--color-secondary)]/30',
+  accent: 'bg-[var(--color-accent)]/15 text-[var(--color-accent)] border border-[var(--color-accent)]/25',
+  danger: 'bg-[var(--color-error)]/15 text-[var(--color-error-light)] border border-[var(--color-error)]/25',
+  success: 'bg-[var(--color-success)]/15 text-[var(--color-success-light)] border border-[var(--color-success)]/25',
+  muted: 'bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)]',
 }
 
 export function Badge({ variant = 'primary', children, className = '' }: BadgeProps) {
   return (
     <span
       className={[
-        'inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-[var(--border-radius)]',
+        'inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full',
         variantStyles[variant],
         className,
       ].join(' ')}

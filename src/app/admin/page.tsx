@@ -155,7 +155,7 @@ export default function AdminPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)] mb-2">
               Gestión
             </p>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl" style={{ fontFamily: "var(--font-serif)" }}>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
               Panel de Administración
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
@@ -451,7 +451,7 @@ export default function AdminPage() {
                     { label: "Fuentes normativas", value: stats.totalLegalSources.toLocaleString("es-ES"), color: "var(--color-info)" },
                   ].map((stat) => (
                     <div key={stat.label} className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] p-5">
-                      <p className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]" style={{ fontFamily: "var(--font-serif)" }}>
+                      <p className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">
                         {stat.value}
                       </p>
                       <p className="mt-1 text-xs text-[var(--color-text-muted)] uppercase tracking-wider">{stat.label}</p>

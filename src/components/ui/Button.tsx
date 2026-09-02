@@ -45,15 +45,15 @@ const variantStyles: Record<ButtonVariant, string> = {
 
 const sizeStyles: Record<ButtonSize, string> = {
   sm: 'px-3 py-1.5 text-xs gap-1.5 min-h-[32px]',
-  md: 'px-4 py-2 text-sm gap-2 min-h-[36px]',
-  lg: 'px-5 py-2.5 text-sm gap-2 min-h-[42px]',
+  md: 'px-4 py-2 text-sm gap-2 min-h-[38px]',
+  lg: 'px-5 py-2.5 text-sm gap-2.5 min-h-[44px]',
 }
 
 export function Button({ variant = 'primary', size = 'md', loading, className = '', children, disabled, ...props }: ButtonProps) {
   return (
     <button
       className={[
-        'inline-flex items-center justify-center font-medium rounded-[var(--border-radius)]',
+        'inline-flex items-center justify-center font-semibold rounded-lg',
         'transition-all duration-200 ease-out',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card-bg-solid)]',
         'disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',

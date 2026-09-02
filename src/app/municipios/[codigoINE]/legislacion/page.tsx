@@ -153,7 +153,7 @@ export default function LegislacionMunicipioPage({
 
           {/* Title */}
           <section className="mb-6 border-b border-[var(--color-border-subtle)] pb-6">
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl" style={{ fontFamily: "var(--font-serif)" }}>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
               {siuData?.nombre || directorioData?.nombre_ayuntamiento || "Municipio"}
             </h1>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">

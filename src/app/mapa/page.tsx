@@ -180,7 +180,7 @@ export default function MapaPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)] mb-2">
               Visualización
             </p>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl" style={{ fontFamily: "var(--font-serif)" }}>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
               Visor de Mapa
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">

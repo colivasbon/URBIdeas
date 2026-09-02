@@ -4,140 +4,242 @@ import { useEffect, useRef } from "react"
 
 export default function HeroParallax({ children }: { children: React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const gridRef = useRef<HTMLDivElement>(null)
-  const topoRef = useRef<HTMLDivElement>(null)
-  const glowRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    if (prefersReduced) return
+
     let ticking = false
+    let heroH = el.offsetHeight
+
+    function update() {
+      const rect = el!.getBoundingClientRect()
+      // 0 when hero top at viewport top, 1 when hero scrolled ~70% past
+      const progress = Math.max(0, Math.min(1, -rect.top / (heroH * 0.7)))
+      el!.style.setProperty("--hero-p", String(progress))
+      ticking = false
+    }
 
     function onScroll() {
       if (!ticking) {
-        requestAnimationFrame(() => {
-          const el = containerRef.current
-          const grid = gridRef.current
-          const topo = topoRef.current
-          const glow = glowRef.current
-          const content = contentRef.current
-          if (!el || !grid || !topo || !glow || !content) { ticking = false; return }
-
-          const rect = el.getBoundingClientRect()
-          const vh = window.innerHeight
-          if (rect.bottom < 0 || rect.top > vh) { ticking = false; return }
-
-          // progress 0 at top of viewport, 1 when hero is scrolled past
-          const progress = Math.max(0, Math.min(1, (vh - rect.top) / (vh + rect.height)))
-
-          // Grid fades OUT, topo fades IN
-          grid.style.opacity = String(Math.max(0, 0.14 - progress * 0.14))
-          topo.style.opacity = String(0.14 + progress * 0.22)
-
-          // Parallax: different speeds
-          grid.style.transform = `translateY(${progress * 60}px)`
-          topo.style.transform = `translateY(${progress * -90}px)`
-          glow.style.transform = `translateY(${progress * -40}px)`
-          content.style.transform = `translateY(${progress * 24}px)`
-
-          ticking = false
-        })
+        requestAnimationFrame(update)
         ticking = true
       }
     }
 
+    function onResize() {
+      heroH = el!.offsetHeight
+      update()
+    }
+
     window.addEventListener("scroll", onScroll, { passive: true })
-    onScroll()
-    return () => window.removeEventListener("scroll", onScroll)
+    window.addEventListener("resize", onResize, { passive: true })
+    update()
+
+    return () => {
+      window.removeEventListener("scroll", onScroll)
+      window.removeEventListener("resize", onResize)
+    }
   }, [])
 
   return (
-    <div ref={containerRef} className="relative overflow-hidden">
-      {/* Grid layer — always visible, fades out on scroll */}
-      <div
-        ref={gridRef}
-        className="absolute inset-0 pointer-events-none"
-        style={{ zIndex: 0, opacity: 0.14 }}
-      >
-        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+    <div ref={containerRef} className="hero-parallax" style={{ ["--hero-p" as string]: 0 } as React.CSSProperties}>
+      {/* Grid — left third */}
+      <div className="hero-grid" aria-hidden="true">
+        <svg className="hero-grid-svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" preserveAspectRatio="none">
           <defs>
-            <pattern id="heroGrid" width="72" height="72" patternUnits="userSpaceOnUse">
-              <path d="M 72 0 H 0 V 72" fill="none" stroke="#3A4A38" strokeWidth="1" />
-              <circle cx="0" cy="0" r="1.2" fill="#86B73D" opacity="0.5" />
+            <pattern id="heroGridPattern" width="144" height="144" patternUnits="userSpaceOnUse">
+              {/* subtle base */}
+              <rect width="144" height="144" fill="none" />
+              {/* fine lines 36px */}
+              <path d="M 36 0 V 144 M 72 0 V 144 M 108 0 V 144 M 0 36 H 144 M 0 72 H 144 M 0 108 H 144" fill="none" stroke="#4A5E42" strokeWidth="0.5" />
+              {/* thick divisions 144px */}
+              <path d="M 144 0 H 0 V 144" fill="none" stroke="#5A6E52" strokeWidth="1.1" />
+              {/* intersection dots */}
+              <circle cx="0" cy="0" r="0.9" fill="#6A7E5A" />
+              <circle cx="72" cy="72" r="0.7" fill="#6A7E5A" opacity="0.6" />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#heroGrid)" />
+          <rect width="100%" height="100%" fill="url(#heroGridPattern)" />
         </svg>
       </div>
 
-      {/* Topo layer — top-down contour map, fades in on scroll */}
-      <div
-        ref={topoRef}
-        className="absolute inset-0 pointer-events-none"
-        style={{ zIndex: 1, opacity: 0.14 }}
-      >
-        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1440 800" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      {/* Topo main — center-right bottom, medium speed */}
+      <div className="hero-topo-main" aria-hidden="true">
+        <svg viewBox="0 0 1440 700" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
           <g fill="none" strokeLinecap="round" strokeLinejoin="round">
-            {/* Peak A — left, 5 contour levels */}
-            <path d="M 90 360 C 120 250, 230 190, 350 230 C 460 270, 490 400, 410 500 C 310 560, 120 520, 90 360 Z" stroke="#86B73D" strokeWidth="1.6" opacity="0.9" />
-            <path d="M 130 365 C 150 285, 235 235, 335 265 C 410 295, 430 390, 375 455 C 305 495, 160 465, 130 365 Z" stroke="#3E665C" strokeWidth="1.1" opacity="0.8" />
-            <path d="M 175 372 C 185 315, 245 270, 318 295 C 365 320, 380 385, 340 425 C 285 450, 200 420, 175 372 Z" stroke="#86B73D" strokeWidth="0.8" opacity="0.7" />
-            <path d="M 215 380 C 220 345, 255 305, 300 325 C 335 345, 335 390, 310 410 C 270 425, 230 400, 215 380 Z" stroke="#3E665C" strokeWidth="0.6" opacity="0.6" />
-            <path d="M 252 382 C 256 365, 274 345, 292 355 C 308 365, 306 385, 292 394 C 275 400, 258 392, 252 382 Z" stroke="#86B73D" strokeWidth="0.5" opacity="0.5" />
+            {/* Main focus — large irregular concentric at ~880,520 */}
+            <path d="M 640 520 C 670 380, 780 290, 890 300 C 1010 310, 1085 400, 1040 500 C 990 600, 860 630, 740 590 C 660 560, 610 600, 640 520 Z" stroke="#3E665C" strokeWidth="1.3" />
+            <path d="M 675 510 C 695 405, 785 330, 875 335 C 965 340, 1020 415, 985 485 C 945 555, 850 575, 760 545 C 695 520, 650 545, 675 510 Z" stroke="#5A7A52" strokeWidth="0.95" />
+            <path d="M 710 500 C 725 425, 795 365, 860 370 C 925 375, 965 425, 940 470 C 910 515, 840 525, 770 500 C 725 485, 695 515, 710 500 Z" stroke="#86B73D" strokeWidth="0.75" />
+            <path d="M 750 492 C 760 445, 805 395, 852 400 C 895 405, 920 440, 900 465 C 875 490, 825 490, 775 470 C 745 455, 735 485, 750 492 Z" stroke="#3E665C" strokeWidth="0.6" />
+            <path d="M 785 485 C 790 460, 815 425, 845 430 C 875 435, 885 455, 872 470 C 855 485, 820 482, 790 470 Z" stroke="#5A7A52" strokeWidth="0.45" />
+            <path d="M 815 478 C 818 465, 828 445, 842 448 C 856 451, 860 462, 852 472 C 842 478, 822 476, 815 478 Z" stroke="#86B73D" strokeWidth="0.35" />
 
-            {/* Peak B — center-right, largest */}
-            <path d="M 580 460 C 620 320, 760 230, 900 260 C 1040 290, 1100 410, 1020 520 C 920 620, 660 620, 580 460 Z" stroke="#86B73D" strokeWidth="1.8" opacity="0.95" />
-            <path d="M 630 455 C 660 350, 765 285, 885 305 C 985 325, 1030 415, 970 490 C 895 560, 690 560, 630 455 Z" stroke="#3E665C" strokeWidth="1.2" opacity="0.85" />
-            <path d="M 680 452 C 700 380, 775 325, 870 345 C 945 365, 975 430, 930 475 C 875 515, 725 510, 680 452 Z" stroke="#86B73D" strokeWidth="0.9" opacity="0.7" />
-            <path d="M 730 450 C 740 405, 785 360, 855 375 C 910 390, 925 435, 895 460 C 850 480, 760 475, 730 450 Z" stroke="#3E665C" strokeWidth="0.65" opacity="0.6" />
-            <path d="M 780 450 C 785 430, 810 400, 845 410 C 875 420, 880 440, 865 452 C 840 462, 795 460, 780 450 Z" stroke="#86B73D" strokeWidth="0.45" opacity="0.5" />
+            {/* Secondary focus — top right, subtle */}
+            <path d="M 1080 110 C 1100 70, 1145 45, 1190 70 C 1235 95, 1245 145, 1210 180 C 1170 210, 1100 195, 1080 150 Z" stroke="#3E665C" strokeWidth="0.85" />
+            <path d="M 1105 125 C 1118 95, 1150 80, 1180 98 C 1210 116, 1215 150, 1190 170 C 1160 188, 1115 175, 1105 145 Z" stroke="#5A7A52" strokeWidth="0.6" />
+            <path d="M 1130 138 C 1138 118, 1158 105, 1175 118 C 1192 131, 1190 152, 1175 162 C 1155 172, 1132 160, 1130 138 Z" stroke="#86B73D" strokeWidth="0.4" />
 
-            {/* Peak C — top-right, small */}
-            <path d="M 1040 150 C 1060 90, 1120 50, 1180 80 C 1240 110, 1250 180, 1200 220 C 1140 250, 1060 220, 1040 150 Z" stroke="#3E665C" strokeWidth="1" opacity="0.75" />
-            <path d="M 1075 155 C 1088 110, 1125 85, 1170 105 C 1210 125, 1215 175, 1180 200 C 1140 220, 1090 200, 1075 155 Z" stroke="#86B73D" strokeWidth="0.7" opacity="0.6" />
-            <path d="M 1110 162 C 1118 135, 1138 115, 1162 128 C 1185 141, 1184 168, 1166 180 C 1142 192, 1118 178, 1110 162 Z" stroke="#3E665C" strokeWidth="0.5" opacity="0.5" />
+            {/* Secondary focus — behind central lower, very subtle */}
+            <path d="M 380 580 C 410 540, 470 520, 520 545 C 570 570, 580 615, 540 640 C 490 665, 410 650, 380 600 Z" stroke="#3E665C" strokeWidth="0.7" />
+            <path d="M 410 588 C 430 560, 470 545, 505 562 C 540 579, 545 610, 520 625 C 485 640, 430 628, 410 595 Z" stroke="#5A7A52" strokeWidth="0.5" />
+            <path d="M 440 595 C 452 575, 475 565, 495 575 C 515 585, 515 605, 500 615 C 480 625, 450 615, 440 595 Z" stroke="#86B73D" strokeWidth="0.38" />
 
-            {/* Valley / saddle between peaks */}
-            <path d="M 420 580 Q 520 620, 600 580 Q 680 540, 780 560" stroke="#3E665C" strokeWidth="0.7" opacity="0.5" strokeDasharray="8 6" />
-            <path d="M 400 620 Q 510 665, 600 625 Q 700 585, 800 605" stroke="#86B73D" strokeWidth="0.5" opacity="0.4" strokeDasharray="6 5" />
+            {/* Valley connectors — dashed */}
+            <path d="M 420 580 Q 520 610, 620 570" stroke="#3E665C" strokeWidth="0.55" strokeDasharray="7 6" opacity="0.9" />
+            <path d="M 400 610 Q 510 650, 610 610" stroke="#5A7A52" strokeWidth="0.4" strokeDasharray="5 5" opacity="0.7" />
 
-            {/* Isolated hill — bottom */}
-            <path d="M 80 680 C 110 630, 170 610, 220 640 C 270 670, 260 720, 210 740 C 150 750, 80 720, 80 680 Z" stroke="#86B73D" strokeWidth="0.7" opacity="0.5" />
-            <path d="M 115 682 C 130 655, 165 640, 195 658 C 225 676, 220 705, 195 716 C 160 724, 115 705, 115 682 Z" stroke="#3E665C" strokeWidth="0.5" opacity="0.4" />
-
-            {/* Wide area contours — bottom */}
-            <path d="M -20 740 Q 200 720, 400 735 Q 650 755, 900 730 Q 1150 705, 1460 730" stroke="#3E665C" strokeWidth="0.5" opacity="0.35" />
-            <path d="M -20 770 Q 250 750, 500 765 Q 750 785, 1000 760 Q 1250 735, 1460 760" stroke="#86B73D" strokeWidth="0.35" opacity="0.3" />
-
-            {/* Elevation ticks — short hachures on steep slopes */}
-            <g stroke="#86B73D" strokeWidth="0.6" opacity="0.4">
-              <path d="M 380 270 L 390 260" />
-              <path d="M 400 285 L 412 274" />
-              <path d="M 420 310 L 432 298" />
-              <path d="M 430 340 L 442 328" />
-              <path d="M 930 310 L 940 298" />
-              <path d="M 960 340 L 972 327" />
-              <path d="M 980 380 L 992 366" />
-              <path d="M 960 450 L 972 438" />
+            {/* Hachures on steep slopes */}
+            <g stroke="#5A7A52" strokeWidth="0.55" opacity="1">
+              <path d="M 700 340 L 710 328" />
+              <path d="M 730 315 L 740 302" />
+              <path d="M 970 340 L 982 326" />
+              <path d="M 995 385 L 1007 370" />
+              <path d="M 990 450 L 1002 438" />
+              <path d="M 940 530 L 952 518" />
             </g>
           </g>
         </svg>
       </div>
 
-      {/* Glow orbs */}
-      <div
-        ref={glowRef}
-        className="absolute inset-0 pointer-events-none"
-        style={{ zIndex: 2 }}
-      >
-        <div className="absolute top-[8%] right-[6%] w-[520px] h-[520px] rounded-full blur-[110px] bg-[var(--color-primary)] opacity-[0.09]" />
-        <div className="absolute bottom-[12%] left-[2%] w-[420px] h-[420px] rounded-full blur-[100px] bg-[var(--color-secondary)] opacity-[0.07]" />
-        <div className="absolute top-[45%] left-[42%] w-[300px] h-[300px] rounded-full blur-[90px] bg-[var(--color-secondary)] opacity-[0.04]" />
+      {/* Topo secondary — very slow, blurred */}
+      <div className="hero-topo-sec" aria-hidden="true">
+        <svg viewBox="0 0 1440 700" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+          <g fill="none" stroke="#3E665C" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M 560 500 C 600 400, 700 340, 800 360 C 900 380, 940 460, 890 530 C 830 600, 680 610, 560 520 Z" strokeWidth="1" />
+            <path d="M 600 495 C 630 425, 710 375, 790 390 C 870 405, 895 465, 855 515 C 810 565, 690 570, 600 510 Z" strokeWidth="0.7" />
+            <path d="M 1060 120 C 1085 85, 1130 65, 1170 90 C 1210 115, 1215 155, 1185 180 C 1150 205, 1080 190, 1060 135 Z" strokeWidth="0.6" />
+          </g>
+        </svg>
       </div>
 
-      {/* Content */}
-      <div ref={contentRef} className="relative" style={{ zIndex: 10 }}>
+      {/* Subtle glows */}
+      <div className="hero-glow" aria-hidden="true">
+        <div className="hero-glow-a" />
+        <div className="hero-glow-b" />
+      </div>
+
+      {/* Content — stable, no parallax */}
+      <div className="relative" style={{ zIndex: 10 }}>
         {children}
       </div>
+
+      <style>{`
+        .hero-parallax {
+          position: relative;
+          overflow: hidden;
+          isolation: isolate;
+          --hero-p: 0;
+          background: var(--color-dark-bg);
+        }
+        .hero-grid {
+          position: absolute;
+          inset: 0;
+          right: 62%;
+          z-index: 0;
+          pointer-events: none;
+          opacity: calc(0.10 + var(--hero-p) * 0.05);
+          transform: translateY(calc(var(--hero-p) * 22px));
+          will-change: transform, opacity;
+          -webkit-mask-image: linear-gradient(to right, black 58%, transparent 100%);
+          mask-image: linear-gradient(to right, black 58%, transparent 100%);
+        }
+        .hero-grid-svg {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+        }
+        .hero-topo-main {
+          position: absolute;
+          inset: -6% -2% -6% 32%;
+          z-index: 1;
+          pointer-events: none;
+          opacity: calc(0.11 + var(--hero-p) * 0.16);
+          transform: translateY(calc(var(--hero-p) * -48px)) scale(calc(1 + var(--hero-p) * 0.035));
+          will-change: transform, opacity;
+        }
+        .hero-topo-sec {
+          position: absolute;
+          inset: -4% -2% -4% 28%;
+          z-index: 1;
+          pointer-events: none;
+          opacity: calc(0.05 + var(--hero-p) * 0.07);
+          transform: translateY(calc(var(--hero-p) * -16px)) scale(calc(1 + var(--hero-p) * 0.015));
+          filter: blur(0.7px);
+          will-change: transform, opacity;
+        }
+        .hero-glow {
+          position: absolute;
+          inset: 0;
+          z-index: 2;
+          pointer-events: none;
+          overflow: hidden;
+        }
+        .hero-glow-a {
+          position: absolute;
+          top: 6%;
+          right: 10%;
+          width: 520px;
+          height: 520px;
+          border-radius: 9999px;
+          background: var(--color-primary);
+          opacity: calc(0.07 + var(--hero-p) * 0.03);
+          filter: blur(90px);
+          transform: translateY(calc(var(--hero-p) * -18px));
+          will-change: transform, opacity;
+        }
+        .hero-glow-b {
+          position: absolute;
+          bottom: 8%;
+          left: 6%;
+          width: 380px;
+          height: 380px;
+          border-radius: 9999px;
+          background: var(--color-secondary);
+          opacity: calc(0.05 + var(--hero-p) * 0.02);
+          filter: blur(80px);
+          transform: translateY(calc(var(--hero-p) * 12px));
+          will-change: transform, opacity;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .hero-grid, .hero-topo-main, .hero-topo-sec, .hero-glow-a, .hero-glow-b {
+            transform: none !important;
+          }
+          .hero-parallax {
+            --hero-p: 0 !important;
+          }
+          .hero-grid { opacity: 0.09 !important; }
+          .hero-topo-main { opacity: 0.11 !important; }
+          .hero-topo-sec { opacity: 0.05 !important; }
+        }
+
+        @media (max-width: 768px) {
+          .hero-grid {
+            right: 45%;
+            opacity: calc(0.06 + var(--hero-p) * 0.02);
+            -webkit-mask-image: linear-gradient(to right, black 65%, transparent 100%);
+            mask-image: linear-gradient(to right, black 65%, transparent 100%);
+          }
+          .hero-topo-main {
+            left: 18%;
+            right: -8%;
+            opacity: calc(0.07 + var(--hero-p) * 0.08);
+            transform: translateY(calc(var(--hero-p) * -28px)) scale(calc(1 + var(--hero-p) * 0.02));
+          }
+          .hero-topo-sec {
+            left: 30%;
+            opacity: calc(0.03 + var(--hero-p) * 0.04);
+          }
+          .hero-glow-a { width: 340px; height: 340px; filter: blur(70px); }
+          .hero-glow-b { width: 260px; height: 260px; filter: blur(60px); }
+        }
+      `}</style>
     </div>
   )
 }

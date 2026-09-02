@@ -41,16 +41,38 @@ export function FileGeoJsonLayer({ layer }: FileGeoJsonLayerProps) {
       },
       onEachFeature: (feature, leafletLayer) => {
         if (feature.properties) {
-          const popupContent = Object.entries(feature.properties)
-            .filter(([, v]) => v !== null && v !== undefined)
-            .map(([k, v]) => `<tr><td style="padding:2px 6px 2px 0;font-weight:500;color:var(--color-text-muted);white-space:nowrap;vertical-align:top">${k}</td><td style="padding:2px 0">${v}</td></tr>`)
+          const entries = Object.entries(feature.properties)
+            .filter(([, v]) => v !== null && v !== undefined && v !== "")
+
+          if (entries.length === 0) return
+
+          // Propiedades "buenas" que siempre se muestran primero
+          const goodKeys = ["name", "Name", "NAME", "description", "Description", "DESCRIPCION"]
+          const sorted = [...entries].sort((a, b) => {
+            const ai = goodKeys.indexOf(a[0])
+            const bi = goodKeys.indexOf(b[0])
+            if (ai !== -1 && bi !== -1) return ai - bi
+            if (ai !== -1) return -1
+            if (bi !== -1) return 1
+            return 0
+          })
+
+          const MAX_VISIBLE = 12
+          const visible = sorted.slice(0, MAX_VISIBLE)
+          const hidden = sorted.length - MAX_VISIBLE
+
+          const popupContent = visible
+            .map(([k, v]) => `<tr><td style="padding:2px 6px 2px 0;font-weight:500;color:var(--color-text-muted);white-space:nowrap;vertical-align:top;font-size:11px">${k}</td><td style="padding:2px 0;font-size:11px;word-break:break-word">${String(v).substring(0, 120)}${String(v).length > 120 ? '...' : ''}</td></tr>`)
             .join('')
-          if (popupContent) {
-            leafletLayer.bindPopup(
-              `<table style="font-size:12px;border-collapse:collapse;width:100%"><tbody>${popupContent}</tbody></table>`,
-              { maxWidth: 300, className: 'urbideas-popup' }
-            )
-          }
+
+          const moreText = hidden > 0
+            ? `<div style="font-size:10px;color:var(--color-text-muted);text-align:center;padding:4px 0;border-top:1px solid var(--color-border-subtle);margin-top:4px">+${hidden} campos más</div>`
+            : ''
+
+          leafletLayer.bindPopup(
+            `<div style="max-height:250px;overflow-y:auto;font-size:12px"><table style="border-collapse:collapse;width:100%"><tbody>${popupContent}</tbody></table>${moreText}</div>`,
+            { maxWidth: 280, maxHeight: 300, className: 'urbideas-popup' }
+          )
         }
       },
     })

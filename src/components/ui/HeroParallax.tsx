@@ -67,53 +67,27 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
         </svg>
       </div>
 
-      {/* Topo main — llanura elevada asimetrica, curvas abiertas que entran desde bordes */}
+      {/* Topo — unica masa topografica en cuadrante inferior-derecho, parcialmente fuera de pantalla */}
       <div className="hero-topo-main" aria-hidden="true">
-        <svg viewBox="0 0 1440 700" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+        <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
           <g fill="none" strokeLinecap="round" strokeLinejoin="round">
-            {/* Masa inferior-derecha — 14 lineas onduladas de terreno, abiertas en borde derecho */}
-            <path className="tp-dense" d="M 1440 470 C 1330 455, 1220 465, 1140 480 C 1060 495, 1000 515, 960 540" stroke="#7E8E66" strokeWidth="1" opacity="0.12" />
-            <path className="tp-dense" d="M 1440 486 C 1342 473, 1232 481, 1152 496 C 1072 511, 1008 529, 968 553" stroke="#7E8E66" strokeWidth="1" opacity="0.10" />
-            <path className="tp-dense" d="M 1440 502 C 1350 490, 1240 496, 1162 510 C 1084 524, 1014 542, 974 564" stroke="#7E8E66" strokeWidth="1" opacity="0.13" />
-            <path className="tp-dense tp-master" d="M 1440 518 C 1356 506, 1246 510, 1170 524 C 1092 538, 1022 554, 980 576" stroke="#96A678" strokeWidth="1.4" opacity="0.20" />
-            <path className="tp-dense" d="M 1440 534 C 1362 522, 1252 524, 1177 538 C 1100 552, 1030 568, 990 590" stroke="#7E8E66" strokeWidth="1" opacity="0.11" />
-            <path className="tp-dense" d="M 1440 550 C 1368 538, 1258 540, 1184 554 C 1107 568, 1038 584, 998 606" stroke="#7E8E66" strokeWidth="1" opacity="0.12" />
-            <path className="tp-dense" d="M 1440 566 C 1372 554, 1264 556, 1192 570 C 1114 584, 1046 600, 1006 622" stroke="#7E8E66" strokeWidth="1" opacity="0.10" />
-            <path className="tp-dense tp-master" d="M 1440 582 C 1378 570, 1270 572, 1198 586 C 1122 600, 1054 616, 1014 638" stroke="#96A678" strokeWidth="1.4" opacity="0.22" />
-            <path className="tp-dense" d="M 1440 598 C 1384 586, 1276 588, 1204 602 C 1130 616, 1062 632, 1022 654" stroke="#7E8E66" strokeWidth="1" opacity="0.12" />
-            <path className="tp-dense" d="M 1440 614 C 1388 602, 1282 604, 1210 618 C 1138 632, 1070 648, 1030 670" stroke="#7E8E66" strokeWidth="1" opacity="0.11" />
-            <path className="tp-dense" d="M 1440 630 C 1392 618, 1288 620, 1216 634 C 1146 648, 1078 664, 1038 686" stroke="#7E8E66" strokeWidth="1" opacity="0.13" />
-            <path className="tp-dense tp-master" d="M 1440 646 C 1396 634, 1294 636, 1222 650 C 1154 664, 1086 680, 1046 700" stroke="#96A678" strokeWidth="1.4" opacity="0.24" />
-            <path className="tp-dense" d="M 1440 662 C 1400 650, 1300 652, 1228 666 C 1162 680, 1094 696, 1054 700" stroke="#7E8E66" strokeWidth="1" opacity="0.10" />
-            <path className="tp-dense" d="M 1440 678 C 1404 666, 1306 668, 1234 682 C 1170 696, 1102 700, 1062 700" stroke="#7E8E66" strokeWidth="1" opacity="0.11" />
+            {/* Loma principal — foco en (1330,860) cerca de la esquina inferior-derecha, curvas cerradas e irregulares recortadas por el viewport */}
+            <path d="M 1326 802 C 1348 806, 1362 824, 1360 846 C 1358 870, 1362 890, 1350 904 C 1338 918, 1316 914, 1304 898 C 1292 882, 1290 850, 1300 832 C 1308 818, 1318 800, 1326 802 Z" stroke="#7E8E66" strokeWidth="1" opacity="0.10" />
+            <path d="M 1320 782 C 1358 786, 1382 818, 1380 852 C 1378 890, 1386 916, 1368 938 C 1350 960, 1308 952, 1292 928 C 1276 904, 1270 852, 1284 820 C 1296 794, 1310 780, 1320 782 Z" stroke="#7E8E66" strokeWidth="1" opacity="0.10" />
+            <path d="M 1314 762 C 1368 766, 1402 810, 1400 856 C 1398 908, 1408 942, 1384 972 C 1360 1002, 1300 990, 1280 958 C 1260 926, 1250 852, 1268 808 C 1284 778, 1302 760, 1314 762 Z" stroke="#7E8E66" strokeWidth="1" opacity="0.11" />
+            <path d="M 1308 740 C 1378 744, 1422 800, 1420 860 C 1418 924, 1428 966, 1400 1004 C 1372 1042, 1292 1026, 1268 986 C 1244 946, 1230 852, 1252 796 C 1270 758, 1296 738, 1308 740 Z" stroke="#96A678" strokeWidth="1.25" opacity="0.16" />
+            <path d="M 1302 720 C 1388 724, 1442 790, 1440 864 C 1438 940, 1448 990, 1416 1036 C 1384 1082, 1284 1062, 1256 1014 C 1228 966, 1210 850, 1236 784 C 1256 740, 1288 718, 1302 720 Z" stroke="#7E8E66" strokeWidth="1" opacity="0.11" />
+            <path d="M 1296 700 C 1398 704, 1462 780, 1460 868 C 1458 956, 1468 1014, 1432 1068 C 1396 1122, 1276 1098, 1244 1042 C 1212 986, 1190 848, 1220 772 C 1242 722, 1278 698, 1296 700 Z" stroke="#7E8E66" strokeWidth="1" opacity="0.10" />
+            <path d="M 1290 678 C 1408 682, 1482 770, 1480 872 C 1478 972, 1488 1038, 1448 1100 C 1408 1162, 1268 1134, 1232 1070 C 1196 1006, 1170 846, 1204 760 C 1228 704, 1268 676, 1290 678 Z" stroke="#7E8E66" strokeWidth="1" opacity="0.11" />
+            <path d="M 1284 656 C 1418 660, 1502 760, 1500 876 C 1498 988, 1508 1062, 1464 1132 C 1420 1202, 1260 1170, 1220 1098 C 1180 1026, 1150 844, 1188 748 C 1214 686, 1258 654, 1284 656 Z" stroke="#96A678" strokeWidth="1.25" opacity="0.16" />
+            <path d="M 1278 634 C 1428 638, 1522 750, 1520 880 C 1518 1004, 1528 1086, 1480 1164 C 1432 1242, 1252 1206, 1208 1126 C 1164 1046, 1130 842, 1172 736 C 1200 668, 1248 632, 1278 634 Z" stroke="#7E8E66" strokeWidth="1" opacity="0.10" />
+            <path d="M 1272 612 C 1438 616, 1542 740, 1540 884 C 1538 1020, 1548 1110, 1496 1196 C 1444 1282, 1244 1242, 1196 1154 C 1148 1066, 1110 840, 1156 724 C 1186 650, 1238 610, 1272 612 Z" stroke="#7E8E66" strokeWidth="1" opacity="0.09" />
 
-            {/* Masa tenue superior-derecha — 4 lineas amplias */}
-            <path d="M 1440 150 C 1360 140, 1290 150, 1230 165 C 1180 178, 1140 195, 1110 215" stroke="#7E8E66" strokeWidth="1" opacity="0.08" />
-            <path d="M 1440 168 C 1372 158, 1302 168, 1244 182 C 1194 194, 1154 210, 1126 228" stroke="#7E8E66" strokeWidth="1" opacity="0.09" />
-            <path className="tp-master" d="M 1440 188 C 1384 178, 1314 188, 1258 201 C 1208 213, 1170 228, 1142 244" stroke="#96A678" strokeWidth="1.3" opacity="0.16" />
-            <path d="M 1440 208 C 1396 198, 1326 208, 1272 221 C 1222 233, 1186 248, 1158 262" stroke="#7E8E66" strokeWidth="1" opacity="0.08" />
-
-            {/* Fragmentos inferior-izquierda — escala grande, muy discretos */}
-            <path d="M -20 520 C 60 505, 140 510, 200 522 C 250 532, 290 545, 320 560" stroke="#7E8E66" strokeWidth="1" opacity="0.07" />
-            <path d="M -20 545 C 70 532, 150 536, 210 548 C 260 558, 300 570, 330 582" stroke="#7E8E66" strokeWidth="1" opacity="0.08" />
-            <path className="tp-master" d="M -20 572 C 80 560, 160 562, 220 574 C 270 584, 310 596, 340 606" stroke="#96A678" strokeWidth="1.3" opacity="0.14" />
-
-            {/* Etiquetas cartograficas — pequenas, discretas, orientadas a la curva */}
-            <text x="150" y="556" fill="#96A678" fontSize="11" letterSpacing="2" opacity="0.5" transform="rotate(-4 150 556)">ALBACETE · CLM</text>
-            <text x="1120" y="212" fill="#96A678" fontSize="10" letterSpacing="2" opacity="0.45" transform="rotate(-5 1120 212)">COTA 680 m</text>
-            <text x="1020" y="660" fill="#96A678" fontSize="9" letterSpacing="1.5" opacity="0.4" transform="rotate(-78 1020 660)">38.99° N · 1.86° W</text>
-          </g>
-        </svg>
-      </div>
-
-      {/* Topo secondary — muy lento, difuminado, coherente con principal */}
-      <div className="hero-topo-sec" aria-hidden="true">
-        <svg viewBox="0 0 1440 700" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-          <g fill="none" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M 1440 470 C 1350 452, 1240 462, 1160 478 C 1080 494, 1010 514, 970 540" stroke="#7E8E66" strokeWidth="1.1" opacity="0.6" />
-            <path d="M 1440 520 C 1370 508, 1260 510, 1186 524 C 1108 538, 1038 554, 998 576" stroke="#7E8E66" strokeWidth="1" opacity="0.5" />
-            <path d="M 1440 578 C 1380 566, 1272 568, 1200 582 C 1124 596, 1056 612, 1016 634" stroke="#96A678" strokeWidth="1.3" opacity="0.55" />
-            <path d="M 1440 200 C 1380 190, 1310 200, 1252 213 C 1202 225, 1164 240, 1136 256" stroke="#7E8E66" strokeWidth="1" opacity="0.5" />
+            {/* Presencia minima superior-izquierda — integrada con la reticula, muy tenue */}
+            <path d="M -110 -40 C -40 -50, 10 -10, 20 50 C 30 110, 0 160, -60 155 C -120 150, -180 110, -185 40 C -190 -30, -150 -36, -110 -40 Z" stroke="#7E8E66" strokeWidth="1" opacity="0.05" />
+            <path d="M -100 -70 C -20 -85, 40 -30, 55 55 C 70 140, 30 200, -45 195 C -120 190, -190 140, -195 55 C -200 -30, -150 -64, -100 -70 Z" stroke="#7E8E66" strokeWidth="1" opacity="0.06" />
+            <path d="M -90 -105 C 0 -125, 75 -55, 92 60 C 109 175, 62 245, -28 238 C -118 231, -200 172, -206 70 C -212 -32, -150 -94, -90 -105 Z" stroke="#96A678" strokeWidth="1.25" opacity="0.08" />
+            <path d="M -80 -140 C 20 -165, 110 -80, 130 65 C 150 210, 95 290, -10 282 C -115 274, -210 204, -216 85 C -222 -34, -150 -124, -80 -140 Z" stroke="#7E8E66" strokeWidth="1" opacity="0.05" />
           </g>
         </svg>
       </div>
@@ -143,11 +117,11 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
           right: 58%;
           z-index: 0;
           pointer-events: none;
-          opacity: calc(0.18 + var(--hero-p) * 0.08);
+          opacity: calc(0.12 + var(--hero-p) * 0.04);
           transform: translateY(calc(var(--hero-p) * 22px));
           will-change: transform, opacity;
-          -webkit-mask-image: linear-gradient(to right, black 62%, transparent 100%);
-          mask-image: linear-gradient(to right, black 62%, transparent 100%);
+          -webkit-mask-image: linear-gradient(to right, black 52%, transparent 100%);
+          mask-image: linear-gradient(to right, black 52%, transparent 100%);
         }
         .hero-grid-svg {
           position: absolute;
@@ -157,26 +131,15 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
         }
         .hero-topo-main {
           position: absolute;
-          inset: -6% -2% -6% 30%;
+          inset: -10% -6% -10% 0%;
           z-index: 1;
           pointer-events: none;
-          opacity: calc(0.9 + var(--hero-p) * 0.1);
-          transform: translateY(calc(var(--hero-p) * -48px)) scale(calc(1 + var(--hero-p) * 0.035));
+          opacity: calc(0.85 + var(--hero-p) * 0.15);
+          transform: translateY(calc(var(--hero-p) * -40px)) scale(calc(1 + var(--hero-p) * 0.03));
           will-change: transform, opacity;
-          -webkit-mask-image: radial-gradient(140% 110% at 30% 45%, transparent 0%, transparent 20%, black 42%, black 78%, transparent 100%);
-          mask-image: radial-gradient(140% 110% at 30% 45%, transparent 0%, transparent 20%, black 42%, black 78%, transparent 100%);
-        }
-        .hero-topo-sec {
-          position: absolute;
-          inset: -4% -2% -4% 26%;
-          z-index: 1;
-          pointer-events: none;
-          opacity: calc(0.75 + var(--hero-p) * 0.25);
-          transform: translateY(calc(var(--hero-p) * -16px)) scale(calc(1 + var(--hero-p) * 0.015));
-          filter: blur(0.7px);
-          will-change: transform, opacity;
-          -webkit-mask-image: radial-gradient(120% 90% at 30% 40%, transparent 0%, black 34%, black 62%, transparent 100%);
-          mask-image: radial-gradient(120% 90% at 30% 40%, transparent 0%, black 34%, black 62%, transparent 100%);
+          /* Proteger centro (titulo, parrafo, botones, metricas) con degradado radial amplio */
+          -webkit-mask-image: radial-gradient(130% 120% at 50% 44%, transparent 0%, transparent 24%, black 52%, black 80%, transparent 100%);
+          mask-image: radial-gradient(130% 120% at 50% 44%, transparent 0%, transparent 24%, black 52%, black 80%, transparent 100%);
         }
         .hero-glow {
           position: absolute;
@@ -213,42 +176,34 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
         }
 
         /* Light mode — tonos mas contrastados sobre fondo claro */
-        [data-theme="light"] .hero-grid { opacity: calc(0.14 + var(--hero-p) * 0.06); }
-        [data-theme="light"] .hero-topo-main { opacity: calc(0.5 + var(--hero-p) * 0.08); }
-        [data-theme="light"] .hero-topo-sec { opacity: calc(0.4 + var(--hero-p) * 0.06); }
+        [data-theme="light"] .hero-grid { opacity: calc(0.10 + var(--hero-p) * 0.04); }
+        [data-theme="light"] .hero-topo-main { opacity: calc(0.5 + var(--hero-p) * 0.1); }
         [data-theme="light"] .hero-glow-a { opacity: calc(0.06 + var(--hero-p) * 0.03); }
         [data-theme="light"] .hero-glow-b { opacity: calc(0.04 + var(--hero-p) * 0.02); }
 
         @media (prefers-reduced-motion: reduce) {
-          .hero-grid, .hero-topo-main, .hero-topo-sec, .hero-glow-a, .hero-glow-b {
+          .hero-grid, .hero-topo-main, .hero-glow-a, .hero-glow-b {
             transform: none !important;
           }
           .hero-parallax {
             --hero-p: 0 !important;
           }
-          .hero-grid { opacity: 0.18 !important; }
-          .hero-topo-main { opacity: 0.9 !important; }
-          .hero-topo-sec { opacity: 0.75 !important; }
+          .hero-grid { opacity: 0.12 !important; }
+          .hero-topo-main { opacity: 0.85 !important; }
         }
 
         @media (max-width: 768px) {
           .hero-grid {
             right: 42%;
-            opacity: calc(0.10 + var(--hero-p) * 0.04);
-            -webkit-mask-image: linear-gradient(to right, black 65%, transparent 100%);
-            mask-image: linear-gradient(to right, black 65%, transparent 100%);
+            opacity: calc(0.08 + var(--hero-p) * 0.03);
+            -webkit-mask-image: linear-gradient(to right, black 60%, transparent 100%);
+            mask-image: linear-gradient(to right, black 60%, transparent 100%);
           }
           .hero-topo-main {
-            left: 16%;
-            right: -8%;
-            opacity: calc(0.55 + var(--hero-p) * 0.1);
-            transform: translateY(calc(var(--hero-p) * -28px)) scale(calc(1 + var(--hero-p) * 0.02));
-          }
-          /* Reducir densidad de curvas en movil: ocultar lineas alternas */
-          .hero-topo-main .tp-dense:nth-child(odd) { display: none; }
-          .hero-topo-sec {
-            left: 28%;
-            opacity: calc(0.4 + var(--hero-p) * 0.06);
+            left: 6%;
+            right: -10%;
+            opacity: calc(0.5 + var(--hero-p) * 0.12);
+            transform: translateY(calc(var(--hero-p) * -24px)) scale(calc(1 + var(--hero-p) * 0.02));
           }
           .hero-glow-a { width: 340px; height: 340px; filter: blur(70px); }
           .hero-glow-b { width: 260px; height: 260px; filter: blur(60px); }

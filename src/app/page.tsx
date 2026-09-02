@@ -42,8 +42,8 @@ export default async function Home() {
                     Herramientas de apoyo
                   </p>
                   <h1 className="font-bold tracking-tighter leading-[0.9] text-center">
-                    <span className="block text-xl sm:text-2xl lg:text-3xl font-medium text-[var(--color-text-primary)]">área de urbanismo</span>
-                    <span className="block mt-1.5 text-4xl sm:text-5xl lg:text-6xl font-bold text-[var(--color-secondary)]">Ideas Medioambientales</span>
+                    <span className="block text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--color-text-primary)]">área de urbanismo</span>
+                    <span className="block mt-2 text-2xl sm:text-3xl lg:text-4xl font-medium text-[var(--color-text-muted)]">Ideas Medioambientales</span>
                   </h1>
                   <p className="mt-6 max-w-xl mx-auto text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed">
                     Centralización y consulta de información pública de planeamiento

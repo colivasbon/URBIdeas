@@ -71,37 +71,37 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
       <div className="hero-topo-main" aria-hidden="true">
         <svg viewBox="0 0 1440 700" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
           <g fill="none" strokeLinecap="round" strokeLinejoin="round">
-            {/* Cumbre principal — 7 curvas coherentes, mismo patron de vaguadas/espolones */}
-            <path d="M 588 502 C 594 418, 646 322, 714 284 C 782 250, 864 260, 934 300 C 1004 340, 1068 410, 1072 484 C 1076 558, 1022 620, 944 646 C 866 672, 732 642, 648 584 C 598 544, 574 524, 588 502 Z" stroke="#2F4A3A" strokeWidth="1" opacity="0.92" />
-            <path d="M 618 494 C 624 424, 668 336, 730 302 C 790 268, 862 280, 924 316 C 986 352, 1042 418, 1042 480 C 1042 544, 994 598, 924 620 C 854 642, 724 616, 648 562 C 614 530, 604 514, 618 494 Z" stroke="#3E665C" strokeWidth="0.86" opacity="0.82" />
-            <path d="M 648 484 C 654 418, 688 350, 742 318 C 796 286, 856 298, 914 332 C 972 366, 1014 422, 1010 480 C 1006 538, 962 582, 898 600 C 834 618, 712 592, 656 538 C 628 510, 634 502, 648 484 Z" stroke="#4A6B52" strokeWidth="0.72" opacity="0.74" />
-            <path d="M 678 474 C 684 422, 708 362, 754 330 C 798 298, 848 312, 900 342 C 952 372, 984 424, 976 476 C 968 528, 926 566, 868 576 C 810 586, 700 562, 670 516 C 658 492, 668 492, 678 474 Z" stroke="#5A7E52" strokeWidth="0.6" opacity="0.66" />
-            <path d="M 708 464 C 714 424, 730 372, 768 344 C 804 318, 842 324, 888 354 C 934 384, 954 426, 942 468 C 930 510, 890 536, 838 538 C 786 540, 692 514, 698 474 C 702 458, 700 478, 708 464 Z" stroke="#3E665C" strokeWidth="0.5" opacity="0.58" />
-            <path d="M 738 454 C 742 428, 758 394, 786 374 C 814 354, 842 348, 876 368 C 910 388, 924 418, 912 444 C 900 470, 866 482, 816 478 C 766 474, 726 452, 738 454 Z" stroke="#6A8A5E" strokeWidth="0.4" opacity="0.5" />
-            <path d="M 768 446 C 772 430, 784 408, 806 396 C 828 384, 850 390, 866 410 C 882 430, 880 450, 862 462 C 844 474, 814 472, 774 454 C 766 450, 762 450, 768 446 Z" stroke="#3E665C" strokeWidth="0.33" opacity="0.42" />
-            {/* Vaguada SE — coherente en todas las cotas, trazo auxiliar */}
-            <path d="M 978 352 C 1000 378, 1032 414, 1040 454 C 1048 494, 1026 532, 988 560" stroke="#2F4A3A" strokeWidth="0.42" opacity="0.32" strokeDasharray="6 5" />
+            {/* Cumbre principal — curvas con vaguadas y espolones coherentes, trazado quebrado */}
+            <path d="M 588 505 C 594 448, 612 382, 648 332 C 672 300, 712 268, 768 252 C 824 236, 888 254, 944 292 C 1000 330, 1054 384, 1078 444 C 1102 504, 1078 566, 1028 608 C 978 650, 894 666, 810 648 C 726 630, 640 582, 590 524 C 578 508, 584 518, 588 505 Z" stroke="#2F4A3A" strokeWidth="0.95" opacity="0.88" />
+            {/* Vaguada SE entrante — se repite coherente */}
+            <path d="M 1002 360 C 1018 388, 1036 422, 1042 458 C 1048 494, 1032 528, 994 556" stroke="#2F4A3A" strokeWidth="0.4" opacity="0.28" strokeDasharray="6 5" />
+            <path d="M 620 496 C 626 446, 646 384, 678 336 C 706 298, 744 268, 796 256 C 848 244, 900 266, 950 304 C 1000 342, 1046 394, 1056 450 C 1066 506, 1042 560, 994 596 C 946 632, 864 648, 750 628 C 664 608, 602 554, 620 496 Z" stroke="#3E665C" strokeWidth="0.82" opacity="0.80" />
+            <path d="M 650 486 C 656 440, 674 386, 704 342 C 732 306, 768 276, 814 268 C 860 260, 908 282, 952 316 C 996 350, 1032 400, 1034 452 C 1036 504, 1006 550, 958 580 C 910 610, 830 622, 718 598 C 642 574, 632 512, 650 486 Z" stroke="#4A6B52" strokeWidth="0.70" opacity="0.72" />
+            <path d="M 680 476 C 686 436, 702 386, 730 346 C 758 312, 790 286, 832 284 C 874 282, 916 306, 954 340 C 992 374, 1010 418, 998 462 C 986 506, 946 542, 892 556 C 838 570, 700 548, 672 494 C 664 476, 672 490, 680 476 Z" stroke="#5A7E52" strokeWidth="0.58" opacity="0.64" />
+            <path d="M 710 466 C 716 432, 730 392, 756 362 C 782 332, 808 312, 838 314 C 868 316, 900 336, 928 368 C 956 400, 962 436, 944 464 C 926 492, 888 510, 834 510 C 780 510, 696 484, 710 466 Z" stroke="#3E665C" strokeWidth="0.48" opacity="0.56" />
+            <path d="M 740 456 C 744 432, 760 400, 784 380 C 808 360, 834 350, 862 364 C 890 378, 906 404, 904 430 C 902 456, 876 472, 836 470 C 796 468, 728 444, 740 456 Z" stroke="#6A8A5E" strokeWidth="0.38" opacity="0.48" />
+            <path d="M 770 448 C 773 432, 786 410, 806 398 C 826 386, 846 392, 862 410 C 878 428, 876 448, 860 460 C 844 472, 812 470, 772 450 Z" stroke="#3E665C" strokeWidth="0.32" opacity="0.40" />
 
-            {/* Secundario sup. derecha — 3 niveles coherentes alargados */}
-            <path d="M 1072 108 C 1088 72, 1132 44, 1186 62 C 1232 82, 1254 124, 1230 168 C 1206 212, 1142 228, 1092 200 C 1068 188, 1062 140, 1072 108 Z" stroke="#2F4A3A" strokeWidth="0.68" opacity="0.58" />
-            <path d="M 1098 122 C 1110 94, 1144 76, 1176 92 C 1208 108, 1218 140, 1194 166 C 1168 190, 1122 184, 1100 158 C 1090 144, 1092 134, 1098 122 Z" stroke="#4A6B52" strokeWidth="0.5" opacity="0.48" />
-            <path d="M 1126 134 C 1134 116, 1154 104, 1172 116 C 1190 128, 1190 148, 1174 160 C 1156 170, 1132 160, 1126 136 Z" stroke="#6A8A5E" strokeWidth="0.34" opacity="0.4" />
+            {/* Secundario sup. derecha — loma alargada coherente */}
+            <path d="M 1070 110 C 1086 74, 1130 46, 1184 64 C 1230 82, 1252 124, 1230 168 C 1206 212, 1144 228, 1094 200 C 1070 186, 1062 140, 1070 110 Z" stroke="#2F4A3A" strokeWidth="0.64" opacity="0.54" />
+            <path d="M 1096 124 C 1108 96, 1142 78, 1174 94 C 1206 110, 1216 140, 1194 164 C 1168 186, 1122 180, 1100 156 Z" stroke="#4A6B52" strokeWidth="0.46" opacity="0.44" />
+            <path d="M 1124 136 C 1132 118, 1152 106, 1170 118 C 1188 130, 1188 148, 1172 160 C 1154 170, 1130 160, 1124 136 Z" stroke="#6A8A5E" strokeWidth="0.32" opacity="0.36" />
 
-            {/* Secundario central inferior — 3 niveles coherentes */}
-            <path d="M 374 584 C 400 544, 462 516, 516 540 C 570 564, 584 608, 544 636 C 496 664, 412 648, 376 602 Z" stroke="#2F4A3A" strokeWidth="0.56" opacity="0.46" />
-            <path d="M 404 592 C 424 564, 466 544, 502 560 C 538 576, 546 604, 524 620 C 492 636, 432 624, 406 596 Z" stroke="#4A6B52" strokeWidth="0.4" opacity="0.38" />
-            <path d="M 438 598 C 448 580, 470 568, 490 578 C 510 588, 512 604, 498 614 C 480 624, 450 614, 438 598 Z" stroke="#5A7E52" strokeWidth="0.3" opacity="0.32" />
+            {/* Secundario central inferior — cubeta suave coherente */}
+            <path d="M 372 586 C 398 546, 460 518, 514 542 C 568 566, 582 610, 542 638 C 494 664, 410 648, 374 602 Z" stroke="#2F4A3A" strokeWidth="0.52" opacity="0.42" />
+            <path d="M 402 594 C 422 566, 464 546, 500 562 C 536 578, 544 604, 522 620 C 490 634, 430 622, 404 596 Z" stroke="#4A6B52" strokeWidth="0.36" opacity="0.34" />
+            <path d="M 436 600 C 446 582, 468 570, 488 580 C 508 590, 510 604, 496 612 C 478 622, 448 612, 436 600 Z" stroke="#5A7E52" strokeWidth="0.28" opacity="0.28" />
           </g>
         </svg>
       </div>
 
-      {/* Topo secondary — muy lento, difuminado */}
+      {/* Topo secondary — muy lento, difuminado, coherente con principal */}
       <div className="hero-topo-sec" aria-hidden="true">
         <svg viewBox="0 0 1440 700" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
           <g fill="none" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M 560 502 C 595 410, 698 338, 798 358 C 898 378, 942 458, 892 528 C 832 598, 678 608, 562 518 Z" stroke="#2F4A3A" strokeWidth="0.85" />
-            <path d="M 600 496 C 628 428, 708 376, 788 390 C 868 404, 894 462, 854 512 C 808 562, 688 568, 600 508 Z" stroke="#3E665C" strokeWidth="0.58" />
-            <path d="M 1060 118 C 1084 84, 1128 64, 1168 88 C 1208 112, 1214 152, 1184 178 C 1148 202, 1080 188, 1060 132 Z" stroke="#4A6B52" strokeWidth="0.48" />
+            <path d="M 570 508 C 578 418, 628 328, 698 286 C 768 244, 850 250, 930 290 C 1010 330, 1070 400, 1080 470 C 1090 540, 1038 602, 958 630 C 878 658, 722 632, 632 574 C 586 534, 562 522, 570 508 Z" stroke="#2F4A3A" strokeWidth="0.78" />
+            <path d="M 610 498 C 618 430, 658 350, 714 308 C 770 266, 842 268, 912 308 C 982 348, 1034 412, 1038 472 C 1042 532, 990 584, 916 608 C 842 632, 700 606, 622 552 C 596 526, 600 514, 610 498 Z" stroke="#3E665C" strokeWidth="0.54" />
+            <path d="M 1070 112 C 1086 76, 1130 48, 1184 66 C 1230 84, 1250 126, 1226 168 C 1202 210, 1140 226, 1090 198 C 1068 186, 1060 142, 1070 112 Z" stroke="#4A6B52" strokeWidth="0.44" />
           </g>
         </svg>
       </div>

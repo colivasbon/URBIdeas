@@ -16,7 +16,7 @@ import {
   resolveMunicipioValueId,
   resolveProvinciaValueId,
 } from './ine-tempus'
-import { R2_ENVELOPE_VERSION, putMunicipioJson } from './socideas-r2'
+import { toV2Envelope, putMunicipioJson } from './socideas-r2'
 
 const SYNC_TYPE = 'ine_demografico'
 // Sin límite de años por código: se trae la historia completa publicada.
@@ -420,26 +420,32 @@ export async function syncMunicipioDemografico(
       porIndicador[s] = cur
     }
 
-    // Escritura única en R2 (sobrescribe el JSON: idempotente).
-    const valores = allRows.map((row) => {
-      const slug = slugPorId.get(row.indicator_id) ?? row.indicator_id
-      const meta = catalog.indicators.get(slug)
-      return {
-        ...row,
-        indicator: { slug, nombre: meta?.nombre ?? slug, unidad: meta?.unidad ?? row.unidad },
-        source: {
-          slug: catalog.sourceMeta.slug,
-          organismo: catalog.sourceMeta.organismo,
-          nombre: catalog.sourceMeta.nombre,
-        },
-      }
-    })
-    const r2Key = await putMunicipioJson(codigoIne, {
-      version: R2_ENVELOPE_VERSION,
-      codigo_ine: codigoIne,
-      generado_en: new Date().toISOString(),
-      valores,
-    })
+    // Escritura única en R2 en formato v2 compacto (sobrescribe: idempotente).
+    const envelope = toV2Envelope(
+      codigoIne,
+      new Date().toISOString(),
+      allRows.map((row) => {
+        const slug = slugPorId.get(row.indicator_id) ?? row.indicator_id
+        const meta = catalog.indicators.get(slug)
+        return {
+          indicator: { slug, nombre: meta?.nombre ?? slug, unidad: meta?.unidad ?? row.unidad },
+          source: {
+            slug: catalog.sourceMeta.slug,
+            organismo: catalog.sourceMeta.organismo,
+            nombre: catalog.sourceMeta.nombre,
+          },
+          anio_referencia: row.anio_referencia,
+          valor_numerico: row.valor_numerico,
+          unidad: row.unidad,
+          dimensiones: row.dimensiones,
+          source_url: row.source_url,
+          source_table_id: row.source_table_id,
+          source_series_id: row.source_series_id,
+          estado_validacion: row.estado_validacion,
+        }
+      }),
+    )
+    const r2Key = await putMunicipioJson(codigoIne, envelope)
 
     await supabase
       .from('data_sync_runs')

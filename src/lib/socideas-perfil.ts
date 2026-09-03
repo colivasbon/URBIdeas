@@ -13,7 +13,8 @@ import type {
   SocideasMunicipio,
 } from './socideas'
 import { AMBITOS } from './socideas'
-import { readMunicipioJson } from './socideas-r2'
+import { expandV2Envelope, readMunicipioJson } from './socideas-r2'
+import type { R2MunicipioEnvelopeV2 } from './socideas-r2'
 
 export type PerfilResult =
   | { status: 'ok' | 'empty'; perfil: PerfilDemografico }
@@ -135,7 +136,11 @@ export async function getPerfilDemografico(
   // catálogo, territorio y runs. Sin objeto en R2 = sin perfil sincronizado.
   // (La tabla municipal_indicator_values queda como legado sin escrituras.)
   const envelope = await readMunicipioJson(codigoIne).catch(() => null)
-  const valoresRaw = (envelope?.valores ?? []) as unknown as IndicatorValue[]
+  // v2 compacto se expande a filas completas idénticas a v1.
+  const valoresRaw =
+    envelope?.version === 2
+      ? (expandV2Envelope(envelope as unknown as R2MunicipioEnvelopeV2) as unknown as IndicatorValue[])
+      : ((envelope?.valores ?? []) as unknown as IndicatorValue[])
   if (valoresRaw.length === 0) {
     return { status: 'empty', perfil: perfilSinDatos() }
   }

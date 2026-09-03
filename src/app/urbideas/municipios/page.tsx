@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react"
 import dynamic from "next/dynamic"
-import Header from "@/components/layout/Header"
+import UrbideasHeader from "@/components/platform/UrbideasHeader"
 import Footer from "@/components/layout/Footer"
 import { Badge } from "@/components/ui/Badge"
 import FiltroCascada from "@/components/filtros/FiltroCascada"
@@ -346,7 +346,7 @@ export default function MunicipiosPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <UrbideasHeader />
 
       <main className="flex-1">
         <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
@@ -653,7 +653,7 @@ export default function MunicipiosPage() {
                                           </span>
                                         </div>
                                         <a
-                                          href={`/mapa?layers=${capa.id}&center=${selectedMunicipio?.lng || 0},${selectedMunicipio?.lat || 0}&zoom=12`}
+                                          href={`/urbideas/mapa?layers=${capa.id}&center=${selectedMunicipio?.lng || 0},${selectedMunicipio?.lat || 0}&zoom=12`}
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className="shrink-0 ml-3 inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-light)] transition-colors active:scale-[0.97]"

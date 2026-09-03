@@ -60,7 +60,7 @@ export default async function UrbideasHome() {
                   </p>
                   <div className="mt-8 flex flex-wrap justify-center gap-4">
                     <Link
-                      href="/municipios"
+                      href="/urbideas/municipios"
                       className="inline-flex items-center gap-3 px-7 py-3.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] hover:shadow-lg hover:shadow-[var(--color-primary)]/20 transition-all duration-300 active:scale-[0.97]"
                     >
                       Buscar municipio
@@ -69,7 +69,7 @@ export default async function UrbideasHome() {
                       </svg>
                     </Link>
                     <Link
-                      href="/mapa"
+                      href="/urbideas/mapa"
                       className="inline-flex items-center gap-3 px-7 py-3.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] hover:border-[var(--color-text-muted)] hover:bg-[var(--color-input-bg-hover)] transition-all duration-300 active:scale-[0.97]"
                     >
                       Dictaminar un ámbito
@@ -127,25 +127,25 @@ export default async function UrbideasHome() {
                 {
                   title: "Municipios",
                   description: "Consulta el planeamiento urbanístico de cualquier municipio de España.",
-                  href: "/municipios",
+                  href: "/urbideas/municipios",
                   number: "01",
                 },
                 {
                   title: "Mapa",
                   description: "Dibuja un ámbito, cruza sus afecciones, recibe el dictamen y descarga el expediente.",
-                  href: "/mapa",
+                  href: "/urbideas/mapa",
                   number: "02",
                 },
                 {
                   title: "Legislación",
                   description: "Accede a la normativa urbanística por nivel: estatal, autonómico y municipal.",
-                  href: "/legislacion",
+                  href: "/urbideas/legislacion",
                   number: "03",
                 },
                 {
                   title: "API",
                   description: "Endpoints REST para consulta programática de datos urbanísticos.",
-                  href: "/api-docs",
+                  href: "/urbideas/api-docs",
                   number: "04",
                 },
               ].map((item) => (
@@ -194,7 +194,7 @@ export default async function UrbideasHome() {
                   Volver a la plataforma
                 </Link>
                 <Link
-                  href="/api-docs"
+                  href="/urbideas/api-docs"
                   className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
                 >
                   Documentación API

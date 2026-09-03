@@ -15,10 +15,10 @@ para el análisis territorial, la consulta municipal y el apoyo técnico a proye
 
 - `/` → Landing corporativa de IDEAS Sostenibilidad
 - `/urbideas` → Módulo URBideas (plenamente operativo)
-- `/urbideas/mapa`, `/urbideas/municipios`, `/urbideas/legislacion`, `/urbideas/api-docs` → alias de compatibilidad (rewrite interno a las rutas históricas, sin duplicar código)
+- `/urbideas/mapa`, `/urbideas/municipios`, `/urbideas/legislacion`, `/urbideas/api-docs` → rutas canónicas del módulo, con cabecera propia `UrbideasHeader`
 - `/socideas`, `/asistencias` → Landings informativas de futuros módulos
-- `/mapa`, `/municipios`, `/legislacion`, `/api-docs`, `/admin` → Rutas históricas preservadas
-- `/api/*` → Contratos sin cambios
+- `/mapa`, `/municipios`, `/legislacion`, `/api-docs` → Rutas históricas preservadas como alias de compatibilidad (rewrite interno a las rutas canónicas, sin duplicar código)
+- `/admin` → Acceso protegido sin cambios; `/api/*` → Contratos sin cambios
 
 ## Cómo ejecutar el proyecto localmente
 

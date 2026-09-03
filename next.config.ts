@@ -3,16 +3,17 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   transpilePackages: ["leaflet"],
   async rewrites() {
-    // Fase 1 IDEAS Sostenibilidad: alias de compatibilidad del módulo URBideas.
-    // Las rutas históricas (/mapa, /municipios, /legislacion, /api-docs) no se mueven;
-    // /urbideas/* las reutiliza vía rewrite interno (200, sin redirección ni bucles).
+    // Fase 1.1: las rutas canónicas del módulo viven bajo /urbideas/*.
+    // Las rutas históricas (/mapa, /municipios, /legislacion, /api-docs) se
+    // conservan como alias de compatibilidad vía rewrite interno
+    // (200, sin redirección, sin bucles, con query parameters intactos).
     // /admin y /api/* quedan excluidos intencionadamente.
     return [
-      { source: "/urbideas/mapa", destination: "/mapa" },
-      { source: "/urbideas/municipios", destination: "/municipios" },
-      { source: "/urbideas/municipios/:path*", destination: "/municipios/:path*" },
-      { source: "/urbideas/legislacion", destination: "/legislacion" },
-      { source: "/urbideas/api-docs", destination: "/api-docs" },
+      { source: "/mapa", destination: "/urbideas/mapa" },
+      { source: "/municipios", destination: "/urbideas/municipios" },
+      { source: "/municipios/:path*", destination: "/urbideas/municipios/:path*" },
+      { source: "/legislacion", destination: "/urbideas/legislacion" },
+      { source: "/api-docs", destination: "/urbideas/api-docs" },
     ];
   },
   images: {

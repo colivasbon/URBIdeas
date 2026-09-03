@@ -65,7 +65,7 @@ export default function TarjetaMunicipio({ municipio, instrumento }: TarjetaMuni
 
         <div className="mt-2">
           <Link
-            href={`/municipios/${municipio.id}`}
+            href={`/urbideas/municipios/${municipio.id}`}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-secondary)] transition-colors hover:text-[var(--color-accent)]"
           >
             Ver detalles completos

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Header from "@/components/layout/Header"
+import UrbideasHeader from "@/components/platform/UrbideasHeader"
 import Footer from "@/components/layout/Footer"
 import { Badge } from "@/components/ui/Badge"
 import MunicipalTab from "@/components/datos/MunicipalTab"
@@ -227,7 +227,7 @@ export default function LegislacionPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <UrbideasHeader />
 
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">

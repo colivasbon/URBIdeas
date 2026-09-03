@@ -36,10 +36,10 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
       const progress = Math.max(0, Math.min(1, (vh - rect.top) / total))
       const scrollOffset = progress * 260
 
-      // Parallax de scroll: capas suben a distinta velocidad (la profunda se retrasa mas)
-      const syD = -scrollOffset * 0.32
-      const syM = -scrollOffset * 0.58
-      const syN = -scrollOffset * 0.82
+      // Parallax de scroll: capas bajan a distinta velocidad (la profunda se retrasa mas)
+      const syD = scrollOffset * 0.72
+      const syM = scrollOffset * 0.5
+      const syN = scrollOffset * 0.28
 
       // Parallax de cursor (solo desktop): desplazamiento inverso, leve, se suma
       const cx = cursorX * (isTouch ? 0 : 1)
@@ -97,43 +97,53 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
         </svg>
       </div>
 
-      {/* Fondo topografico — solo en el tercio inferior */}
+      {/* Fondo topografico — masa densa en toda la derecha + borde inferior */}
       <div className="hero-topo" aria-hidden="true">
-        {/* Capa profunda: curvas grandes, oscuras, difuminadas */}
+        {/* Capa profunda: curvas amplias, oscuras, difuminadas */}
         <div ref={deepRef} className="tp-layer tp-deep">
           <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-            <g transform="rotate(-2 800 700)" fill="none" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M 880 700 C 960 680, 1040 690, 1120 660 C 1200 630, 1280 640, 1360 610 C 1440 580, 1500 590, 1600 570" stroke="#4A5A4A" strokeWidth="1" opacity="0.08" />
-              <path d="M 860 740 C 950 720, 1030 730, 1110 700 C 1190 670, 1270 680, 1350 650 C 1430 620, 1510 630, 1600 610" stroke="#4A5A4A" strokeWidth="1" opacity="0.09" />
-              <path d="M 840 780 C 940 760, 1020 770, 1100 740 C 1180 710, 1260 720, 1340 690 C 1420 660, 1510 670, 1600 650" stroke="#4A5A4A" strokeWidth="1" opacity="0.08" />
-              <path d="M 820 820 C 930 800, 1010 810, 1090 780 C 1170 750, 1250 760, 1330 730 C 1410 700, 1500 710, 1600 690" stroke="#4A5A4A" strokeWidth="1" opacity="0.07" />
-              <path d="M 20 720 C 120 740, 200 730, 280 750 C 360 770, 300 800, 200 790 C 100 780, 40 770, 20 720 Z" stroke="#4A5A4A" strokeWidth="1" opacity="0.06" />
-              <path d="M 0 790 C 100 810, 200 800, 280 820 C 360 840, 300 870, 200 860 C 100 850, -20 840, 0 790 Z" stroke="#4A5A4A" strokeWidth="1" opacity="0.06" />
+            <g transform="rotate(-1.5 800 700)" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M 1080 300 C 1180 285, 1280 295, 1380 280 C 1480 265, 1540 280, 1600 268" stroke="#4A5A4A" strokeWidth="1" opacity="0.12" />
+              <path d="M 1070 380 C 1170 365, 1270 375, 1370 360 C 1470 345, 1540 360, 1600 348" stroke="#4A5A4A" strokeWidth="1" opacity="0.13" />
+              <path d="M 1050 470 C 1160 455, 1260 465, 1360 450 C 1460 435, 1530 450, 1600 438" stroke="#4A5A4A" strokeWidth="1" opacity="0.12" />
+              <path d="M 1030 570 C 1140 555, 1250 565, 1350 550 C 1450 535, 1520 550, 1600 538" stroke="#4A5A4A" strokeWidth="1" opacity="0.13" />
+              <path d="M 1010 680 C 1120 665, 1240 675, 1340 660 C 1440 645, 1510 660, 1600 648" stroke="#4A5A4A" strokeWidth="1" opacity="0.12" />
+              <path d="M 990 800 C 1100 785, 1220 795, 1320 780 C 1420 765, 1500 780, 1600 768" stroke="#4A5A4A" strokeWidth="1" opacity="0.13" />
             </g>
           </svg>
         </div>
 
-        {/* Capa media: curvas visibles pero discretas, irregulares */}
+        {/* Capa media: masa densa de curvas irregulares en toda la derecha */}
         <div ref={midRef} className="tp-layer tp-mid">
           <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-            <g transform="rotate(1 800 700)" fill="none" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M 1250 640 C 1300 600, 1370 590, 1420 620 C 1470 650, 1480 710, 1440 750 C 1400 790, 1320 780, 1280 730 C 1240 690, 1220 660, 1250 640 Z" stroke="#5A6A52" strokeWidth="1" opacity="0.13" />
-              <path d="M 1180 700 C 1250 660, 1330 650, 1390 680 C 1450 710, 1460 780, 1410 820 C 1360 860, 1270 850, 1220 800 C 1170 750, 1140 720, 1180 700 Z" stroke="#5A6A52" strokeWidth="1" opacity="0.11" />
-              <path d="M 1300 700 C 1350 650, 1430 640, 1490 670 C 1550 700, 1560 770, 1510 810 C 1460 850, 1370 840, 1320 790 C 1270 740, 1250 730, 1300 700 Z" stroke="#5A6A52" strokeWidth="1" opacity="0.12" />
-              <path d="M 1050 780 C 1130 750, 1220 760, 1280 790 C 1340 820, 1360 870, 1310 900 C 1260 930, 1160 920, 1100 880 C 1040 840, 1010 810, 1050 780 Z" stroke="#5A6A52" strokeWidth="1" opacity="0.10" />
-              <path d="M 120 820 C 200 800, 260 810, 300 840 C 340 870, 320 900, 260 890 C 200 880, 100 860, 120 820 Z" stroke="#5A6A52" strokeWidth="1" opacity="0.08" />
+            <g transform="rotate(0.8 800 700)" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M 1280 320 C 1330 285, 1390 275, 1440 300 C 1490 325, 1500 385, 1460 415 C 1420 445, 1340 430, 1300 395 C 1260 360, 1250 335, 1280 320 Z" stroke="#6A7A52" strokeWidth="1.1" opacity="0.22" />
+              <path d="M 1080 270 C 1160 258, 1240 268, 1320 256 C 1400 244, 1480 260, 1600 248" stroke="#5A6A52" strokeWidth="1" opacity="0.2" />
+              <path d="M 1080 310 C 1170 296, 1250 306, 1330 294 C 1410 282, 1490 298, 1600 286" stroke="#5A6A52" strokeWidth="1" opacity="0.19" />
+              <path d="M 1070 355 C 1160 340, 1245 350, 1325 338 C 1405 326, 1490 342, 1600 330" stroke="#5A6A52" strokeWidth="1" opacity="0.2" />
+              <path d="M 1060 400 C 1150 385, 1235 395, 1315 383 C 1395 371, 1480 387, 1600 375" stroke="#96A678" strokeWidth="1.25" opacity="0.3" />
+              <path d="M 1050 448 C 1140 432, 1225 442, 1305 430 C 1385 418, 1470 434, 1600 422" stroke="#5A6A52" strokeWidth="1" opacity="0.2" />
+              <path d="M 1040 495 C 1130 480, 1215 490, 1295 478 C 1375 466, 1460 482, 1600 470" stroke="#5A6A52" strokeWidth="1" opacity="0.21" />
+              <path d="M 1030 545 C 1120 530, 1205 540, 1285 528 C 1365 516, 1450 532, 1600 520" stroke="#5A6A52" strokeWidth="1" opacity="0.2" />
+              <path d="M 1150 700 C 1200 670, 1260 665, 1300 690 C 1340 715, 1330 765, 1290 785 C 1250 805, 1190 795, 1170 755 C 1150 730, 1140 720, 1150 700 Z" stroke="#96A678" strokeWidth="1.25" opacity="0.3" />
+              <path d="M 1020 595 C 1110 580, 1195 590, 1275 578 C 1355 566, 1440 582, 1600 570" stroke="#5A6A52" strokeWidth="1" opacity="0.2" />
+              <path d="M 1010 648 C 1100 633, 1185 643, 1265 631 C 1345 619, 1430 635, 1600 623" stroke="#5A6A52" strokeWidth="1" opacity="0.21" />
+              <path d="M 1000 700 C 1090 685, 1175 695, 1255 683 C 1335 671, 1420 687, 1600 675" stroke="#5A6A52" strokeWidth="1" opacity="0.2" />
+              <path d="M 990 755 C 1080 740, 1165 750, 1245 738 C 1325 726, 1410 742, 1600 730" stroke="#96A678" strokeWidth="1.25" opacity="0.3" />
+              <path d="M 980 810 C 1070 795, 1155 805, 1235 793 C 1315 781, 1400 797, 1600 785" stroke="#5A6A52" strokeWidth="1" opacity="0.2" />
+              <path d="M 970 865 C 1060 850, 1145 860, 1225 848 C 1305 836, 1390 852, 1600 840" stroke="#5A6A52" strokeWidth="1" opacity="0.21" />
             </g>
           </svg>
         </div>
 
-        {/* Capa cercana: pocas curvas algo mas definidas */}
+        {/* Capa cercana: pocas curvas mas definidas, superpuestas */}
         <div ref={nearRef} className="tp-layer tp-near">
           <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-            <g transform="rotate(0.5 900 800)" fill="none" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M 1290 720 C 1330 680, 1390 670, 1430 690 C 1470 710, 1470 750, 1440 770 C 1410 790, 1340 785, 1310 755 C 1280 735, 1275 730, 1290 720 Z" stroke="#6A7A5A" strokeWidth="1" opacity="0.16" />
-              <path d="M 1240 770 C 1290 740, 1360 735, 1400 755 C 1440 775, 1440 810, 1400 830 C 1360 850, 1280 840, 1250 810 C 1220 780, 1220 780, 1240 770 Z" stroke="#6A7A5A" strokeWidth="1" opacity="0.14" />
-              <path d="M 1380 760 C 1420 730, 1470 725, 1500 745 C 1530 765, 1520 800, 1480 815 C 1440 830, 1380 820, 1370 790 C 1360 775, 1370 765, 1380 760 Z" stroke="#6A7A5A" strokeWidth="1" opacity="0.15" />
-              <path d="M 110 870 C 170 850, 220 860, 250 885 C 280 910, 260 900, 210 895 C 160 890, 100 885, 110 870 Z" stroke="#6A7A5A" strokeWidth="1" opacity="0.12" />
+            <g transform="rotate(1.2 900 800)" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M 1300 460 C 1350 420, 1420 410, 1470 435 C 1520 460, 1520 510, 1480 535 C 1440 560, 1360 545, 1320 510 C 1280 475, 1270 480, 1300 460 Z" stroke="#7A8A5E" strokeWidth="1.1" opacity="0.28" />
+              <path d="M 1180 560 C 1240 530, 1310 525, 1350 550 C 1390 575, 1380 620, 1340 640 C 1300 660, 1230 645, 1200 615 C 1170 585, 1160 585, 1180 560 Z" stroke="#7A8A5E" strokeWidth="1" opacity="0.26" />
+              <path d="M 1240 760 C 1290 730, 1360 725, 1400 745 C 1440 765, 1440 800, 1400 820 C 1360 840, 1280 830, 1250 800 C 1220 770, 1220 770, 1240 760 Z" stroke="#7A8A5E" strokeWidth="1" opacity="0.26" />
+              <path d="M 1390 640 C 1430 610, 1480 605, 1510 625 C 1540 645, 1530 680, 1490 695 C 1450 710, 1390 700, 1380 670 C 1370 655, 1380 645, 1390 640 Z" stroke="#7A8A5E" strokeWidth="1.1" opacity="0.28" />
             </g>
           </svg>
         </div>
@@ -171,24 +181,26 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
           width: 100%;
           height: 100%;
         }
-        /* Contenedor topografico: anclado al borde inferior, solo tercio inferior */
+        /* Contenedor topografico: mitad derecha, con mascara para proteger el contenido central */
         .hero-topo {
           position: absolute;
-          left: 0; right: 0; bottom: 0;
-          height: 46%;
+          top: 0; bottom: 0; right: 0;
+          width: 58%;
           z-index: 1;
           pointer-events: none;
-          overflow: hidden;
+          overflow: visible;
+          -webkit-mask-image: linear-gradient(to right, transparent 0%, black 22%);
+          mask-image: linear-gradient(to right, transparent 0%, black 22%);
         }
         .tp-layer {
           position: absolute;
-          inset: -20% -6% -6% -6%;
+          top: -40%; bottom: -40%; left: -10%; right: -10%;
           will-change: transform;
         }
-        .tp-deep svg { filter: blur(2px); }
-        .tp-deep { opacity: 0.55; }
-        .tp-mid  { opacity: 0.8; }
-        .tp-near { opacity: 0.95; }
+        .tp-deep svg { filter: blur(1.5px); }
+        .tp-deep { opacity: 0.9; }
+        .tp-mid  { opacity: 1; }
+        .tp-near { opacity: 1; }
 
         .hero-glow {
           position: absolute;
@@ -228,10 +240,10 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
 
         @media (max-width: 768px) {
           .hero-grid { right: 42%; opacity: 0.08; }
-          .hero-topo { height: 40%; opacity: 0.8; }
-          .tp-deep { opacity: 0.4; }
-          .tp-mid { opacity: 0.55; }
-          .tp-near { opacity: 0.65; }
+          .hero-topo { width: 60%; opacity: 0.85; }
+          .tp-deep { opacity: 0.6; }
+          .tp-mid { opacity: 0.75; }
+          .tp-near { opacity: 0.7; }
         }
       `}</style>
     </div>

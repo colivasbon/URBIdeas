@@ -8,6 +8,7 @@ import StatCard from "@/components/socideas/StatCard";
 import EvolutionChart from "@/components/socideas/EvolutionChart";
 import PyramidChart from "@/components/socideas/PyramidChart";
 import Traceability from "@/components/socideas/Traceability";
+import CopyTableButton from "@/components/socideas/CopyTableButton";
 import type { PerfilDemografico } from "@/lib/socideas";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +16,12 @@ export const dynamic = "force-dynamic";
 // Sin self-fetch HTTP: la ficha llama a la lógica de perfil directamente.
 // Un fetch a uno mismo puede fallar a nivel de red en serverless y tumbar
 // la página entera con un error de Server Components.
-async function getPerfil(codigoIne: string): Promise<PerfilDemografico | null> {
+async function getPerfil(codigoIne: string, refresh: boolean): Promise<PerfilDemografico | null> {
   try {
     const supabase = createSupabaseServer();
-    const result = await getPerfilDemografico(supabase, codigoIne);
+    // autoRefresh solo en el cuerpo de la página (no en metadatos): así una
+    // misma visita no dispara dos sincronizaciones concurrentes.
+    const result = await getPerfilDemografico(supabase, codigoIne, { autoRefresh: refresh });
     if (result.status === "ok" || result.status === "empty") return result.perfil;
     return null;
   } catch {
@@ -34,7 +37,7 @@ export async function generateMetadata({
   params: Promise<{ codigoINE: string }>;
 }): Promise<Metadata> {
   const { codigoINE } = await params;
-  const perfil = await getPerfil(codigoINE);
+  const perfil = await getPerfil(codigoINE, false);
   const nombre = perfil?.municipio.nombre ?? codigoINE;
   return {
     title: `${nombre} | SOCideas`,
@@ -52,7 +55,7 @@ export default async function SocideasFicha({
   params: Promise<{ codigoINE: string }>;
 }) {
   const { codigoINE } = await params;
-  const perfil = await getPerfil(codigoINE);
+  const perfil = await getPerfil(codigoINE, true);
 
   if (!perfil) {
     return (
@@ -85,7 +88,7 @@ export default async function SocideasFicha({
         <PlatformHeader />
         <main className="flex-1">
           <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-            <FichaCabecera municipio={municipio} mapHref={mapHref} />
+            <FichaCabecera municipio={municipio} mapHref={mapHref} ultimaSincronizacion={null} />
             <div className="rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-6 text-center">
               <p className="text-base font-semibold text-[var(--color-text-primary)]">
                 Preparando datos oficiales
@@ -116,7 +119,7 @@ export default async function SocideasFicha({
       <PlatformHeader />
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-          <FichaCabecera municipio={municipio} mapHref={mapHref} />
+          <FichaCabecera municipio={municipio} mapHref={mapHref} ultimaSincronizacion={perfil.ultima_sincronizacion} />
 
           {/* Bloque 1: población actual */}
           <section aria-label="Población actual" className="mb-10">
@@ -183,11 +186,14 @@ export default async function SocideasFicha({
                 detalle="Último año disponible por ámbito"
               />
             </div>
-            <details className="mt-4">
-              <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)]">
-                Ver tabla anual
-              </summary>
-              <table className="mt-3 w-full text-sm">
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
+                Tabla anual por ámbito
+              </h3>
+              <CopyTableButton tableId={`tabla-evo-${municipio.codigo_ine}`} label="Copiar tabla para Word" />
+            </div>
+            <div className="mt-3 overflow-x-auto">
+              <table id={`tabla-evo-${municipio.codigo_ine}`} className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
                     <th className="py-2 pr-4">Año</th>
@@ -209,7 +215,7 @@ export default async function SocideasFicha({
                   ))}
                 </tbody>
               </table>
-            </details>
+            </div>
           </section>
 
           {/* Bloque 3: edad y sexo */}
@@ -241,11 +247,14 @@ export default async function SocideasFicha({
                   }
                   detalle="(0-14 + 65+) / 15-64 × 100"
                 />
-                <details>
-                  <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)]">
-                    Ver tabla por grupos
-                  </summary>
-                  <table className="mt-3 w-full text-sm">
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
+                    Tabla por grupos de edad
+                  </h3>
+                  <CopyTableButton tableId={`tabla-pir-${municipio.codigo_ine}`} label="Copiar tabla para Word" />
+                </div>
+                <div className="mt-3 overflow-x-auto">
+                  <table id={`tabla-pir-${municipio.codigo_ine}`} className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
                         <th className="py-2 pr-4">Edad</th>
@@ -263,7 +272,7 @@ export default async function SocideasFicha({
                       ))}
                     </tbody>
                   </table>
-                </details>
+                </div>
               </div>
             </div>
           </section>
@@ -295,9 +304,11 @@ export default async function SocideasFicha({
 function FichaCabecera({
   municipio,
   mapHref,
+  ultimaSincronizacion,
 }: {
   municipio: PerfilDemografico["municipio"];
   mapHref: string;
+  ultimaSincronizacion: string | null;
 }) {
   return (
     <section className="mb-8 border-b border-[var(--color-border-subtle)] pb-8">
@@ -314,6 +325,7 @@ function FichaCabecera({
       <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
         {municipio.provincia} · {municipio.comunidad_autonoma} · Código INE {municipio.codigo_ine}
       </p>
+      <Frescura ultima={ultimaSincronizacion} />
       <div className="mt-4 flex flex-wrap gap-3">
         <Link
           href="/socideas"
@@ -329,6 +341,21 @@ function FichaCabecera({
         </Link>
       </div>
     </section>
+  );
+}
+
+function Frescura({ ultima }: { ultima: string | null }) {
+  if (!ultima) return null;
+  const fecha = new Date(ultima).toLocaleDateString("es-ES", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  return (
+    <p className="mt-2 inline-flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--color-secondary)]" />
+      Datos oficiales actualizados el {fecha} · revisión automática si caducan
+    </p>
   );
 }
 

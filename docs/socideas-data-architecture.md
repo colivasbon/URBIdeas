@@ -46,9 +46,12 @@ visita.
 ## 5. Caché y actualización
 
 Supabase es la caché: los valores llevan `obtenido_en` y `anio_referencia`.
-No hay caducidad automática en 2A; la resincronización es manual por
-municipio. La ficha muestra siempre año y fuente por bloque; años distintos
-no se presentan como contemporáneos.
+La ficha re-sincroniza automáticamente en servidor si la última ejecución
+supera `STALE_DAYS` (7 días) y el municipio ya estaba sincronizado; el lock
+de `data_sync_runs` evita ejecuciones concurrentes y, si el refresco falla,
+se sirve la caché. Los metadatos de la página no disparan refrescos (solo el
+cuerpo), para no duplicar sincronizaciones. La ficha muestra siempre año y
+fuente por bloque; años distintos no se presentan como contemporáneos.
 
 ## 6. Limitaciones de cobertura (verificadas)
 

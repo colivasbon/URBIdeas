@@ -15,6 +15,10 @@ export type PerfilResult =
   | { status: 'notFound' }
   | { status: 'badRequest' }
 
+// Los datos se refrescan automáticamente si la última sincronización supera
+// este umbral. Solo para municipios YA sincronizados.
+export const STALE_DAYS = 7
+
 function isMunicipioAmbito(v: IndicatorValue): boolean {
   return (v.dimensiones?.ambito ?? 'municipio') === 'municipio'
 }
@@ -33,6 +37,7 @@ function pickLatest(values: IndicatorValue[], slug: string): IndicatorValue | nu
 export async function getPerfilDemografico(
   supabase: SupabaseClient,
   codigoIneRaw: string,
+  opts?: { autoRefresh?: boolean },
 ): Promise<PerfilResult> {
   const codigoIne = (codigoIneRaw ?? '').trim()
   if (!/^\d{5}$/.test(codigoIne)) {
@@ -137,6 +142,24 @@ export async function getPerfilDemografico(
 
   if (values.length === 0) {
     return { status: 'empty', perfil: perfilSinDatos() }
+  }
+
+  // Refresco automático: si hay datos pero la última sincronización supera el
+  // umbral, se re-sincroniza en servidor antes de servir. Solo municipios ya
+  // sincronizados (values.length > 0). El lock de sync evita estampidas y, si
+  // el refresco falla, se sirve la caché existente.
+  const lastRunFin = (lastRun as unknown as { fin: string } | null)?.fin ?? null
+  const stale =
+    lastRunFin !== null &&
+    Date.now() - new Date(lastRunFin).getTime() > STALE_DAYS * 86400_000
+  if (opts?.autoRefresh && stale) {
+    try {
+      const { syncMunicipioDemografico } = await import('./socideas-sync')
+      await syncMunicipioDemografico(supabase, codigoIne)
+      return getPerfilDemografico(supabase, codigoIne)
+    } catch {
+      // Degradación: servir la caché aunque esté caducada.
+    }
   }
 
   const bySlug = (slug: string) =>

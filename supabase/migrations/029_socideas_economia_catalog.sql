@@ -1,0 +1,161 @@
+-- Fase 2B SOCideas: catálogo de fuentes e indicadores económicos.
+-- ESTADO: APLICADA con autorización expresa (2026-09-04).
+-- No toca tablas existentes ni RLS: solo INSERTs idempotentes en
+-- statistical_sources e indicator_definitions.
+-- Sin escrituras en municipal_indicator_values (legado vacío).
+
+-- 1. Fuentes económicas ------------------------------------------------------
+INSERT INTO public.statistical_sources
+  (slug, organismo, nombre, descripcion, url_base, licencia, frecuencia_actualizacion, activo)
+VALUES
+  ('aeat_edm', 'Agencia Estatal de Administración Tributaria',
+   'Estadística de declarantes del IRPF por municipios',
+   'Renta personal bruta y disponible de las personas declarantes (modelos 100 y 190). Municipios de más de 1.000 habitantes del territorio fiscal común. Importes medios POR DECLARACIÓN, no por habitante.',
+   'https://sede.agenciatributaria.gob.es/Sede/datosabiertos/catalogo/hacienda/Estadistica_de_los_declarantes_del_IRPF_por_municipios.shtml',
+   'https://sede.agenciatributaria.gob.es/Sede/gobierno-abierto/reutilizacion-informacion/condiciones-reutilizacion.html',
+   'anual (ejercicio; última 2023, pub. oct-2025)', true),
+  ('ine_adrh', 'Instituto Nacional de Estadística',
+   'Atlas de Distribución de Renta de los Hogares',
+   'Renta neta/bruta por persona y hogar e indicadores de desigualdad (Gini, P80/P20) por municipio, distrito y sección. Serie 2015-2023. Gini/P80P20 solo en municipios con 100+ residentes.',
+   'https://www.ine.es/dynt3/inebase/es/index.htm?padre=5608',
+   'https://www.ine.es/aviso_legal', 'anual (serie 2015-2023)', true),
+  ('ine_dirce', 'Instituto Nacional de Estadística',
+   'Explotación estadística del DIRCE',
+   'Empresas activas por municipio y actividad principal (tabla 4721, ref. 1 de enero). La empresa se contabiliza donde está su sede. El número de empresas no equivale al empleo.',
+   'https://www.ine.es/dyngs/INEbase/operacion.htm?c=Estadistica_C&idp=1254735576550',
+   'https://www.ine.es/aviso_legal', 'anual (2012-actualidad)', true),
+  ('ine_censo_agrario', 'Instituto Nacional de Estadística',
+   'Censo Agrario 2020',
+   'Estructura de las explotaciones agrícolas: superficie (SAU) y ganadería por municipio. Indicador ESTRUCTURAL del año 2020, no anual. Umbral: 5 ha de SAU. Secreto estadístico preservado (ND, nunca cero).',
+   'https://www.ine.es/dyngs/INEbase/es/operacion.htm?c=Estadistica_C&idp=1254735727106',
+   'https://www.ine.es/aviso_legal', 'decenal/estructural (2020)', true)
+ON CONFLICT (slug) DO UPDATE SET
+  organismo = EXCLUDED.organismo,
+  nombre = EXCLUDED.nombre,
+  descripcion = EXCLUDED.descripcion,
+  url_base = EXCLUDED.url_base,
+  licencia = EXCLUDED.licencia,
+  frecuencia_actualizacion = EXCLUDED.frecuencia_actualizacion,
+  activo = EXCLUDED.activo,
+  updated_at = now();
+
+-- 2. Indicadores económicos ---------------------------------------------------
+-- Renta AEAT: euros por declaración. ADRH: euros por persona/hogar.
+-- Desigualdad: Gini en puntos, P80/P20 adimensional. Empresas: número.
+-- Agrario: hectáreas y número de explotaciones. Ganadería: explotaciones y cabezas.
+WITH src AS (
+  SELECT slug AS sslug, id AS sid FROM public.statistical_sources
+  WHERE slug IN ('aeat_edm', 'ine_adrh', 'ine_dirce', 'ine_censo_agrario')
+)
+INSERT INTO public.indicator_definitions
+  (slug, nombre, grupo, descripcion, unidad, metodologia, fuente_principal_id, periodicidad, visualizacion_recomendada, activo)
+SELECT v.slug, v.nombre, 'economia', v.descripcion, v.unidad, v.metodologia, src.sid, v.periodicidad, v.visualizacion, true
+FROM src JOIN (VALUES
+  ('irpf_declaraciones', 'Número de declaraciones de IRPF', 'aeat_edm'::text,
+   'Declaraciones del IRPF en el municipio (ejercicio fiscal). Base de las rentas medias por declaración.',
+   'declaraciones', 'Fichero base EDM del ejercicio; filtro por municipio; validación de año y cobertura (>1.000 hab., territorio fiscal común).',
+   'anual', 'stat_card'),
+  ('irpf_renta_bruta_media', 'Renta bruta media por declaración', 'aeat_edm'::text,
+   'Renta personal bruta media antes de reducciones, mínimos y gastos deducibles. NO es renta por habitante ni por hogar.',
+   'euros', 'Idem. Nota metodológica obligatoria en ficha.',
+   'anual', 'stat_card'),
+  ('irpf_renta_disponible_media', 'Renta disponible media por declaración', 'aeat_edm'::text,
+   'Renta bruta menos cuota líquida y cotizaciones sociales/derechos pasivos del trabajador. NO es renta por habitante.',
+   'euros', 'Idem.', 'anual', 'stat_card'),
+  ('renta_neta_media_persona', 'Renta neta media por habitante', 'ine_adrh'::text,
+   'ADRH: renta neta anual media por habitante del municipio.',
+   'euros', 'Descarga CSV municipal ADRH + filtro por código INE; comparativas CCAA/provincia/España vía Tempus3 (tabla 53688).',
+   'anual', 'stat_card'),
+  ('renta_neta_media_hogar', 'Renta neta media por hogar', 'ine_adrh'::text,
+   'ADRH: renta neta anual media por hogar del municipio.',
+   'euros', 'Idem.', 'anual', 'stat_card'),
+  ('renta_bruta_media_persona', 'Renta bruta media por habitante', 'ine_adrh'::text,
+   'ADRH: renta bruta anual media por habitante del municipio.',
+   'euros', 'Idem.', 'anual', 'stat_card'),
+  ('renta_bruta_media_hogar', 'Renta bruta media por hogar', 'ine_adrh'::text,
+   'ADRH: renta bruta anual media por hogar del municipio.',
+   'euros', 'Idem.', 'anual', 'stat_card'),
+  ('gini', 'Índice de Gini', 'ine_adrh'::text,
+   'ADRH: desigualdad de la renta por unidad de consumo (0-100). Serie 2015-2023. Solo municipios con 100+ residentes. No calculado por SOCideas.',
+   'puntos', 'Descarga CSV municipal + serie temporal; comparativas vía Tempus3 53688.',
+   'anual', 'line_chart'),
+  ('p80_p20', 'Ratio P80/P20', 'ine_adrh'::text,
+   'ADRH: cociente percentil 80 / percentil 20 de la renta por unidad de consumo. Serie 2015-2023. Solo 100+ residentes.',
+   'ratio', 'Idem.', 'anual', 'line_chart'),
+  ('empresas_total', 'Número total de empresas', 'ine_dirce'::text,
+   'DIRCE tabla 4721: empresas activas con sede en el municipio (ref. 1 de enero). No equivale a empleo.',
+   'empresas', 'Tempus3 DATOS_TABLA/4721 con filtro tv= por municipio; validación de año y total.',
+   'anual', 'stat_card'),
+  ('empresas_industria', 'Empresas de industria', 'ine_dirce'::text,
+   'DIRCE: secciones CNAE B-E (grupo A2). Cobertura de desglose según tamaño municipal.',
+   'empresas', 'Idem.', 'anual', 'bar_chart'),
+  ('empresas_construccion', 'Empresas de construcción', 'ine_dirce'::text,
+   'DIRCE: sección CNAE F (grupo A3).',
+   'empresas', 'Idem.', 'anual', 'bar_chart'),
+  ('empresas_servicios', 'Empresas de servicios', 'ine_dirce'::text,
+   'DIRCE tabla 4721, Tempus3: servicios en conjunto = resto de servicios (A11) + comercio, transporte y hostelería (KAI). Calculado por SOCideas desde series oficiales.',
+   'empresas', 'Tempus3 DATOS_TABLA/4721 con filtro tv= por municipio; servicios = A11+KAI por año (verificado aritméticamente).',
+   'anual', 'bar_chart'),
+  ('empresas_comercio_hosteleria', 'Empresas de comercio, transporte y hostelería', 'ine_dirce'::text,
+   'DIRCE: secciones CNAE G,H,I (grupo A4). Detalle dentro de servicios.',
+   'empresas', 'Idem.', 'anual', 'bar_chart'),
+  ('agr_sau_total', 'Superficie agraria censada (SAU)', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020: superficie agrícola utilizada total del municipio. Estructural 2020.',
+   'hectareas', 'Tablas municipales CA2020; filtro por código INE; año 2020 visible siempre.',
+   'estructural', 'stat_card'),
+  ('agr_tierra_arable', 'Tierra arable', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020: herbáceos, barbechos e invernaderos. Estructural 2020.',
+   'hectareas', 'Idem.', 'estructural', 'bar_chart'),
+  ('agr_cultivos_lenosos', 'Cultivos leñosos', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020: cultivos permanentes. Estructural 2020.',
+   'hectareas', 'Idem.', 'estructural', 'bar_chart'),
+  ('agr_pastos', 'Pastos permanentes', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020. Estructural 2020.',
+   'hectareas', 'Idem.', 'estructural', 'bar_chart'),
+  ('agr_huertos', 'Huertos para consumo propio', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020. Estructural 2020.',
+   'hectareas', 'Idem.', 'estructural', 'bar_chart'),
+  ('agr_explotaciones', 'Explotaciones agrarias', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020: número de explotaciones con SAU en el municipio. Estructural 2020.',
+   'explotaciones', 'Idem.', 'estructural', 'stat_card'),
+  ('gan_bovino_exp', 'Explotaciones de bovino', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020. ND por secreto estadístico (no es cero).',
+   'explotaciones', 'Idem.', 'estructural', 'table'),
+  ('gan_bovino_cab', 'Cabezas de bovino', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020. ND por secreto estadístico.',
+   'cabezas', 'Idem.', 'estructural', 'table'),
+  ('gan_ovino_caprino_exp', 'Explotaciones de ovino y caprino', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020. ND por secreto estadístico.',
+   'explotaciones', 'Idem.', 'estructural', 'table'),
+  ('gan_ovino_caprino_cab', 'Cabezas de ovino y caprino', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020. ND por secreto estadístico.',
+   'cabezas', 'Idem.', 'estructural', 'table'),
+  ('gan_porcino_exp', 'Explotaciones de porcino', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020. ND por secreto estadístico.',
+   'explotaciones', 'Idem.', 'estructural', 'table'),
+  ('gan_porcino_cab', 'Cabezas de porcino', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020. ND por secreto estadístico.',
+   'cabezas', 'Idem.', 'estructural', 'table'),
+  ('gan_aves_exp', 'Explotaciones de aves de corral', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020. ND por secreto estadístico.',
+   'explotaciones', 'Idem.', 'estructural', 'table'),
+  ('gan_aves_cab', 'Aves de corral (cabezas)', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020. ND por secreto estadístico.',
+   'cabezas', 'Idem.', 'estructural', 'table'),
+  ('gan_ug_total', 'Unidades ganaderas totales', 'ine_censo_agrario'::text,
+   'Censo Agrario 2020 (Tempus3 tabla 29006): unidades ganaderas totales del municipio. Estructural 2020.',
+   'unidades_ganaderas', 'Tempus3 DATOS_TABLA/29006 con filtro tv= por municipio.',
+   'estructural', 'stat_card')
+) AS v(slug, nombre, fslug, descripcion, unidad, metodologia, periodicidad, visualizacion)
+  ON src.sslug = v.fslug
+  ON CONFLICT (slug) DO UPDATE SET
+  nombre = EXCLUDED.nombre,
+  grupo = EXCLUDED.grupo,
+  descripcion = EXCLUDED.descripcion,
+  unidad = EXCLUDED.unidad,
+  metodologia = EXCLUDED.metodologia,
+  fuente_principal_id = EXCLUDED.fuente_principal_id,
+  periodicidad = EXCLUDED.periodicidad,
+  visualizacion_recomendada = EXCLUDED.visualizacion_recomendada,
+  activo = EXCLUDED.activo,
+  updated_at = now();

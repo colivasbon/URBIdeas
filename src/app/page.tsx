@@ -26,14 +26,24 @@ export default function PlatformHome() {
                   Conocimiento territorial para decisiones sostenibles
                 </h1>
                 <p className="mt-6 max-w-2xl mx-auto text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed">
-                  IDEAS Sostenibilidad reúne herramientas del Área de Sostenibilidad de Ideas
-                  Medioambientales para el análisis territorial, la consulta municipal y el apoyo
-                  técnico a proyectos.
+                  Análisis territorial, diagnóstico municipal con fuentes oficiales y apoyo técnico a
+                  proyectos, en una sola plataforma.
                 </p>
-                <p className="mt-4 max-w-2xl mx-auto text-sm text-[var(--color-text-muted)] leading-relaxed">
-                  Herramientas para el análisis territorial, la caracterización socioeconómica,
-                  la sostenibilidad municipal y el acompañamiento técnico de proyectos.
-                </p>
+                <dl className="mt-8 flex flex-wrap items-stretch justify-center gap-3 text-left">
+                  {[
+                    { v: "8.130", l: "Municipios con ficha territorial" },
+                    { v: "INE · AEAT · SEPE", l: "Fuentes oficiales trazables" },
+                    { v: "2 + 1", l: "Módulos activos y área en preparación" },
+                  ].map((d) => (
+                    <div
+                      key={d.l}
+                      className="min-w-40 flex-1 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] px-5 py-4 sm:max-w-60"
+                    >
+                      <dt className="order-2 mt-1 block text-xs text-[var(--color-text-muted)]">{d.l}</dt>
+                      <dd className="text-lg font-bold tabular-nums text-[var(--color-text-primary)]">{d.v}</dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
             </div>
           </div>
@@ -56,12 +66,12 @@ export default function PlatformHome() {
                 cta="Acceder a URBideas"
               />
               <ModuleCard
-                kicker="Próximo módulo"
+                kicker="Beta interna"
                 title="SOCideas"
-                description="Diagnóstico social, sociodemográfico y socioeconómico del territorio."
+                description="Diagnóstico demográfico y económico municipal con fuentes oficiales: población, renta, desigualdad, empresas y sector agrario."
                 href="/socideas"
-                cta="Conocer SOCideas"
-                badge="Módulo en desarrollo"
+                cta="Buscar un municipio"
+                badge="Demografía disponible · Economía en desarrollo"
               />
               <ModuleCard
                 kicker="Área de trabajo"

@@ -8,7 +8,7 @@ para el análisis territorial, la consulta municipal y el apoyo técnico a proye
 | Módulo | Estado | Descripción |
 |---|---|---|
 | **URBideas** (`/urbideas`) | Disponible | Análisis territorial, urbanístico y geoespacial (visor, municipios, legislación, API). |
-| **SOCideas** (`/socideas`) | Beta interna (Fase 2A) | Caracterización sociodemográfica municipal con fuentes oficiales trazables. Solo perfil demográfico (INE Tempus3). Requiere migración `027/028` y sincronización autorizada por municipio. Ver `docs/socideas-data-architecture.md`. |
+| **SOCideas** (`/socideas`) | Beta interna (Fase 2B) | Caracterización demográfica y económica municipal con fuentes oficiales trazables. Demografía disponible (INE Tempus3); Economía en desarrollo (AEAT, ADRH, DIRCE, Censo Agrario 2020); secciones censales en preparación. Datos consolidados en Cloudflare R2 (`socideas/v2/municipios/{INE}.json`); sincronización autorizada por municipio. Ver `docs/socideas-data-architecture.md` y `docs/socideas-phase-2b-*.md`. |
 | **Asistencias de sostenibilidad** (`/asistencias`) | Próximamente | Herramientas y procesos de apoyo técnico del Área. |
 
 ## Estructura principal de rutas
@@ -16,7 +16,10 @@ para el análisis territorial, la consulta municipal y el apoyo técnico a proye
 - `/` → Landing corporativa de IDEAS Sostenibilidad
 - `/urbideas` → Módulo URBideas (plenamente operativo)
 - `/urbideas/mapa`, `/urbideas/municipios`, `/urbideas/legislacion`, `/urbideas/api-docs` → rutas canónicas del módulo, con cabecera propia `UrbideasHeader`
-- `/socideas`, `/asistencias` → Landings informativas de futuros módulos
+- `/socideas` → Buscador municipal y acceso a diagnóstico social
+- `/socideas/[codigoINE]` → Ficha municipal (`?categoria=demografia|economia`; por defecto, demografía)
+- `/socideas/[codigoINE]/secciones-censales` → Secciones censales (geometría oficial bajo demanda, en preparación)
+- `/asistencias` → Landings informativas de futuros módulos
 - `/mapa`, `/municipios`, `/legislacion`, `/api-docs` → Rutas históricas preservadas como alias de compatibilidad (rewrite interno a las rutas canónicas, sin duplicar código)
 - `/admin` → Acceso protegido sin cambios; `/api/*` → Contratos sin cambios
 
@@ -26,6 +29,14 @@ para el análisis territorial, la consulta municipal y el apoyo técnico a proye
 2. Instala dependencias: `npm install`.
 3. Arranca en desarrollo: `npm run dev` y abre `http://localhost:3000`.
 4. Comprueba tipos: `npx tsc --noEmit`. Linter: `npm run lint`. Build: `npm run build`.
+
+## Arquitectura de datos SOCideas (resumen)
+
+- **Supabase** (ligero): municipios, provincias, CCAA, geometrías existentes, catálogo de fuentes (`statistical_sources`), catálogo de indicadores (`indicator_definitions`), registro de sincronizaciones (`data_sync_runs`), búsqueda. La tabla `municipal_indicator_values` es legado vacío: no usar como almacén masivo.
+- **Cloudflare R2** (datos consolidados): bucket `socideas-data`, un único JSON por municipio en `socideas/v2/municipios/{codigoINE}.json`. La sincronización económica lee el JSON existente, lo extiende y lo guarda de forma idempotente sin tocar Demografía.
+- **Vercel**: despliegue. Nunca exponer `R2_*`, `SERVICE_ROLE_KEY` ni `SOCIDEAS_SYNC_TOKEN` en el cliente; las sincronizaciones exigen `x-sync-token`.
+- **Fuentes oficiales**: AEAT (IRPF municipal), INE (Tempus3, ADRH, DIRCE, Censo Agrario 2020), SEPE (paro, conector futuro). R2 es almacenamiento de resultados validados, no fuente independiente.
+- **Mantenimiento seguro**: sincronización por municipio (`POST /api/socideas/sync/[codigoINE]`, `POST /api/socideas/sync-economia/[codigoINE]`); migraciones y cargas solo con autorización expresa; no guardar secretos en el repositorio.
 
 ## Aviso sobre renombres externos
 

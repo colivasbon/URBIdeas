@@ -145,3 +145,60 @@ export const SOCIDEAS_INDICATORS = [
   'population_change_5y',
   'population_change_10y',
 ] as const
+
+// Slugs de indicadores económicos de Fase 2B (ver 029_socideas_economia_catalog.sql).
+// Grupo `economia`. Ningún slug reutiliza ni colisiona con Demografía.
+export const SOCIDEAS_ECONOMY_INDICATORS = [
+  'irpf_declaraciones',
+  'irpf_renta_bruta_media',
+  'irpf_renta_disponible_media',
+  'renta_neta_media_persona',
+  'renta_neta_media_hogar',
+  'renta_bruta_media_persona',
+  'renta_bruta_media_hogar',
+  'gini',
+  'p80_p20',
+  'empresas_total',
+  'empresas_industria',
+  'empresas_construccion',
+  'empresas_servicios',
+  'empresas_comercio_hosteleria',
+  'agr_sau_total',
+  'agr_tierra_arable',
+  'agr_cultivos_lenosos',
+  'agr_pastos',
+  'agr_huertos',
+  'agr_explotaciones',
+  'gan_bovino_exp',
+  'gan_bovino_cab',
+  'gan_ovino_caprino_exp',
+  'gan_ovino_caprino_cab',
+  'gan_porcino_exp',
+  'gan_porcino_cab',
+  'gan_aves_exp',
+  'gan_aves_cab',
+  'gan_ug_total',
+] as const
+
+export type EconomyIndicatorSlug = (typeof SOCIDEAS_ECONOMY_INDICATORS)[number]
+
+/** Fuentes estadísticas de Economía (slugs de `statistical_sources`, migración 029). */
+export const SOCIDEAS_ECONOMY_SOURCES = [
+  'aeat_edm',
+  'ine_adrh',
+  'ine_dirce',
+  'ine_censo_agrario',
+] as const
+
+export type CategoriaFicha = 'demografia' | 'economia'
+
+export const FICHA_CATEGORIAS: CategoriaFicha[] = ['demografia', 'economia']
+
+export interface PerfilEconomico {
+  municipio: SocideasMunicipio
+  sincronizado: boolean
+  ultima_sincronizacion: string | null
+  valores: IndicatorValue[]
+  ultimoPorIndicador: Record<string, number | null>
+  disponibles: string[]
+}

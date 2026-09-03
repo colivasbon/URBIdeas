@@ -119,12 +119,19 @@ export function toV2Envelope(
   }
 }
 
-/** Expande un envelope v2 a filas completas (forma que consume la ficha). */
+/** Expande un envelope v2 a filas completas (forma que consume la ficha).
+ * Fase 2B: la tupla v2 no lleva índice de fuente; con varias fuentes (Economía)
+ * la fuente se resuelve por `tableId` (correspondencia oficial) con fallback a
+ * `sources[0]`. Los JSON de 1 fuente (Demografía) se expanden exactamente igual
+ * que antes. */
 export function expandV2Envelope(env: R2MunicipioEnvelopeV2): Record<string, unknown>[] {
+  const bySlug = new Map(env.sources.map((s) => [s.slug, s]))
+  const fallback = env.sources[0] ?? { slug: '', organismo: '', nombre: '' }
   return env.valores.map((t) => {
     const [ii, anio, valor, unidad, di, ui, tableId, serieId, estado] = t
     const ind = env.indicators[ii] ?? { slug: '', nombre: '', unidad: null }
-    const src = env.sources[0] ?? { slug: '', organismo: '', nombre: '' }
+    const src = (tableId ? sourceSlugForTable(tableId) : null) ?? null
+    const source = (src ? bySlug.get(src) : undefined) ?? fallback
     return {
       municipio_codigo_ine: env.codigo_ine,
       anio_referencia: anio,
@@ -139,9 +146,21 @@ export function expandV2Envelope(env: R2MunicipioEnvelopeV2): Record<string, unk
       estado_validacion: estado,
       obtenido_en: env.generado_en,
       indicator: ind,
-      source: src,
+      source,
     }
   })
+}
+
+/** Correspondencia oficial tableId → source.slug para envelopes multi-fuente.
+ * DPOP provincial / 2853 / 33570 / DIRCE 4721 / ADRH 53688 viven en Tempus3;
+ * EDM* es AEAT; el resto de tablas ADRH/agrarias se resuelven por prefijo. */
+export function sourceSlugForTable(tableId: string): string | null {
+  if (/^(28(5[3-9]|6\d|7\d|8\d|9\d|90[0-7])|33570)$/.test(tableId)) return 'ine_tempus3'
+  if (tableId === '4721') return 'ine_dirce'
+  if (tableId === '53688' || /^ADRH/i.test(tableId)) return 'ine_adrh'
+  if (/^EDM\d{4}$/.test(tableId)) return 'aeat_edm'
+  if (/^CA20/i.test(tableId)) return 'ine_censo_agrario'
+  return null
 }
 
 function r2PublicBase(): string | null {

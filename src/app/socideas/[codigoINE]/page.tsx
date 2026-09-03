@@ -3,10 +3,13 @@ import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { getPerfilDemografico } from "@/lib/socideas-perfil";
 import type { FiltrosPerfil } from "@/lib/socideas-perfil";
+import { getPerfilEconomico } from "@/lib/socideas-economia";
 import PlatformHeader from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import FichaFiltros from "@/components/socideas/FichaFiltros";
-import type { AmbitoTerritorial, PerfilDemografico } from "@/lib/socideas";
+import CategoryTabs from "@/components/socideas/CategoryTabs";
+import EconomiaFicha from "@/components/socideas/EconomiaFicha";
+import type { AmbitoTerritorial, CategoriaFicha, PerfilDemografico, PerfilEconomico } from "@/lib/socideas";
 import { AMBITOS } from "@/lib/socideas";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +34,17 @@ async function getPerfil(
   } catch {
     // La ficha nunca debe tumbar la página: ante un fallo de datos se
     // muestra el estado de "no encontrado" en lugar del boundary de error.
+    return null;
+  }
+}
+
+async function getEconomia(codigoIne: string): Promise<PerfilEconomico | null> {
+  try {
+    const supabase = createSupabaseServer();
+    const result = await getPerfilEconomico(supabase, codigoIne);
+    if (result.status === "ok" || result.status === "empty") return result.perfil;
+    return null;
+  } catch {
     return null;
   }
 }
@@ -96,7 +110,9 @@ export default async function SocideasFicha({
 }) {
   const { codigoINE } = await params;
   const sp = (await searchParams) ?? {};
+  const categoria: CategoriaFicha = sp.categoria === "economia" ? "economia" : "demografia";
   const { perfil } = await filtrosIniciales(codigoINE, sp);
+  const economia = categoria === "economia" ? await getEconomia(codigoINE) : null;
 
   if (!perfil) {
     return (
@@ -174,9 +190,26 @@ export default async function SocideasFicha({
                 Abrir en URBideas →
               </Link>
             </div>
+            <div className="mt-6">
+              <CategoryTabs codigoINE={municipio.codigo_ine} activa={categoria} searchParams={spObj} />
+            </div>
           </section>
 
-          {!perfil.sincronizado ? (
+          {categoria === "economia" ? (
+            economia ? (
+              <EconomiaFicha codigoINE={municipio.codigo_ine} initial={economia} />
+            ) : (
+              <div className="rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-6 text-center">
+                <p className="text-base font-semibold text-[var(--color-text-primary)]">
+                  Bloque económico no disponible
+                </p>
+                <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+                  No se pudo cargar el bloque económico de este municipio. La sincronización la realiza
+                  el equipo técnico desde el servidor con fuentes oficiales.
+                </p>
+              </div>
+            )
+          ) : !perfil.sincronizado ? (
             <div className="rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-6 text-center">
               <p className="text-base font-semibold text-[var(--color-text-primary)]">
                 Preparando datos oficiales

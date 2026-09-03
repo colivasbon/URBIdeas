@@ -43,8 +43,11 @@ export default function AsistenciasPage() {
           <section aria-label="Líneas de trabajo previstas" className="mb-8">
             <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] divide-y divide-[var(--color-border-subtle)]">
               {lineas.map((linea) => (
-                <div key={linea} className="px-5 py-4">
+                <div key={linea} className="flex items-center justify-between gap-3 px-5 py-4">
                   <p className="text-sm font-medium text-[var(--color-text-primary)]">{linea}</p>
+                  <span className="shrink-0 rounded-full border border-[var(--color-border)] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                    Próximamente
+                  </span>
                 </div>
               ))}
             </div>

@@ -69,6 +69,14 @@ Editados: `next.config.ts` (rewrites inversos), imports `<Header />` →
   enlace activo correcto (incluida anidada → Municipios), query
   `?lat&lng&zoom` preservada en `/urbideas/mapa`. Sin bucles ni doble header.
 
+## 7. Corrección posterior (misma rama)
+
+La home `/urbideas` (`src/app/urbideas/page.tsx`) seguía renderizando
+`PlatformHeader`; se cambió a `UrbideasHeader` (se conserva `PlatformFooter`).
+Verificado en ejecución: `/urbideas` no contiene ningún `href="/socideas"` de
+navegación de plataforma (1 solo, el del pie), frente a 3 en `/`; las 5 rutas
+del módulo muestran únicamente `UrbideasHeader` con 1 `<header>` por página.
+
 ## 6. Limitaciones y pasos futuros
 
 - Las páginas migradas heredan el título global (son client components sin

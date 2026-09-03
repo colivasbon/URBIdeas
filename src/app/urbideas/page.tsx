@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase-server";
-import PlatformHeader from "@/components/platform/PlatformHeader";
+import UrbideasHeader from "@/components/platform/UrbideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import HeroParallax from "@/components/ui/HeroParallax";
 
@@ -36,7 +36,7 @@ export default async function UrbideasHome() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <PlatformHeader />
+      <UrbideasHeader />
 
       <main className="flex-1">
         <HeroParallax>

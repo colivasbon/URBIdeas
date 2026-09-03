@@ -13,6 +13,7 @@ import type {
   SocideasMunicipio,
 } from './socideas'
 import { AMBITOS } from './socideas'
+import { readMunicipioJson } from './socideas-r2'
 
 export type PerfilResult =
   | { status: 'ok' | 'empty'; perfil: PerfilDemografico }
@@ -134,21 +135,20 @@ export async function getPerfilDemografico(
     filtros: DEFAULT_FILTROS,
   })
 
-  const { data: valores, error: valoresError } = await supabase
-    .from('municipal_indicator_values')
-    .select('*, indicator:indicator_definitions(slug, nombre, unidad), source:statistical_sources(slug, organismo, nombre)')
-    .eq('municipio_codigo_ine', codigoIne)
-    .eq('estado_validacion', 'validado')
-    .order('anio_referencia', { ascending: true })
-  if (valoresError) {
-    // Tablas aún no migradas (PGRST205/42P01): el municipio existe pero no hay perfil.
-    const code = (valoresError as { code?: string }).code
-    if (code === 'PGRST205' || code === '42P01') {
-      return { status: 'empty', perfil: perfilSinDatos() }
-    }
-    throw valoresError
+  // El grueso vive en R2 (un JSON por municipio); en Supabase solo quedan
+  // catálogo, territorio y runs. Sin objeto en R2 = sin perfil sincronizado.
+  // (La tabla municipal_indicator_values queda como legado sin escrituras.)
+  const envelope = await readMunicipioJson(codigoIne).catch(() => null)
+  const valoresRaw = (envelope?.valores ?? []) as unknown as IndicatorValue[]
+  if (valoresRaw.length === 0) {
+    return { status: 'empty', perfil: perfilSinDatos() }
   }
-  const values = ((valores ?? []) as unknown as IndicatorValue[]).map((v) => ({
+  const values = valoresRaw
+    .filter((v) => {
+      const st = (v as unknown as { estado_validacion?: string }).estado_validacion
+      return st === undefined || st === 'validado'
+    })
+    .map((v) => ({
     ...v,
     // PostgREST devuelve numeric como string: normalizar a número una sola
     // vez aquí para que tarjetas, gráficos, tablas y derivados calculen bien.

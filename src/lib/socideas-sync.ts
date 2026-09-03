@@ -16,6 +16,7 @@ import {
   resolveMunicipioValueId,
   resolveProvinciaValueId,
 } from './ine-tempus'
+import { R2_ENVELOPE_VERSION, putMunicipioJson } from './socideas-r2'
 
 const SYNC_TYPE = 'ine_demografico'
 // Sin límite de años por código: se trae la historia completa publicada.
@@ -31,37 +32,52 @@ export interface SyncSummary {
   anios: number[]
   pendientes: string[]
   run_id: string
+  r2_key: string | null
+}
+
+interface IndicatorMeta {
+  id: string
+  nombre: string
+  unidad: string | null
 }
 
 interface Catalog {
   sourceId: string
-  indicators: Map<string, string>
+  sourceMeta: { slug: string; organismo: string; nombre: string }
+  indicators: Map<string, IndicatorMeta>
 }
 
 async function getCatalog(supabase: SupabaseClient): Promise<Catalog> {
   const { data: source, error: sourceError } = await supabase
     .from('statistical_sources')
-    .select('id')
+    .select('id, slug, organismo, nombre')
     .eq('slug', 'ine_tempus3')
     .single()
   if (sourceError || !source) {
     throw new Error('Catálogo SOCideas no inicializado (falta fuente ine_tempus3)')
   }
+  const src = source as unknown as { id: string; slug: string; organismo: string; nombre: string }
   const { data: indicators, error: indicatorsError } = await supabase
     .from('indicator_definitions')
-    .select('id, slug')
+    .select('id, slug, nombre, unidad')
     .eq('activo', true)
   if (indicatorsError) throw indicatorsError
   return {
-    sourceId: (source as { id: string }).id,
-    indicators: new Map(((indicators ?? []) as { id: string; slug: string }[]).map((i) => [i.slug, i.id])),
+    sourceId: src.id,
+    sourceMeta: { slug: src.slug, organismo: src.organismo, nombre: src.nombre },
+    indicators: new Map(
+      ((indicators ?? []) as { id: string; slug: string; nombre: string; unidad: string | null }[]).map((i) => [
+        i.slug,
+        { id: i.id, nombre: i.nombre, unidad: i.unidad },
+      ]),
+    ),
   }
 }
 
 function requireIndicator(catalog: Catalog, slug: string): string {
-  const id = catalog.indicators.get(slug)
-  if (!id) throw new Error(`Indicador no definido en catálogo: ${slug}`)
-  return id
+  const meta = catalog.indicators.get(slug)
+  if (!meta) throw new Error(`Indicador no definido en catálogo: ${slug}`)
+  return meta.id
 }
 
 interface StoredRow {
@@ -79,25 +95,16 @@ interface StoredRow {
   estado_validacion: 'validado'
 }
 
-/** Reescritura idempotente: borra los valores previos del indicador y inserta. */
-async function replaceValues(
-  supabase: SupabaseClient,
-  municipioCodigoIne: string,
-  indicatorId: string,
-  sourceId: string,
-  rows: StoredRow[],
-): Promise<number> {
-  const { error: deleteError } = await supabase
-    .from('municipal_indicator_values')
-    .delete()
-    .eq('municipio_codigo_ine', municipioCodigoIne)
-    .eq('indicator_id', indicatorId)
-    .eq('source_id', sourceId)
-  if (deleteError) throw deleteError
-  if (rows.length === 0) return 0
-  const { error: insertError } = await supabase.from('municipal_indicator_values').insert(rows)
-  if (insertError) throw insertError
-  return rows.length
+/** Acumulador en memoria: el JSON de R2 se sobrescribe entero (idempotente). */
+function createStaging() {
+  const allRows: StoredRow[] = []
+  return {
+    allRows,
+    stage: (rows: StoredRow[]): number => {
+      allRows.push(...rows)
+      return rows.length
+    },
+  }
 }
 
 function janFirst(anio: number): string {
@@ -152,6 +159,7 @@ export async function syncMunicipioDemografico(
   const anios = new Set<number>()
   let estado: SyncSummary['estado'] = 'ok'
   const errorMessage: string | null = null
+  const { allRows, stage } = createStaging()
 
   const fail = async (message: string): Promise<never> => {
     await supabase
@@ -243,16 +251,13 @@ export async function syncMunicipioDemografico(
         estado_validacion: 'validado' as const,
       }))
 
-    actualizados += await replaceValues(
-      supabase, codigoIne, requireIndicator(catalog, 'population_male'), catalog.sourceId,
+    actualizados += stage(
       mkRows('population_male', [latestH], totals.seriesIds.hombres, { ambito: 'municipio', sexo: 'hombres' }),
     )
-    actualizados += await replaceValues(
-      supabase, codigoIne, requireIndicator(catalog, 'population_female'), catalog.sourceId,
+    actualizados += stage(
       mkRows('population_female', [latestM], totals.seriesIds.mujeres, { ambito: 'municipio', sexo: 'mujeres' }),
     )
-    actualizados += await replaceValues(
-      supabase, codigoIne, requireIndicator(catalog, 'population_evolution'), catalog.sourceId,
+    actualizados += stage(
       mkRows('population_evolution', totals.total, totals.seriesIds.total, { ambito: 'municipio' }),
     )
 
@@ -307,10 +312,9 @@ export async function syncMunicipioDemografico(
       }
     }
 
-    // Escritura única de population_total (municipio + comparativas).
-    actualizados += await replaceValues(
-      supabase, codigoIne, totalIndicatorId, catalog.sourceId, totalRows,
-    )
+    // Las filas de population_total (municipio + comparativas) se acumulan
+    // y se escriben una sola vez en el JSON de R2.
+    actualizados += stage(totalRows)
 
     // Derivados 5y/10y sobre la evolución municipal.
     const byYear = new Map(totals.total.map((p) => [p.anio, p.valor]))
@@ -323,8 +327,7 @@ export async function syncMunicipioDemografico(
     const change5y = change(5)
     const change10y = change(10)
     if (change5y !== null) {
-      actualizados += await replaceValues(
-        supabase, codigoIne, requireIndicator(catalog, 'population_change_5y'), catalog.sourceId,
+      actualizados += stage(
         [{
           municipio_codigo_ine: codigoIne,
           indicator_id: requireIndicator(catalog, 'population_change_5y'),
@@ -341,8 +344,7 @@ export async function syncMunicipioDemografico(
       )
     }
     if (change10y !== null) {
-      actualizados += await replaceValues(
-        supabase, codigoIne, requireIndicator(catalog, 'population_change_10y'), catalog.sourceId,
+      actualizados += stage(
         [{
           municipio_codigo_ine: codigoIne,
           indicator_id: requireIndicator(catalog, 'population_change_10y'),
@@ -395,9 +397,7 @@ export async function syncMunicipioDemografico(
           })
         }
       }
-      actualizados += await replaceValues(
-        supabase, codigoIne, requireIndicator(catalog, 'population_age_sex'), catalog.sourceId, ageRows,
-      )
+      actualizados += stage(ageRows)
     } catch (err) {
       conError += 1
       estado = 'partial'
@@ -409,20 +409,37 @@ export async function syncMunicipioDemografico(
     pendientes.push('Población extranjera y saldo migratorio: sin cobertura municipal verificada en Tempus3')
 
     // Cobertura real por indicador (min/max obtenidos, sin años fijados).
-    const { data: cobertura } = await supabase
-      .from('municipal_indicator_values')
-      .select('anio_referencia, indicator:indicator_definitions!inner(slug)')
-      .eq('municipio_codigo_ine', codigoIne)
-      .eq('estado_validacion', 'validado')
+    const slugPorId = new Map<string, string>()
+    for (const [slug, meta] of catalog.indicators) slugPorId.set(meta.id, slug)
     const porIndicador: Record<string, { desde: number | null; hasta: number | null }> = {}
-    for (const row of ((cobertura ?? []) as unknown as { anio_referencia: number | null; indicator: { slug: string } }[])) {
-      if (row.anio_referencia == null) continue
-      const s = row.indicator.slug
+    for (const row of allRows) {
+      const s = slugPorId.get(row.indicator_id) ?? row.indicator_id
       const cur = porIndicador[s] ?? { desde: row.anio_referencia, hasta: row.anio_referencia }
       cur.desde = Math.min(cur.desde ?? row.anio_referencia, row.anio_referencia)
       cur.hasta = Math.max(cur.hasta ?? row.anio_referencia, row.anio_referencia)
       porIndicador[s] = cur
     }
+
+    // Escritura única en R2 (sobrescribe el JSON: idempotente).
+    const valores = allRows.map((row) => {
+      const slug = slugPorId.get(row.indicator_id) ?? row.indicator_id
+      const meta = catalog.indicators.get(slug)
+      return {
+        ...row,
+        indicator: { slug, nombre: meta?.nombre ?? slug, unidad: meta?.unidad ?? row.unidad },
+        source: {
+          slug: catalog.sourceMeta.slug,
+          organismo: catalog.sourceMeta.organismo,
+          nombre: catalog.sourceMeta.nombre,
+        },
+      }
+    })
+    const r2Key = await putMunicipioJson(codigoIne, {
+      version: R2_ENVELOPE_VERSION,
+      codigo_ine: codigoIne,
+      generado_en: new Date().toISOString(),
+      valores,
+    })
 
     await supabase
       .from('data_sync_runs')
@@ -433,7 +450,7 @@ export async function syncMunicipioDemografico(
         registros_actualizados: actualizados,
         registros_con_error: conError,
         error_message: errorMessage,
-        metadata: { pendientes, anios: [...anios].sort(), por_indicador: porIndicador },
+        metadata: { pendientes, anios: [...anios].sort(), por_indicador: porIndicador, r2_key: r2Key },
       })
       .eq('id', runId)
 
@@ -446,6 +463,7 @@ export async function syncMunicipioDemografico(
       anios: [...anios].sort(),
       pendientes,
       run_id: runId,
+      r2_key: r2Key,
     }
   } catch (err) {
     conError += 1

@@ -1,4 +1,34 @@
-# SOCideas — Arquitectura de datos (Fase 2A)
+# SOCideas — Arquitectura de datos (Fase 2A.2: R2)
+
+## 0. Decisión de almacenamiento (2026-09-03)
+
+El plan free de Supabase topa en 500 MB y la tabla de valores ya ocupaba
+516 MB con solo el 13% de municipios (~5 GB proyectados). Sin pagar, el
+grueso se mudó a **Cloudflare R2** (gratis hasta 10 GB):
+
+| Capa | Dónde | Qué |
+|---|---|---|
+| Territorio base | Supabase `municipios` | 8.132 municipios (única fuente) |
+| Catálogo | Supabase `statistical_sources`, `indicator_definitions` | Fuentes e indicadores |
+| Auditoría | Supabase `data_sync_runs` | Cada sync, con `r2_key` en metadata |
+| **Grueso (historia completa)** | **R2 `socideas-data`, `socideas/v1/municipios/{ine}.json`** | ~150 KB/municipio, ~1,2 GB total |
+| Legado | Supabase `municipal_indicator_values` | **Sin escrituras; pendiente de TRUNCATE** |
+
+Lectura pública sin credenciales (URL `NEXT_PUBLIC_SOCIDEAS_R2_BASE`);
+escritura con credenciales S3 solo en servidor/scripts (`R2_*`).
+El JSON por municipio contiene las filas con `indicator`/`source` ya
+incrustados: la ficha aplica los mismos filtros y derivados sin cambios.
+
+## 0.1. Migración y carga masiva (2026-09-03)
+
+- Los 1.047 municipios sincronizados se exportaron a R2 con
+  `scripts/export-valores-to-r2.ts` (1047/1047, 0 fallos; Sevilla verificada:
+  total 689.423).
+- `TRUNCATE municipal_indicator_values` con autorización: tabla a 64 kB, BD
+  total a 26 MB (5% del free).
+- Carga restante con `scripts/sync-all-municipios.ts` (4 lotes por cuartos de
+  provincias, reanudable, pausa 2 s): ya escribe JSON a R2, Supabase apenas
+  crece (runs + catálogo).
 
 ## 1. Principio territorial
 

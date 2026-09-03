@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServer } from '@/lib/supabase-server'
+import { clasificarCapa } from '@/lib/familias'
 
 const RATE_LIMIT = 100
 
@@ -32,18 +33,52 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error
 
-    const seen = new Set<string>()
-    const deduped = (data || []).filter((capa: Record<string, unknown>) => {
-      const ca = capa.comunidad_autonoma as Record<string, unknown> | Record<string, unknown>[] | undefined
-      const caName = Array.isArray(ca) ? (ca[0] as Record<string, unknown>)?.nombre : (ca as Record<string, unknown>)?.nombre
-      const key = `${caName || ''}|${capa.nombre_capa}|${capa.url_servicio}`
-      if (seen.has(key)) return false
-      seen.add(key)
-      if (Array.isArray(ca)) {
-        capa.comunidad_autonoma = ca[0]
+    const FAMILIAS_VALIDAS = ['planeamiento', 'catastro', 'usos', 'patrimonio', 'inundacion', 'dominio', 'infra', 'medio', 'pecuarias']
+    const SEVERIDADES_VALIDAS = ['veto', 'condicionante', 'informativo']
+    const NORMA_DEFECTO = 'Fuente WMS (ver ficha de capa)'
+
+    // La BD manda: una fila con algún valor distinto del defecto (023/025 o
+    // corrección manual) se respeta íntegra. Una fila totalmente por defecto
+    // equivale a "sin clasificar" y la resuelve el clasificador (con overrides).
+    function conClasificacion(
+      capa: Record<string, unknown>,
+      persistida: { familia?: unknown; severidad?: unknown; norma_ref?: unknown },
+    ): Record<string, unknown> {
+      const fam = persistida.familia
+      const sev = persistida.severidad
+      const norma = persistida.norma_ref
+      const sinClasificar = fam === 'usos' && sev === 'informativo'
+        && (typeof norma !== 'string' || !norma || norma === NORMA_DEFECTO)
+      if (!sinClasificar
+        && typeof fam === 'string' && FAMILIAS_VALIDAS.includes(fam)
+        && typeof sev === 'string' && SEVERIDADES_VALIDAS.includes(sev)
+        && typeof norma === 'string' && norma) {
+        return { ...capa, familia: fam, severidad: sev, norma_ref: norma }
       }
-      return true
-    })
+      const cls = clasificarCapa({
+        nombre_capa: String(capa.nombre_capa || ''),
+        layer_title: (capa.layer_title as string) || null,
+        categoria: (capa.categoria as string) || null,
+      })
+      return { ...capa, familia: cls.familia, severidad: cls.severidad, norma_ref: cls.norma }
+    }
+
+    const seen = new Set<string>()
+    const deduped = (data || [])
+      .filter((capa: Record<string, unknown>) => {
+        const ca = capa.comunidad_autonoma as Record<string, unknown> | Record<string, unknown>[] | undefined
+        const caName = Array.isArray(ca) ? (ca[0] as Record<string, unknown>)?.nombre : (ca as Record<string, unknown>)?.nombre
+        const key = `${caName || ''}|${capa.nombre_capa}|${capa.url_servicio}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        if (Array.isArray(ca)) {
+          capa.comunidad_autonoma = ca[0]
+        }
+        return true
+      })
+      .map((capa: Record<string, unknown>) => conClasificacion(capa, {
+        familia: capa.familia, severidad: capa.severidad, norma_ref: capa.norma_ref,
+      }))
 
     let geoLayers: Record<string, unknown>[] = []
 
@@ -56,6 +91,9 @@ export async function GET(request: NextRequest) {
           layer_title,
           thematic_category,
           queryable,
+          familia,
+          severidad,
+          norma_ref,
           geo_services(
             service_name,
             url,
@@ -74,7 +112,7 @@ export async function GET(request: NextRequest) {
           })
           .map((layer: Record<string, unknown>) => {
             const service = layer.geo_services as Record<string, unknown>
-            return {
+            return conClasificacion({
               id: `geo-${layer.id}`,
               nombre_capa: layer.layer_name,
               url_servicio: service?.url || '',
@@ -89,7 +127,7 @@ export async function GET(request: NextRequest) {
               layer_title: layer.layer_title,
               queryable: layer.queryable,
               scope: service?.scope,
-            }
+            }, { familia: layer.familia, severidad: layer.severidad, norma_ref: layer.norma_ref })
           })
       }
     } catch {

@@ -46,9 +46,9 @@ export default async function Home() {
                     <span className="block mt-2 text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--color-secondary)]">Ideas Medioambientales</span>
                   </h1>
                   <p className="mt-6 max-w-xl mx-auto text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed">
-                    Centralización y consulta de información pública de planeamiento
-                    urbanístico: legislación, PGOU, instrumentos y capas WMS/WFS de
-                    todo el territorio nacional.
+                    Dictamen territorial de ámbito: dibuja o sube el recinto,
+                    cruza el suelo con sus afecciones y recibe un juicio
+                    compatible, condicionado o incompatible, listo para descargar.
                   </p>
                   <div className="mt-8 flex flex-wrap justify-center gap-4">
                     <Link
@@ -64,7 +64,7 @@ export default async function Home() {
                       href="/mapa"
                       className="inline-flex items-center gap-3 px-7 py-3.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] hover:border-[var(--color-text-muted)] hover:bg-[var(--color-input-bg-hover)] transition-all duration-300 active:scale-[0.97]"
                     >
-                      Explorar mapa
+                      Dictaminar un ámbito
                     </Link>
                   </div>
                   <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-[var(--color-text-muted)]">
@@ -126,7 +126,7 @@ export default async function Home() {
                 },
                 {
                   title: "Mapa",
-                  description: "Explora las capas WMS y visualiza el planeamiento sobre el mapa.",
+                  description: "Dibuja un ámbito, cruza sus afecciones, recibe el dictamen y descarga el expediente.",
                   href: "/mapa",
                   number: "02",
                 },

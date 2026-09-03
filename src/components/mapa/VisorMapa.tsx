@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { MapContainer, TileLayer, Popup, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
@@ -7,6 +7,9 @@ import { WmsTileLayer } from './WmsTileLayer'
 import { GetFeatureInfoPopup, type FeatureInfo } from './GetFeatureInfoPopup'
 import { FileGeoJsonLayer } from './FileGeoJsonLayer'
 import { SoilGeoJsonLayer } from './SoilGeoJsonLayer'
+import { DibujoAmbito, type ModoDibujo } from './DibujoAmbito'
+import { CapaAmbito } from './CapaAmbito'
+import { parseWmsResponse } from '@/lib/getfeatureinfo'
 import type { FileLayer } from './fileLayerUtils'
 import { getFileLayerBounds } from './fileLayerUtils'
 
@@ -30,6 +33,13 @@ interface VisorMapaProps {
   onBaseOpacityChange?: (opacity: number) => void
   zoomToLayerId?: string | null
   onZoomToDone?: () => void
+  modoDibujo?: ModoDibujo
+  ambitoGeoJSON?: GeoJSON.FeatureCollection | null
+  encuadrarAmbitoKey?: number
+  volarA?: { lat: number; lng: number; zoom?: number; key: number } | null
+  onDibujarPoligono?: (geojson: GeoJSON.FeatureCollection) => void
+  onDibujarPunto?: (lat: number, lng: number) => void
+  onDibujarLinea?: (geojson: GeoJSON.FeatureCollection) => void
 }
 
 const BASE_LAYERS: Record<string, { url: string; attribution: string; name: string }> = {
@@ -41,12 +51,12 @@ const BASE_LAYERS: Record<string, { url: string; attribution: string; name: stri
   pnoa: {
     url: 'https://www.ign.es/wmts/pnoa-ma?service=WMTS&request=GetTile&version=1.0.0&layer=OI.OrthoimageCoverage&style=default&tilematrixset=EPSG%3A3857&tilematrix={z}&tilecol={x}&tilerow={y}&format=image/jpeg',
     attribution: '&copy; <a href="https://www.ign.es/">IGN - PNOA</a>',
-    name: 'Satélite (PNOA)',
+    name: 'SatÃ©lite (PNOA)',
   },
   esri: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: '&copy; <a href="https://www.esri.com/">Esri</a> - World Imagery',
-    name: 'Satélite (Esri)',
+    name: 'SatÃ©lite (Esri)',
   },
   ignBase: {
     url: 'https://www.ign.es/wmts/ign-base?service=WMTS&request=GetTile&version=1.0.0&layer=IGNBaseTodo&style=default&tilematrixset=EPSG%3A3857&tilematrix={z}&tilecol={x}&tilerow={y}&format=image/jpeg',
@@ -155,87 +165,15 @@ function ZoomToLayer({
   return null
 }
 
-function parseWmsResponse(text: string, contentType: string): Record<string, string> {
-  const atributos: Record<string, string> = {}
-
-  if (contentType.includes('application/json')) {
-    try {
-      const json = JSON.parse(text)
-      if (json.features?.length > 0) {
-        return json.features[0].properties || {}
-      }
-    } catch { /* ignore */ }
-    return atributos
-  }
-
-  if (contentType.includes('text/html')) {
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(text, 'text/html')
-    const rows = doc.querySelectorAll('tr')
-    for (const row of rows) {
-      const cells = row.querySelectorAll('td')
-      if (cells.length >= 2) {
-        const key = cells[0].textContent?.trim() || ''
-        const val = cells[1].textContent?.trim() || ''
-        if (key) atributos[key] = val
-      }
-    }
-    if (Object.keys(atributos).length > 0) return atributos
-  }
-
-  if (contentType.includes('text/plain') || contentType.includes('text/xml') || contentType.includes('application/vnd.ogc.gml')) {
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(text, 'text/xml')
-
-    const featureMembers = doc.querySelectorAll('gml\\:featureMember, featureMember')
-    if (featureMembers.length > 0) {
-      for (const fm of featureMembers) {
-        const children = fm.children
-        if (children.length > 0) {
-          const attrs = children[0].children
-          for (const attr of attrs) {
-            const name = attr.localName || attr.tagName?.split(':').pop() || ''
-            const value = attr.textContent?.trim() || ''
-            if (name && value) atributos[name] = value
-          }
-          if (Object.keys(atributos).length > 0) return atributos
-        }
-      }
-    }
-
-    const ogcFeatures = doc.querySelectorAll('ogc\\:Feature, Feature')
-    for (const feat of ogcFeatures) {
-      const attrs = feat.querySelectorAll('Attribute')
-      for (const attr of attrs) {
-        const name = attr.getAttribute('name') || ''
-        const value = attr.textContent?.trim() || ''
-        if (name) atributos[name] = value
-      }
-      if (Object.keys(atributos).length > 0) return atributos
-    }
-
-    const plainAttrs = doc.querySelectorAll('[name]')
-    for (const el of plainAttrs) {
-      const name = el.getAttribute('name') || ''
-      const value = el.textContent?.trim() || ''
-      if (name && value && name !== 'name') atributos[name] = value
-    }
-    if (Object.keys(atributos).length > 0) return atributos
-  }
-
-  if (contentType.includes('text/plain') || (!contentType.includes('xml') && !contentType.includes('html') && !contentType.includes('json'))) {
-    const lines = text.split('\n')
-    for (const line of lines) {
-      const eqIdx = line.indexOf('=')
-      if (eqIdx > 0) {
-        const key = line.substring(0, eqIdx).trim()
-        const val = line.substring(eqIdx + 1).trim()
-        if (key && val) atributos[key] = val
-      }
-    }
-  }
-
-  return atributos
+function VolarA({ destino }: { destino: { lat: number; lng: number; zoom?: number; key: number } | null | undefined }) {
+  const map = useMap()
+  const ultimoKey = useRef(0)
+  useEffect(() => {
+    if (!destino || destino.key === ultimoKey.current) return
+    ultimoKey.current = destino.key
+    map.flyTo([destino.lat, destino.lng], destino.zoom ?? 14, { duration: 1.2 })
+  }, [map, destino])
+  return null
 }
 
 function FeatureInfoFetcher({
@@ -468,6 +406,13 @@ function VisorMapaInner({
   onBaseOpacityChange,
   zoomToLayerId = null,
   onZoomToDone,
+  modoDibujo = null,
+  ambitoGeoJSON = null,
+  encuadrarAmbitoKey = 0,
+  volarA = null,
+  onDibujarPoligono,
+  onDibujarPunto,
+  onDibujarLinea,
 }: VisorMapaProps) {
   const [featureInfo, setFeatureInfo] = useState<FeatureInfo[]>([])
   const [popupPos, setPopupPos] = useState<L.LatLng | null>(null)
@@ -526,6 +471,17 @@ function VisorMapaInner({
 
         <SoilGeoJsonLayer geojson={soilGeoJSON} />
 
+        <CapaAmbito geojson={ambitoGeoJSON} encuadrarKey={encuadrarAmbitoKey} />
+        <VolarA destino={volarA} />
+        {modoDibujo && (
+          <DibujoAmbito
+            modo={modoDibujo}
+            onPoligono={onDibujarPoligono || (() => {})}
+            onPunto={onDibujarPunto || (() => {})}
+            onLinea={onDibujarLinea || (() => {})}
+          />
+        )}
+
         <MapInitializer center={center} zoom={zoom} />
         <MapMoveReporter onMove={onMapMove || (() => {})} />
         <ZoomToLayer
@@ -534,10 +490,12 @@ function VisorMapaInner({
           onDone={onZoomToDone || (() => {})}
         />
 
-        <FeatureInfoFetcher
-          capasActivas={capasActivas}
-          onInfo={handleFeatureInfo}
-        />
+        {!modoDibujo && (
+          <FeatureInfoFetcher
+            capasActivas={capasActivas}
+            onInfo={handleFeatureInfo}
+          />
+        )}
 
         {popupPos && (
           <FeatureInfoPopup
@@ -566,7 +524,7 @@ function VisorMapaInner({
         }}
       >
         <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-secondary)]" />
-        Ideas Medioambientales — Registro Urbanístico España
+        Ideas Medioambientales â€” Registro UrbanÃ­stico EspaÃ±a
       </div>
     </div>
   )

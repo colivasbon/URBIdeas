@@ -1,40 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { consultarSIU } from '@/lib/siu'
 
-const SIU_ARCGIS_URL = 'https://mapas.fomento.gob.es/arcgis/rest/services/SIU/Planeamiento_Vigente/MapServer/1/query'
 const RATE_LIMIT = 100
-
-interface SIUFeature {
-  attributes: {
-    OBJECTID: number
-    ProvMunText: string
-    nombre: string
-    FiguraVigente: string
-    FechaFigura: number | null
-    observaciones: string
-    ComentarioVisor: string
-    textolink: string
-    UrlLink: string
-  }
-}
-
-async function fetchSIUData(where: string): Promise<SIUFeature[]> {
-  const params = new URLSearchParams({
-    where,
-    outFields: '*',
-    f: 'json',
-    resultRecordCount: '2000',
-    returnGeometry: 'false'
-  })
-
-  const response = await fetch(`${SIU_ARCGIS_URL}?${params.toString()}`)
-  
-  if (!response.ok) {
-    throw new Error(`Error fetching SIU data: ${response.status}`)
-  }
-
-  const data = await response.json()
-  return data.features || []
-}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -53,19 +20,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener datos del SIU
-    const features = await fetchSIUData(where)
-
-    // Mapear resultados
-    const data = features.map(f => ({
-      codigo_ine: f.attributes.ProvMunText,
-      nombre: f.attributes.nombre,
-      figura_vigente: f.attributes.FiguraVigente,
-      fecha_figura: f.attributes.FechaFigura,
-      observaciones: f.attributes.observaciones,
-      comentario_visor: f.attributes.ComentarioVisor,
-      texto_link: f.attributes.textolink,
-      url_link: f.attributes.UrlLink
-    }))
+    const data = await consultarSIU(where)
 
     // Si se solicita ámbito provincial, agrupar por provincia
     if (ambito === 'provincia' && data.length > 0) {

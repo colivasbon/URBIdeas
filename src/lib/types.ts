@@ -77,6 +77,9 @@ export interface CapaWMS {
   activo: boolean
   created_at: string
   categoria?: string
+  familia?: string
+  severidad?: 'veto' | 'condicionante' | 'informativo'
+  norma_ref?: string
   comunidad_autonoma?: ComunidadAutonoma
   layer_title?: string
 }

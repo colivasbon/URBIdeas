@@ -2,24 +2,48 @@
 
 import { useState } from "react";
 
-// Copia una tabla HTML al portapapeles en TSV (tabuladores): al pegar en
-// Word se convierte directamente en tabla con filas y columnas.
+// Copia una tabla en DOS formatos: text/html (tabla real que Word y Excel
+// convierten en tabla nativa con formato) y text/plain TSV como alternativa.
+// Solo con texto plano, Word pega líneas sueltas en vez de tabla.
 export default function CopyTableButton({ tableId, label }: { tableId: string; label: string }) {
   const [estado, setEstado] = useState<"idle" | "ok" | "error">("idle");
+
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   const copiar = async () => {
     try {
       const table = document.getElementById(tableId);
       if (!table) throw new Error("Tabla no encontrada");
-      const lines: string[] = [];
-      for (const row of table.querySelectorAll("tr")) {
-        const cells = [...row.querySelectorAll("th, td")].map((c) =>
-          (c.textContent ?? "").trim().replace(/\s+/g, " "),
-        );
-        lines.push(cells.join("\t"));
-      }
-      const tsv = lines.join("\n");
-      if (navigator.clipboard?.writeText) {
+      const rows = [...table.querySelectorAll("tr")];
+      const tsv = rows
+        .map((row) =>
+          [...row.querySelectorAll("th, td")]
+            .map((c) => (c.textContent ?? "").trim().replace(/\s+/g, " "))
+            .join("\t"),
+        )
+        .join("\n");
+      const html =
+        `<table border="1" cellpadding="4" cellspacing="0"><tbody>` +
+        rows
+          .map((row) => {
+            const tag = row.querySelector("th") ? "th" : "td";
+            const cells = [...row.querySelectorAll("th, td")]
+              .map((c) => `<${tag}>${esc((c.textContent ?? "").trim().replace(/\s+/g, " "))}</${tag}>`)
+              .join("");
+            return `<tr>${cells}</tr>`;
+          })
+          .join("") +
+        `</tbody></table>`;
+
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([html], { type: "text/html" }),
+            "text/plain": new Blob([tsv], { type: "text/plain" }),
+          }),
+        ]);
+      } else if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(tsv);
       } else {
         const ta = document.createElement("textarea");

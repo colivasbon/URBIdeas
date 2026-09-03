@@ -2,26 +2,30 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { getPerfilDemografico } from "@/lib/socideas-perfil";
+import type { FiltrosPerfil } from "@/lib/socideas-perfil";
 import PlatformHeader from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
-import StatCard from "@/components/socideas/StatCard";
-import EvolutionChart from "@/components/socideas/EvolutionChart";
-import PyramidChart from "@/components/socideas/PyramidChart";
-import Traceability from "@/components/socideas/Traceability";
-import CopyTableButton from "@/components/socideas/CopyTableButton";
-import type { PerfilDemografico } from "@/lib/socideas";
+import FichaFiltros from "@/components/socideas/FichaFiltros";
+import type { AmbitoTerritorial, PerfilDemografico } from "@/lib/socideas";
+import { AMBITOS } from "@/lib/socideas";
 
 export const dynamic = "force-dynamic";
+
+const AMBITOS_DEFECTO: AmbitoTerritorial[] = ["municipio", "provincia"];
 
 // Sin self-fetch HTTP: la ficha llama a la lógica de perfil directamente.
 // Un fetch a uno mismo puede fallar a nivel de red en serverless y tumbar
 // la página entera con un error de Server Components.
-async function getPerfil(codigoIne: string, refresh: boolean): Promise<PerfilDemografico | null> {
+async function getPerfil(
+  codigoIne: string,
+  filtros: FiltrosPerfil,
+  refresh: boolean,
+): Promise<PerfilDemografico | null> {
   try {
     const supabase = createSupabaseServer();
     // autoRefresh solo en el cuerpo de la página (no en metadatos): así una
     // misma visita no dispara dos sincronizaciones concurrentes.
-    const result = await getPerfilDemografico(supabase, codigoIne, { autoRefresh: refresh });
+    const result = await getPerfilDemografico(supabase, codigoIne, { ...filtros, autoRefresh: refresh });
     if (result.status === "ok" || result.status === "empty") return result.perfil;
     return null;
   } catch {
@@ -31,13 +35,51 @@ async function getPerfil(codigoIne: string, refresh: boolean): Promise<PerfilDem
   }
 }
 
+function parseAnio(v: string | undefined, lista: number[]): number | null {
+  if (!v || !/^\d{4}$/.test(v)) return null;
+  const n = parseInt(v, 10);
+  return lista.includes(n) ? n : null;
+}
+
+/** Filtros iniciales validados para la primera pintura en servidor. */
+async function filtrosIniciales(
+  codigoIne: string,
+  sp: Record<string, string | string[] | undefined>,
+): Promise<{ filtros: FiltrosPerfil; perfil: PerfilDemografico | null }> {
+  const primero = (v: string | string[] | undefined): string | undefined =>
+    Array.isArray(v) ? v[0] : v;
+  // Carga base sin filtros para conocer los años disponibles.
+  const base = await getPerfil(codigoIne, {}, false);
+  const d = base?.disponibles;
+  const filtros: FiltrosPerfil = { ambitos: [...AMBITOS_DEFECTO] };
+  if (d) {
+    const anio = parseAnio(primero(sp.anio), d.anios_municipio);
+    const desde = parseAnio(primero(sp.evo_desde), d.anios_evolucion);
+    const hasta = parseAnio(primero(sp.evo_hasta), d.anios_evolucion);
+    const pirAnio = parseAnio(primero(sp.pir_anio), d.piramide_anios);
+    if (anio !== null) filtros.anio = anio;
+    if (desde !== null && hasta !== null && desde <= hasta) {
+      filtros.desde = desde;
+      filtros.hasta = hasta;
+    }
+    if (pirAnio !== null) filtros.pirAnio = pirAnio;
+    const comparar = (primero(sp.comparar) ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s): s is AmbitoTerritorial => (AMBITOS as string[]).includes(s));
+    if (comparar.length > 0) filtros.ambitos = comparar;
+  }
+  const perfil = await getPerfil(codigoIne, filtros, true);
+  return { filtros, perfil };
+}
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ codigoINE: string }>;
 }): Promise<Metadata> {
   const { codigoINE } = await params;
-  const perfil = await getPerfil(codigoINE, false);
+  const perfil = await getPerfil(codigoINE, {}, false);
   const nombre = perfil?.municipio.nombre ?? codigoINE;
   return {
     title: `${nombre} | SOCideas`,
@@ -45,17 +87,16 @@ export async function generateMetadata({
   };
 }
 
-function fmt(n: number | null): string {
-  return n === null ? "—" : n.toLocaleString("es-ES");
-}
-
 export default async function SocideasFicha({
   params,
+  searchParams,
 }: {
   params: Promise<{ codigoINE: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { codigoINE } = await params;
-  const perfil = await getPerfil(codigoINE, true);
+  const sp = (await searchParams) ?? {};
+  const { perfil } = await filtrosIniciales(codigoINE, sp);
 
   if (!perfil) {
     return (
@@ -82,13 +123,60 @@ export default async function SocideasFicha({
       ? `/urbideas/mapa?lat=${municipio.centroide_lat.toFixed(4)}&lng=${municipio.centroide_lng.toFixed(4)}&zoom=12`
       : "/urbideas";
 
-  if (!perfil.sincronizado) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <PlatformHeader />
-        <main className="flex-1">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-            <FichaCabecera municipio={municipio} mapHref={mapHref} ultimaSincronizacion={null} />
+  // Objeto plano (serializable para el Client Component; URLSearchParams no lo es).
+  const spObj: Record<string, string> = {};
+  for (const [k, v] of Object.entries(sp)) {
+    if (typeof v === "string") spObj[k] = v;
+    else if (Array.isArray(v) && v[0] !== undefined) spObj[k] = v[0];
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <PlatformHeader />
+      <main className="flex-1">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+          <section className="mb-8 border-b border-[var(--color-border-subtle)] pb-8">
+            <nav aria-label="Migas de pan" className="mb-3 text-xs text-[var(--color-text-muted)]">
+              <Link href="/socideas" className="hover:text-[var(--color-secondary)]">
+                SOCideas
+              </Link>
+              <span className="mx-1.5">/</span>
+              <span className="text-[var(--color-text-secondary)]">{municipio.nombre}</span>
+            </nav>
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
+              {municipio.nombre}
+            </h1>
+            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+              {municipio.provincia} · {municipio.comunidad_autonoma} · Código INE {municipio.codigo_ine}
+            </p>
+            {perfil.ultima_sincronizacion && (
+              <p className="mt-2 inline-flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--color-secondary)]" />
+                Datos oficiales actualizados el{" "}
+                {new Date(perfil.ultima_sincronizacion).toLocaleDateString("es-ES", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link
+                href="/socideas"
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)]"
+              >
+                ← Volver a SOCideas
+              </Link>
+              <Link
+                href={mapHref}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)]"
+              >
+                Abrir en URBideas →
+              </Link>
+            </div>
+          </section>
+
+          {!perfil.sincronizado ? (
             <div className="rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-6 text-center">
               <p className="text-base font-semibold text-[var(--color-text-primary)]">
                 Preparando datos oficiales
@@ -102,292 +190,12 @@ export default async function SocideasFicha({
                 Volver al buscador
               </Link>
             </div>
-          </div>
-        </main>
-        <PlatformFooter />
-      </div>
-    );
-  }
-
-  const refAnio = perfil.total?.anio_referencia ?? null;
-  const fuenteNombre =
-    (perfil.total?.source as unknown as { organismo?: string } | undefined)?.organismo ??
-    "Instituto Nacional de Estadística";
-
-  return (
-    <div className="flex min-h-screen flex-col">
-      <PlatformHeader />
-      <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-          <FichaCabecera municipio={municipio} mapHref={mapHref} ultimaSincronizacion={perfil.ultima_sincronizacion} />
-
-          {/* Bloque 1: población actual */}
-          <section aria-label="Población actual" className="mb-10">
-            <h2 className="text-lg font-bold text-[var(--color-text-primary)] mb-4">Población actual</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                etiqueta="Población total"
-                valor={fmt(perfil.total?.valor_numerico ?? null)}
-                detalle={`${fuenteNombre} · ${refAnio ?? "—"}`}
-              />
-              <StatCard
-                etiqueta="Hombres"
-                valor={fmt(perfil.hombres?.valor_numerico ?? null)}
-                detalle={`${fuenteNombre} · ${perfil.hombres?.anio_referencia ?? "—"}`}
-              />
-              <StatCard
-                etiqueta="Mujeres"
-                valor={fmt(perfil.mujeres?.valor_numerico ?? null)}
-                detalle={`${fuenteNombre} · ${perfil.mujeres?.anio_referencia ?? "—"}`}
-              />
-              <StatCard
-                etiqueta="Variación 10 años"
-                valor={
-                  perfil.derivados.cambio_10y !== null
-                    ? `${perfil.derivados.cambio_10y > 0 ? "+" : ""}${perfil.derivados.cambio_10y.toLocaleString("es-ES")} %`
-                    : "—"
-                }
-                detalle="Cálculo propio sobre serie oficial"
-              />
-            </div>
-          </section>
-
-          {/* Bloque 2: evolución */}
-          <section aria-label="Evolución demográfica" className="mb-10 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Evolución demográfica</h2>
-            <div className="mt-4">
-              <EvolutionChart
-                id={`evo-${municipio.codigo_ine}`}
-                puntos={perfil.evolucion
-                  .filter((v) => v.valor_numerico !== null)
-                  .map((v) => ({ anio: v.anio_referencia ?? 0, valor: v.valor_numerico as number }))}
-              />
-            </div>
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <StatCard
-                etiqueta="Variación 5 años"
-                valor={
-                  perfil.derivados.cambio_5y !== null
-                    ? `${perfil.derivados.cambio_5y > 0 ? "+" : ""}${perfil.derivados.cambio_5y.toLocaleString("es-ES")} %`
-                    : "Sin datos suficientes"
-                }
-              />
-              <StatCard
-                etiqueta="Variación 10 años"
-                valor={
-                  perfil.derivados.cambio_10y !== null
-                    ? `${perfil.derivados.cambio_10y > 0 ? "+" : ""}${perfil.derivados.cambio_10y.toLocaleString("es-ES")} %`
-                    : "Sin datos suficientes"
-                }
-              />
-              <StatCard
-                etiqueta="Comparativa"
-                valor={comparativaTexto(perfil)}
-                detalle="Último año disponible por ámbito"
-              />
-            </div>
-            <div className="mt-6 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
-                Tabla anual por ámbito
-              </h3>
-              <CopyTableButton tableId={`tabla-evo-${municipio.codigo_ine}`} label="Copiar tabla para Word" />
-            </div>
-            <div className="mt-3 overflow-x-auto">
-              <table id={`tabla-evo-${municipio.codigo_ine}`} className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                    <th className="py-2 pr-4">Año</th>
-                    <th className="py-2 pr-4 text-right">Municipio</th>
-                    <th className="py-2 pr-4 text-right">Provincia</th>
-                    <th className="py-2 pr-4 text-right">CCAA</th>
-                    <th className="py-2 text-right">España</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tablaComparada(perfil).map((row) => (
-                    <tr key={row.anio} className="border-t border-[var(--color-border-subtle)] tabular-nums">
-                      <td className="py-2 pr-4">{row.anio}</td>
-                      <td className="py-2 pr-4 text-right">{fmt(row.municipio)}</td>
-                      <td className="py-2 pr-4 text-right">{fmt(row.provincia)}</td>
-                      <td className="py-2 pr-4 text-right">{fmt(row.ccaa)}</td>
-                      <td className="py-2 text-right">{fmt(row.espana)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Bloque 3: edad y sexo */}
-          <section aria-label="Población por edad y sexo" className="mb-10 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
-              Población por edad y sexo{perfil.piramide.anio ? ` (${perfil.piramide.anio})` : ""}
-            </h2>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              Padrón Continuo (INE). El año de referencia puede diferir del de población total.
-            </p>
-            <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <PyramidChart grupos={perfil.piramide.grupos} anio={perfil.piramide.anio} />
-              <div className="flex flex-col gap-4">
-                <StatCard
-                  etiqueta="Índice de envejecimiento"
-                  valor={
-                    perfil.derivados.indice_envejecimiento !== null
-                      ? `${perfil.derivados.indice_envejecimiento.toLocaleString("es-ES")} %`
-                      : "—"
-                  }
-                  detalle="Población 65+ / 0-14 × 100"
-                />
-                <StatCard
-                  etiqueta="Índice de dependencia"
-                  valor={
-                    perfil.derivados.indice_dependencia !== null
-                      ? `${perfil.derivados.indice_dependencia.toLocaleString("es-ES")} %`
-                      : "—"
-                  }
-                  detalle="(0-14 + 65+) / 15-64 × 100"
-                />
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
-                    Tabla por grupos de edad
-                  </h3>
-                  <CopyTableButton tableId={`tabla-pir-${municipio.codigo_ine}`} label="Copiar tabla para Word" />
-                </div>
-                <div className="mt-3 overflow-x-auto">
-                  <table id={`tabla-pir-${municipio.codigo_ine}`} className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                        <th className="py-2 pr-4">Edad</th>
-                        <th className="py-2 pr-4 text-right">Hombres</th>
-                        <th className="py-2 text-right">Mujeres</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {perfil.piramide.grupos.map((g) => (
-                        <tr key={g.tramo} className="border-t border-[var(--color-border-subtle)] tabular-nums">
-                          <td className="py-2 pr-4">{g.tramo}</td>
-                          <td className="py-2 pr-4 text-right">{fmt(g.hombres)}</td>
-                          <td className="py-2 text-right">{fmt(g.mujeres)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Bloque 4: densidad */}
-          <section aria-label="Densidad y lectura territorial" className="mb-10 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Densidad y lectura territorial</h2>
-            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-              {perfil.densidad.valor !== null
-                ? `${perfil.densidad.valor.toLocaleString("es-ES")} hab/km²`
-                : perfil.densidad.pendiente ?? "Pendiente de integración de fuente de superficie"}
-            </p>
-          </section>
-
-          <Traceability
-            valores={perfil.valores}
-            pendientes={[
-              "Densidad: pendiente de integración de fuente de superficie.",
-              "Población extranjera y saldo migratorio: sin cobertura municipal verificada en Tempus3.",
-            ]}
-          />
+          ) : (
+            <FichaFiltros codigoINE={municipio.codigo_ine} initial={perfil} searchParams={spObj} />
+          )}
         </div>
       </main>
       <PlatformFooter />
     </div>
   );
-}
-
-function FichaCabecera({
-  municipio,
-  mapHref,
-  ultimaSincronizacion,
-}: {
-  municipio: PerfilDemografico["municipio"];
-  mapHref: string;
-  ultimaSincronizacion: string | null;
-}) {
-  return (
-    <section className="mb-8 border-b border-[var(--color-border-subtle)] pb-8">
-      <nav aria-label="Migas de pan" className="mb-3 text-xs text-[var(--color-text-muted)]">
-        <Link href="/socideas" className="hover:text-[var(--color-secondary)]">
-          SOCideas
-        </Link>
-        <span className="mx-1.5">/</span>
-        <span className="text-[var(--color-text-secondary)]">{municipio.nombre}</span>
-      </nav>
-      <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
-        {municipio.nombre}
-      </h1>
-      <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-        {municipio.provincia} · {municipio.comunidad_autonoma} · Código INE {municipio.codigo_ine}
-      </p>
-      <Frescura ultima={ultimaSincronizacion} />
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Link
-          href="/socideas"
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)]"
-        >
-          ← Volver a SOCideas
-        </Link>
-        <Link
-          href={mapHref}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)]"
-        >
-          Abrir en URBideas →
-        </Link>
-      </div>
-    </section>
-  );
-}
-
-function Frescura({ ultima }: { ultima: string | null }) {
-  if (!ultima) return null;
-  const fecha = new Date(ultima).toLocaleDateString("es-ES", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-  return (
-    <p className="mt-2 inline-flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--color-secondary)]" />
-      Datos oficiales actualizados el {fecha} · revisión automática si caducan
-    </p>
-  );
-}
-
-function tablaComparada(perfil: PerfilDemografico) {
-  const get = (list: PerfilDemografico["evolucion"]) => {
-    const m = new Map<number, number | null>();
-    for (const v of list) m.set(v.anio_referencia ?? 0, v.valor_numerico);
-    return m;
-  };
-  const muni = get(perfil.evolucion);
-  const prov = get(perfil.comparativas.provincia);
-  const ccaa = get(perfil.comparativas.ccaa);
-  const esp = get(perfil.comparativas.espana);
-  const anios = [...new Set([...muni.keys(), ...prov.keys(), ...ccaa.keys(), ...esp.keys()])].sort((a, b) => a - b);
-  return anios.map((anio) => ({
-    anio,
-    municipio: muni.get(anio) ?? null,
-    provincia: prov.get(anio) ?? null,
-    ccaa: ccaa.get(anio) ?? null,
-    espana: esp.get(anio) ?? null,
-  }));
-}
-
-function comparativaTexto(perfil: PerfilDemografico): string {
-  const last = (list: PerfilDemografico["evolucion"]) =>
-    list.length > 0 ? (list[list.length - 1].valor_numerico ?? null) : null;
-  const parts: string[] = [];
-  const p = last(perfil.comparativas.provincia);
-  const c = last(perfil.comparativas.ccaa);
-  const e = last(perfil.comparativas.espana);
-  if (p !== null) parts.push(`Prov. ${fmt(p)}`);
-  if (c !== null) parts.push(`CCAA ${fmt(c)}`);
-  if (e !== null) parts.push(`Esp. ${fmt(e)}`);
-  return parts.length > 0 ? parts.join(" · ") : "Sin comparativas";
 }

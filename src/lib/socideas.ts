@@ -83,6 +83,31 @@ export interface AgeSexGroup {
   mujeres: number
 }
 
+export type AmbitoTerritorial = 'municipio' | 'provincia' | 'ccaa' | 'espana'
+
+export const AMBITOS: AmbitoTerritorial[] = ['municipio', 'provincia', 'ccaa', 'espana']
+
+export interface Disponibles {
+  /** Años con total+H+M municipal (selector de Población actual). */
+  anios_municipio: number[]
+  /** Años de la serie de evolución municipal. */
+  anios_evolucion: number[]
+  /** Años con pirámide completa por edad y sexo. */
+  piramide_anios: number[]
+  /** Rango real por ámbito (population_total). */
+  ambitos: Record<AmbitoTerritorial, { desde: number | null; hasta: number | null; puntos: number }>
+  /** Último año por slug de indicador. */
+  ultimo_por_indicador: Record<string, number | null>
+}
+
+export interface FiltrosAplicados {
+  anio: number | null
+  desde: number | null
+  hasta: number | null
+  ambitos: AmbitoTerritorial[]
+  pir_anio: number | null
+}
+
 export interface PerfilDemografico {
   municipio: SocideasMunicipio
   sincronizado: boolean
@@ -105,6 +130,8 @@ export interface PerfilDemografico {
   }
   densidad: { valor: number | null; pendiente: string | null }
   valores: IndicatorValue[]
+  disponibles: Disponibles
+  filtros: FiltrosAplicados
 }
 
 // Slugs de indicadores de Fase 2A (ver 028_socideas_catalog_seed.sql).

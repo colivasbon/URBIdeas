@@ -18,7 +18,8 @@ import {
 } from './ine-tempus'
 
 const SYNC_TYPE = 'ine_demografico'
-const EVOLUTION_NULT = 12 // 10 años + margen para derivados 5y/10y
+// Sin límite de años por código: se trae la historia completa publicada.
+// El volumen por municipio sigue siendo pequeño (filtros tv= por municipio).
 const LOCK_MINUTES = 30
 
 export interface SyncSummary {
@@ -195,7 +196,7 @@ export async function syncMunicipioDemografico(
 
     // 1. Totales + sexo + evolución (DPOP provincial).
     const { valueId } = await resolveMunicipioValueId(dpopTableId, codigoIne)
-    const totals = await fetchMunicipioTotals(dpopTableId, valueId, codigoIne, EVOLUTION_NULT)
+    const totals = await fetchMunicipioTotals(dpopTableId, valueId, codigoIne)
     leidos += totals.total.length + totals.hombres.length + totals.mujeres.length
     totals.total.forEach((p) => anios.add(p.anio))
 
@@ -257,7 +258,7 @@ export async function syncMunicipioDemografico(
 
     // Comparativas provincia / CCAA / España (serie total anual).
     const provValueId = await resolveProvinciaValueId(dpopTableId, provCode)
-    const provSerie = await fetchAmbitoTotal(dpopTableId, 115, provValueId, muni.provincia.nombre, 'provincia', EVOLUTION_NULT)
+    const provSerie = await fetchAmbitoTotal(dpopTableId, 115, provValueId, muni.provincia.nombre, 'provincia')
     leidos += provSerie.puntos.length
     provSerie.puntos.forEach((p) => anios.add(p.anio))
     for (const p of provSerie.puntos) {
@@ -282,8 +283,8 @@ export async function syncMunicipioDemografico(
       pendientes.push(`Comparativa CCAA (${ccaaNombre}): valor INE no mapeado`)
       estado = 'partial'
     } else {
-      const ccaaSerie = await fetchAmbitoTotal(CCAA_TABLE_ID, 70, ccaaValueId, ccaaNombre, 'ccaa', EVOLUTION_NULT)
-      const espSerie = await fetchAmbitoTotal(CCAA_TABLE_ID, 70, CCAA_NACIONAL_VALUE_ID, 'España', 'espana', EVOLUTION_NULT)
+      const ccaaSerie = await fetchAmbitoTotal(CCAA_TABLE_ID, 70, ccaaValueId, ccaaNombre, 'ccaa')
+      const espSerie = await fetchAmbitoTotal(CCAA_TABLE_ID, 70, CCAA_NACIONAL_VALUE_ID, 'España', 'espana')
       leidos += ccaaSerie.puntos.length + espSerie.puntos.length
       for (const s of [ccaaSerie, espSerie]) {
         s.puntos.forEach((p) => anios.add(p.anio))
@@ -358,39 +359,41 @@ export async function syncMunicipioDemografico(
       )
     }
 
-    // 2. Pirámide edad/sexo (tabla nacional 33570, último año disponible).
+    // 2. Pirámide edad/sexo (tabla nacional 33570): todos los años completos.
     try {
       const age = await fetchAgeSex(AGE_TABLE_ID, valueId, codigoIne)
       leidos += age.seriesCount
-      age.grupos.forEach(() => anios.add(age.anio))
       const ageRows: StoredRow[] = []
-      for (const g of age.grupos) {
-        ageRows.push({
-          municipio_codigo_ine: codigoIne,
-          indicator_id: requireIndicator(catalog, 'population_age_sex'),
-          anio_referencia: age.anio,
-          fecha_referencia: janFirst(age.anio),
-          valor_numerico: g.hombres,
-          unidad: 'personas',
-          dimensiones: { ambito: 'municipio', sexo: 'hombres', tramo_edad: g.tramo },
-          source_id: catalog.sourceId,
-          source_url: age.sourceUrl,
-          source_table_id: String(AGE_TABLE_ID),
-          estado_validacion: 'validado',
-        })
-        ageRows.push({
-          municipio_codigo_ine: codigoIne,
-          indicator_id: requireIndicator(catalog, 'population_age_sex'),
-          anio_referencia: age.anio,
-          fecha_referencia: janFirst(age.anio),
-          valor_numerico: g.mujeres,
-          unidad: 'personas',
-          dimensiones: { ambito: 'municipio', sexo: 'mujeres', tramo_edad: g.tramo },
-          source_id: catalog.sourceId,
-          source_url: age.sourceUrl,
-          source_table_id: String(AGE_TABLE_ID),
-          estado_validacion: 'validado',
-        })
+      for (const y of age.anios) {
+        anios.add(y.anio)
+        for (const g of y.grupos) {
+          ageRows.push({
+            municipio_codigo_ine: codigoIne,
+            indicator_id: requireIndicator(catalog, 'population_age_sex'),
+            anio_referencia: y.anio,
+            fecha_referencia: janFirst(y.anio),
+            valor_numerico: g.hombres,
+            unidad: 'personas',
+            dimensiones: { ambito: 'municipio', sexo: 'hombres', tramo_edad: g.tramo },
+            source_id: catalog.sourceId,
+            source_url: age.sourceUrl,
+            source_table_id: String(AGE_TABLE_ID),
+            estado_validacion: 'validado',
+          })
+          ageRows.push({
+            municipio_codigo_ine: codigoIne,
+            indicator_id: requireIndicator(catalog, 'population_age_sex'),
+            anio_referencia: y.anio,
+            fecha_referencia: janFirst(y.anio),
+            valor_numerico: g.mujeres,
+            unidad: 'personas',
+            dimensiones: { ambito: 'municipio', sexo: 'mujeres', tramo_edad: g.tramo },
+            source_id: catalog.sourceId,
+            source_url: age.sourceUrl,
+            source_table_id: String(AGE_TABLE_ID),
+            estado_validacion: 'validado',
+          })
+        }
       }
       actualizados += await replaceValues(
         supabase, codigoIne, requireIndicator(catalog, 'population_age_sex'), catalog.sourceId, ageRows,
@@ -405,6 +408,22 @@ export async function syncMunicipioDemografico(
     pendientes.push('Densidad: pendiente de integración de fuente de superficie')
     pendientes.push('Población extranjera y saldo migratorio: sin cobertura municipal verificada en Tempus3')
 
+    // Cobertura real por indicador (min/max obtenidos, sin años fijados).
+    const { data: cobertura } = await supabase
+      .from('municipal_indicator_values')
+      .select('anio_referencia, indicator:indicator_definitions!inner(slug)')
+      .eq('municipio_codigo_ine', codigoIne)
+      .eq('estado_validacion', 'validado')
+    const porIndicador: Record<string, { desde: number | null; hasta: number | null }> = {}
+    for (const row of ((cobertura ?? []) as unknown as { anio_referencia: number | null; indicator: { slug: string } }[])) {
+      if (row.anio_referencia == null) continue
+      const s = row.indicator.slug
+      const cur = porIndicador[s] ?? { desde: row.anio_referencia, hasta: row.anio_referencia }
+      cur.desde = Math.min(cur.desde ?? row.anio_referencia, row.anio_referencia)
+      cur.hasta = Math.max(cur.hasta ?? row.anio_referencia, row.anio_referencia)
+      porIndicador[s] = cur
+    }
+
     await supabase
       .from('data_sync_runs')
       .update({
@@ -414,7 +433,7 @@ export async function syncMunicipioDemografico(
         registros_actualizados: actualizados,
         registros_con_error: conError,
         error_message: errorMessage,
-        metadata: { pendientes, anios: [...anios].sort() },
+        metadata: { pendientes, anios: [...anios].sort(), por_indicador: porIndicador },
       })
       .eq('id', runId)
 

@@ -5,10 +5,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type {
   AgeSexGroup,
+  AmbitoTerritorial,
+  Disponibles,
+  FiltrosAplicados,
   IndicatorValue,
   PerfilDemografico,
   SocideasMunicipio,
 } from './socideas'
+import { AMBITOS } from './socideas'
 
 export type PerfilResult =
   | { status: 'ok' | 'empty'; perfil: PerfilDemografico }
@@ -23,21 +27,46 @@ function isMunicipioAmbito(v: IndicatorValue): boolean {
   return (v.dimensiones?.ambito ?? 'municipio') === 'municipio'
 }
 
-function pickLatest(values: IndicatorValue[], slug: string): IndicatorValue | null {
-  const list = values.filter(
-    (v) =>
-      (v.indicator as unknown as { slug?: string } | undefined)?.slug === slug &&
-      isMunicipioAmbito(v) &&
-      v.valor_numerico !== null,
-  )
-  list.sort((a, b) => (b.anio_referencia ?? 0) - (a.anio_referencia ?? 0))
-  return list[0] ?? null
+export interface FiltrosPerfil {
+  autoRefresh?: boolean
+  /** Año de referencia para Población actual (total/H/M). */
+  anio?: number
+  /** Rango de la evolución y comparativas. */
+  desde?: number
+  hasta?: number
+  /** Ámbitos de comparativa (por defecto, los cuatro). */
+  ambitos?: AmbitoTerritorial[]
+  /** Año de la pirámide (por defecto, el último con datos completos). */
+  pirAnio?: number
+  /** Slugs de indicadores a incluir (por defecto, todos). */
+  indicadores?: string[]
+}
+
+const DEFAULT_FILTROS: FiltrosAplicados = {
+  anio: null,
+  desde: null,
+  hasta: null,
+  ambitos: [...AMBITOS],
+  pir_anio: null,
+}
+
+const DISPONIBLES_VACIOS: Disponibles = {
+  anios_municipio: [],
+  anios_evolucion: [],
+  piramide_anios: [],
+  ambitos: {
+    municipio: { desde: null, hasta: null, puntos: 0 },
+    provincia: { desde: null, hasta: null, puntos: 0 },
+    ccaa: { desde: null, hasta: null, puntos: 0 },
+    espana: { desde: null, hasta: null, puntos: 0 },
+  },
+  ultimo_por_indicador: {},
 }
 
 export async function getPerfilDemografico(
   supabase: SupabaseClient,
   codigoIneRaw: string,
-  opts?: { autoRefresh?: boolean },
+  opts?: FiltrosPerfil,
 ): Promise<PerfilResult> {
   const codigoIne = (codigoIneRaw ?? '').trim()
   if (!/^\d{5}$/.test(codigoIne)) {
@@ -101,6 +130,8 @@ export async function getPerfilDemografico(
     derivados: { cambio_5y: null, cambio_10y: null, indice_envejecimiento: null, indice_dependencia: null },
     densidad: { valor: null, pendiente: 'Pendiente de integración de fuente de superficie' },
     valores: [],
+    disponibles: DISPONIBLES_VACIOS,
+    filtros: DEFAULT_FILTROS,
   })
 
   const { data: valores, error: valoresError } = await supabase
@@ -140,6 +171,54 @@ export async function getPerfilDemografico(
     .limit(1)
     .maybeSingle()
 
+  const slugOf = (v: IndicatorValue): string =>
+    (v.indicator as unknown as { slug?: string } | undefined)?.slug ?? ''
+
+  // Años y ámbitos REALMENTE disponibles (de lo almacenado, sin inventar).
+  const yearsOf = (list: IndicatorValue[]): number[] =>
+    [...new Set(list.map((v) => v.anio_referencia ?? 0).filter((a) => a > 0))].sort((a, b) => a - b)
+  const municipalTotals = values.filter((v) => slugOf(v) === 'population_total' && isMunicipioAmbito(v))
+  const muniByYear = new Map<number, IndicatorValue[]>()
+  for (const v of values.filter((v) => isMunicipioAmbito(v) && v.valor_numerico !== null)) {
+    const arr = muniByYear.get(v.anio_referencia ?? 0) ?? []
+    arr.push(v)
+    muniByYear.set(v.anio_referencia ?? 0, arr)
+  }
+  const aniosMunicipio = yearsOf(municipalTotals).filter((a) => {
+    const slugs = new Set((muniByYear.get(a) ?? []).map(slugOf))
+    return slugs.has('population_total') && slugs.has('population_male') && slugs.has('population_female')
+  })
+  const evoAll = values
+    .filter((v) => slugOf(v) === 'population_evolution' && isMunicipioAmbito(v) && v.valor_numerico !== null)
+    .sort((a, b) => (a.anio_referencia ?? 0) - (b.anio_referencia ?? 0))
+  const aniosEvolucion = yearsOf(evoAll)
+  const ageAll = values.filter((v) => slugOf(v) === 'population_age_sex' && v.valor_numerico !== null)
+  const piramideAnios = yearsOf(ageAll)
+  const ambitoRange = (ambito: AmbitoTerritorial) => {
+    const ys = yearsOf(
+      values.filter((v) => slugOf(v) === 'population_total' && v.dimensiones?.ambito === ambito && v.valor_numerico !== null),
+    )
+    return { desde: ys.length > 0 ? ys[0] : null, hasta: ys.length > 0 ? ys[ys.length - 1] : null, puntos: ys.length }
+  }
+  const ultimoPorIndicador: Record<string, number | null> = {}
+  for (const v of values) {
+    const s = slugOf(v)
+    if (!s || v.anio_referencia == null) continue
+    ultimoPorIndicador[s] = Math.max(ultimoPorIndicador[s] ?? 0, v.anio_referencia)
+  }
+  const disponibles: Disponibles = {
+    anios_municipio: aniosMunicipio,
+    anios_evolucion: aniosEvolucion,
+    piramide_anios: piramideAnios,
+    ambitos: {
+      municipio: ambitoRange('municipio'),
+      provincia: ambitoRange('provincia'),
+      ccaa: ambitoRange('ccaa'),
+      espana: ambitoRange('espana'),
+    },
+    ultimo_por_indicador: ultimoPorIndicador,
+  }
+
   if (values.length === 0) {
     return { status: 'empty', perfil: perfilSinDatos() }
   }
@@ -156,20 +235,54 @@ export async function getPerfilDemografico(
     try {
       const { syncMunicipioDemografico } = await import('./socideas-sync')
       await syncMunicipioDemografico(supabase, codigoIne)
-      return getPerfilDemografico(supabase, codigoIne)
+      return getPerfilDemografico(supabase, codigoIne, { ...opts, autoRefresh: false })
     } catch {
       // Degradación: servir la caché aunque esté caducada.
     }
   }
 
-  const bySlug = (slug: string) =>
-    values.filter(
-      (v) => (v.indicator as unknown as { slug?: string } | undefined)?.slug === slug,
+  // Filtros efectivos: todo lo inválido se ignora (defaults).
+  const inRange = (a: number, lo: number | undefined, hi: number | undefined) =>
+    (lo === undefined || a >= lo) && (hi === undefined || a <= hi)
+  let desde = opts?.desde
+  let hasta = opts?.hasta
+  if (desde !== undefined && !aniosEvolucion.includes(desde)) desde = undefined
+  if (hasta !== undefined && !aniosEvolucion.includes(hasta)) hasta = undefined
+  if (desde !== undefined && hasta !== undefined && desde > hasta) {
+    desde = undefined
+    hasta = undefined
+  }
+  const ambitos = (opts?.ambitos ?? [...AMBITOS]).filter((a): a is AmbitoTerritorial =>
+    (AMBITOS as string[]).includes(a),
+  )
+  const ambitosEff = ambitos.length > 0 ? ambitos : [...AMBITOS]
+  const anioEff =
+    opts?.anio !== undefined && aniosMunicipio.includes(opts.anio) ? opts.anio : null
+  const pirAnioEff =
+    opts?.pirAnio !== undefined && piramideAnios.includes(opts.pirAnio)
+      ? opts.pirAnio
+      : (piramideAnios.length > 0 ? piramideAnios[piramideAnios.length - 1] : null)
+  const indicadoresEff =
+    opts?.indicadores && opts.indicadores.length > 0
+      ? new Set(opts.indicadores)
+      : null
+  const fValues = indicadoresEff
+    ? values.filter((v) => indicadoresEff.has(slugOf(v)))
+    : values
+  const bySlug = (slug: string) => fValues.filter((v) => slugOf(v) === slug)
+  const latestIn = (anio: number | null, slug: string): IndicatorValue | null => {
+    const list = bySlug(slug).filter(
+      (v) => isMunicipioAmbito(v) && v.valor_numerico !== null && (anio === null || v.anio_referencia === anio),
     )
-  const total = pickLatest(values, 'population_total')
-  const evolucion = bySlug('population_evolution')
-    .filter((v) => isMunicipioAmbito(v) && v.valor_numerico !== null)
-    .sort((a, b) => (a.anio_referencia ?? 0) - (b.anio_referencia ?? 0))
+    list.sort((a, b) => (b.anio_referencia ?? 0) - (a.anio_referencia ?? 0))
+    return list[0] ?? null
+  }
+  const total = latestIn(anioEff, 'population_total')
+  const hombres = latestIn(anioEff, 'population_male')
+  const mujeres = latestIn(anioEff, 'population_female')
+  const fullEvo =
+    !indicadoresEff || indicadoresEff.has('population_evolution') ? evoAll : []
+  const evolucion = fullEvo.filter((v) => inRange(v.anio_referencia ?? 0, desde, hasta))
 
   const inAmbito = (ambito: string) => (v: IndicatorValue) => v.dimensiones?.ambito === ambito
   const serie = (list: IndicatorValue[]) =>
@@ -177,9 +290,9 @@ export async function getPerfilDemografico(
       .filter((v) => v.valor_numerico !== null)
       .sort((a, b) => (a.anio_referencia ?? 0) - (b.anio_referencia ?? 0))
 
-  // Pirámide: agrupa population_age_sex del último año por tramo.
+  // Pirámide: agrupa population_age_sex del año elegido por tramo.
   const ageRows = bySlug('population_age_sex').filter((v) => v.valor_numerico !== null)
-  const ageYear = ageRows.length > 0 ? Math.max(...ageRows.map((v) => v.anio_referencia ?? 0)) : null
+  const ageYear = pirAnioEff
   const ageMap = new Map<string, { hombres: number; mujeres: number }>()
   for (const v of ageRows.filter((v) => v.anio_referencia === ageYear)) {
     const tramo = v.dimensiones?.tramo_edad
@@ -200,9 +313,12 @@ export async function getPerfilDemografico(
     mujeres: ageMap.get(t)?.mujeres ?? 0,
   }))
 
-  // Derivados propios (solo con datos suficientes).
-  const evoByYear = new Map(evolucion.map((v) => [v.anio_referencia, v.valor_numerico as number]))
-  const refYear = total?.anio_referencia ?? null
+  // Derivados propios (solo con datos suficientes). La referencia es el año
+  // seleccionado o el último del período visible; la base se busca en la
+  // serie completa almacenada (no en el rango recortado).
+  const evoByYear = new Map(fullEvo.map((v) => [v.anio_referencia, v.valor_numerico as number]))
+  const lastShown = evolucion.length > 0 ? (evolucion[evolucion.length - 1].anio_referencia ?? null) : null
+  const refYear = anioEff ?? lastShown
   const pctChange = (back: number): number | null => {
     if (refYear === null) return null
     const base = evoByYear.get(refYear - back)
@@ -232,13 +348,25 @@ export async function getPerfilDemografico(
     sincronizado: true,
     ultima_sincronizacion: (lastRun as unknown as { fin: string } | null)?.fin ?? null,
     total,
-    hombres: pickLatest(values, 'population_male'),
-    mujeres: pickLatest(values, 'population_female'),
+    hombres,
+    mujeres,
     evolucion,
     comparativas: {
-      provincia: serie(bySlug('population_total').filter(inAmbito('provincia'))),
-      ccaa: serie(bySlug('population_total').filter(inAmbito('ccaa'))),
-      espana: serie(bySlug('population_total').filter(inAmbito('espana'))),
+      provincia: ambitosEff.includes('provincia')
+        ? serie(bySlug('population_total').filter(inAmbito('provincia'))).filter((v) =>
+            inRange(v.anio_referencia ?? 0, desde, hasta),
+          )
+        : [],
+      ccaa: ambitosEff.includes('ccaa')
+        ? serie(bySlug('population_total').filter(inAmbito('ccaa'))).filter((v) =>
+            inRange(v.anio_referencia ?? 0, desde, hasta),
+          )
+        : [],
+      espana: ambitosEff.includes('espana')
+        ? serie(bySlug('population_total').filter(inAmbito('espana'))).filter((v) =>
+            inRange(v.anio_referencia ?? 0, desde, hasta),
+          )
+        : [],
     },
     piramide: { anio: ageYear, grupos },
     derivados: {
@@ -248,7 +376,15 @@ export async function getPerfilDemografico(
       indice_dependencia: grupos.length > 0 ? indiceDependencia : null,
     },
     densidad: { valor: null, pendiente: 'Pendiente de integración de fuente de superficie' },
-    valores: values,
+    valores: fValues,
+    disponibles,
+    filtros: {
+      anio: anioEff,
+      desde: desde ?? null,
+      hasta: hasta ?? null,
+      ambitos: ambitosEff,
+      pir_anio: pirAnioEff,
+    },
   }
   return { status: 'ok', perfil }
 }

@@ -196,9 +196,10 @@ export async function fetchMunicipioTotals(
   dpopTableId: number,
   municipioValueId: number,
   codigoIne: string,
-  nult: number,
+  nult?: number,
 ): Promise<MunicipioSeries> {
-  const sourceUrl = `${INE_BASE}/DATOS_TABLA/${dpopTableId}?nult=${nult}&tip=AM&tv=${VAR_MUNICIPIO}:${municipioValueId}`
+  const nultParam = nult !== undefined ? `?nult=${nult}&tip=AM` : '?tip=AM'
+  const sourceUrl = `${INE_BASE}/DATOS_TABLA/${dpopTableId}${nultParam}&tv=${VAR_MUNICIPIO}:${municipioValueId}`
   const series = asSeriesList(await fetchJson(sourceUrl))
   if (series.length === 0) {
     throw new IneError(`Sin series para el municipio ${codigoIne} en la tabla ${dpopTableId}`, sourceUrl)
@@ -288,9 +289,10 @@ export async function fetchAmbitoTotal(
   valueId: number,
   mbitoNombre: string,
   mbito: AmbitoSerie['ambito'],
-  nult: number,
+  nult?: number,
 ): Promise<AmbitoSerie> {
-  const sourceUrl = `${INE_BASE}/DATOS_TABLA/${tableId}?nult=${nult}&tip=AM&tv=${variableId}:${valueId}`
+  const nultParam = nult !== undefined ? `?nult=${nult}&tip=AM` : '?tip=AM'
+  const sourceUrl = `${INE_BASE}/DATOS_TABLA/${tableId}${nultParam}&tv=${variableId}:${valueId}`
   const series = asSeriesList(await fetchJson(sourceUrl))
   const total = series.find((s) => metaValue(s, VAR_SEXO)?.Id === SEXO_TOTAL)
   if (!total) {
@@ -315,9 +317,7 @@ export interface AgeGroupPoint {
 }
 
 export interface AgeSexResult {
-  anio: number
-  grupos: AgeGroupPoint[]
-  total: number
+  anios: { anio: number; grupos: AgeGroupPoint[]; total: number }[]
   sourceUrl: string
   seriesCount: number
 }
@@ -330,22 +330,25 @@ const AGE_CODE_LABELS: Record<string, string> = {
   'Y-GE100': '100+',
 }
 
-/** Pirámide por grupos quinquenales y sexo (tabla 33570, último año disponible). */
+/** Pirámide por grupos quinquenales y sexo (tabla 33570 u otra verificada).
+ * Sin nult trae todos los años publicados; solo se conservan años completos. */
 export async function fetchAgeSex(
   ageTableId: number,
   municipioValueId: number,
   codigoIne: string,
+  nult?: number,
 ): Promise<AgeSexResult> {
-  const sourceUrl = `${INE_BASE}/DATOS_TABLA/${ageTableId}?nult=1&tip=AM&tv=${VAR_MUNICIPIO}:${municipioValueId}`
+  const nultParam = nult !== undefined ? `?nult=${nult}&tip=AM` : '?tip=AM'
+  const sourceUrl = `${INE_BASE}/DATOS_TABLA/${ageTableId}${nultParam}&tv=${VAR_MUNICIPIO}:${municipioValueId}`
   const series = asSeriesList(await fetchJson(sourceUrl))
   if (series.length === 0) {
     throw new IneError(`Sin series de edad/sexo para ${codigoIne} en la tabla ${ageTableId}`, sourceUrl)
   }
 
-  // Agrupa por tramo de edad. En tip=AM la variable de edad se identifica por
-  // su Codigo (Y0T4…Y-GE100); en tip=M por FK_Variable 360/357.
-  const byTramo = new Map<string, { label: string; hombres?: number; mujeres?: number; total?: number }>()
-  let anio: number | null = null
+  // Agrupa por año y tramo de edad. En tip=AM la variable de edad se
+  // identifica por su Codigo (Y0T4…Y-GE100); en tip=M por FK_Variable 360/357.
+  // Solo se conservan años con los 21 tramos completos en H y M.
+  const byYear = new Map<number, Map<string, { label: string; hombres?: number; mujeres?: number }>>()
   for (const s of series) {
     const muni = metaValue(s, VAR_MUNICIPIO)
     if (muni?.Codigo !== codigoIne) continue
@@ -357,34 +360,40 @@ export async function fetchAgeSex(
         (typeof m.Codigo === 'string' && m.Codigo in AGE_CODE_LABELS),
     )
     if (!edad?.Codigo || !(edad.Codigo in AGE_CODE_LABELS)) continue
-    const datum = (s.Data ?? []).find((d) => typeof d.Anyo === 'number' && typeof d.Valor === 'number')
-    if (!datum) continue
-    if (anio === null) anio = datum.Anyo as number
-    if (datum.Anyo !== anio) continue // un solo año de referencia
-    const entry = byTramo.get(edad.Codigo) ?? {
-      label: AGE_CODE_LABELS[edad.Codigo] ?? edad.Nombre ?? edad.Codigo,
+    for (const d of s.Data ?? []) {
+      if (typeof d.Anyo !== 'number' || typeof d.Valor !== 'number') continue
+      const yearMap = byYear.get(d.Anyo) ?? new Map()
+      const entry = yearMap.get(edad.Codigo) ?? {
+        label: AGE_CODE_LABELS[edad.Codigo] ?? edad.Nombre ?? edad.Codigo,
+      }
+      const valor = Math.round(d.Valor)
+      if (sexo?.Id === SEXO_HOMBRES) entry.hombres = valor
+      else if (sexo?.Id === SEXO_MUJERES) entry.mujeres = valor
+      yearMap.set(edad.Codigo, entry)
+      byYear.set(d.Anyo, yearMap)
     }
-    const valor = Math.round(datum.Valor as number)
-    if (sexo?.Id === SEXO_HOMBRES) entry.hombres = valor
-    else if (sexo?.Id === SEXO_MUJERES) entry.mujeres = valor
-    else if (sexo?.Id === SEXO_TOTAL) entry.total = valor
-    byTramo.set(edad.Codigo, entry)
   }
 
   const order = Object.keys(AGE_CODE_LABELS)
-  const grupos: AgeGroupPoint[] = []
-  for (const code of order) {
-    const e = byTramo.get(code)
-    if (e?.hombres === undefined || e?.mujeres === undefined) {
-      throw new IneError(`Tramo ${code} incompleto (falta H o M) para ${codigoIne}`, sourceUrl)
+  const anios: AgeSexResult['anios'] = []
+  for (const [anio, yearMap] of [...byYear.entries()].sort((a, b) => a[0] - b[0])) {
+    const grupos: AgeGroupPoint[] = []
+    let completo = true
+    for (const code of order) {
+      const e = yearMap.get(code)
+      if (e?.hombres === undefined || e?.mujeres === undefined) {
+        completo = false
+        break
+      }
+      grupos.push({ tramo: e.label, hombres: e.hombres, mujeres: e.mujeres })
     }
-    grupos.push({ tramo: e.label, hombres: e.hombres, mujeres: e.mujeres })
+    if (!completo) continue // año incompleto: se descarta, no se inventa
+    anios.push({ anio, grupos, total: grupos.reduce((acc, g) => acc + g.hombres + g.mujeres, 0) })
   }
-  if (anio === null) {
-    throw new IneError(`Sin año de referencia en edad/sexo para ${codigoIne}`, sourceUrl)
+  if (anios.length === 0) {
+    throw new IneError(`Sin ningún año completo de edad/sexo para ${codigoIne}`, sourceUrl)
   }
-  const total = grupos.reduce((acc, g) => acc + g.hombres + g.mujeres, 0)
-  return { anio, grupos, total, sourceUrl, seriesCount: series.length }
+  return { anios, sourceUrl, seriesCount: series.length }
 }
 
 export function ineTableUrl(tableId: number): string {

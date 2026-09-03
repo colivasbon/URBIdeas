@@ -3,10 +3,12 @@ import type { IndicatorValue } from "@/lib/socideas";
 interface Props {
   valores: IndicatorValue[];
   pendientes?: string[];
+  /** Resumen dinámico de la vista actual (período, ámbitos, avisos). */
+  vista?: string[];
 }
 
 // Bloque de trazabilidad: organismo, tabla, año, consulta y avisos.
-export default function Traceability({ valores, pendientes }: Props) {
+export default function Traceability({ valores, pendientes, vista }: Props) {
   const vistos = new Map<string, IndicatorValue>();
   for (const v of valores) {
     const key = `${v.source_id}|${v.anio_referencia}`;
@@ -16,6 +18,13 @@ export default function Traceability({ valores, pendientes }: Props) {
   return (
     <section aria-label="Trazabilidad de los datos" className="rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-5 sm:p-6">
       <h2 className="text-base font-bold text-[var(--color-text-primary)]">Trazabilidad</h2>
+      {vista && vista.length > 0 && (
+        <ul className="mt-3 rounded-lg bg-[var(--color-input-bg)] p-4 text-sm text-[var(--color-text-secondary)]">
+          {vista.map((v) => (
+            <li key={v} className="mb-1 last:mb-0">· {v}</li>
+          ))}
+        </ul>
+      )}
       {fuentes.length === 0 ? (
         <p className="mt-2 text-sm text-[var(--color-text-muted)]">Sin valores sincronizados.</p>
       ) : (

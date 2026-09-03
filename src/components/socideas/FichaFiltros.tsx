@@ -23,7 +23,7 @@ interface FiltrosUI {
   pirModo: PirModo;
 }
 
-const DEFAULT_COMPARAR: AmbitoTerritorial[] = ["municipio", "provincia"];
+const DEFAULT_COMPARAR: AmbitoTerritorial[] = ["municipio"];
 
 const AMBITO_LABEL: Record<AmbitoTerritorial, string> = {
   municipio: "Municipio",
@@ -179,15 +179,16 @@ export default function FichaFiltros({
     list.filter((v) => v.valor_numerico !== null).map((v) => ({ anio: v.anio_referencia ?? 0, valor: v.valor_numerico as number }));
   const series: SerieEvo[] = [];
   if (filtros.comparar.includes("municipio")) {
-    series.push({ clave: "municipio", etiqueta: perfil.municipio.nombre, color: SERIE_COLOR.municipio, puntos: evoPuntos(perfil.evolucion) });
+    series.push({ clave: "municipio", etiqueta: `${perfil.municipio.nombre} · Municipio`, color: SERIE_COLOR.municipio, puntos: evoPuntos(perfil.evolucion) });
   }
-  const comp = (amb: AmbitoTerritorial, lista: PerfilDemografico["evolucion"], nombre: string | null) => {
+  const comp = (amb: AmbitoTerritorial, lista: PerfilDemografico["evolucion"]) => {
     if (!filtros.comparar.includes(amb)) return;
-    series.push({ clave: amb, etiqueta: nombre ?? AMBITO_LABEL[amb], color: SERIE_COLOR[amb], puntos: evoPuntos(lista) });
+    const nombre = lista[0]?.dimensiones?.nombre ?? AMBITO_LABEL[amb];
+    series.push({ clave: amb, etiqueta: `${nombre} · ${AMBITO_LABEL[amb]}`, color: SERIE_COLOR[amb], puntos: evoPuntos(lista) });
   };
-  comp("provincia", perfil.comparativas.provincia, perfil.comparativas.provincia[0]?.dimensiones?.nombre ?? null);
-  comp("ccaa", perfil.comparativas.ccaa, perfil.comparativas.ccaa[0]?.dimensiones?.nombre ?? null);
-  comp("espana", perfil.comparativas.espana, "España");
+  comp("provincia", perfil.comparativas.provincia);
+  comp("ccaa", perfil.comparativas.ccaa);
+  comp("espana", perfil.comparativas.espana);
 
   const filasTabla = tablaComparada(perfil, filtros.comparar);
   const ambitoSinDatos = (amb: AmbitoTerritorial): boolean => {
@@ -260,7 +261,7 @@ export default function FichaFiltros({
           <CopyTableButton tableId={`tabla-actual-${codigoINE}`} label="Copiar tabla para Word" />
         </div>
         <div className="mt-3 overflow-x-auto">
-          <table id={`tabla-actual-${codigoINE}`} className="w-full text-sm">
+          <table id={`tabla-actual-${codigoINE}`} className="w-auto min-w-[16rem] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
                 <th className="py-2 pr-4">Concepto</th>
@@ -341,7 +342,7 @@ export default function FichaFiltros({
             </label>
           ))}
         </fieldset>
-        <div className="mt-4">
+        <div className="mt-4 max-w-3xl">
           <EvolutionChart series={series} id={`evo-${codigoINE}`} />
         </div>
         <div className="mt-6 flex items-center justify-between gap-3">
@@ -349,7 +350,7 @@ export default function FichaFiltros({
           <CopyTableButton tableId={`tabla-evo-${codigoINE}`} label="Copiar tabla para Word" />
         </div>
         <div className="mt-3 overflow-x-auto">
-          <table id={`tabla-evo-${codigoINE}`} className="w-full text-sm">
+          <table id={`tabla-evo-${codigoINE}`} className="w-auto min-w-[20rem] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
                 <th className="py-2 pr-4">Año</th>
@@ -442,7 +443,7 @@ export default function FichaFiltros({
           <CopyTableButton tableId={`tabla-pir-${codigoINE}`} label="Copiar tabla para Word" />
         </div>
         <div className="mt-3 overflow-x-auto">
-          <table id={`tabla-pir-${codigoINE}`} className="w-full text-sm">
+          <table id={`tabla-pir-${codigoINE}`} className="w-auto min-w-[16rem] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
                 <th className="py-2 pr-4">Edad</th>

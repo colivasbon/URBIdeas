@@ -25,22 +25,87 @@ const SEXO_MUJERES = 453
 // Registro de tablas DPOP provinciales VERIFICADAS en vivo.
 // Clave: código INE de provincia (2 dígitos). Provincias no listadas devuelven
 // error explícito "provincia no mapeada": nunca se inventa un ID de tabla.
+// Registro de tablas DPOP provinciales VERIFICADAS en vivo
+// (TABLAS_OPERACION/22, 2026-09-03: 50 tablas PROV-MUN, 1996-actualidad).
+// Clave: código INE de provincia (2 dígitos). Provincias no listadas devuelven
+// error explícito "provincia no mapeada": nunca se inventa un ID de tabla.
 export const DPOP_PROVINCE_TABLES: Record<string, number> = {
+  '01': 2854, // Álava (tabla "Araba/Álava")
   '02': 2855, // Albacete
+  '03': 2856, // Alicante
+  '04': 2857, // Almería
+  '05': 2858, // Ávila
+  '06': 2859, // Badajoz
+  '07': 2860, // Illes Balears
+  '08': 2861, // Barcelona
+  '09': 2862, // Burgos
+  '10': 2863, // Cáceres
+  '11': 2864, // Cádiz
+  '12': 2865, // Castellón
+  '13': 2866, // Ciudad Real
+  '14': 2901, // Córdoba
   '15': 2868, // A Coruña
+  '16': 2869, // Cuenca
+  '17': 2870, // Girona
+  '18': 2871, // Granada
+  '19': 2872, // Guadalajara
+  '20': 2873, // Gipuzkoa
+  '21': 2874, // Huelva
+  '22': 2875, // Huesca
+  '23': 2876, // Jaén
+  '24': 2877, // León
+  '25': 2878, // Lleida
+  '26': 2879, // La Rioja
+  '27': 2880, // Lugo
+  '28': 2881, // Madrid
+  '29': 2882, // Málaga
+  '30': 2883, // Murcia
+  '31': 2884, // Navarra
+  '32': 2885, // Ourense
+  '33': 2886, // Asturias
+  '34': 2888, // Palencia
+  '35': 2889, // Las Palmas
+  '36': 2890, // Pontevedra
+  '37': 2891, // Salamanca
+  '38': 2892, // Santa Cruz de Tenerife
+  '39': 2893, // Cantabria
+  '40': 2894, // Segovia
   '41': 2895, // Sevilla
+  '42': 2896, // Soria
+  '43': 2900, // Tarragona
+  '44': 2899, // Teruel
+  '45': 2902, // Toledo
+  '46': 2903, // Valencia
+  '47': 2904, // Valladolid
+  '48': 2905, // Bizkaia
+  '49': 2906, // Zamora
   '50': 2907, // Zaragoza
 }
 
 export const CCAA_TABLE_ID = 2853
 export const CCAA_NACIONAL_VALUE_ID = 16473 // Total Nacional, variable 70
 
-// CCAA verificadas en la tabla 2853 (variable 70). Clave: nombre en nuestra BD.
+// CCAA verificadas en la tabla 2853 (variable 70, SERIES_TABLA/2853 en vivo).
+// Clave: nombre exacto en nuestra BD. Cobertura 2010–2021 (la tabla va con
+// retraso respecto a DPOP provincial).
 export const CCAA_VALUE_IDS: Record<string, number> = {
   'Andalucía': 8997,
   'Aragón': 8998,
-  'Galicia': 9008,
+  'Asturias': 8999,
+  'Islas Baleares': 9000,
+  'Canarias': 9001,
+  'Cantabria': 9002,
+  'Castilla y León': 9003,
   'Castilla-La Mancha': 9004,
+  'Cataluña': 9005,
+  'Comunitat Valenciana': 9006,
+  'Extremadura': 9007,
+  'Galicia': 9008,
+  'Comunidad de Madrid': 9009,
+  'Región de Murcia': 9010,
+  'Comunidad Foral de Navarra': 9011,
+  'País Vasco': 9012,
+  'La Rioja': 9013,
 }
 
 export const AGE_TABLE_ID = 33570 // nacional, todos los municipios

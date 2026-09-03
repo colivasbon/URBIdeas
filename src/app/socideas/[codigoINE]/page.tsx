@@ -11,7 +11,7 @@ import { AMBITOS } from "@/lib/socideas";
 
 export const dynamic = "force-dynamic";
 
-const AMBITOS_DEFECTO: AmbitoTerritorial[] = ["municipio", "provincia"];
+const AMBITOS_DEFECTO: AmbitoTerritorial[] = ["municipio"];
 
 // Sin self-fetch HTTP: la ficha llama a la lógica de perfil directamente.
 // Un fetch a uno mismo puede fallar a nivel de red en serverless y tumbar

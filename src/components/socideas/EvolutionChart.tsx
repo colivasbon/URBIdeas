@@ -23,7 +23,7 @@ export default function EvolutionChart({ series, id }: { series: SerieEvo[]; id:
   }
   const W = 640;
   const H = 220;
-  const PAD = { l: 56, r: 12, t: 12, b: 28 };
+  const PAD = { l: 48, r: 12, t: 12, b: 28 };
   const todos = activas.flatMap((s) => s.puntos.map((p) => p.valor));
   const min = Math.min(...todos);
   const max = Math.max(...todos);

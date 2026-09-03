@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { headers } from "next/headers";
+import { createSupabaseServer } from "@/lib/supabase-server";
+import { getPerfilDemografico } from "@/lib/socideas-perfil";
 import PlatformHeader from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import StatCard from "@/components/socideas/StatCard";
@@ -11,16 +12,20 @@ import type { PerfilDemografico } from "@/lib/socideas";
 
 export const dynamic = "force-dynamic";
 
+// Sin self-fetch HTTP: la ficha llama a la lógica de perfil directamente.
+// Un fetch a uno mismo puede fallar a nivel de red en serverless y tumbar
+// la página entera con un error de Server Components.
 async function getPerfil(codigoIne: string): Promise<PerfilDemografico | null> {
-  const h = await headers();
-  const host = h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const res = await fetch(`${proto}://${host}/api/socideas/perfil/${codigoIne}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  const json = await res.json();
-  return (json.data ?? null) as PerfilDemografico | null;
+  try {
+    const supabase = createSupabaseServer();
+    const result = await getPerfilDemografico(supabase, codigoIne);
+    if (result.status === "ok" || result.status === "empty") return result.perfil;
+    return null;
+  } catch {
+    // La ficha nunca debe tumbar la página: ante un fallo de datos se
+    // muestra el estado de "no encontrado" en lugar del boundary de error.
+    return null;
+  }
 }
 
 export async function generateMetadata({

@@ -7,11 +7,16 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const q = (searchParams.get('q') ?? '').trim()
   const provincia = (searchParams.get('provincia') ?? '').trim()
+  const provinciaId = (searchParams.get('provincia_id') ?? '').trim()
   const codigoIne = (searchParams.get('codigo_ine') ?? '').trim()
-  const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10) || 20, 1), 50)
+  const maxLimit = provinciaId ? 500 : 50
+  const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10) || 20, 1), maxLimit)
 
-  if (!q && !provincia && !codigoIne) {
+  if (!q && !provincia && !provinciaId && !codigoIne) {
     return NextResponse.json({ data: [], error: null, count: 0 })
+  }
+  if (provinciaId && !/^[0-9a-f-]{36}$/i.test(provinciaId)) {
+    return NextResponse.json({ data: null, error: 'provincia_id inválido', count: 0 }, { status: 400 })
   }
 
   try {
@@ -30,7 +35,8 @@ export async function GET(request: NextRequest) {
       query = query.eq('codigo_ine', codigoIne)
     } else {
       if (q) query = query.ilike('nombre', `%${q}%`)
-      if (provincia) query = query.ilike('provincias.nombre', `%${provincia}%`)
+      if (provinciaId) query = query.eq('provincia_id', provinciaId)
+      else if (provincia) query = query.ilike('provincias.nombre', `%${provincia}%`)
     }
 
     const { data, error } = await query

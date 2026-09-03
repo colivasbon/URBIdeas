@@ -114,6 +114,14 @@ export async function GET(
     }
     const values = ((valores ?? []) as unknown as IndicatorValue[]).map((v) => ({
       ...v,
+      // PostgREST devuelve numeric como string: normalizar a número una sola
+      // vez aquí para que tarjetas, gráficos, tablas y derivados calculen bien.
+      valor_numerico:
+        v.valor_numerico === null || v.valor_numerico === undefined
+          ? null
+          : Number.isNaN(Number(v.valor_numerico))
+            ? null
+            : Number(v.valor_numerico),
       dimensiones: (v.dimensiones ?? {}) as Record<string, string>,
     }))
 

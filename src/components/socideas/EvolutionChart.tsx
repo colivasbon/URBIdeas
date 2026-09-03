@@ -34,7 +34,7 @@ export default function EvolutionChart({ puntos, id }: { puntos: Punto[]; id: st
         aria-labelledby={`${id}-title`}
       >
         <title id={`${id}-title`}>
-          Evolución de la población entre {puntos[0].anio} y {puntos[puntos.length - 1].anio}
+          {`Evolución de la población entre ${puntos[0].anio} y ${puntos[puntos.length - 1].anio}`}
         </title>
         {ticks.map((t) => (
           <g key={t}>
@@ -48,9 +48,7 @@ export default function EvolutionChart({ puntos, id }: { puntos: Punto[]; id: st
         {puntos.map((p, i) => (
           <g key={p.anio}>
             <circle cx={x(i)} cy={y(p.valor)} r={3.5} fill="var(--color-secondary)">
-              <title>
-                {p.anio}: {p.valor.toLocaleString("es-ES")}
-              </title>
+              <title>{`${p.anio}: ${p.valor.toLocaleString("es-ES")}`}</title>
             </circle>
             {(i === 0 || i === puntos.length - 1 || i % Math.ceil(puntos.length / 6) === 0) && (
               <text x={x(i)} y={H - 8} textAnchor="middle" fontSize={11} fill="var(--color-text-muted)">

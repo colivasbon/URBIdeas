@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 interface Resultado {
   codigo_ine: string;
@@ -10,12 +11,62 @@ interface Resultado {
   provincia: { nombre: string; comunidad_autonoma: { nombre: string } } | null;
 }
 
+interface Opcion {
+  id: string;
+  nombre: string;
+}
+
+const selectClasses =
+  "w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-50";
+
 export default function SocideasSearch() {
+  const router = useRouter();
   const [q, setQ] = useState("");
+  const [ccaa, setCcaa] = useState<Opcion[]>([]);
+  const [ccaaId, setCcaaId] = useState("");
+  const [provincias, setProvincias] = useState<Opcion[]>([]);
+  const [provinciaId, setProvinciaId] = useState("");
+  const [municipios, setMunicipios] = useState<Resultado[]>([]);
   const [resultados, setResultados] = useState<Resultado[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [buscado, setBuscado] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/comunidades")
+      .then((r) => r.json())
+      .then((j) => setCcaa((j.data ?? []) as Opcion[]))
+      .catch(() => setCcaa([]));
+  }, []);
+
+  useEffect(() => {
+    if (!ccaaId) return;
+    fetch(`/api/provincias?comunidad_autonoma_id=${ccaaId}`)
+      .then((r) => r.json())
+      .then((j) => setProvincias((j.data ?? []) as Opcion[]))
+      .catch(() => setProvincias([]));
+  }, [ccaaId]);
+
+  useEffect(() => {
+    if (!provinciaId) return;
+    fetch(`/api/socideas/municipios?provincia_id=${provinciaId}&limit=500`)
+      .then((r) => r.json())
+      .then((j) => setMunicipios((j.data ?? []) as Resultado[]))
+      .catch(() => setMunicipios([]));
+  }, [provinciaId]);
+
+  const onCcaaChange = (id: string) => {
+    // Reinicio en cascada en el manejador (no en efecto).
+    setCcaaId(id);
+    setProvincias([]);
+    setProvinciaId("");
+    setMunicipios([]);
+  };
+
+  const onProvinciaChange = (id: string) => {
+    setProvinciaId(id);
+    setMunicipios([]);
+  };
 
   const buscar = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -29,6 +80,7 @@ export default function SocideasSearch() {
         params.set("codigo_ine", term);
       } else {
         params.set("q", term);
+        if (provinciaId) params.set("provincia_id", provinciaId);
       }
       params.set("limit", "20");
       const res = await fetch(`/api/socideas/municipios?${params.toString()}`);
@@ -47,6 +99,67 @@ export default function SocideasSearch() {
 
   return (
     <section aria-label="Buscador municipal">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+        <div>
+          <label htmlFor="socideas-ccaa" className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+            Comunidad autónoma
+          </label>
+          <select
+            id="socideas-ccaa"
+            value={ccaaId}
+            onChange={(e) => onCcaaChange(e.target.value)}
+            className={selectClasses}
+          >
+            <option value="">Todas</option>
+            {ccaa.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="socideas-prov" className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+            Provincia
+          </label>
+          <select
+            id="socideas-prov"
+            value={provinciaId}
+            onChange={(e) => onProvinciaChange(e.target.value)}
+            disabled={!ccaaId}
+            className={selectClasses}
+          >
+            <option value="">{ccaaId ? "Todas" : "Elija antes una comunidad"}</option>
+            {provincias.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="socideas-mun" className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+            Municipio
+          </label>
+          <select
+            id="socideas-mun"
+            value=""
+            onChange={(e) => {
+              if (e.target.value) router.push(`/socideas/${e.target.value}`);
+            }}
+            disabled={!provinciaId}
+            className={selectClasses}
+          >
+            <option value="">{provinciaId ? `Elegir entre ${municipios.length}` : "Elija antes una provincia"}</option>
+            {municipios.map((m) => (
+              <option key={m.codigo_ine} value={m.codigo_ine}>
+                {m.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <form onSubmit={buscar} className="flex flex-col sm:flex-row gap-3" role="search">
         <label htmlFor="socideas-q" className="sr-only">
           Buscar municipio por nombre o código INE
@@ -56,7 +169,11 @@ export default function SocideasSearch() {
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Nombre del municipio o código INE (p. ej. La Roda, 02069)"
+          placeholder={
+            provinciaId
+              ? "Nombre dentro de la provincia elegida o código INE"
+              : "Nombre del municipio o código INE (p. ej. La Roda, 02069)"
+          }
           autoComplete="off"
           className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
         />

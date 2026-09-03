@@ -22,28 +22,61 @@ export default function HeroParallax({ children }: { children: React.ReactNode }
     const mid = midRef.current
     const near = nearRef.current
     if (!el || !deep || !mid || !near) return
-    // Sin parallax con cursor si el usuario prefiere menos movimiento o es pantalla tactil
-    if (reducedMotion || isTouch) return
+    if (reducedMotion) return
 
     let ticking = false
+    let cursorX = 0
+    let cursorY = 0
 
-    function onMouseMove(e: MouseEvent) {
-      if (ticking) return
-      ticking = true
-      requestAnimationFrame(() => {
-        const rect = el!.getBoundingClientRect()
-        const x = (e.clientX - rect.left) / rect.width - 0.5
-        const y = (e.clientY - rect.top) / rect.height - 0.5
-        // Desplazamiento inverso al cursor, intensidad distinta por capa (max ~5 / ~10 / ~15 px)
-        deep!.style.transform = `translate3d(${(-x * 10).toFixed(2)}px, ${(-y * 10).toFixed(2)}px, 0)`
-        mid!.style.transform = `translate3d(${(-x * 20).toFixed(2)}px, ${(-y * 20).toFixed(2)}px, 0)`
-        near!.style.transform = `translate3d(${(-x * 30).toFixed(2)}px, ${(-y * 30).toFixed(2)}px, 0)`
-        ticking = false
-      })
+    function apply() {
+      const rect = el!.getBoundingClientRect()
+      const vh = window.innerHeight
+      const total = el!.offsetHeight + vh
+      // 0 con el hero en la parte superior de la vista, 1 cuando ha salido por arriba
+      const progress = Math.max(0, Math.min(1, (vh - rect.top) / total))
+      const scrollOffset = progress * 260
+
+      // Parallax de scroll: capas suben a distinta velocidad (la profunda se retrasa mas)
+      const syD = -scrollOffset * 0.32
+      const syM = -scrollOffset * 0.58
+      const syN = -scrollOffset * 0.82
+
+      // Parallax de cursor (solo desktop): desplazamiento inverso, leve, se suma
+      const cx = cursorX * (isTouch ? 0 : 1)
+      const cy = cursorY * (isTouch ? 0 : 1)
+
+      deep!.style.transform = `translate3d(${(-cx * 8).toFixed(1)}px, ${(syD - cy * 8).toFixed(1)}px, 0)`
+      mid!.style.transform = `translate3d(${(-cx * 16).toFixed(1)}px, ${(syM - cy * 16).toFixed(1)}px, 0)`
+      near!.style.transform = `translate3d(${(-cx * 24).toFixed(1)}px, ${(syN - cy * 24).toFixed(1)}px, 0)`
+      ticking = false
     }
 
+    function onScroll() {
+      if (!ticking) {
+        ticking = true
+        requestAnimationFrame(apply)
+      }
+    }
+
+    // Parallax de cursor en desktop (no tactil): solo guarda la posicion relativa
+    function onMouseMove(e: MouseEvent) {
+      if (isTouch) return
+      const rect = el!.getBoundingClientRect()
+      cursorX = (e.clientX - rect.left) / rect.width - 0.5
+      cursorY = (e.clientY - rect.top) / rect.height - 0.5
+      onScroll()
+    }
+
+    window.addEventListener("scroll", onScroll, { passive: true })
+    window.addEventListener("resize", onScroll, { passive: true })
     el.addEventListener("mousemove", onMouseMove, { passive: true })
-    return () => el.removeEventListener("mousemove", onMouseMove)
+    onScroll()
+
+    return () => {
+      window.removeEventListener("scroll", onScroll)
+      window.removeEventListener("resize", onScroll)
+      el.removeEventListener("mousemove", onMouseMove)
+    }
   }, [reducedMotion, isTouch])
 
   return (

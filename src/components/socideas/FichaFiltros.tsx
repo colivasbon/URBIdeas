@@ -258,7 +258,7 @@ export default function FichaFiltros({
         )}
         <div className="mt-4 flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Tabla del año {refAnio ?? "—"}</h3>
-          <CopyTableButton tableId={`tabla-actual-${codigoINE}`} label="Copiar tabla para Word" />
+          <CopyTableButton tableId={`tabla-actual-${codigoINE}`} label="Copiar" />
         </div>
         <div className="mt-3 overflow-x-auto">
           <table id={`tabla-actual-${codigoINE}`} className="w-auto min-w-[16rem] text-sm">
@@ -342,41 +342,45 @@ export default function FichaFiltros({
             </label>
           ))}
         </fieldset>
-        <div className="mt-4 max-w-3xl">
-          <EvolutionChart series={series} id={`evo-${codigoINE}`} />
-        </div>
-        <div className="mt-6 flex items-center justify-between gap-3">
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Tabla anual por ámbito</h3>
-          <CopyTableButton tableId={`tabla-evo-${codigoINE}`} label="Copiar tabla para Word" />
-        </div>
-        <div className="mt-3 overflow-x-auto">
-          <table id={`tabla-evo-${codigoINE}`} className="w-auto min-w-[20rem] text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                <th className="py-2 pr-4">Año</th>
-                {filtros.comparar.includes("municipio") && <th className="py-2 pr-4 text-right">Municipio</th>}
-                {filtros.comparar.includes("provincia") && <th className="py-2 pr-4 text-right">Provincia</th>}
-                {filtros.comparar.includes("ccaa") && <th className="py-2 pr-4 text-right">CCAA</th>}
-                {filtros.comparar.includes("espana") && <th className="py-2 text-right">España</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filasTabla.map((row) => (
-                <tr key={row.anio} className="border-t border-[var(--color-border-subtle)] tabular-nums">
-                  <td className="py-2 pr-4">{row.anio}</td>
-                  {filtros.comparar.includes("municipio") && <td className="py-2 pr-4 text-right">{fmt(row.municipio)}</td>}
-                  {filtros.comparar.includes("provincia") && <td className="py-2 pr-4 text-right">{fmt(row.provincia)}</td>}
-                  {filtros.comparar.includes("ccaa") && <td className="py-2 pr-4 text-right">{fmt(row.ccaa)}</td>}
-                  {filtros.comparar.includes("espana") && <td className="py-2 text-right">{fmt(row.espana)}</td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filasTabla.length === 0 && (
-            <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-              Sin datos para el período y los ámbitos seleccionados. Active al menos un ámbito con cobertura.
-            </p>
-          )}
+        <div className="mt-4 grid grid-cols-1 gap-6 xl:grid-cols-5">
+          <div className="xl:col-span-3">
+            <EvolutionChart series={series} id={`evo-${codigoINE}`} />
+          </div>
+          <div className="xl:col-span-2">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Tabla anual por ámbito</h3>
+              <CopyTableButton tableId={`tabla-evo-${codigoINE}`} label="Copiar" />
+            </div>
+            <div className="mt-3 max-h-72 overflow-auto">
+              <table id={`tabla-evo-${codigoINE}`} className="w-auto min-w-full text-sm">
+                <thead className="sticky top-0 bg-[var(--color-card-bg)]">
+                  <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+                    <th className="py-2 pr-4">Año</th>
+                    {filtros.comparar.includes("municipio") && <th className="py-2 pr-4 text-right">Municipio</th>}
+                    {filtros.comparar.includes("provincia") && <th className="py-2 pr-4 text-right">Provincia</th>}
+                    {filtros.comparar.includes("ccaa") && <th className="py-2 pr-4 text-right">CCAA</th>}
+                    {filtros.comparar.includes("espana") && <th className="py-2 text-right">España</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filasTabla.map((row) => (
+                    <tr key={row.anio} className="border-t border-[var(--color-border-subtle)] tabular-nums">
+                      <td className="py-1.5 pr-4">{row.anio}</td>
+                      {filtros.comparar.includes("municipio") && <td className="py-1.5 pr-4 text-right">{fmt(row.municipio)}</td>}
+                      {filtros.comparar.includes("provincia") && <td className="py-1.5 pr-4 text-right">{fmt(row.provincia)}</td>}
+                      {filtros.comparar.includes("ccaa") && <td className="py-1.5 pr-4 text-right">{fmt(row.ccaa)}</td>}
+                      {filtros.comparar.includes("espana") && <td className="py-1.5 text-right">{fmt(row.espana)}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filasTabla.length === 0 && (
+                <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+                  Sin datos para el período y los ámbitos seleccionados. Active al menos un ámbito con cobertura.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
         {filtros.comparar.some((a) => ambitoSinDatos(a)) && (
           <p className="mt-3 text-xs text-[var(--color-text-muted)]">
@@ -413,55 +417,59 @@ export default function FichaFiltros({
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
           Padrón Continuo (INE).{filtros.pirModo === "pct" ? " Porcentaje sobre la población total del municipio ese año." : ""}
         </p>
-        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <PyramidChart grupos={pirGrupos} anio={perfil.piramide.anio} />
-          <div className="flex flex-col gap-4">
-            <StatCard
-              etiqueta="Índice de envejecimiento"
-              valor={perfil.derivados.indice_envejecimiento !== null ? `${perfil.derivados.indice_envejecimiento.toLocaleString("es-ES")} %` : "No disponible para el período seleccionado"}
-              detalle="Población 65+ / 0-14 × 100"
-            />
-            <StatCard
-              etiqueta="Índice de dependencia"
-              valor={perfil.derivados.indice_dependencia !== null ? `${perfil.derivados.indice_dependencia.toLocaleString("es-ES")} %` : "No disponible para el período seleccionado"}
-              detalle="(0-14 + 65+) / 15-64 × 100"
-            />
-            <details>
-              <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)]">Cómo se calcula</summary>
-              <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                Envejecimiento = población de 65 o más años dividida por la de 0 a 14, por 100.
-                Dependencia = suma de 0-14 y 65+ dividida por la de 15 a 64, por 100.
-                Ambos usan la estructura por edad del año de pirámide seleccionado.
-              </p>
-            </details>
+        <div className="mt-4 grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <div>
+            <PyramidChart grupos={pirGrupos} anio={perfil.piramide.anio} />
+          </div>
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
+                Tabla por grupos{filtros.pirModo === "pct" ? " (%)" : ""}
+              </h3>
+              <CopyTableButton tableId={`tabla-pir-${codigoINE}`} label="Copiar" />
+            </div>
+            <div className="mt-3 max-h-80 overflow-auto">
+              <table id={`tabla-pir-${codigoINE}`} className="w-auto min-w-full text-sm">
+                <thead className="sticky top-0 bg-[var(--color-card-bg)]">
+                  <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+                    <th className="py-1.5 pr-4">Edad</th>
+                    <th className="py-1.5 pr-4 text-right">H{filtros.pirModo === "pct" ? " %" : ""}</th>
+                    <th className="py-1.5 text-right">M{filtros.pirModo === "pct" ? " %" : ""}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pirGrupos.map((g) => (
+                    <tr key={g.tramo} className="border-t border-[var(--color-border-subtle)] tabular-nums">
+                      <td className="py-1.5 pr-4">{g.tramo}</td>
+                      <td className="py-1.5 pr-4 text-right">{filtros.pirModo === "pct" ? g.hombres.toLocaleString("es-ES") : fmt(g.hombres)}</td>
+                      <td className="py-1.5 text-right">{filtros.pirModo === "pct" ? g.mujeres.toLocaleString("es-ES") : fmt(g.mujeres)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-        <div className="mt-6 flex items-center justify-between gap-3">
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
-            Tabla por grupos de edad{filtros.pirModo === "pct" ? " (%)" : ""}
-          </h3>
-          <CopyTableButton tableId={`tabla-pir-${codigoINE}`} label="Copiar tabla para Word" />
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StatCard
+            etiqueta="Índice de envejecimiento"
+            valor={perfil.derivados.indice_envejecimiento !== null ? `${perfil.derivados.indice_envejecimiento.toLocaleString("es-ES")} %` : "No disponible para el período seleccionado"}
+            detalle="Población 65+ / 0-14 × 100"
+          />
+          <StatCard
+            etiqueta="Índice de dependencia"
+            valor={perfil.derivados.indice_dependencia !== null ? `${perfil.derivados.indice_dependencia.toLocaleString("es-ES")} %` : "No disponible para el período seleccionado"}
+            detalle="(0-14 + 65+) / 15-64 × 100"
+          />
         </div>
-        <div className="mt-3 overflow-x-auto">
-          <table id={`tabla-pir-${codigoINE}`} className="w-auto min-w-[16rem] text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                <th className="py-2 pr-4">Edad</th>
-                <th className="py-2 pr-4 text-right">Hombres{filtros.pirModo === "pct" ? " %" : ""}</th>
-                <th className="py-2 text-right">Mujeres{filtros.pirModo === "pct" ? " %" : ""}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pirGrupos.map((g) => (
-                <tr key={g.tramo} className="border-t border-[var(--color-border-subtle)] tabular-nums">
-                  <td className="py-2 pr-4">{g.tramo}</td>
-                  <td className="py-2 pr-4 text-right">{filtros.pirModo === "pct" ? g.hombres.toLocaleString("es-ES") : fmt(g.hombres)}</td>
-                  <td className="py-2 text-right">{filtros.pirModo === "pct" ? g.mujeres.toLocaleString("es-ES") : fmt(g.mujeres)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <details className="mt-3">
+          <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)]">Cómo se calcula</summary>
+          <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
+            Envejecimiento = población de 65 o más años dividida por la de 0 a 14, por 100.
+            Dependencia = suma de 0-14 y 65+ dividida por la de 15 a 64, por 100.
+            Ambos usan la estructura por edad del año de pirámide seleccionado.
+          </p>
+        </details>
       </section>
 
       {/* Bloque 4: densidad */}

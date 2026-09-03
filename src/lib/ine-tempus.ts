@@ -1,0 +1,392 @@
+// Adaptador SERVIDOR para la API JSON Tempus3 del INE (Fase 2A SOCideas).
+// NUNCA importar desde componentes de cliente: no usa secretos, pero centraliza
+// la lógica de normalización y validación junto a las rutas de servidor.
+//
+// Tablas verificadas en vivo (docs/socideas-ine-integration.md):
+// - DPOP op. 22, tabla provincial PROV-MUN (p. ej. 2855 Albacete): totales y
+//   sexo por municipio, 1996-actualidad. Variables: 19 municipio, 18 sexo
+//   (451 Total / 452 Hombres / 453 Mujeres), 115 provincia, unidad Personas.
+// - Tabla 2853 (CCAA + Total Nacional, variable 70) para comparativas.
+// - Tabla 33570 (Padrón Continuo, grupos quinquenales var. 360/357) para la
+//   pirámide (último año disponible: 2022).
+
+const INE_BASE = 'https://servicios.ine.es/wstempus/js/ES'
+const FETCH_TIMEOUT_MS = 15000
+const FETCH_RETRIES = 1 // reintentos adicionales tras el primer intento
+
+// variable 19 = Municipios, variable 18 = Sexo, variable 115 = Provincias,
+// variable 70 = CCAA/Total Nacional (tabla 2853).
+const VAR_MUNICIPIO = 19
+const VAR_SEXO = 18
+const SEXO_TOTAL = 451
+const SEXO_HOMBRES = 452
+const SEXO_MUJERES = 453
+
+// Registro de tablas DPOP provinciales VERIFICADAS en vivo.
+// Clave: código INE de provincia (2 dígitos). Provincias no listadas devuelven
+// error explícito "provincia no mapeada": nunca se inventa un ID de tabla.
+export const DPOP_PROVINCE_TABLES: Record<string, number> = {
+  '02': 2855, // Albacete
+  '15': 2868, // A Coruña
+  '41': 2895, // Sevilla
+  '50': 2907, // Zaragoza
+}
+
+export const CCAA_TABLE_ID = 2853
+export const CCAA_NACIONAL_VALUE_ID = 16473 // Total Nacional, variable 70
+
+// CCAA verificadas en la tabla 2853 (variable 70). Clave: nombre en nuestra BD.
+export const CCAA_VALUE_IDS: Record<string, number> = {
+  'Andalucía': 8997,
+  'Aragón': 8998,
+  'Galicia': 9008,
+  'Castilla-La Mancha': 9004,
+}
+
+export const AGE_TABLE_ID = 33570 // nacional, todos los municipios
+
+export interface IneMetaItem {
+  Id: number
+  FK_Variable?: number
+  T3_Variable?: string
+  Nombre?: string
+  Codigo?: string
+}
+
+export interface IneDataPoint {
+  Fecha?: string
+  Anyo?: number
+  Valor?: number | null
+  T3_TipoDato?: string
+  T3_Periodo?: string
+}
+
+export interface IneSerie {
+  Id?: number
+  COD?: string
+  Nombre?: string
+  T3_Unidad?: string
+  MetaData?: IneMetaItem[]
+  Data?: IneDataPoint[]
+}
+
+export class IneError extends Error {
+  readonly url: string
+  readonly status?: number
+  constructor(message: string, url: string, status?: number) {
+    super(message)
+    this.name = 'IneError'
+    this.url = url
+    this.status = status
+  }
+}
+
+async function fetchJson(url: string): Promise<unknown> {
+  let lastError: unknown = null
+  for (let attempt = 0; attempt <= FETCH_RETRIES; attempt++) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { Accept: 'application/json', 'User-Agent': 'URBIdeas/1.0' },
+      })
+      if (!res.ok) {
+        throw new IneError(`INE respondió ${res.status}`, url, res.status)
+      }
+      const text = await res.text()
+      try {
+        return JSON.parse(text) as unknown
+      } catch {
+        throw new IneError('Respuesta del INE no es JSON válido', url, res.status)
+      }
+    } catch (err) {
+      lastError = err
+      if (attempt < FETCH_RETRIES) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
+      }
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+  if (lastError instanceof IneError) throw lastError
+  throw new IneError(
+    lastError instanceof Error ? `Fallo de red hacia el INE: ${lastError.message}` : 'Fallo de red hacia el INE',
+    url,
+  )
+}
+
+function asSeriesList(payload: unknown): IneSerie[] {
+  if (!Array.isArray(payload)) {
+    throw new IneError('Formato inesperado: se esperaba una lista de series', INE_BASE)
+  }
+  return payload as IneSerie[]
+}
+
+function metaValue(serie: IneSerie, variableId: number): IneMetaItem | undefined {
+  // tip=M devuelve FK_Variable numérico; tip=AM devuelve T3_Variable nominal.
+  const names: Record<number, string> = {
+    19: 'Municipios',
+    18: 'Sexo',
+    115: 'Provincias',
+    70: 'Comunidades y Ciudades Autónomas',
+  };
+  const wantName = names[variableId];
+  return serie.MetaData?.find(
+    (m) => m.FK_Variable === variableId || (wantName !== undefined && m.T3_Variable === wantName),
+  );
+}
+
+export interface ResolvedMunicipio {
+  valueId: number
+  nombre: string
+}
+
+/** Localiza el valor numérico del municipio en una tabla DPOP (por código INE). */
+export async function resolveMunicipioValueId(
+  dpopTableId: number,
+  codigoIne: string,
+): Promise<ResolvedMunicipio> {
+  const url = `${INE_BASE}/SERIES_TABLA/${dpopTableId}?tip=M`
+  const series = asSeriesList(await fetchJson(url))
+  for (const s of series) {
+    const muni = metaValue(s, VAR_MUNICIPIO)
+    if (muni?.Codigo === codigoIne) {
+      return { valueId: muni.Id, nombre: s.Nombre?.split('.')[0]?.trim() ?? '' }
+    }
+  }
+  throw new IneError(`Municipio ${codigoIne} no encontrado en la tabla ${dpopTableId}`, url)
+}
+
+/** Localiza el valor numérico de una provincia en su tabla DPOP (variable 115). */
+export async function resolveProvinciaValueId(
+  dpopTableId: number,
+  provinciaCodigo: string,
+): Promise<number> {
+  const url = `${INE_BASE}/SERIES_TABLA/${dpopTableId}?tip=M`
+  const series = asSeriesList(await fetchJson(url))
+  const found = series.find((s) => s.MetaData?.some((m) => m.FK_Variable === 115 && m.Codigo === provinciaCodigo))
+  const value = found?.MetaData?.find((m) => m.FK_Variable === 115)
+  if (!value) {
+    throw new IneError(`Provincia ${provinciaCodigo} no encontrada en la tabla ${dpopTableId}`, url)
+  }
+  return value.Id
+}
+
+export interface SeriePunto {
+  anio: number
+  valor: number
+  fecha: string | null
+  tipoDato: string | null
+}
+
+export interface MunicipioSeries {
+  codigoIne: string
+  nombre: string
+  unidad: string
+  total: SeriePunto[]
+  hombres: SeriePunto[]
+  mujeres: SeriePunto[]
+  seriesIds: { total?: string; hombres?: string; mujeres?: string }
+  sourceUrl: string
+}
+
+/** Descarga totales + sexo de un municipio (DPOP) con validación de coherencia. */
+export async function fetchMunicipioTotals(
+  dpopTableId: number,
+  municipioValueId: number,
+  codigoIne: string,
+  nult: number,
+): Promise<MunicipioSeries> {
+  const sourceUrl = `${INE_BASE}/DATOS_TABLA/${dpopTableId}?nult=${nult}&tip=AM&tv=${VAR_MUNICIPIO}:${municipioValueId}`
+  const series = asSeriesList(await fetchJson(sourceUrl))
+  if (series.length === 0) {
+    throw new IneError(`Sin series para el municipio ${codigoIne} en la tabla ${dpopTableId}`, sourceUrl)
+  }
+
+  const pick = (sexoId: number): IneSerie => {
+    const found = series.find((s) => {
+      const muni = metaValue(s, VAR_MUNICIPIO)
+      const sexo = metaValue(s, VAR_SEXO)
+      return muni?.Codigo === codigoIne && sexo?.Id === sexoId
+    })
+    if (!found) {
+      throw new IneError(`Serie de sexo ${sexoId} ausente para ${codigoIne} en la tabla ${dpopTableId}`, sourceUrl)
+    }
+    return found
+  }
+
+  const totalSerie = pick(SEXO_TOTAL)
+  const hombresSerie = pick(SEXO_HOMBRES)
+  const mujeresSerie = pick(SEXO_MUJERES)
+
+  const unidad = totalSerie.T3_Unidad?.trim() || ''
+  if (unidad.toLowerCase() !== 'personas') {
+    throw new IneError(`Unidad inesperada "${unidad}" (se esperaba Personas)`, sourceUrl)
+  }
+
+  const toPoints = (s: IneSerie): SeriePunto[] =>
+    (s.Data ?? [])
+      .filter((d) => typeof d.Anyo === 'number' && typeof d.Valor === 'number')
+      .map((d) => ({
+        anio: d.Anyo as number,
+        valor: Math.round(d.Valor as number),
+        fecha: d.Fecha ?? null,
+        tipoDato: d.T3_TipoDato ?? null,
+      }))
+      .sort((a, b) => a.anio - b.anio)
+
+  const total = toPoints(totalSerie)
+  const hombres = toPoints(hombresSerie)
+  const mujeres = toPoints(mujeresSerie)
+  if (total.length === 0) {
+    throw new IneError(`Serie total vacía para ${codigoIne}`, sourceUrl)
+  }
+
+  // Coherencia H + M = Total en cada año común (exacta en DPOP).
+  const hByYear = new Map(hombres.map((p) => [p.anio, p.valor]))
+  const mByYear = new Map(mujeres.map((p) => [p.anio, p.valor]))
+  for (const p of total) {
+    const h = hByYear.get(p.anio)
+    const m = mByYear.get(p.anio)
+    if (h !== undefined && m !== undefined && h + m !== p.valor) {
+      throw new IneError(
+        `Incoherencia H+M (${h + m}) ≠ Total (${p.valor}) en ${codigoIne} año ${p.anio}`,
+        sourceUrl,
+      )
+    }
+  }
+
+  return {
+    codigoIne,
+    nombre: totalSerie.Nombre?.split('.')[0]?.trim() ?? '',
+    unidad,
+    total,
+    hombres,
+    mujeres,
+    seriesIds: {
+      total: totalSerie.COD,
+      hombres: hombresSerie.COD,
+      mujeres: mujeresSerie.COD,
+    },
+    sourceUrl,
+  }
+}
+
+export interface AmbitoSerie {
+  ambito: 'provincia' | 'ccaa' | 'espana'
+  nombre: string
+  puntos: SeriePunto[]
+  seriesId?: string
+  sourceUrl: string
+}
+
+/** Serie de comparativa (provincia en su tabla DPOP; CCAA/España en la 2853). */
+export async function fetchAmbitoTotal(
+  tableId: number,
+  variableId: number,
+  valueId: number,
+  mbitoNombre: string,
+  mbito: AmbitoSerie['ambito'],
+  nult: number,
+): Promise<AmbitoSerie> {
+  const sourceUrl = `${INE_BASE}/DATOS_TABLA/${tableId}?nult=${nult}&tip=AM&tv=${variableId}:${valueId}`
+  const series = asSeriesList(await fetchJson(sourceUrl))
+  const total = series.find((s) => metaValue(s, VAR_SEXO)?.Id === SEXO_TOTAL)
+  if (!total) {
+    throw new IneError(`Serie total ausente para ${mbitoNombre} en la tabla ${tableId}`, sourceUrl)
+  }
+  const puntos = (total.Data ?? [])
+    .filter((d) => typeof d.Anyo === 'number' && typeof d.Valor === 'number')
+    .map((d) => ({
+      anio: d.Anyo as number,
+      valor: Math.round(d.Valor as number),
+      fecha: d.Fecha ?? null,
+      tipoDato: d.T3_TipoDato ?? null,
+    }))
+    .sort((a, b) => a.anio - b.anio)
+  return { ambito: mbito, nombre: mbitoNombre, puntos, seriesId: total.COD, sourceUrl }
+}
+
+export interface AgeGroupPoint {
+  tramo: string
+  hombres: number
+  mujeres: number
+}
+
+export interface AgeSexResult {
+  anio: number
+  grupos: AgeGroupPoint[]
+  total: number
+  sourceUrl: string
+  seriesCount: number
+}
+
+const AGE_CODE_LABELS: Record<string, string> = {
+  Y0T4: '0-4', Y5T9: '5-9', Y10T14: '10-14', Y15T19: '15-19', Y20T24: '20-24',
+  Y25T29: '25-29', Y30T34: '30-34', Y35T39: '35-39', Y40T44: '40-44', Y45T49: '45-49',
+  Y50T54: '50-54', Y55T59: '55-59', Y60T64: '60-64', Y65T69: '65-69', Y70T74: '70-74',
+  Y75T79: '75-79', Y80T84: '80-84', Y85T89: '85-89', Y90T94: '90-94', Y95T99: '95-99',
+  'Y-GE100': '100+',
+}
+
+/** Pirámide por grupos quinquenales y sexo (tabla 33570, último año disponible). */
+export async function fetchAgeSex(
+  ageTableId: number,
+  municipioValueId: number,
+  codigoIne: string,
+): Promise<AgeSexResult> {
+  const sourceUrl = `${INE_BASE}/DATOS_TABLA/${ageTableId}?nult=1&tip=AM&tv=${VAR_MUNICIPIO}:${municipioValueId}`
+  const series = asSeriesList(await fetchJson(sourceUrl))
+  if (series.length === 0) {
+    throw new IneError(`Sin series de edad/sexo para ${codigoIne} en la tabla ${ageTableId}`, sourceUrl)
+  }
+
+  // Agrupa por tramo de edad. En tip=AM la variable de edad se identifica por
+  // su Codigo (Y0T4…Y-GE100); en tip=M por FK_Variable 360/357.
+  const byTramo = new Map<string, { label: string; hombres?: number; mujeres?: number; total?: number }>()
+  let anio: number | null = null
+  for (const s of series) {
+    const muni = metaValue(s, VAR_MUNICIPIO)
+    if (muni?.Codigo !== codigoIne) continue
+    const sexo = metaValue(s, VAR_SEXO)
+    const edad = s.MetaData?.find(
+      (m) =>
+        m.FK_Variable === 360 ||
+        m.FK_Variable === 357 ||
+        (typeof m.Codigo === 'string' && m.Codigo in AGE_CODE_LABELS),
+    )
+    if (!edad?.Codigo || !(edad.Codigo in AGE_CODE_LABELS)) continue
+    const datum = (s.Data ?? []).find((d) => typeof d.Anyo === 'number' && typeof d.Valor === 'number')
+    if (!datum) continue
+    if (anio === null) anio = datum.Anyo as number
+    if (datum.Anyo !== anio) continue // un solo año de referencia
+    const entry = byTramo.get(edad.Codigo) ?? {
+      label: AGE_CODE_LABELS[edad.Codigo] ?? edad.Nombre ?? edad.Codigo,
+    }
+    const valor = Math.round(datum.Valor as number)
+    if (sexo?.Id === SEXO_HOMBRES) entry.hombres = valor
+    else if (sexo?.Id === SEXO_MUJERES) entry.mujeres = valor
+    else if (sexo?.Id === SEXO_TOTAL) entry.total = valor
+    byTramo.set(edad.Codigo, entry)
+  }
+
+  const order = Object.keys(AGE_CODE_LABELS)
+  const grupos: AgeGroupPoint[] = []
+  for (const code of order) {
+    const e = byTramo.get(code)
+    if (e?.hombres === undefined || e?.mujeres === undefined) {
+      throw new IneError(`Tramo ${code} incompleto (falta H o M) para ${codigoIne}`, sourceUrl)
+    }
+    grupos.push({ tramo: e.label, hombres: e.hombres, mujeres: e.mujeres })
+  }
+  if (anio === null) {
+    throw new IneError(`Sin año de referencia en edad/sexo para ${codigoIne}`, sourceUrl)
+  }
+  const total = grupos.reduce((acc, g) => acc + g.hombres + g.mujeres, 0)
+  return { anio, grupos, total, sourceUrl, seriesCount: series.length }
+}
+
+export function ineTableUrl(tableId: number): string {
+  return `https://www.ine.es/jaxiT3/Tabla.htm?t=${tableId}`
+}

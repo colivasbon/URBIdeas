@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PlatformHeader from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
+import SocideasSearch from "@/components/socideas/SocideasSearch";
 
 export const metadata: Metadata = {
   title: "SOCideas",
   description:
-    "Próximo módulo de IDEAS Sostenibilidad para el diagnóstico social, sociodemográfico y socioeconómico municipal.",
+    "Beta interna de IDEAS Sostenibilidad para la caracterización sociodemográfica municipal con fuentes oficiales trazables.",
 };
 
-export default function SocideasPage() {
+export default function SocideasHub() {
   return (
     <div className="flex min-h-screen flex-col">
       <PlatformHeader />
@@ -20,7 +21,7 @@ export default function SocideasPage() {
             <div className="flex items-center gap-3 mb-3">
               <div className="h-px w-8 bg-[var(--color-secondary)]" aria-hidden="true" />
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Próximo módulo · Módulo en desarrollo
+                Beta interna · Fase 2A
               </p>
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
@@ -30,13 +31,34 @@ export default function SocideasPage() {
               Diagnóstico social, sociodemográfico y socioeconómico del territorio
             </p>
             <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[var(--color-text-muted)]">
-              Próximamente, SOCideas permitirá consultar y estructurar información municipal
-              procedente de fuentes oficiales, con indicadores trazables para apoyar diagnósticos
-              territoriales y estudios de contexto.
+              Seleccione un municipio para generar su ficha de caracterización
+              demográfica a partir de fuentes oficiales. Cada dato muestra su año
+              de referencia, su fuente y su fecha de consulta.
             </p>
           </section>
 
-          <section aria-label="Enlaces relacionados" className="flex flex-wrap gap-4">
+          <SocideasSearch />
+
+          <section aria-label="Fuentes y cobertura" className="mt-10 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-5 sm:p-6">
+            <h2 className="text-base font-bold text-[var(--color-text-primary)]">Fuentes y cobertura (Fase 2A)</h2>
+            <ul className="mt-3 list-disc pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+              <li>
+                Instituto Nacional de Estadística (API Tempus3): cifras oficiales
+                de población municipal, evolución anual y estructura por edad y sexo.
+              </li>
+              <li>
+                Cobertura inicial: perfil demográfico. La densidad, la población
+                extranjera y el saldo migratorio se incorporarán cuando exista
+                cobertura municipal verificada.
+              </li>
+              <li>
+                Los datos se sincronizan de forma controlada y se almacenan con
+                trazabilidad; no se consulta al INE en cada visita.
+              </li>
+            </ul>
+          </section>
+
+          <section aria-label="Enlaces relacionados" className="mt-8 flex flex-wrap gap-4">
             <Link
               href="/"
               className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] transition-all duration-300"

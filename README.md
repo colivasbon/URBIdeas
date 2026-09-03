@@ -8,7 +8,7 @@ para el análisis territorial, la consulta municipal y el apoyo técnico a proye
 | Módulo | Estado | Descripción |
 |---|---|---|
 | **URBideas** (`/urbideas`) | Disponible | Análisis territorial, urbanístico y geoespacial (visor, municipios, legislación, API). |
-| **SOCideas** (`/socideas`) | En desarrollo | Diagnóstico social, sociodemográfico y socioeconómico del territorio. |
+| **SOCideas** (`/socideas`) | Beta interna (Fase 2A) | Caracterización sociodemográfica municipal con fuentes oficiales trazables. Solo perfil demográfico (INE Tempus3). Requiere migración `027/028` y sincronización autorizada por municipio. Ver `docs/socideas-data-architecture.md`. |
 | **Asistencias de sostenibilidad** (`/asistencias`) | Próximamente | Herramientas y procesos de apoyo técnico del Área. |
 
 ## Estructura principal de rutas

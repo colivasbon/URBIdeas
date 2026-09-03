@@ -146,11 +146,11 @@ export class IneError extends Error {
   }
 }
 
-async function fetchJson(url: string): Promise<unknown> {
+async function fetchJson(url: string, timeoutMs: number = FETCH_TIMEOUT_MS): Promise<unknown> {
   let lastError: unknown = null
   for (let attempt = 0; attempt <= FETCH_RETRIES; attempt++) {
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
       const res = await fetch(url, {
         signal: controller.signal,
@@ -207,20 +207,52 @@ export interface ResolvedMunicipio {
   nombre: string
 }
 
+interface ProvinceCatalog {
+  muniByCode: Map<string, { valueId: number; nombre: string }>
+  provByCode: Map<string, number>
+}
+
+const provinceCatalogCache = new Map<number, ProvinceCatalog>()
+
+/** Descarga y cachea el catálogo de series de una tabla DPOP (1 vez por tabla
+ * y proceso). Evita re-descargar ~1-3 MB por cada municipio del lote. */
+export async function warmProvinceCatalog(dpopTableId: number): Promise<ProvinceCatalog> {
+  const hit = provinceCatalogCache.get(dpopTableId)
+  if (hit) return hit
+  const url = `${INE_BASE}/SERIES_TABLA/${dpopTableId}?tip=M`
+  const series = asSeriesList(await fetchJson(url, 30000))
+  const cat: ProvinceCatalog = { muniByCode: new Map(), provByCode: new Map() }
+  for (const s of series) {
+    const muni = metaValue(s, VAR_MUNICIPIO)
+    if (muni?.Codigo) {
+      cat.muniByCode.set(muni.Codigo, {
+        valueId: muni.Id,
+        nombre: s.Nombre?.split('.')[0]?.trim() ?? '',
+      })
+    }
+    const prov = s.MetaData?.find(
+      (m) => m.FK_Variable === 115 || m.T3_Variable === 'Provincias',
+    )
+    if (prov?.Codigo) cat.provByCode.set(prov.Codigo, prov.Id)
+  }
+  provinceCatalogCache.set(dpopTableId, cat)
+  return cat
+}
+
 /** Localiza el valor numérico del municipio en una tabla DPOP (por código INE). */
 export async function resolveMunicipioValueId(
   dpopTableId: number,
   codigoIne: string,
 ): Promise<ResolvedMunicipio> {
-  const url = `${INE_BASE}/SERIES_TABLA/${dpopTableId}?tip=M`
-  const series = asSeriesList(await fetchJson(url))
-  for (const s of series) {
-    const muni = metaValue(s, VAR_MUNICIPIO)
-    if (muni?.Codigo === codigoIne) {
-      return { valueId: muni.Id, nombre: s.Nombre?.split('.')[0]?.trim() ?? '' }
-    }
+  const cat = await warmProvinceCatalog(dpopTableId)
+  const found = cat.muniByCode.get(codigoIne)
+  if (!found) {
+    throw new IneError(
+      `Municipio ${codigoIne} no encontrado en la tabla ${dpopTableId}`,
+      `${INE_BASE}/SERIES_TABLA/${dpopTableId}?tip=M`,
+    )
   }
-  throw new IneError(`Municipio ${codigoIne} no encontrado en la tabla ${dpopTableId}`, url)
+  return found
 }
 
 /** Localiza el valor numérico de una provincia en su tabla DPOP (variable 115). */
@@ -228,14 +260,15 @@ export async function resolveProvinciaValueId(
   dpopTableId: number,
   provinciaCodigo: string,
 ): Promise<number> {
-  const url = `${INE_BASE}/SERIES_TABLA/${dpopTableId}?tip=M`
-  const series = asSeriesList(await fetchJson(url))
-  const found = series.find((s) => s.MetaData?.some((m) => m.FK_Variable === 115 && m.Codigo === provinciaCodigo))
-  const value = found?.MetaData?.find((m) => m.FK_Variable === 115)
-  if (!value) {
-    throw new IneError(`Provincia ${provinciaCodigo} no encontrada en la tabla ${dpopTableId}`, url)
+  const cat = await warmProvinceCatalog(dpopTableId)
+  const valueId = cat.provByCode.get(provinciaCodigo)
+  if (valueId === undefined) {
+    throw new IneError(
+      `Provincia ${provinciaCodigo} no encontrada en la tabla ${dpopTableId}`,
+      `${INE_BASE}/SERIES_TABLA/${dpopTableId}?tip=M`,
+    )
   }
-  return value.Id
+  return valueId
 }
 
 export interface SeriePunto {
@@ -402,10 +435,11 @@ export async function fetchAgeSex(
   municipioValueId: number,
   codigoIne: string,
   nult?: number,
+  timeoutMs: number = 60000,
 ): Promise<AgeSexResult> {
   const nultParam = nult !== undefined ? `?nult=${nult}&tip=AM` : '?tip=AM'
   const sourceUrl = `${INE_BASE}/DATOS_TABLA/${ageTableId}${nultParam}&tv=${VAR_MUNICIPIO}:${municipioValueId}`
-  const series = asSeriesList(await fetchJson(sourceUrl))
+  const series = asSeriesList(await fetchJson(sourceUrl, timeoutMs))
   if (series.length === 0) {
     throw new IneError(`Sin series de edad/sexo para ${codigoIne} en la tabla ${ageTableId}`, sourceUrl)
   }

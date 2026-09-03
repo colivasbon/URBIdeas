@@ -1,20 +1,23 @@
 // Carga masiva SOCideas Fase 2A.2 — sincronización demográfica de TODA España.
 //
 // Uso:
-//   npx tsx scripts/sync-all-municipios.ts --go [--provincia 02] [--limit 50] [--pause-ms 2000] [--force]
+//   npx tsx scripts/sync-all-municipios.ts --go [--provincias 01,02] [--limit 50]
+//     [--pause-ms 2000] [--force] [--stale-days 30]
 //
 // Sin --go hace dry-run (lista cuántos faltan, no escribe). Reanudable: salta
-// municipios con ejecución ok/partial reciente salvo --force. Secuencial con
-// pausa para respetar al INE. Progreso por consola + data_sync_runs.
+// municipios con ejecución ok/partial más reciente que --stale-days (defecto
+// 30) salvo --force. Pre-calienta el catálogo de series por provincia (una
+// descarga por provincia en vez de una por municipio). Secuencial con pausa
+// para respetar al INE. Progreso por consola + data_sync_runs.
 //
-// Requiere en .env.local: NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY.
+// Requiere en .env.local: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+// y R2_* (la escritura va a R2, no a la tabla de valores).
 import { config } from 'dotenv'
 import { createClient } from '@supabase/supabase-js'
 
 config({ path: '.env.local' })
 
 const PAUSE_MS = 2000
-const RUN_TTL_DAYS = 30 // re-sincronizar solo si el último ok/partial es más viejo
 
 interface Args {
   go: boolean
@@ -23,6 +26,7 @@ interface Args {
   limit?: number
   pauseMs: number
   force: boolean
+  staleDays: number
 }
 
 function parseArgs(): Args {
@@ -32,6 +36,7 @@ function parseArgs(): Args {
     return i >= 0 ? argv[i + 1] : undefined
   }
   const csv = get('--provincias')
+  const stale = get('--stale-days')
   return {
     go: argv.includes('--go'),
     provincia: get('--provincia'),
@@ -39,6 +44,7 @@ function parseArgs(): Args {
     limit: get('--limit') !== undefined ? parseInt(get('--limit') as string, 10) : undefined,
     pauseMs: get('--pause-ms') !== undefined ? parseInt(get('--pause-ms') as string, 10) : PAUSE_MS,
     force: argv.includes('--force'),
+    staleDays: stale !== undefined ? parseInt(stale, 10) : 30,
   }
 }
 
@@ -102,15 +108,18 @@ async function main() {
     if (page.length < PAGE || args.limit) break
   }
 
-  // Estado previo para reanudar.
+  // Estado previo para reanudar: solo los 'ok' recientes se saltan; los
+  // 'partial'/'error' se reintentan siempre.
   const { data: runs } = await supabase
     .from('data_sync_runs')
     .select('municipio_codigo_ine, estado, fin')
     .eq('tipo_sincronizacion', 'ine_demografico')
-    .in('estado', ['ok', 'partial'])
+    .eq('estado', 'ok')
     .order('fin', { ascending: false })
   const frescos = new Set<string>()
-  const ttlMs = RUN_TTL_DAYS * 86400_000
+  const ttlMs = args.staleDays * 86400_000
+  // Solo los 'ok' recientes se saltan: los 'partial'/'error' se reintentan
+  // siempre (pueden haber fallado por timeouts transitorios).
   for (const r of ((runs ?? []) as unknown as { municipio_codigo_ine: string; fin: string }[])) {
     if (frescos.has(r.municipio_codigo_ine)) continue
     if (Date.now() - new Date(r.fin).getTime() < ttlMs) frescos.add(r.municipio_codigo_ine)
@@ -127,6 +136,28 @@ async function main() {
 
   // Import dinámico: el token solo lo usa la ruta HTTP, aquí va service_role.
   const { syncMunicipioDemografico } = await import('../src/lib/socideas-sync')
+  const { DPOP_PROVINCE_TABLES, warmProvinceCatalog } = await import('../src/lib/ine-tempus')
+  // Pre-calentado: una descarga del catálogo por provincia (no una por municipio).
+  {
+    // Solo las provincias del ámbito (no las 50): evita descargas inútiles.
+    let codes: string[]
+    if (args.provincia) codes = [args.provincia]
+    else if (args.provincias && args.provincias.length > 0) codes = args.provincias
+    else {
+      const { data: provs } = await supabase.from('provincias').select('codigo_ine')
+      codes = ((provs ?? []) as unknown as { codigo_ine: string }[]).map((p) => p.codigo_ine)
+    }
+    for (const code of codes) {
+      const tableId = DPOP_PROVINCE_TABLES[code]
+      if (!tableId) continue
+      try {
+        await warmProvinceCatalog(tableId)
+        console.log(`Catálogo ${code} (tabla ${tableId}) en caché`)
+      } catch (err) {
+        console.log(`Catálogo ${code}: reintento por municipio (${err instanceof Error ? err.message : err})`)
+      }
+    }
+  }
   let ok = 0
   let partial = 0
   let fallos = 0

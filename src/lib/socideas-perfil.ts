@@ -20,10 +20,6 @@ export type PerfilResult =
   | { status: 'notFound' }
   | { status: 'badRequest' }
 
-// Los datos se refrescan automáticamente si la última sincronización supera
-// este umbral. Solo para municipios YA sincronizados.
-export const STALE_DAYS = 7
-
 function isMunicipioAmbito(v: IndicatorValue): boolean {
   return (v.dimensiones?.ambito ?? 'municipio') === 'municipio'
 }
@@ -223,21 +219,33 @@ export async function getPerfilDemografico(
     return { status: 'empty', perfil: perfilSinDatos() }
   }
 
-  // Refresco automático: si hay datos pero la última sincronización supera el
-  // umbral, se re-sincroniza en servidor antes de servir. Solo municipios ya
-  // sincronizados (values.length > 0). El lock de sync evita estampidas y, si
-  // el refresco falla, se sirve la caché existente.
-  const lastRunFin = (lastRun as unknown as { fin: string } | null)?.fin ?? null
-  const stale =
-    lastRunFin !== null &&
-    Date.now() - new Date(lastRunFin).getTime() > STALE_DAYS * 86400_000
-  if (opts?.autoRefresh && stale) {
+  // Frescura por novedad (no por tiempo): una petición pequeña al INE
+  // detecta si hay un año más reciente que el almacenado; solo entonces se
+  // sincroniza. Solo municipios ya sincronizados. El lock de sync evita
+  // estampidas y, si algo falla, se sirve la caché existente.
+  if (opts?.autoRefresh && values.length > 0) {
     try {
-      const { syncMunicipioDemografico } = await import('./socideas-sync')
-      await syncMunicipioDemografico(supabase, codigoIne)
-      return getPerfilDemografico(supabase, codigoIne, { ...opts, autoRefresh: false })
+      const { DPOP_PROVINCE_TABLES, fetchMunicipioTotals, resolveMunicipioValueId } =
+        await import('./ine-tempus')
+      const tableId = DPOP_PROVINCE_TABLES[socMuni.provincia_codigo_ine ?? '']
+      if (tableId) {
+        const { valueId } = await resolveMunicipioValueId(tableId, codigoIne)
+        const fresh = await fetchMunicipioTotals(tableId, valueId, codigoIne, 1)
+        const ineLatest = fresh.total.length > 0 ? fresh.total[fresh.total.length - 1].anio : null
+        const storedMax = Math.max(
+          ...values
+            .filter((v) => v.anio_referencia !== null && v.anio_referencia !== undefined)
+            .map((v) => v.anio_referencia as number),
+          0,
+        )
+        if (ineLatest !== null && ineLatest > storedMax) {
+          const { syncMunicipioDemografico } = await import('./socideas-sync')
+          await syncMunicipioDemografico(supabase, codigoIne)
+          return getPerfilDemografico(supabase, codigoIne, { ...opts, autoRefresh: false })
+        }
+      }
     } catch {
-      // Degradación: servir la caché aunque esté caducada.
+      // Degradación: servir la caché existente.
     }
   }
 

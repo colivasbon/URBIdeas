@@ -36,7 +36,7 @@ export default async function Home() {
         <HeroParallax>
           <section className="relative border-b border-[var(--color-border-subtle)]">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <div className="py-12 sm:py-16 lg:py-24 flex flex-col items-center text-center gap-8">
+              <div className="py-8 sm:py-12 lg:py-16 flex flex-col items-center text-center gap-8">
                 <div className="max-w-3xl w-full">
                   <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--color-secondary)] mb-3">
                     Herramientas de apoyo
@@ -81,7 +81,7 @@ export default async function Home() {
         </HeroParallax>
 
         {/* Stats bar */}
-        <section className="border-b border-[var(--color-border-subtle)] bg-[var(--color-dark-bg-elevated)]">
+        <section id="stats-bar" className="border-b border-[var(--color-border-subtle)] bg-[var(--color-dark-bg-elevated)]">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-2 sm:grid-cols-4">
               {[

@@ -3,8 +3,25 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "Herramienta de apoyo al Urbanismo | Ideas Medioambientales",
-  description: "Herramienta de apoyo al urbanismo — centralización y consulta de información pública de planeamiento urbanístico de España: legislación, PGOU y capas WMS/WFS.",
+  title: {
+    default: "IDEAS Sostenibilidad | Ideas Medioambientales",
+    template: "%s | IDEAS Sostenibilidad",
+  },
+  description:
+    "Plataforma del Área de Sostenibilidad de Ideas Medioambientales para el análisis territorial, la consulta municipal y el apoyo técnico a proyectos.",
+  openGraph: {
+    title: "IDEAS Sostenibilidad | Ideas Medioambientales",
+    description:
+      "Plataforma del Área de Sostenibilidad de Ideas Medioambientales para el análisis territorial, la consulta municipal y el apoyo técnico a proyectos.",
+    locale: "es_ES",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "IDEAS Sostenibilidad | Ideas Medioambientales",
+    description:
+      "Plataforma del Área de Sostenibilidad de Ideas Medioambientales para el análisis territorial, la consulta municipal y el apoyo técnico a proyectos.",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

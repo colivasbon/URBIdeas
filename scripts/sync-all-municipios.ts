@@ -109,18 +109,26 @@ async function main() {
   }
 
   // Estado previo para reanudar: solo los 'ok' recientes se saltan; los
-  // 'partial'/'error' se reintentan siempre.
-  const { data: runs } = await supabase
-    .from('data_sync_runs')
-    .select('municipio_codigo_ine, estado, fin')
-    .eq('tipo_sincronizacion', 'ine_demografico')
-    .eq('estado', 'ok')
-    .order('fin', { ascending: false })
+  // 'partial'/'error' se reintentan siempre. Paginado: la tabla ya supera
+  // las 1000 filas que devuelve PostgREST por defecto.
+  const todosRuns: { municipio_codigo_ine: string; fin: string }[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data: runPage, error: runError } = await supabase
+      .from('data_sync_runs')
+      .select('municipio_codigo_ine, fin')
+      .eq('tipo_sincronizacion', 'ine_demografico')
+      .eq('estado', 'ok')
+      .order('fin', { ascending: false })
+      .range(from, from + 999)
+    if (runError) throw runError
+    todosRuns.push(...((runPage ?? []) as unknown as { municipio_codigo_ine: string; fin: string }[]))
+    if (((runPage ?? []).length) < 1000) break
+  }
   const frescos = new Set<string>()
   const ttlMs = args.staleDays * 86400_000
   // Solo los 'ok' recientes se saltan: los 'partial'/'error' se reintentan
   // siempre (pueden haber fallado por timeouts transitorios).
-  for (const r of ((runs ?? []) as unknown as { municipio_codigo_ine: string; fin: string }[])) {
+  for (const r of todosRuns) {
     if (frescos.has(r.municipio_codigo_ine)) continue
     if (Date.now() - new Date(r.fin).getTime() < ttlMs) frescos.add(r.municipio_codigo_ine)
   }

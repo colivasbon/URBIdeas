@@ -13,9 +13,25 @@ const moduleLinks = [
   { href: "/urbideas/api-docs", label: "API", exact: false },
 ];
 
+const COMPACT_AFTER_PX = 48;
+
 export default function UrbideasHeader() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [compact, setCompact] = useState(false);
+
+  // Modo compacto al deslizar hacia abajo: la barra pierde altura y
+  // el descriptor de marca se oculta para liberar pantalla.
+  useEffect(() => {
+    const onScroll = () => {
+      setCompact(window.scrollY > COMPACT_AFTER_PX);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
 
   // El menú móvil se cierra vía onClick en cada enlace y con Escape
   // (sin efecto sobre pathname para evitar set-state-in-effect).
@@ -44,47 +60,47 @@ export default function UrbideasHeader() {
         : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg)]/50",
     ].join(" ");
 
+  const backLinkClasses =
+    "inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]";
+
   return (
     <header className="sticky top-0 z-50 w-full">
-      {/* Franja de retorno a la plataforma matriz */}
-      <div className="bg-[var(--color-dark-bg-elevated)] border-b border-[var(--color-border-subtle)]">
-        <div className="mx-auto flex h-8 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <p className="text-[11px] font-medium uppercase tracking-widest text-[var(--color-text-muted)]">
-            IDEAS Sostenibilidad
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] rounded"
-          >
-            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-            </svg>
-            Volver a la plataforma
-          </Link>
-        </div>
-      </div>
-
-      {/* Barra principal del módulo */}
+      {/* Barra única del módulo: marca + retorno a plataforma + navegación */}
       <div className="border-b-2 border-b-[var(--color-secondary)] bg-[var(--color-dark-bg)]/90 backdrop-blur-xl supports-[backdrop-filter]:bg-[var(--color-dark-bg)]/70">
-        <div className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div
+          className={[
+            "mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 transition-all duration-300",
+            compact ? "h-12" : "h-14 sm:h-16",
+          ].join(" ")}
+        >
           <Link
             href="/urbideas"
-            className="flex items-center gap-3 shrink-0 group rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+            className="flex items-center gap-2.5 shrink-0 group rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
             aria-label="URBideas — inicio del módulo"
           >
             <span
               aria-hidden="true"
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-secondary)] text-sm font-black text-white shrink-0 transition-transform duration-200 group-hover:scale-105"
+              className={[
+                "flex items-center justify-center rounded-lg bg-[var(--color-secondary)] font-black text-white shrink-0 transition-all duration-300 group-hover:scale-105",
+                compact ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm",
+              ].join(" ")}
             >
               U
             </span>
             <span className="leading-tight">
-              <span className="block text-lg font-extrabold tracking-tight text-[var(--color-text-primary)]">
+              <span
+                className={[
+                  "block font-extrabold tracking-tight text-[var(--color-text-primary)] transition-all duration-300",
+                  compact ? "text-base" : "text-lg",
+                ].join(" ")}
+              >
                 URBideas
               </span>
-              <span className="block text-[10px] font-medium text-[var(--color-text-muted)]">
-                Análisis territorial · IDEAS Sostenibilidad
-              </span>
+              {!compact && (
+                <span className="block text-[10px] font-medium text-[var(--color-text-muted)]">
+                  Análisis territorial · IDEAS Sostenibilidad
+                </span>
+              )}
             </span>
           </Link>
 
@@ -105,7 +121,14 @@ export default function UrbideasHeader() {
                 </Link>
               );
             })}
-            <span className="ml-2 pl-2 border-l border-[var(--color-border-subtle)]">
+            <span className="mx-1 h-5 w-px bg-[var(--color-border-subtle)]" aria-hidden="true" />
+            <Link href="/" className={backLinkClasses} aria-label="Volver a IDEAS Sostenibilidad">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+              </svg>
+              IDEAS Sostenibilidad
+            </Link>
+            <span className="ml-1 pl-2 border-l border-[var(--color-border-subtle)]">
               <ThemeToggle />
             </span>
           </nav>
@@ -131,10 +154,18 @@ export default function UrbideasHeader() {
         </div>
       </div>
 
+      {/* Menú móvil: panel anclado a la barra (top-full) + fondo fijo */}
       {menuOpen && (
-        <div className="fixed inset-0 top-[6.5rem] sm:top-24 z-40 md:hidden">
-          <div className="absolute inset-0 bg-[var(--color-overlay)] backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
-          <nav className="relative bg-[var(--color-dark-bg)] border-b-2 border-b-[var(--color-secondary)] shadow-lg animate-slide-in-down" aria-label="Navegación del módulo URBideas">
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-[var(--color-overlay)] backdrop-blur-sm md:hidden"
+            onClick={() => setMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <nav
+            className="absolute top-full inset-x-0 z-50 bg-[var(--color-dark-bg)] border-b-2 border-b-[var(--color-secondary)] shadow-lg animate-slide-in-down md:hidden"
+            aria-label="Navegación del módulo URBideas"
+          >
             <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
               <Link
                 href="/"
@@ -169,7 +200,7 @@ export default function UrbideasHeader() {
               })}
             </div>
           </nav>
-        </div>
+        </>
       )}
     </header>
   );

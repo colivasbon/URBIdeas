@@ -77,6 +77,17 @@ Verificado en ejecución: `/urbideas` no contiene ningún `href="/socideas"` de
 navegación de plataforma (1 solo, el del pie), frente a 3 en `/`; las 5 rutas
 del módulo muestran únicamente `UrbideasHeader` con 1 `<header>` por página.
 
+## 8. Refinamiento: barra única + modo compacto (misma rama, sin push)
+
+A petición de revisión: eliminada la franja superior de retorno (dos barras
+apiladas). `UrbideasHeader` es ahora una única barra con marca URBideas
+predominante, nav del módulo y retorno discreto "← IDEAS Sostenibilidad → /"
+integrado (escritorio: tras divisor; móvil: primera opción del menú). Al
+deslizar más de 48 px, la barra pasa a modo compacto (h-12, descriptor
+oculto, marca reducida) con transición; el panel móvil quedó anclado con
+`top-full` para seguir cualquier altura. Verificado: 1 `<header>` por página
+y sin franja superior en las rutas del módulo.
+
 ## 6. Limitaciones y pasos futuros
 
 - Las páginas migradas heredan el título global (son client components sin

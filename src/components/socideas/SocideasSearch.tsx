@@ -172,7 +172,7 @@ export default function SocideasSearch() {
           placeholder={
             provinciaId
               ? "Nombre dentro de la provincia elegida o código INE"
-              : "Nombre del municipio o código INE (p. ej. La Roda, 02069)"
+              : "Municipio o provincia (p. ej. La Roda, Álava, 02069)"
           }
           autoComplete="off"
           className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"

@@ -7,6 +7,8 @@ interface ControlCapasProps {
   capasSeleccionadas: string[]
   onToggleCapa: (capaId: string) => void
   onToggleFamilia?: (familiaId: string, activar: boolean, capaIds: string[]) => void
+  filtroCA?: string
+  onFiltroCAChange?: (ca: string) => void
 }
 
 function normalizeText(text: string): string {
@@ -24,7 +26,7 @@ function conFamilia(capa: CapaWMS): CapaWMS {
   return { ...capa, familia: cls.familia, severidad: cls.severidad, norma_ref: cls.norma }
 }
 
-export function ControlCapas({ capasSeleccionadas, onToggleCapa, onToggleFamilia }: ControlCapasProps) {
+export function ControlCapas({ capasSeleccionadas, onToggleCapa, onToggleFamilia, filtroCA, onFiltroCAChange }: ControlCapasProps) {
   const [capas, setCapas] = useState<CapaWMS[]>([])
   const [colapsadas, setColapsadas] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {}
@@ -34,7 +36,9 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa, onToggleFamilia
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busqueda, setBusqueda] = useState('')
-  const [filtroCA, setFiltroCA] = useState<string>('todas')
+  const [filtroCAInt, setFiltroCAInt] = useState<string>('todas')
+  const filtroCAEff = filtroCA ?? filtroCAInt
+  const setFiltroCA = onFiltroCAChange ?? setFiltroCAInt
 
   useEffect(() => {
     async function cargarCapas() {
@@ -70,14 +74,14 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa, onToggleFamilia
       const key = `${capa.nombre_capa}|${capa.url_servicio}`
       if (seen.has(key)) continue
       seen.add(key)
-      if (filtroCA !== 'todas' && capa.comunidad_autonoma?.nombre !== filtroCA) continue
+      if (filtroCAEff !== 'todas' && capa.comunidad_autonoma?.nombre !== filtroCAEff && !(filtroCAEff === 'Estatal' && capa.estatal)) continue
       if (q && !normalizeText(`${capa.layer_title || ''} ${capa.nombre_capa} ${capa.comunidad_autonoma?.nombre || ''}`).includes(q)) continue
       const fam = capa.familia || 'usos'
       if (!result[fam]) result[fam] = []
       result[fam].push(capa)
     }
     return result
-  }, [capas, busqueda, filtroCA])
+  }, [capas, busqueda, filtroCAEff])
 
   const toggleGrupo = useCallback((fam: string) => {
     setColapsadas(prev => ({ ...prev, [fam]: !prev[fam] }))
@@ -139,9 +143,10 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa, onToggleFamilia
         <label className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
           <span className="shrink-0">Limitar a:</span>
           <select
-            value={filtroCA}
+            value={filtroCAEff}
             onChange={(e) => setFiltroCA(e.target.value)}
             className="flex-1 min-w-0 text-xs rounded-[var(--border-radius)] border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text-primary)] px-2 py-1"
+            title="Autoseleccionada a partir del ámbito. «Toda España» solo amplía el listado; el cruce siempre se acota al territorio del recinto."
           >
             <option value="todas">Toda España</option>
             {comunidades.map(ca => <option key={ca} value={ca}>{ca}</option>)}

@@ -80,6 +80,8 @@ export interface CapaWMS {
   familia?: string
   severidad?: 'veto' | 'condicionante' | 'informativo'
   norma_ref?: string
+  estatal?: boolean
+  scope?: string
   comunidad_autonoma?: ComunidadAutonoma
   layer_title?: string
 }

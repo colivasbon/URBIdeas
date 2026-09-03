@@ -64,21 +64,30 @@ export async function GET(request: NextRequest) {
     }
 
     const seen = new Set<string>()
+    // Servicios estatales (IGN, Catastro, MITECO, Fomento): una sola entrada
+    // "Estatal" aunque vengan duplicados por CCAA. Nunca se acotan por territorio.
+    const ESTATAL_RE = /ign\.es|catastro|miteco|fomento\.gob|cnig\.es|laministracion\.gob/i
     const deduped = (data || [])
       .filter((capa: Record<string, unknown>) => {
-        const ca = capa.comunidad_autonoma as Record<string, unknown> | Record<string, unknown>[] | undefined
-        const caName = Array.isArray(ca) ? (ca[0] as Record<string, unknown>)?.nombre : (ca as Record<string, unknown>)?.nombre
-        const key = `${caName || ''}|${capa.nombre_capa}|${capa.url_servicio}`
+        const key = `${capa.nombre_capa}|${capa.url_servicio}`
         if (seen.has(key)) return false
         seen.add(key)
+        const ca = capa.comunidad_autonoma as Record<string, unknown> | Record<string, unknown>[] | undefined
         if (Array.isArray(ca)) {
           capa.comunidad_autonoma = ca[0]
         }
         return true
       })
-      .map((capa: Record<string, unknown>) => conClasificacion(capa, {
-        familia: capa.familia, severidad: capa.severidad, norma_ref: capa.norma_ref,
-      }))
+      .map((capa: Record<string, unknown>) => {
+        const estatal = ESTATAL_RE.test(String(capa.url_servicio || ''))
+        if (estatal) {
+          capa.comunidad_autonoma = { id: null, nombre: 'Estatal' }
+        }
+        return conClasificacion(
+          { ...capa, estatal },
+          { familia: capa.familia, severidad: capa.severidad, norma_ref: capa.norma_ref },
+        )
+      })
 
     let geoLayers: Record<string, unknown>[] = []
 
@@ -112,6 +121,7 @@ export async function GET(request: NextRequest) {
           })
           .map((layer: Record<string, unknown>) => {
             const service = layer.geo_services as Record<string, unknown>
+            const scope = String(service?.scope || '')
             return conClasificacion({
               id: `geo-${layer.id}`,
               nombre_capa: layer.layer_name,
@@ -120,13 +130,14 @@ export async function GET(request: NextRequest) {
               sistema_referencia: 'EPSG:4326',
               comunidad_autonoma: {
                 id: null,
-                nombre: service?.ccaa || 'Desconocido',
+                nombre: scope === 'estatal' ? 'Estatal' : (service?.ccaa || 'Desconocido'),
               },
               categoria: layer.thematic_category || 'otro',
               geo_layer: true,
               layer_title: layer.layer_title,
               queryable: layer.queryable,
-              scope: service?.scope,
+              scope,
+              estatal: scope === 'estatal',
             }, { familia: layer.familia, severidad: layer.severidad, norma_ref: layer.norma_ref })
           })
       }

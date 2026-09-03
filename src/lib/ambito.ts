@@ -4,6 +4,14 @@ import type { PerfilId } from './familias'
 
 export type TipoRecinto = 'poligono' | 'punto' | 'linea'
 
+export interface TerritorioAmbito {
+  municipio: string
+  ine: string
+  provincia: string
+  ccaa: string
+  exacto: boolean
+}
+
 export interface ResumenDictamen {
   estado: 'compatible' | 'condicionado' | 'incompatible'
   confianza: 'alta' | 'media' | 'baja'
@@ -17,6 +25,7 @@ export interface Ambito {
   perfil_id: PerfilId
   geojson: GeoJSON.FeatureCollection
   tipo: TipoRecinto
+  territorio?: TerritorioAmbito | null
   dictamen?: ResumenDictamen | null
   created_at: string
   updated_at: string
@@ -41,6 +50,17 @@ export function tipoDeGeoJSON(geojson: GeoJSON.FeatureCollection): TipoRecinto {
   if (geom.type === 'Point' || geom.type === 'MultiPoint') return 'punto'
   if (geom.type === 'LineString' || geom.type === 'MultiLineString') return 'linea'
   return 'poligono'
+}
+
+/** Normaliza nombres de CCAA (BD vs texto libre de servicios) para comparar. */
+export function normCCAA(s: string): string {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+export function mismaCCAA(a: string, b: string): boolean {
+  const x = normCCAA(a), y = normCCAA(b)
+  return !!x && !!y && (x === y || x.includes(y) || y.includes(x))
 }
 
 /** ¿Recinto cerrado válido? Polígono exige anillo cerrado con ≥4 posiciones. */

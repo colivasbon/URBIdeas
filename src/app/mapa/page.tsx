@@ -12,7 +12,8 @@ import type { CapaWMS } from "@/lib/types"
 import { PRESETS_PERFIL, type PerfilId } from "@/lib/familias"
 import {
   nuevoAmbito, tipoDeGeoJSON, validarRecinto, parseCoordenadas,
-  listarAmbitos, guardarAmbito, borrarAmbito, type Ambito,
+  listarAmbitos, guardarAmbito, borrarAmbito, mismaCCAA,
+  type Ambito, type TerritorioAmbito,
 } from "@/lib/ambito"
 import { cruzarAmbito, type FilaCruce, type CapaCruce } from "@/lib/cruce"
 import { tituloFamilia } from "@/lib/familias"
@@ -155,6 +156,8 @@ export default function MapaPage() {
   const [cruceCorriendo, setCruceCorriendo] = useState(false)
   const [progresoCruce, setProgresoCruce] = useState({ hechas: 0, total: 0, capaActual: "" })
   const abortCruceRef = useRef<AbortController | null>(null)
+  const capasRef = useRef<CapaWMS[]>([])
+  useEffect(() => { capasRef.current = capas }, [capas])
   // Refs para el cierre de ejecutarCruce (evitar stale state en el debounce)
   const nombreAmbitoRef = useRef("")
   const perfilRef = useRef<PerfilId>('parcela')
@@ -170,6 +173,24 @@ export default function MapaPage() {
   const [fechaDictamen, setFechaDictamen] = useState("")
   const [catastroInfo, setCatastroInfo] = useState<{ ref: string; municipio: string } | null>(null)
   useEffect(() => { catastroRef.current = catastroInfo }, [catastroInfo])
+  // --- Alcance territorial (CCAA del recinto; el cruce nunca sale de aquí) ---
+  const [territorio, setTerritorio] = useState<TerritorioAmbito | null>(null)
+  const [filtroCA, setFiltroCA] = useState<string>('todas')
+  const territorioRef = useRef<TerritorioAmbito | null>(null)
+  useEffect(() => { territorioRef.current = territorio }, [territorio])
+  const filtroCARef = useRef('todas')
+  useEffect(() => { filtroCARef.current = filtroCA }, [filtroCA])
+
+  /** CCAA que manda en el cruce: el filtro elegido, o la resuelta si es "todas". */
+  const ccaaAlcance = filtroCA === 'todas' ? territorio?.ccaa : filtroCA
+
+  /** Estatales siempre; autonómicas solo si son del alcance. Municipales, si existieran, igual. */
+  function enAlcance(capa: { estatal?: boolean; comunidad_autonoma?: { nombre?: string } | null }): boolean {
+    if (capa.estatal) return true
+    const ca = capa.comunidad_autonoma?.nombre || ''
+    if (!ccaaAlcance) return ca === 'Estatal'
+    return mismaCCAA(ca, ccaaAlcance)
+  }
   // --- Documentación de salida (Fase 4) ---
   const [descargando, setDescargando] = useState<'pdf' | 'word' | 'paquete' | null>(null)
   const [msgDescarga, setMsgDescarga] = useState<string | null>(null)
@@ -275,6 +296,44 @@ export default function MapaPage() {
     setAmbito(a)
     setModoDibujo(null)
     setEncuadrarKey(k => k + 1)
+    // Resolución territorial inmediata: centroide → CCAA/municipio (PostGIS),
+    // con Nominatim como respaldo. Autoselecciona "Limitar a".
+    void (async () => {
+      let t: TerritorioAmbito | null = null
+      try {
+        const c = turf.centroid(geojson)
+        const [lng, lat] = c.geometry.coordinates
+        const res = await fetch(`/api/territorio?lat=${lat}&lng=${lng}`)
+        const json = await res.json()
+        if (!json.error && json.data) {
+          t = {
+            municipio: json.data.municipio, ine: json.data.codigo_ine,
+            provincia: json.data.provincia, ccaa: json.data.ccaa, exacto: !!json.data.exacto,
+          }
+        }
+      } catch { /* respaldo abajo */ }
+      if (!t) {
+        try {
+          const c = turf.centroid(geojson)
+          const [lng, lat] = c.geometry.coordinates
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&accept-language=es`, { headers: { Accept: 'application/json' } })
+          const j = await res.json()
+          const estado = j?.address?.state || ''
+          const mun = j?.address?.city || j?.address?.town || j?.address?.village || j?.address?.municipality || ''
+          if (estado) t = { municipio: mun, ine: '', provincia: '', ccaa: estado, exacto: false }
+        } catch { /* sin territorio: el cruce queda solo con estatales */ }
+      }
+      if (t) {
+        const terr = t
+        setTerritorio(terr)
+        setAmbito(cur => (cur && cur.id === a.id ? { ...cur, territorio: terr } : cur))
+        // Autoseleccionar la opción del desplegable que corresponda a la CCAA
+        const opciones = [...new Set(capasRef.current.map(c => c.comunidad_autonoma?.nombre).filter(Boolean) as string[])]
+        const exacta = opciones.find(o => o === terr.ccaa)
+          || opciones.find(o => mismaCCAA(o, terr.ccaa))
+        if (exacta) setFiltroCA(exacta)
+      }
+    })()
   }, [nombreAmbito, perfil])
 
   const onDibujarPoligono = useCallback((g: GeoJSON.FeatureCollection) => activarAmbito(g), [activarAmbito])
@@ -314,6 +373,13 @@ export default function MapaPage() {
     setAmbito(a)
     setNombreAmbito(a.nombre)
     setPerfil(a.perfil_id)
+    if (a.territorio) {
+      setTerritorio(a.territorio)
+      const opciones = [...new Set(capasRef.current.map(c => c.comunidad_autonoma?.nombre).filter(Boolean) as string[])]
+      const exacta = opciones.find(o => o === a.territorio?.ccaa)
+        || opciones.find(o => a.territorio && mismaCCAA(o, a.territorio.ccaa))
+      if (exacta) setFiltroCA(exacta)
+    }
     setEncuadrarKey(k => k + 1)
   }, [])
 
@@ -340,8 +406,15 @@ export default function MapaPage() {
   const aplicarPreset = useCallback((p: PerfilId) => {
     setPerfil(p)
     setPresetModificado(false)
+    // Solo capas en alcance: estatales + CCAA del recinto (o filtro elegido).
+    const filtro = filtroCARef.current
+    const terr = territorioRef.current
+    const alcance = filtro === 'todas' ? terr?.ccaa : filtro
     const idsPorFamilia: Record<string, string[]> = {}
     for (const c of capas) {
+      const esEstatal = !!c.estatal
+      const ca = c.comunidad_autonoma?.nombre || ''
+      if (!esEstatal && !(alcance && mismaCCAA(ca, alcance))) continue
       const f = (c.familia as string) || 'usos'
       if (!idsPorFamilia[f]) idsPorFamilia[f] = []
       idsPorFamilia[f].push(c.id)
@@ -414,8 +487,17 @@ export default function MapaPage() {
     abortCruceRef.current?.abort()
     const ctrl = new AbortController()
     abortCruceRef.current = ctrl
+    // Alcance: estatales siempre + CCAA del recinto (o filtro elegido).
+    // Ninguna capa de otra comunidad entra en la consulta ni en la tabla.
+    const filtro = filtroCARef.current
+    const terr = territorioRef.current
+    const alcance = filtro === 'todas' ? terr?.ccaa : filtro
     const capasCruce: CapaCruce[] = listaCapas
       .filter(c => activas.includes(c.id))
+      .filter(c => {
+        if (c.estatal) return true
+        return !!alcance && mismaCCAA(c.comunidad_autonoma?.nombre || '', alcance)
+      })
       .map(c => ({
         id: c.id,
         nombre: c.nombre_capa,
@@ -465,7 +547,12 @@ export default function MapaPage() {
               ref_catastral: catastroRef.current?.ref || '—',
               uso: 'no disponible',
             },
-            municipio: catastroRef.current?.municipio ? { nombre: catastroRef.current.municipio } : undefined,
+            municipio: (() => {
+              const t = territorioRef.current
+              if (t?.municipio) return { nombre: t.municipio, ine: t.ine || undefined }
+              if (catastroRef.current?.municipio) return { nombre: catastroRef.current.municipio }
+              return undefined
+            })(),
           }),
         })
         const json = await res.json()
@@ -484,14 +571,14 @@ export default function MapaPage() {
     }
   }, [])
 
-  // Auto-cruce al cerrar/cambiar el ámbito (debounce 1 s, abortable)
+  // Auto-cruce al cerrar/cambiar el ámbito o el alcance (debounce 1 s, abortable)
   useEffect(() => {
     if (!ambito || !validarRecinto(ambito.geojson).ok || activeCapas.length === 0) return
     const t = setTimeout(() => {
       ejecutarCruce(ambito.geojson, capas, activeCapas, soilGeoJSON)
     }, 1000)
     return () => clearTimeout(t)
-  }, [ambito, activeCapas, capas, soilGeoJSON, ejecutarCruce])
+  }, [ambito, activeCapas, capas, soilGeoJSON, filtroCA, territorio, ejecutarCruce])
 
   const medidaAmbito = (() => {    if (!ambito) return null
     try {
@@ -572,7 +659,7 @@ export default function MapaPage() {
                 className="px-2.5 py-1.5 text-xs font-medium rounded-[var(--border-radius)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
                 Subir archivo
               </button>
-              <button onClick={() => { setAmbito(null); setModoDibujo(null); setFilasCruce(null); setDictamen(null); setDictamenError(null) }} disabled={!ambito && !modoDibujo}
+              <button onClick={() => { setAmbito(null); setModoDibujo(null); setFilasCruce(null); setDictamen(null); setDictamenError(null); setTerritorio(null) }} disabled={!ambito && !modoDibujo}
                 className="px-2.5 py-1.5 text-xs rounded-[var(--border-radius)] border border-[var(--color-border)] text-[var(--color-text-secondary)] disabled:opacity-40">
                 Borrar
               </button>
@@ -639,6 +726,12 @@ export default function MapaPage() {
                   {ambito.tipo !== 'poligono' && ' · no acredita superficie'}
                   {!validacion?.ok && <span style={{ color: 'var(--color-error-light)' }}> · {validacion?.motivo}</span>}
                   {presetModificado && ' · preset modificado por el usuario'}
+                  {(territorio || ccaaAlcance) && (
+                    <span className="block mt-0.5">
+                      Territorio: {territorio ? `${territorio.municipio || 'municipio s.d.'}${territorio.provincia ? ` (${territorio.provincia})` : ''} · ${territorio.ccaa}${territorio.exacto ? '' : ' (aprox.)'}` : ccaaAlcance}
+                      {' · '}cruce acotado a {capas.filter(c => activeCapas.includes(c.id) && enAlcance(c)).length} capas (estatales + {ccaaAlcance || 'sin CCAA'})
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -665,7 +758,7 @@ export default function MapaPage() {
                 <div className="flex-1 overflow-y-auto" style={{ minHeight: 200 }}>
                   {tab === 'capas' && (
                     loading ? <p className="p-4 text-xs" style={{ color: 'var(--color-text-muted)' }}>Cargando capas…</p>
-                      : <ControlCapas capasSeleccionadas={activeCapas} onToggleCapa={toggleCapa} onToggleFamilia={toggleFamilia} />
+                      : <ControlCapas capasSeleccionadas={activeCapas} onToggleCapa={toggleCapa} onToggleFamilia={toggleFamilia} filtroCA={filtroCA} onFiltroCAChange={setFiltroCA} />
                   )}
                   {tab === 'archivo' && (
                     <FileLayerPanel

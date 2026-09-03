@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import dynamic from "next/dynamic"
-import Header from "@/components/layout/Header"
+import UrbideasHeader from "@/components/platform/UrbideasHeader"
 import Footer from "@/components/layout/Footer"
 import { ControlCapas } from "@/components/mapa/ControlCapas"
 import { FileLayerPanel } from "@/components/mapa/FileLayerPanel"
@@ -603,7 +603,7 @@ export default function MapaPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <UrbideasHeader />
       <main className="flex-1">
         {/* Aviso móvil */}
         <p className="lg:hidden px-4 py-2 text-[11px] text-center" style={{ background: 'var(--color-input-bg)', color: 'var(--color-text-muted)' }}>

@@ -1,3 +1,41 @@
+# IDEAS Sostenibilidad — Área de Sostenibilidad de Ideas Medioambientales
+
+**IDEAS Sostenibilidad** es la plataforma del Área de Sostenibilidad de Ideas Medioambientales
+para el análisis territorial, la consulta municipal y el apoyo técnico a proyectos.
+
+## Módulos
+
+| Módulo | Estado | Descripción |
+|---|---|---|
+| **URBideas** (`/urbideas`) | Disponible | Análisis territorial, urbanístico y geoespacial (visor, municipios, legislación, API). |
+| **SOCideas** (`/socideas`) | En desarrollo | Diagnóstico social, sociodemográfico y socioeconómico del territorio. |
+| **Asistencias de sostenibilidad** (`/asistencias`) | Próximamente | Herramientas y procesos de apoyo técnico del Área. |
+
+## Estructura principal de rutas
+
+- `/` → Landing corporativa de IDEAS Sostenibilidad
+- `/urbideas` → Módulo URBideas (plenamente operativo)
+- `/urbideas/mapa`, `/urbideas/municipios`, `/urbideas/legislacion`, `/urbideas/api-docs` → rutas canónicas del módulo, con cabecera propia `UrbideasHeader`
+- `/socideas`, `/asistencias` → Landings informativas de futuros módulos
+- `/mapa`, `/municipios`, `/legislacion`, `/api-docs` → Rutas históricas preservadas como alias de compatibilidad (rewrite interno a las rutas canónicas, sin duplicar código)
+- `/admin` → Acceso protegido sin cambios; `/api/*` → Contratos sin cambios
+
+## Cómo ejecutar el proyecto localmente
+
+1. Copia `.env.example` a `.env.local` y rellena `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY`.
+2. Instala dependencias: `npm install`.
+3. Arranca en desarrollo: `npm run dev` y abre `http://localhost:3000`.
+4. Comprueba tipos: `npx tsc --noEmit`. Linter: `npm run lint`. Build: `npm run build`.
+
+## Aviso sobre renombres externos
+
+Los cambios de nombre en GitHub (`ideas-sostenibilidad`), Vercel, dominios
+(`sostenibilidad.ideasmedioambientales.com` preferente) y Supabase deben realizarse
+**manualmente tras validar la preview**. Ver `docs/ideas-sostenibilidad-manual-actions.md`
+y la auditoría en `docs/ideas-sostenibilidad-phase-1-audit.md`.
+
+---
+
 # Registro Urbanístico España - Ideas Medioambientales
 
 ## ¿Qué es este proyecto?

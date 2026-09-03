@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, use } from "react"
-import Header from "@/components/layout/Header"
+import UrbideasHeader from "@/components/platform/UrbideasHeader"
 import Footer from "@/components/layout/Footer"
 import { Badge } from "@/components/ui/Badge"
 import Link from "next/link"
@@ -98,7 +98,7 @@ export default function LegislacionMunicipioPage({
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col">
-        <Header />
+        <UrbideasHeader />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="h-6 w-6 mx-auto animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
@@ -115,13 +115,13 @@ export default function LegislacionMunicipioPage({
   if (error) {
     return (
       <div className="flex min-h-screen flex-col">
-        <Header />
+        <UrbideasHeader />
         <main className="flex-1 flex items-center justify-center">
           <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] p-6 max-w-md text-center">
             <p className="text-sm text-[var(--color-text-secondary)]">{error}</p>
             <div className="mt-4">
               <Link
-                href="/legislacion"
+                href="/urbideas/legislacion"
                 className="text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)]"
               >
                 Volver a Legislación
@@ -136,13 +136,13 @@ export default function LegislacionMunicipioPage({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <UrbideasHeader />
       
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           {/* Breadcrumb */}
           <nav className="mb-4 text-[11px] text-[var(--color-text-muted)]">
-            <Link href="/legislacion" className="hover:text-[var(--color-secondary)] transition-colors">
+            <Link href="/urbideas/legislacion" className="hover:text-[var(--color-secondary)] transition-colors">
               Legislación
             </Link>
             <span className="mx-1.5">/</span>

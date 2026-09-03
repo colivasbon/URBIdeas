@@ -188,7 +188,7 @@ export default function MunicipalTab() {
                 <div className="mt-auto pt-3 border-t border-[var(--color-border-subtle)]">
                   <div className="flex flex-wrap gap-2">
                     <Link
-                      href={`/municipios/${municipio.codigo_ine}/legislacion`}
+                      href={`/urbideas/municipios/${municipio.codigo_ine}/legislacion`}
                       className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-primary)] hover:text-[var(--color-primary-light)] transition-colors"
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

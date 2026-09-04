@@ -213,8 +213,10 @@ async function main() {
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][]
     let provSum = 0
     for (const r of rows) {
-      // Los XLS guardan el INE como número (1001 en vez de 01001): rellenar a 5 dígitos
+      // Los XLS guardan el INE como número (1001 en vez de 01001): rellenar a 5 dígitos.
+      // Ojo: celdas vacías ("".padStart → "00000") y filas de total provincial deben excluirse.
       const rawCode = typeof r[0] === 'number' ? String(Math.trunc(r[0])) : String(r[0] ?? '').trim()
+      if (rawCode === '') continue
       const code = rawCode.padStart(5, '0')
       if (!/^\d{5}$/.test(code)) continue
       const raw = String(r[2] ?? '').trim()

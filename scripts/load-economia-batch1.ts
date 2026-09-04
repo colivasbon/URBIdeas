@@ -142,6 +142,7 @@ export async function main() {
   }
   const limit = flagVal('--limit')
   const offset = flagVal('--offset')
+  const force = args.includes('--force')
 
   const map = JSON.parse(await readFile(MAP_PATH, 'utf8')) as Record<string, { renta: number; gini: number }>
 
@@ -265,10 +266,21 @@ export async function main() {
         if (!m) continue
         const raw = String(r[9] ?? '').trim()
         if (raw === '<5' || raw === '< 5') { markSin(m[1], 'TGSS: <5 → null+flag'); continue }
-        const v = Number(raw.replace(/\./g, '').replace(',', '.'))
+        // TOTAL ">=X": cota inferior publicada (algún régimen <5); se usa X tal cual publica el fichero
+        const v = Number(raw.replace(/^>=/, '').replace(/\./g, '').replace(',', '.'))
         if (!Number.isFinite(v) || v < 0 || raw === '') continue
         pushRow(m[1], { slug: 'afiliacion_total', anio: 2026, valor: v, unidad: 'personas', dim: { ambito: 'municipio', periodo: '2026-07', estado: 'consolidado' }, src: 'tgss', url: 'https://www.seg-social.es/descarga/es/Muni072026', table: 'tgss_2026_07', serie: null })
       }
+    }
+    // Marcas sin_cobertura derivadas de los datos (no de estimaciones):
+    // - Gini ausente con renta presente → <100 hab. o suprimido
+    // - DIRCE sin serie total → 0 empresas / sin cobertura
+    for (const [ine, rs] of all) {
+      const hasRenta = rs.some((r) => r.slug.startsWith('renta_'))
+      const hasGini = rs.some((r) => r.slug === 'gini')
+      if (hasRenta && !hasGini) markSin(ine, 'Gini: sin cobertura (<100 hab. o suprimido)')
+      const hasDirce = rs.some((r) => r.slug === 'empresas_total')
+      if (!hasDirce) markSin(ine, 'DIRCE: sin serie total (0 empresas o sin cobertura)')
     }
     await writeFile(ROWS_PATH, JSON.stringify({ rows: [...all.entries()], sinCobertura: sinCob }))
     console.log(`[fase1] municipios con filas: ${all.size}. Guardado en ${ROWS_PATH}`)
@@ -322,7 +334,7 @@ export async function main() {
   const counts = { actualizado: 0, sin_cobertura: 0, pendiente: 0, error: 0 }
   const slice = municipios.slice(offset, limit > 0 ? offset + limit : undefined)
   for (const [idx, ine] of slice.entries()) {
-    if (manifest.items[ine]?.readback === 'ok' && manifest.items[ine]?.estado !== 'error') continue
+    if (!force && manifest.items[ine]?.readback === 'ok' && manifest.items[ine]?.estado !== 'error') continue
     try {
       const previo = await readMunicipioJson(ine).catch(() => null)
       const bytesAntes = previo ? JSON.stringify(previo).length : 0

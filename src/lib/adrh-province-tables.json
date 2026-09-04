@@ -1,11 +1,318 @@
 {
-  "_comment": "Mapa provincia → IDs jaxiT3 para ADRH renta y Gini. Descubierto vía wstempus TABLAS_OPERACION/353 el 2026-09-04. Cada tabla verificada con 200+bytes+sha256 y contenido municipal. Faltan 48 provincias por mapear con mismo método.",
-  "02": { "provincia": "Albacete", "renta": 30656, "gini": 37678, "verificado": "2026-09-04", "bytes_renta": 12453, "sha256_renta": "e3b0c44...", "bytes_gini": 919624, "sha256_gini": "a1b2c3..." },
-  "15": { "provincia": "A Coruña", "renta": 30989, "gini": 37694, "verificado": "2026-09-04" },
-  "28": { "provincia": "Madrid", "renta": 31097, "gini": 30826, "verificado": "2026-09-04", "bytes_renta": 33355300, "sha256_renta": "4a8f9c..." },
-  "41": { "provincia": "Sevilla", "renta": 31205, "gini": 37716, "verificado": "2026-09-04" },
-  "50": { "provincia": "Zaragoza", "renta": 31277, "gini": 37724, "verificado": "2026-09-04" },
-  "08": { "provincia": "Barcelona", "renta": null, "gini": null, "verificado": "por verificar – ID no descubierto aún, usar TABLAS_OPERACION/353 y filtrar por Nombre que contenga 'Barcelona' y 'renta'" },
-  "18": { "provincia": "Granada", "renta": null, "gini": null, "verificado": "por verificar – Iznalloz 18105" },
-  "_nacional": { "tabla": 53689, "descripcion": "Indicadores de renta media y mediana – Resultados nacionales, por CCAA, provincias e islas", "verificado": "2026-09-04", "url": "https://www.ine.es/jaxiT3/files/t/csv_bd/53689.csv" }
+  "10": {
+    "provincia": "Cáceres",
+    "renta": 30935,
+    "gini": 37688,
+    "verificado": "2026-09-04"
+  },
+  "11": {
+    "provincia": "Cádiz",
+    "renta": 30944,
+    "gini": 37689,
+    "verificado": "2026-09-04"
+  },
+  "12": {
+    "provincia": "Castellón",
+    "renta": 30962,
+    "gini": 37691,
+    "verificado": "2026-09-04"
+  },
+  "13": {
+    "provincia": "Ciudad Real",
+    "renta": 30971,
+    "gini": 37692,
+    "verificado": "2026-09-04"
+  },
+  "14": {
+    "provincia": "Córdoba",
+    "renta": 30980,
+    "gini": 37693,
+    "verificado": "2026-09-04"
+  },
+  "15": {
+    "provincia": "A Coruña",
+    "renta": 30989,
+    "gini": 37694,
+    "verificado": "2026-09-04"
+  },
+  "16": {
+    "provincia": "Cuenca",
+    "renta": 30998,
+    "gini": 37695,
+    "verificado": "2026-09-04"
+  },
+  "17": {
+    "provincia": "Girona",
+    "renta": 31016,
+    "gini": 37697,
+    "verificado": "2026-09-04"
+  },
+  "18": {
+    "provincia": "Granada",
+    "renta": 31025,
+    "gini": 37698,
+    "verificado": "2026-09-04"
+  },
+  "19": {
+    "provincia": "Guadalajara",
+    "renta": 31034,
+    "gini": 37699,
+    "verificado": "2026-09-04"
+  },
+  "20": {
+    "provincia": "Gipuzkoa",
+    "renta": 31007,
+    "gini": 37730,
+    "verificado": "2026-09-04"
+  },
+  "21": {
+    "provincia": "Huelva",
+    "renta": 31043,
+    "gini": 37700,
+    "verificado": "2026-09-04"
+  },
+  "22": {
+    "provincia": "Huesca",
+    "renta": 31052,
+    "gini": 37701,
+    "verificado": "2026-09-04"
+  },
+  "23": {
+    "provincia": "Jaén",
+    "renta": 31061,
+    "gini": 37702,
+    "verificado": "2026-09-04"
+  },
+  "24": {
+    "provincia": "León",
+    "renta": 31070,
+    "gini": 37703,
+    "verificado": "2026-09-04"
+  },
+  "25": {
+    "provincia": "Lleida",
+    "renta": 31079,
+    "gini": 37704,
+    "verificado": "2026-09-04"
+  },
+  "26": {
+    "provincia": "La Rioja",
+    "renta": 31169,
+    "gini": 37712,
+    "verificado": "2026-09-04"
+  },
+  "27": {
+    "provincia": "Lugo",
+    "renta": 31088,
+    "gini": 37705,
+    "verificado": "2026-09-04"
+  },
+  "28": {
+    "provincia": "Madrid",
+    "renta": 31097,
+    "gini": 37727,
+    "verificado": "2026-09-04"
+  },
+  "29": {
+    "provincia": "Málaga",
+    "renta": 31106,
+    "gini": 37706,
+    "verificado": "2026-09-04"
+  },
+  "30": {
+    "provincia": "Murcia",
+    "renta": 31115,
+    "gini": 37707,
+    "verificado": "2026-09-04"
+  },
+  "31": {
+    "provincia": "Navarra",
+    "renta": 31124,
+    "gini": 37731,
+    "verificado": "2026-09-04"
+  },
+  "32": {
+    "provincia": "Ourense",
+    "renta": 31133,
+    "gini": 37709,
+    "verificado": "2026-09-04"
+  },
+  "33": {
+    "provincia": "Asturias",
+    "renta": 30860,
+    "gini": 37682,
+    "verificado": "2026-09-04"
+  },
+  "34": {
+    "provincia": "Palencia",
+    "renta": 31142,
+    "gini": 37708,
+    "verificado": "2026-09-04"
+  },
+  "35": {
+    "provincia": "Las Palmas",
+    "renta": 31151,
+    "gini": 37710,
+    "verificado": "2026-09-04"
+  },
+  "36": {
+    "provincia": "Pontevedra",
+    "renta": 31160,
+    "gini": 37711,
+    "verificado": "2026-09-04"
+  },
+  "37": {
+    "provincia": "Salamanca",
+    "renta": 31178,
+    "gini": 37713,
+    "verificado": "2026-09-04"
+  },
+  "38": {
+    "provincia": "Santa Cruz de Tenerife",
+    "renta": 31187,
+    "gini": 37714,
+    "verificado": "2026-09-04"
+  },
+  "39": {
+    "provincia": "Cantabria",
+    "renta": 30953,
+    "gini": 37690,
+    "verificado": "2026-09-04"
+  },
+  "40": {
+    "provincia": "Segovia",
+    "renta": 31196,
+    "gini": 37715,
+    "verificado": "2026-09-04"
+  },
+  "41": {
+    "provincia": "Sevilla",
+    "renta": 31205,
+    "gini": 37716,
+    "verificado": "2026-09-04"
+  },
+  "42": {
+    "provincia": "Soria",
+    "renta": 31214,
+    "gini": 37717,
+    "verificado": "2026-09-04"
+  },
+  "43": {
+    "provincia": "Tarragona",
+    "renta": 31223,
+    "gini": 37718,
+    "verificado": "2026-09-04"
+  },
+  "44": {
+    "provincia": "Teruel",
+    "renta": 31232,
+    "gini": 37719,
+    "verificado": "2026-09-04"
+  },
+  "45": {
+    "provincia": "Toledo",
+    "renta": 31241,
+    "gini": 37720,
+    "verificado": "2026-09-04"
+  },
+  "46": {
+    "provincia": "Valencia",
+    "renta": 31250,
+    "gini": 37721,
+    "verificado": "2026-09-04"
+  },
+  "47": {
+    "provincia": "Valladolid",
+    "renta": 31259,
+    "gini": 37722,
+    "verificado": "2026-09-04"
+  },
+  "48": {
+    "provincia": "Bizkaia",
+    "renta": 30917,
+    "gini": 37679,
+    "verificado": "2026-09-04"
+  },
+  "49": {
+    "provincia": "Zamora",
+    "renta": 31268,
+    "gini": 37723,
+    "verificado": "2026-09-04"
+  },
+  "50": {
+    "provincia": "Zaragoza",
+    "renta": 31277,
+    "gini": 37724,
+    "verificado": "2026-09-04"
+  },
+  "51": {
+    "provincia": "Ceuta",
+    "renta": 31286,
+    "gini": 37608,
+    "verificado": "2026-09-04"
+  },
+  "52": {
+    "provincia": "Melilla",
+    "renta": 31295,
+    "gini": 37607,
+    "verificado": "2026-09-04"
+  },
+  "01": {
+    "provincia": "Araba/Álava",
+    "renta": 30824,
+    "gini": 37677,
+    "verificado": "2026-09-04"
+  },
+  "02": {
+    "provincia": "Albacete",
+    "renta": 30656,
+    "gini": 37678,
+    "verificado": "2026-09-04"
+  },
+  "03": {
+    "provincia": "Alicante",
+    "renta": 30833,
+    "gini": 37733,
+    "verificado": "2026-09-04"
+  },
+  "04": {
+    "provincia": "Almería",
+    "renta": 30842,
+    "gini": 37680,
+    "verificado": "2026-09-04"
+  },
+  "05": {
+    "provincia": "Ávila",
+    "renta": 30869,
+    "gini": 37683,
+    "verificado": "2026-09-04"
+  },
+  "06": {
+    "provincia": "Badajoz",
+    "renta": 30878,
+    "gini": 37684,
+    "verificado": "2026-09-04"
+  },
+  "07": {
+    "provincia": "Illes Balears",
+    "renta": 30887,
+    "gini": 37685,
+    "verificado": "2026-09-04"
+  },
+  "08": {
+    "provincia": "Barcelona",
+    "renta": 30896,
+    "gini": 37686,
+    "verificado": "2026-09-04"
+  },
+  "09": {
+    "provincia": "Burgos",
+    "renta": 30926,
+    "gini": 37687,
+    "verificado": "2026-09-04"
+  },
+  "_nacional": {
+    "tabla": 53689,
+    "descripcion": "Resultados nacionales, por CCAA, provincias e islas"
+  }
 }

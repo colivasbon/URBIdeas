@@ -43,7 +43,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-scripts/.venv/  
+scripts/.venv/
+
+# economia batch 1 – ficheros crudos descargados (no commitear)
+tmp/
 
 .wrangler/
 .vercel

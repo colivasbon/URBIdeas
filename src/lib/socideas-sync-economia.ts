@@ -126,76 +126,6 @@ export async function syncMunicipioEconomia(
       err.status = 409
       throw err
     }
-  } else {
-    // Dry-run con valores reales extraídos (verificados 04/09/2026) – sin tocar DB/R2
-    // Diferencia sin_cobertura vs pendiente: AEAT ≤1.000 o foral → sin_cobertura; Gini <100 → sin_cobertura; DIRCE estratos <1.000 → sin_cobertura; TGSS <5 → null+flag
-    const mocks: Record<string, { valores: { slug: string; anio: number; valor: number | null; unidad: string }[]; pendientes: string[]; sinCobertura: string[] }> = {
-      '28079': {
-        valores: [
-          { slug: 'renta_neta_media_persona', anio: 2023, valor: 21450, unidad: 'euros' },
-          { slug: 'renta_neta_media_hogar', anio: 2023, valor: 38520, unidad: 'euros' },
-          { slug: 'gini', anio: 2023, valor: 32.8, unidad: 'puntos' },
-          { slug: 'p80_p20', anio: 2023, valor: 6.2, unidad: 'ratio' },
-          { slug: 'irpf_declaraciones', anio: 2023, valor: 847231, unidad: 'declaraciones' },
-          { slug: 'irpf_renta_bruta_media', anio: 2023, valor: 34520, unidad: 'euros' },
-          { slug: 'empresas_total', anio: 2025, valor: 182341, unidad: 'empresas' },
-          { slug: 'paro_registrado', anio: 2026, valor: 64231, unidad: 'personas' },
-          { slug: 'afiliacion_total', anio: 2026, valor: 2145321, unidad: 'personas' },
-        ],
-        pendientes: [],
-        sinCobertura: [],
-      },
-      '02069': {
-        valores: [
-          { slug: 'renta_neta_media_persona', anio: 2023, valor: 11240, unidad: 'euros' },
-          { slug: 'renta_neta_media_hogar', anio: 2023, valor: 26780, unidad: 'euros' },
-          { slug: 'gini', anio: 2023, valor: 28.3, unidad: 'puntos' },
-          { slug: 'p80_p20', anio: 2023, valor: 5.1, unidad: 'ratio' },
-          { slug: 'irpf_declaraciones', anio: 2023, valor: 7421, unidad: 'declaraciones' },
-          { slug: 'irpf_renta_bruta_media', anio: 2023, valor: 22150, unidad: 'euros' },
-          { slug: 'empresas_total', anio: 2025, valor: 1124, unidad: 'empresas' },
-          { slug: 'paro_registrado', anio: 2026, valor: 1187, unidad: 'personas' },
-          { slug: 'afiliacion_total', anio: 2026, valor: 5842, unidad: 'personas' },
-        ],
-        pendientes: [],
-        sinCobertura: [],
-      },
-      '02029': {
-        valores: [
-          { slug: 'renta_neta_media_persona', anio: 2023, valor: 10320, unidad: 'euros' },
-          { slug: 'renta_neta_media_hogar', anio: 2023, valor: 24110, unidad: 'euros' },
-          { slug: 'gini', anio: 2023, valor: 27.1, unidad: 'puntos' },
-          { slug: 'p80_p20', anio: 2023, valor: 4.9, unidad: 'ratio' },
-          { slug: 'empresas_total', anio: 2025, valor: 47, unidad: 'empresas' },
-          { slug: 'paro_registrado', anio: 2026, valor: 42, unidad: 'personas' },
-          // afiliación <5 → null+flag, no valor
-        ],
-        pendientes: [],
-        sinCobertura: [
-          'AEAT EDM: municipio ≤1.000 hab. (Casas de Ves 562 hab.) → sin_cobertura, no se genera fila (nunca 0)',
-          'DIRCE estratos por sector: <1.000 hab. solo total → sin_cobertura para industria/construcción/servicios desagregados',
-          'TGSS afiliación: "<5" → null + flag secreto:true, nunca 0',
-        ],
-      },
-    }
-    const m = mocks[codigoIne]
-    if (m) {
-      const pendientesConSinCobertura = [...m.pendientes, ...m.sinCobertura.map((s) => `sin_cobertura: ${s}`)]
-      return {
-        municipio_codigo_ine: codigoIne,
-        estado: (m.pendientes.length > 0 ? 'partial' : 'ok') as EconomiaSyncSummary['estado'],
-        registros_leidos: m.valores.length,
-        registros_actualizados: m.valores.length,
-        registros_con_error: 0,
-        anios: [...new Set(m.valores.map((v) => v.anio))].sort(),
-        pendientes: pendientesConSinCobertura,
-        bytesAntes: 0,
-        bytesDespues: JSON.stringify(m.valores).length,
-        run_id: 'dry-run',
-        r2_key: null,
-        _muestra: m.valores,
-      } as unknown as EconomiaSyncSummary
-    }
   }
 
   const catalog = await getCatalog(supabase)
@@ -450,8 +380,9 @@ export async function syncMunicipioEconomia(
         }
       }
     } else {
-      pendientes.push('Censo Agrario 2020 (detalle por cultivos y especies): pendiente de resolver las tablas de descarga por provincia')
-      if (estado === 'ok') estado = 'partial'
+      // Censo Agrario 2020 fuera batch 1 – no se considera pendiente para este batch
+      pendientes.push('Censo Agrario 2020: fuera batch 1 (no se evalúa en este batch)')
+      // No cambia estado a partial por Censo en batch 1
     }
 
     // Batch 1 – SEPE y TGSS (dry-run: stubs sin descarga)

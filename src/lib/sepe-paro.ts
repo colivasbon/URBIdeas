@@ -7,16 +7,10 @@ import * as XLSX from 'xlsx'
 
 const SEPE_LIBRO_URL = 'https://www.sepe.es/SiteSepe/contenidos/que_es_el_sepe/estadisticas/datos_avance/datos/2026/julio_2026/libro_paro_julio_2026.xls'
 
-export async function fetchSepeParo(codigoIne: string, dryRun = false): Promise<EconomyRow[]> {
+export async function fetchSepeParo(codigoIne: string, _dryRun = false): Promise<EconomyRow[]> {
+  void _dryRun
   // Validación INE
   if (!/^\d{5}$/.test(codigoIne)) return []
-  // En dry-run sin red, devolvemos mock para municipios muestra para demostrar parser
-  const mocks: Record<string, EconomyRow[]> = {
-    '28079': [{ slug: 'paro_registrado', anio: 2026, valor: 64231, unidad: 'personas', dimensiones: { ambito: 'municipio', periodo: '2026-07', estado: 'consolidado' }, sourceSlug: 'sepe', sourceUrl: SEPE_LIBRO_URL, tableId: 'sepe_paro', serieId: null }],
-    '02069': [{ slug: 'paro_registrado', anio: 2026, valor: 1187, unidad: 'personas', dimensiones: { ambito: 'municipio', periodo: '2026-07', estado: 'consolidado' }, sourceSlug: 'sepe', sourceUrl: SEPE_LIBRO_URL, tableId: 'sepe_paro', serieId: null }],
-    '02029': [{ slug: 'paro_registrado', anio: 2026, valor: 42, unidad: 'personas', dimensiones: { ambito: 'municipio', periodo: '2026-07', estado: 'consolidado' }, sourceSlug: 'sepe', sourceUrl: SEPE_LIBRO_URL, tableId: 'sepe_paro', serieId: null }],
-  }
-  if (dryRun && mocks[codigoIne]) return mocks[codigoIne]
 
   try {
     const res = await fetch(SEPE_LIBRO_URL, { headers: { 'User-Agent': 'URBIdeas/1.0' } })
@@ -38,9 +32,8 @@ export async function fetchSepeParo(codigoIne: string, dryRun = false): Promise<
       }
     }
     return []
-  } catch {
-    // Fallback mock si red no disponible (para dry-run demo)
-    return mocks[codigoIne] ?? []
+  } catch (e) {
+    throw new Error(`SEPE no disponible: ${(e as Error).message}`)
   }
 }
 

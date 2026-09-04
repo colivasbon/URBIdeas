@@ -7,18 +7,9 @@ import * as XLSX from 'xlsx'
 
 const TGSS_URL = 'https://www.seg-social.es/wps/wcm/connect/wss/.../Muni072026.xlsx'
 
-export async function fetchTgssAfiliacion(codigoIne: string, dryRun = false): Promise<EconomyRow[]> {
+export async function fetchTgssAfiliacion(codigoIne: string, _dryRun = false): Promise<EconomyRow[]> {
+  void _dryRun
   if (!/^\d{5}$/.test(codigoIne)) return []
-  const mocks: Record<string, EconomyRow[]> = {
-    '28079': [{ slug: 'afiliacion_total', anio: 2026, valor: 2145321, unidad: 'personas', dimensiones: { ambito: 'municipio', periodo: '2026-07', estado: 'consolidado' }, sourceSlug: 'tgss', sourceUrl: TGSS_URL, tableId: 'tgss_afiliacion', serieId: null }],
-    '02069': [{ slug: 'afiliacion_total', anio: 2026, valor: 5842, unidad: 'personas', dimensiones: { ambito: 'municipio', periodo: '2026-07', estado: 'consolidado' }, sourceSlug: 'tgss', sourceUrl: TGSS_URL, tableId: 'tgss_afiliacion', serieId: null }],
-    '02029': [{ slug: 'afiliacion_total', anio: 2026, valor: 312, unidad: 'personas', dimensiones: { ambito: 'municipio', periodo: '2026-07', estado: 'consolidado' }, sourceSlug: 'tgss', sourceUrl: TGSS_URL, tableId: 'tgss_afiliacion', serieId: null }],
-  }
-  // Para <1.000 hab. con "<5", retornamos null+flag (ej. Casas de Ves)
-  if (dryRun && mocks[codigoIne]) {
-    // Casas de Ves <5 → null+flag ya en mock
-    return mocks[codigoIne].filter(r => r.valor !== null || r.dimensiones.secreto === 'true')
-  }
   try {
     const res = await fetch(TGSS_URL, { headers: { 'User-Agent': 'URBIdeas/1.0' } })
     if (!res.ok) throw new Error(`TGSS ${res.status}`)
@@ -41,8 +32,8 @@ export async function fetchTgssAfiliacion(codigoIne: string, dryRun = false): Pr
       }
     }
     return []
-  } catch {
-    return mocks[codigoIne] ?? []
+  } catch (e) {
+    throw new Error(`TGSS no disponible: ${(e as Error).message}`)
   }
 }
 

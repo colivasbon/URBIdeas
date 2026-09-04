@@ -213,7 +213,9 @@ async function main() {
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][]
     let provSum = 0
     for (const r of rows) {
-      const code = String(r[0] ?? '').trim()
+      // Los XLS guardan el INE como número (1001 en vez de 01001): rellenar a 5 dígitos
+      const rawCode = typeof r[0] === 'number' ? String(Math.trunc(r[0])) : String(r[0] ?? '').trim()
+      const code = rawCode.padStart(5, '0')
       if (!/^\d{5}$/.test(code)) continue
       const raw = String(r[2] ?? '').trim()
       if (raw === '<5' || raw === '< 5') { sepeSecretos.push(code); continue }

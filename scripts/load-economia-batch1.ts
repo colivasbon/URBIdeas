@@ -133,8 +133,15 @@ export async function main() {
     process.exit(1)
   }
   const parseOnly = args.includes('--parse-only')
-  const limit = parseInt((args.find((a) => a.startsWith('--limit=')) ?? '--limit=0').split('=')[1], 10) || 0
-  const offset = parseInt((args.find((a) => a.startsWith('--offset=')) ?? '--offset=0').split('=')[1], 10) || 0
+  const flagVal = (name: string): number => {
+    const eq = args.find((a) => a.startsWith(`${name}=`))
+    if (eq) return parseInt(eq.split('=')[1], 10) || 0
+    const i = args.indexOf(name)
+    if (i >= 0 && args[i + 1] !== undefined) return parseInt(args[i + 1], 10) || 0
+    return 0
+  }
+  const limit = flagVal('--limit')
+  const offset = flagVal('--offset')
 
   const map = JSON.parse(await readFile(MAP_PATH, 'utf8')) as Record<string, { renta: number; gini: number }>
 
@@ -229,7 +236,9 @@ export async function main() {
       const sheet = wb.Sheets['PARO'] ?? wb.Sheets[wb.SheetNames[0]]
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][]
       for (const r of rows) {
-        const code = String(r[0] ?? '').trim()
+        // Los XLS guardan el INE como número (1001 en vez de 01001): rellenar a 5 dígitos
+        const rawCode = typeof r[0] === 'number' ? String(Math.trunc(r[0])) : String(r[0] ?? '').trim()
+        const code = rawCode.padStart(5, '0')
         if (!/^\d{5}$/.test(code)) continue
         const raw = String(r[2] ?? '').trim()
         if (raw === '<5' || raw === '< 5') { markSin(code, 'SEPE: <5 (secreto)'); continue }
@@ -276,7 +285,8 @@ export async function main() {
   if (!SUPA_URL || !SERVICE_KEY) throw new Error('Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env.local')
   if (!process.env.R2_BUCKET) throw new Error('Faltan credenciales R2 en .env.local')
   const supabase = createClient(SUPA_URL, SERVICE_KEY, { auth: { persistSession: false } })
-  const { data: muniList, error: muniErr } = await supabase.from('municipios').select('codigo_ine').order('codigo_ine')
+  // Supabase limita a 1.000 filas por defecto: pedir explícitamente las 8.130+
+  const { data: muniList, error: muniErr } = await supabase.from('municipios').select('codigo_ine').order('codigo_ine').limit(10000)
   if (muniErr) throw muniErr
   const municipios = ((muniList ?? []) as { codigo_ine: string }[]).map((m) => m.codigo_ine)
   const { rows, sinCobertura } = JSON.parse((await readFile(ROWS_PATH)).toString('utf8')) as { rows: [string, ParsedRow[]][]; sinCobertura: Record<string, string[]> }

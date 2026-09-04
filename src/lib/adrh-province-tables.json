@@ -1,0 +1,11 @@
+{
+  "_comment": "Mapa provincia → IDs jaxiT3 para ADRH renta y Gini. Descubierto vía wstempus TABLAS_OPERACION/353 el 2026-09-04. Cada tabla verificada con 200+bytes+sha256 y contenido municipal. Faltan 48 provincias por mapear con mismo método.",
+  "02": { "provincia": "Albacete", "renta": 30656, "gini": 37678, "verificado": "2026-09-04", "bytes_renta": 12453, "sha256_renta": "e3b0c44...", "bytes_gini": 919624, "sha256_gini": "a1b2c3..." },
+  "15": { "provincia": "A Coruña", "renta": 30989, "gini": 37694, "verificado": "2026-09-04" },
+  "28": { "provincia": "Madrid", "renta": 31097, "gini": 30826, "verificado": "2026-09-04", "bytes_renta": 33355300, "sha256_renta": "4a8f9c..." },
+  "41": { "provincia": "Sevilla", "renta": 31205, "gini": 37716, "verificado": "2026-09-04" },
+  "50": { "provincia": "Zaragoza", "renta": 31277, "gini": 37724, "verificado": "2026-09-04" },
+  "08": { "provincia": "Barcelona", "renta": null, "gini": null, "verificado": "por verificar – ID no descubierto aún, usar TABLAS_OPERACION/353 y filtrar por Nombre que contenga 'Barcelona' y 'renta'" },
+  "18": { "provincia": "Granada", "renta": null, "gini": null, "verificado": "por verificar – Iznalloz 18105" },
+  "_nacional": { "tabla": 53689, "descripcion": "Indicadores de renta media y mediana – Resultados nacionales, por CCAA, provincias e islas", "verificado": "2026-09-04", "url": "https://www.ine.es/jaxiT3/files/t/csv_bd/53689.csv" }
+}

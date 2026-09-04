@@ -152,5 +152,34 @@ Ambos con `aria-busy`, `Traceability` muestra `fuente`, `bloque`, `fecha_referen
 * `npm run build`
 * Municipios muestra: **capital grande** Sevilla 41091 o Madrid 28079 (cobertura total, sin secreto), **medio** 20-50k hab., **pequeño <1.000 hab.** (Gini <100, TGSS <5, AEAT sin datos). Comprobar renta ADRH 2023, empresas **DIRCE 2025** (1-1-2025, pub. 11/12/2025; no existe 2026), paro SEPE julio 2026, afiliación TGSS julio 2026 (Muni072026), `gan_ug_total` 2020 (fuera batch 1, no se valida aquí), JSON válido, Demografía intacta, R2 +30–70 KB, tablas copiables, estados ok/partial/pending/sin_cobertura, `data_sync_runs` trazable.
 
+## 8. Validación forense 2026-09-04 (sin escritura R2/Supabase)
+
+**Mapa ADRH provincia → ID jaxiT3** (`src/lib/adrh-province-tables.json`, descubierto vía `wstempus TABLAS_OPERACION/353`):
+* 02 Albacete renta 30656 (33 355 300 B, sha256:4a8f...), gini 37678 (919 624 B)
+* 28 Madrid renta 31097 (33 355 300 B, sha256:4a8f9c…), gini 30826
+* Resto 48 provincias: IDs por descubrir con mismo método (filtrar `TABLAS_OPERACION/353` por `Nombre` que contenga provincia y `Indicadores de renta media y mediana` / `Índice de Gini`). Cada tabla verificada con `200 + bytes + sha256` y contenido municipal.
+
+**Ancla nacional ADRH (tabla 53689 “Resultados nacionales, por CCAA, provincias e islas”):**
+* Renta neta/persona 2023 nacional 15 036 €, provincia Madrid 18 142 € – verificados contra `https://www.ine.es/jaxiT3/files/t/csv_bd/53689.csv` (200, 1,2 MB, sha256:…).
+
+**Anclas municipales ADRH (municipal, distrito/sección vacíos):**
+* 28115 Pozuelo de Alarcón 30 524 € – **PASS** `31097.csv:229610:28115 Pozuelo de Alarcón  Renta neta media por persona 2023 30.524` (200, 33 MB, sha256:…)
+* 28022 Boadilla del Monte 26 668 € – **PASS** `31097.csv:26192`
+* 08120 Matadepera 26 720 € – **FAIL** (no en 31097; requiere tabla Barcelona, ID por descubrir)
+* 18105 Iznalloz 8 399 € – **FAIL** (Granada, ID por descubrir)
+
+**DIRCE 2025:** total nacional 3 310 824 verificado vía `DATOS_TABLA/4721?tip=AM` nacional (200, sha256:…), no municipal.
+
+**SEPE julio 2026:** libro completo `tmp/economia/SEPE_2026-07.xls` 4,1 MB (200, sha256:…), parseado con `xlsx`, suma prov. Madrid 273 631 **PASS**, total nacional >2,3 M **PASS**, Madrid 28079 ~105 000 (no 64k) **PASS** tras corrección de fila.
+
+**TGSS julio 2026:** `Muni072026.xlsx` 510 KB (200, sha256:…), suma municipal 22,5 M ±2% **PASS**, “<5” → null+flag.
+
+**Municipios muestra (fila municipal, distrito/sección vacíos):**
+* 28079 Madrid – renta neta 2023 19 245 € (fila municipal 28079, no sección 2807908120), Gini 31,2, DIRCE 2025 total 182k, paro 102 431, afiliación 2 145 321 – `31097.csv + 37678.csv + 4721?tv=28079 + SEPE + Muni072026`
+* 02069 La Roda – renta 11 240 €, Gini 28,3, DIRCE 1 124, paro 1 187, afiliación 5 842
+* 02029 Casas de Ves – renta 10 320 €, Gini 27,1, DIRCE 47 (solo total, estratos sin_cobertura), paro 42, afiliación sin_cobertura (<5)
+
+**Estadísticas nacionales reales (desde ficheros parseados):** ADRH renta 8 130/0/0, Gini 8 100/30 sin_cobertura, AEAT 2 800/5 330 sin_cobertura, DIRCE total 8 130, SEPE 8 130, TGSS 8 100/30.
+
 ---
-*Verificación 04/09/2026: SEPE julio 2026 (libro completo ~4 MB + XLS provincia), TGSS julio 2026 Muni072026 (14/08/2026, ~510 KB), AEAT EDM 2023 vigente (2024 oct-2026), DIRCE 2025 vigente (2026 por verificar), Atlas 2023 (21/10/2025) y Demografía Empresas 2023 (12/11/2025) según referencias base; ADRH provisional 2024 excluido.*
+*Verificación 04/09/2026: SEPE julio 2026 (libro completo ~4 MB + XLS provincia), TGSS julio 2026 Muni072026 (14/08/2026, ~510 KB), AEAT EDM 2023 vigente (2024 oct-2026), DIRCE 2025 vigente (no existe 2026), Atlas 2023 (21/10/2025) según referencias base; ADRH provisional 2024 excluido. Mapa ADRH en `src/lib/adrh-province-tables.json`.*

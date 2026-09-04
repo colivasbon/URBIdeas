@@ -287,10 +287,20 @@ export async function main() {
   if (!SUPA_URL || !SERVICE_KEY) throw new Error('Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env.local')
   if (!process.env.R2_BUCKET) throw new Error('Faltan credenciales R2 en .env.local')
   const supabase = createClient(SUPA_URL, SERVICE_KEY, { auth: { persistSession: false } })
-  // Supabase limita a 1.000 filas por defecto: pedir explícitamente las 8.130+
-  const { data: muniList, error: muniErr } = await supabase.from('municipios').select('codigo_ine').order('codigo_ine').limit(10000)
-  if (muniErr) throw muniErr
-  const municipios = ((muniList ?? []) as { codigo_ine: string }[]).map((m) => m.codigo_ine)
+  // PostgREST limita a 1.000 filas por petición aunque se pida más: paginar con range
+  const municipios: string[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data: page, error: pageErr } = await supabase
+      .from('municipios')
+      .select('codigo_ine')
+      .order('codigo_ine')
+      .range(from, from + 999)
+    if (pageErr) throw pageErr
+    const rows = ((page ?? []) as { codigo_ine: string }[]).map((m) => m.codigo_ine)
+    municipios.push(...rows)
+    if (rows.length < 1000) break
+  }
+  console.log(`[municipios] total=${municipios.length}`)
   const { rows, sinCobertura } = JSON.parse((await readFile(ROWS_PATH)).toString('utf8')) as { rows: [string, ParsedRow[]][]; sinCobertura: Record<string, string[]> }
   const byIne = new Map<string, ParsedRow[]>(rows)
   const { data: sources } = await supabase.from('statistical_sources').select('id, slug, organismo, nombre')

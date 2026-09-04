@@ -1,10 +1,10 @@
 -- Batch 1: SEPE y TGSS – fuentes y catálogo de indicadores
 -- No aplicar sin autorización. Solo diseño + registro.
 
-insert into statistical_sources (slug, organismo, nombre, url, activo) values
+insert into statistical_sources (slug, organismo, nombre, url_base, activo) values
   ('sepe', 'SEPE', 'Paro registrado y contratos por municipio', 'https://www.sepe.es/SiteSepe/contenidos/que_es_el_sepe/estadisticas/datos_avance/datos', true),
   ('tgss', 'TGSS', 'Afiliación a la Seguridad Social por municipio (último día del mes)', 'https://www.seg-social.es/wps/portal/wss/internet/EstadisticasPresupuestosEstudios/Estadisticas', true)
-on conflict (slug) do update set organismo=excluded.organismo, nombre=excluded.nombre, url=excluded.url, activo=true;
+on conflict (slug) do update set organismo=excluded.organismo, nombre=excluded.nombre, url_base=excluded.url_base, activo=true;
 
 insert into indicator_definitions (slug, nombre, unidad, grupo, activo) values
   ('paro_registrado', 'Paro registrado', 'personas', 'economia', true),

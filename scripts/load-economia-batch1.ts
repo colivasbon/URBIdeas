@@ -143,6 +143,9 @@ export async function main() {
   const limit = flagVal('--limit')
   const offset = flagVal('--offset')
   const force = args.includes('--force')
+  const codesArg = args.find((a) => a.startsWith('--codes='))?.split('=')[1] ?? ''
+  const onlyCodes = codesArg ? codesArg.split(',').map((s) => s.trim()).filter((s) => /^\d{5}$/.test(s)) : null
+  if (codesArg && (!onlyCodes || onlyCodes.length === 0)) throw new Error('--codes requiere lista de INE de 5 dígitos separados por coma')
 
   const map = JSON.parse(await readFile(MAP_PATH, 'utf8')) as Record<string, { renta: number; gini: number }>
 
@@ -332,7 +335,15 @@ export async function main() {
   let errores = 0
   let readbackErr = 0
   const counts = { actualizado: 0, sin_cobertura: 0, pendiente: 0, error: 0 }
-  const slice = municipios.slice(offset, limit > 0 ? offset + limit : undefined)
+  const slice = onlyCodes
+    ? onlyCodes.filter((c) => {
+      if (!municipios.includes(c)) {
+        console.error(`ERROR: ${c} no existe en municipios`)
+        process.exit(1)
+      }
+      return true
+    })
+    : municipios.slice(offset, limit > 0 ? offset + limit : undefined)
   for (const [idx, ine] of slice.entries()) {
     if (!force && manifest.items[ine]?.readback === 'ok' && manifest.items[ine]?.estado !== 'error') continue
     try {

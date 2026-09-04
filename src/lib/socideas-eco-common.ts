@@ -56,14 +56,16 @@ export async function fetchEco(url: string, timeoutMs: number = FETCH_TIMEOUT_MS
   )
 }
 
-/** Normaliza un número con formato español (12.345,6) o internacional. */
+/** Normaliza un número con formato español INE o internacional.
+ * Miles con punto (15.036 → 15036), decimales con coma (28,7 → 28.7).
+ * Sin coma, todo punto es separador de miles (los CSV del INE no usan punto decimal). */
 export function parseEsNumber(raw: unknown): number | null {
   if (typeof raw === 'number' && Number.isFinite(raw)) return raw
   if (typeof raw !== 'string') return null
   const s = raw.trim()
   if (s === '' || s === '-' || s.toUpperCase() === 'ND' || s === '..' || s === ':') return null
   // Formato español: miles con punto, decimales con coma.
-  const normalized = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '')
+  const normalized = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s.replace(/\./g, '')
   const n = Number(normalized)
   return Number.isFinite(n) ? n : null
 }

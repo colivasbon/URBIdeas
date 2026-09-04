@@ -104,12 +104,35 @@ async function getCatalog(supabase: SupabaseClient): Promise<Catalog> {
 }
 
 export async function syncMunicipioEconomia(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient | null,
   codigoIneRaw: string,
   input: EconomiaSyncInput = {},
 ): Promise<EconomiaSyncSummary> {
   const codigoIne = codigoIneRaw.trim()
   if (!/^\d{5}$/.test(codigoIne)) throw new Error('Código INE inválido (se esperan 5 dígitos)')
+
+  // Dry-run sin Supabase: no hay bloqueo, ni logging en data_sync_runs, ni
+  // consulta a municipios. La validación de anclas vive en
+  // scripts/sync-economia-batch-dry-run.ts (descargas directas + evidence.json).
+  if (input.dryRun === true && !supabase) {
+    console.warn('dry-run sin Supabase: omito lock y logging')
+    return {
+      municipio_codigo_ine: codigoIne,
+      estado: 'partial',
+      registros_leidos: 0,
+      registros_actualizados: 0,
+      registros_con_error: 0,
+      anios: [],
+      pendientes: [
+        'dry-run sin Supabase: sin bloqueo temporal, sin registro en data_sync_runs y sin consulta a municipios',
+      ],
+      bytesAntes: 0,
+      bytesDespues: 0,
+      run_id: 'dry-run-sin-supabase',
+      r2_key: null,
+    }
+  }
+  if (!supabase) throw new Error('Se requiere cliente Supabase fuera de dry-run')
 
   if (!input.dryRun) {
     const lockSince = new Date(Date.now() - LOCK_MINUTES * 60_000).toISOString()

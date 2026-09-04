@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import MunicipioLoadingOverlay from "./MunicipioLoadingOverlay";
 
 interface Resultado {
   codigo_ine: string;
@@ -31,6 +32,7 @@ export default function SocideasSearch() {
   const [buscando, setBuscando] = useState(false);
   const [buscado, setBuscado] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [abriendo, setAbriendo] = useState<Resultado | null>(null);
 
   useEffect(() => {
     fetch("/api/comunidades")
@@ -56,6 +58,7 @@ export default function SocideasSearch() {
   }, [provinciaId]);
 
   const onCcaaChange = (id: string) => {
+    if (abriendo) return;
     // Reinicio en cascada en el manejador (no en efecto).
     setCcaaId(id);
     setProvincias([]);
@@ -64,12 +67,40 @@ export default function SocideasSearch() {
   };
 
   const onProvinciaChange = (id: string) => {
+    if (abriendo) return;
     setProvinciaId(id);
     setMunicipios([]);
   };
 
+  const navegarMunicipio = (m: Resultado) => {
+    if (abriendo) return;
+    setAbriendo(m);
+    router.push(`/socideas/${m.codigo_ine}`);
+  };
+
+  const onMunicipioSelect = (codigoIne: string) => {
+    if (!codigoIne || abriendo) return;
+    const m = municipios.find((x) => x.codigo_ine === codigoIne);
+    if (!m) return;
+    navegarMunicipio(m);
+  };
+
+  const onResultadoClick = (m: Resultado) => {
+    if (abriendo) return;
+    setAbriendo(m);
+    // La navegación la realiza <Link>; solo mostramos overlay y bloqueamos nueva selección.
+  };
+
+  // Si la navegación no completa (error de red), no bloquear indefinidamente.
+  useEffect(() => {
+    if (!abriendo) return;
+    const t = window.setTimeout(() => setAbriendo(null), 10000);
+    return () => window.clearTimeout(t);
+  }, [abriendo]);
+
   const buscar = async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
+    if (abriendo) return;
     const term = q.trim();
     if (term.length < 2) return;
     setBuscando(true);
@@ -98,7 +129,14 @@ export default function SocideasSearch() {
   };
 
   return (
-    <section aria-label="Buscador municipal">
+    <section aria-label="Buscador municipal" className="relative">
+      {abriendo && (
+        <MunicipioLoadingOverlay
+          nombre={abriendo.nombre}
+          provincia={abriendo.provincia?.nombre ?? null}
+          comunidad={abriendo.provincia?.comunidad_autonoma?.nombre ?? null}
+        />
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
         <div>
           <label htmlFor="socideas-ccaa" className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
@@ -108,6 +146,7 @@ export default function SocideasSearch() {
             id="socideas-ccaa"
             value={ccaaId}
             onChange={(e) => onCcaaChange(e.target.value)}
+            disabled={!!abriendo}
             className={selectClasses}
           >
             <option value="">Todas</option>
@@ -126,7 +165,7 @@ export default function SocideasSearch() {
             id="socideas-prov"
             value={provinciaId}
             onChange={(e) => onProvinciaChange(e.target.value)}
-            disabled={!ccaaId}
+            disabled={!ccaaId || !!abriendo}
             className={selectClasses}
           >
             <option value="">{ccaaId ? "Todas" : "Elija antes una comunidad"}</option>
@@ -143,11 +182,9 @@ export default function SocideasSearch() {
           </label>
           <select
             id="socideas-mun"
-            value=""
-            onChange={(e) => {
-              if (e.target.value) router.push(`/socideas/${e.target.value}`);
-            }}
-            disabled={!provinciaId}
+            value={abriendo?.codigo_ine ?? ""}
+            onChange={(e) => onMunicipioSelect(e.target.value)}
+            disabled={!provinciaId || !!abriendo}
             className={selectClasses}
           >
             <option value="">{provinciaId ? `Elegir entre ${municipios.length}` : "Elija antes una provincia"}</option>
@@ -175,11 +212,12 @@ export default function SocideasSearch() {
               : "Municipio o provincia (p. ej. La Roda, Álava, 02069)"
           }
           autoComplete="off"
-          className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+          disabled={!!abriendo}
+          className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-50"
         />
         <button
           type="submit"
-          disabled={buscando || q.trim().length < 2}
+          disabled={!!abriendo || buscando || q.trim().length < 2}
           className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] transition-all disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
         >
           {buscando ? "Buscando…" : "Buscar"}
@@ -204,7 +242,9 @@ export default function SocideasSearch() {
                 <li key={m.codigo_ine}>
                   <Link
                     href={`/socideas/${m.codigo_ine}`}
-                    className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-[var(--color-input-bg)]/50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] rounded-[var(--border-radius-lg)]"
+                    onClick={() => onResultadoClick(m)}
+                    aria-disabled={!!abriendo}
+                    className={`flex items-center justify-between gap-4 px-5 py-4 hover:bg-[var(--color-input-bg)]/50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] rounded-[var(--border-radius-lg)] ${abriendo ? "pointer-events-none opacity-60" : ""}`}
                   >
                     <span>
                       <span className="block text-sm font-semibold text-[var(--color-text-primary)]">

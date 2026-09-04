@@ -158,23 +158,22 @@ Ambos con `aria-busy`, `Traceability` muestra `fuente`, `bloque`, `fecha_referen
 * 52/52 provincias mapeadas el 2026-09-04 con `scripts/build-adrh-tables-map.ts` (cada tabla responde HTTP 200; ver log de ejecución con bytes+sha256 por tabla en la salida del script). Sin hashes en el JSON: solo `provincia`, `renta`, `gini`, `verificado`. Nacional: tabla 53689.
 * Verificado: 02 Albacete renta 30656 / gini 37678; 28 Madrid renta 31097 / gini 37727. Resto según mapa (ver fichero).
 
-**Ancla nacional ADRH (tabla 53689 “Resultados nacionales, por CCAA, provincias e islas”):** nacional 15 036 € y provincia Madrid 18 142 € – **pendiente de verificación** (tabla descargada, 200, pendiente de parseo en `evidence.json`).
+**Ancla nacional ADRH (tabla 53689):** nacional 15 036 € y provincia Madrid 18 142 € – **PASS** (`tmp/economia/evidence.json`, `ANCLAS: 8/8 PASS` el 2026-09-04).
 
-**Anclas municipales ADRH verificadas con fichero real (fila municipal, distrito/sección vacíos):**
-* 28115 Pozuelo de Alarcón 30 524 € – verificado `tmp/economia/31097.csv` línea 229610.
-* 28022 Boadilla del Monte 26 668 € – verificado `tmp/economia/31097.csv` línea 26192.
-* 08120 Matadepera 26 720 € – **pendiente** (requiere tabla Barcelona del mapa).
-* 18105 Iznalloz 8 399 € – **pendiente** (requiere tabla Granada del mapa).
+**Anclas municipales ADRH (fila municipal, distrito/sección vacíos):** 28115 Pozuelo 30 524 €, 08120 Matadepera 26 720 €, 28022 Boadilla 26 668 €, 18105 Iznalloz 8 399 € – **PASS** (tablas 31097/30896/31025 del mapa provincial).
 
-**DIRCE 2025:** total nacional 3 310 824 – **pendiente de verificación** (`DATOS_TABLA/4721`).
+**DIRCE 2025:** total nacional 3 310 824 – **PASS** (`DATOS_TABLA/4721?nult=1`, serie nacional).
 
-**SEPE julio 2026:** libro completo pendiente de parseo real – **pendiente** (prov. Madrid 273 631, municipio 28079 = 131 527 ±2% por confirmar; el valor anterior ~102-105k queda invalidado hasta `evidence.json`).
+**SEPE julio 2026:** 53 XLS provinciales parseados – prov. Madrid 273 612 (esperado 273 631, −19 por secretos `<5` excluidos) **PASS**; municipio 28079 = 131 527 exacto **PASS**. Los valores anteriores (~64k/~102k) eran mocks y quedan invalidados.
 
-**TGSS julio 2026:** `Muni072026.xlsx` pendiente de descarga desde seg-social.es – **pendiente** (suma ≈22,5 M ±2% por confirmar).
+**TGSS julio 2026:** `Muni072026.xlsx` (200, 522 660 B) suma municipal 21 923 872; referencia nacional oficial julio 2026 del fichero mensual TGSS (`Tabla_3_6`, PERIODO2=20260731) = 22 154 772 → −1,04% (lugar de cotización + `<5`) **PASS** ±2%. La estimación ≈22,5 M queda invalidada por el dato oficial.
 
-**Municipios muestra:** valores anteriores (Madrid 19 245 €, La Roda 11 240 €, etc.) quedan **invalidados** hasta que el dry-run los calcule desde ficheros reales con trazabilidad de fila en `tmp/economia/evidence.json`. AEAT sigue `pendiente` (sin XLSX del operador).
+**Municipios muestra (ver `tmp/economia/evidence.json`, regenerable con `npx tsx scripts/sync-economia-batch-dry-run.ts --dry-run`):**
+* 28079 Madrid – renta neta 19 632 €, hogar 49 916 €, Gini 37,5, DIRCE 297 693, paro 131 527, afiliación 2 455 287.
+* 02069 La Roda y 02029 Chinchilla de Monte-Aragón (no Casas de Ves: 02029 es Chinchilla) – ver evidence.json.
+* AEAT sigue `pendiente` (sin XLSX del operador; renta bruta media por declaración + nº titulares, no renta por persona/hogar).
 
-**Estadísticas nacionales:** pendientes de cálculo desde ficheros parseados reales (no estimadas).
+**Estadísticas nacionales (desde ficheros parseados):** SEPE suma 52 provincias; TGSS suma municipal 21 923 872 (+cota `<5`); ADRH/Gini por tablas provinciales del mapa.
 
 ---
 *Verificación 04/09/2026: SEPE julio 2026 (libro completo ~4 MB + XLS provincia), TGSS julio 2026 Muni072026 (14/08/2026, ~510 KB), AEAT EDM 2023 vigente (2024 oct-2026), DIRCE 2025 vigente (no existe 2026), Atlas 2023 (21/10/2025) según referencias base; ADRH provisional 2024 excluido. Mapa ADRH en `src/lib/adrh-province-tables.json`.*

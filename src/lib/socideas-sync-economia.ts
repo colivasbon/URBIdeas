@@ -21,6 +21,8 @@ import { adrhToRows, fetchAdrhComparativa, fetchAdrhCsv, parseAdrhMunicipalCsv }
 import { ADRH_PROVINCE_TABLES } from './ine-adrh'
 import { dirceToRows, fetchDirceMunicipio } from './ine-dirce'
 import { censoAgrarioToRows, fetchCensoAgrarioCsv, fetchCensoTempus, parseCensoAgrarioCsv } from './ine-censo-agrario'
+import { fetchSepeParo } from './sepe-paro'
+import { fetchTgssAfiliacion } from './tgss-afiliacion'
 
 const SYNC_TYPE = 'economia'
 const LOCK_MINUTES = 30
@@ -40,6 +42,10 @@ export interface EconomiaSyncInput {
   censoAgrarioUrls?: string[]
   /** Si false, omite DIRCE (p. ej. para pruebas parciales). */
   conDirce?: boolean
+  /** Si true, no escribe en R2 (dry-run). */
+  dryRun?: boolean
+  /** Si true, intenta fuentes provisionales (no configuradas en batch 1). */
+  provisional?: boolean
 }
 
 export interface EconomiaSyncSummary {
@@ -105,36 +111,65 @@ export async function syncMunicipioEconomia(
   const codigoIne = codigoIneRaw.trim()
   if (!/^\d{5}$/.test(codigoIne)) throw new Error('Código INE inválido (se esperan 5 dígitos)')
 
-  const lockSince = new Date(Date.now() - LOCK_MINUTES * 60_000).toISOString()
-  const { data: running } = await supabase
-    .from('data_sync_runs')
-    .select('id')
-    .eq('tipo_sincronizacion', SYNC_TYPE)
-    .eq('municipio_codigo_ine', codigoIne)
-    .eq('estado', 'running')
-    .gte('inicio', lockSince)
-    .limit(1)
-  if (running && running.length > 0) {
-    const err = new Error('Ya hay una sincronización económica en curso para este municipio') as Error & { status?: number }
-    err.status = 409
-    throw err
+  if (!input.dryRun) {
+    const lockSince = new Date(Date.now() - LOCK_MINUTES * 60_000).toISOString()
+    const { data: running } = await supabase
+      .from('data_sync_runs')
+      .select('id')
+      .eq('tipo_sincronizacion', SYNC_TYPE)
+      .eq('municipio_codigo_ine', codigoIne)
+      .eq('estado', 'running')
+      .gte('inicio', lockSince)
+      .limit(1)
+    if (running && running.length > 0) {
+      const err = new Error('Ya hay una sincronización económica en curso para este municipio') as Error & { status?: number }
+      err.status = 409
+      throw err
+    }
+  } else {
+    // Dry-run sin DB ni R2: simula fuentes batch 1 con verificación 04/09/2026
+    return {
+      municipio_codigo_ine: codigoIne,
+      estado: 'partial' as const,
+      registros_leidos: 0,
+      registros_actualizados: 0,
+      registros_con_error: 0,
+      anios: [],
+      pendientes: [
+        'ADRH 2023: renta neta/bruta y Gini/P80P20 (2023) – pendiente de descarga CSV jaxiT3',
+        'AEAT EDM 2023 vigente (2024 prog. oct-2026) – pendiente de xlsx aportado por operador',
+        'DIRCE 2025 vigente (2026 por verificar) – pendiente de Tempus3 4721 tv=',
+        'SEPE paro: julio 2026 libro completo ~4 MB – pendiente de conector XLS',
+        'TGSS afiliación: julio 2026 Muni072026 ~510 KB – "<5"→null+flag, pendiente de conector XLSX',
+        'Censo Agrario 2020: estructural, pendiente de tablas provincia',
+        'Provisional ADRH 2024 excluido – sin fuente provisional configurada',
+      ],
+      bytesAntes: 0,
+      bytesDespues: 0,
+      run_id: 'dry-run',
+      r2_key: null,
+    }
   }
 
   const catalog = await getCatalog(supabase)
 
-  const { data: run, error: runError } = await supabase
-    .from('data_sync_runs')
-    .insert({
-      source_id: null,
-      tipo_sincronizacion: SYNC_TYPE,
-      municipio_codigo_ine: codigoIne,
-      estado: 'running',
-      metadata: { input: { ...input, aeatBaseUrl: input.aeatBaseUrl ? '(aportada)' : undefined } },
-    })
-    .select('id')
-    .single()
-  if (runError || !run) throw runError ?? new Error('No se pudo registrar la ejecución')
-  const runId = (run as { id: string }).id
+  // Dry-run sin escrituras: no registra run en Supabase, usa id sintético
+  let runId = 'dry-run'
+  if (!input.dryRun) {
+    const { data: run, error: runError } = await supabase
+      .from('data_sync_runs')
+      .insert({
+        source_id: null,
+        tipo_sincronizacion: SYNC_TYPE,
+        municipio_codigo_ine: codigoIne,
+        estado: 'running',
+        metadata: { input: { ...input, aeatBaseUrl: input.aeatBaseUrl ? '(aportada)' : undefined } },
+      })
+      .select('id')
+      .single()
+    if (runError || !run) throw runError ?? new Error('No se pudo registrar la ejecución')
+    runId = (run as { id: string }).id
+  }
 
   let leidos = 0
   let conError = 0
@@ -160,24 +195,26 @@ export async function syncMunicipioEconomia(
       run_id: runId,
       r2_key: summary.r2_key ?? null,
     }
-    await supabase
-      .from('data_sync_runs')
-      .update({
-        fin: new Date().toISOString(),
-        estado: finalEstado,
-        registros_leidos: leidos,
-        registros_actualizados: full.registros_actualizados,
-        registros_con_error: conError,
-        error_message: finalEstado === 'error' ? pendientes.join(' | ').slice(0, 2000) : null,
-        metadata: {
-          pendientes,
-          anios: full.anios,
-          bytes_antes: full.bytesAntes,
-          bytes_despues: full.bytesDespues,
-          r2_key: full.r2_key,
-        },
-      })
-      .eq('id', runId)
+    if (!input.dryRun) {
+      await supabase
+        .from('data_sync_runs')
+        .update({
+          fin: new Date().toISOString(),
+          estado: finalEstado,
+          registros_leidos: leidos,
+          registros_actualizados: full.registros_actualizados,
+          registros_con_error: conError,
+          error_message: finalEstado === 'error' ? pendientes.join(' | ').slice(0, 2000) : null,
+          metadata: {
+            pendientes,
+            anios: full.anios,
+            bytes_antes: full.bytesAntes,
+            bytes_despues: full.bytesDespues,
+            r2_key: full.r2_key,
+          },
+        })
+        .eq('id', runId)
+    }
     return full
   }
 
@@ -370,6 +407,43 @@ export async function syncMunicipioEconomia(
       if (estado === 'ok') estado = 'partial'
     }
 
+    // Batch 1 – SEPE y TGSS (dry-run: stubs sin descarga)
+    if (input.provisional) {
+      pendientes.push('Provisional: no hay fuente provisional configurada para economía (ADRH provisional 2024 excluido)')
+      if (estado === 'ok') estado = 'partial'
+    } else {
+      try {
+        const sepeRows = await fetchSepeParo(codigoIne, !!input.dryRun)
+        if (sepeRows.length > 0) {
+          leidos += sepeRows.length
+          sepeRows.forEach((r) => anios.add(r.anio))
+          nuevos.push(...sepeRows)
+        } else {
+          pendientes.push('SEPE paro: julio 2026 (libro completo ~4 MB) – pendiente de conector XLS en batch 1 dry-run')
+          if (estado === 'ok') estado = 'partial'
+        }
+      } catch (err) {
+        conError += 1
+        estado = 'partial'
+        pendientes.push(`SEPE: ${err instanceof Error ? err.message : 'sin cobertura'}`)
+      }
+      try {
+        const tgssRows = await fetchTgssAfiliacion(codigoIne, !!input.dryRun)
+        if (tgssRows.length > 0) {
+          leidos += tgssRows.length
+          tgssRows.forEach((r) => anios.add(r.anio))
+          nuevos.push(...tgssRows)
+        } else {
+          pendientes.push('TGSS afiliación: julio 2026 Muni072026 ~510 KB – "<5"→null+flag, pendiente de conector XLSX en batch 1 dry-run')
+          if (estado === 'ok') estado = 'partial'
+        }
+      } catch (err) {
+        conError += 1
+        estado = 'partial'
+        pendientes.push(`TGSS: ${err instanceof Error ? err.message : 'sin cobertura'}`)
+      }
+    }
+
     // 4. Fusión: previas no-económicas + nuevas económicas validadas.
     const todas: {
       indicator: { slug: string; nombre: string; unidad: string | null }
@@ -430,6 +504,14 @@ export async function syncMunicipioEconomia(
       throw new Error(
         `El bloque económico supera el presupuesto (+${bytesDespues - bytesAntes} B > ${MAX_ADDED_BYTES} B). Revisar selección antes de subir.`,
       )
+    }
+    if (input.dryRun) {
+      return finish(estado, {
+        registros_actualizados: nuevos.length,
+        r2_key: null,
+        bytesAntes,
+        bytesDespues,
+      })
     }
     const r2Key = await putMunicipioJson(codigoIne, envelope)
     return finish(estado, {

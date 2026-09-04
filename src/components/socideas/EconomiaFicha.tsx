@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import StatCard from "./StatCard";
 import EvolutionChart, { type SerieEvo } from "./EvolutionChart";
 import Traceability from "./Traceability";
@@ -50,6 +51,37 @@ export default function EconomiaFicha({
   initial: PerfilEconomico;
 }) {
   const { valores, municipio } = initial;
+  const isInternal = process.env.NEXT_PUBLIC_SOCIDEAS_INTERNAL === "true";
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+
+  const handleActualizar = async () => {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const res = await fetch(`/api/socideas/sync-economia/${codigoINE}?dryRun=true`, { method: "POST" });
+      const j = await res.json();
+      if (!res.ok) setSyncMsg(j.error ?? "No autorizado – configure SOCIDEAS_SYNC_TOKEN");
+      else setSyncMsg(`Dry-run: ${j.data?.registros_actualizados ?? 0} registros, estado ${j.data?.estado}`);
+    } catch {
+      setSyncMsg("Error de red");
+    } finally {
+      setSyncing(false);
+    }
+  };
+  const handleProvisional = async () => {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const res = await fetch(`/api/socideas/sync-economia/${codigoINE}?dryRun=true&provisional=true`, { method: "POST" });
+      const j = await res.json();
+      setSyncMsg(j.data?.motivo ?? j.error ?? JSON.stringify(j.data));
+    } catch {
+      setSyncMsg("Error de red");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const bloques: { clave: string; titulo: string; state: BlockState; ultimoAnio: number | null; n: number }[] = [
     bloque("Renta y capacidad económica", ["irpf_declaraciones", "irpf_renta_bruta_media", "irpf_renta_disponible_media", "renta_neta_media_persona", "renta_neta_media_hogar", "renta_bruta_media_persona", "renta_bruta_media_hogar"]),
@@ -136,6 +168,31 @@ export default function EconomiaFicha({
 
   return (
     <div>
+      {isInternal && (
+        <div className="mb-6 flex flex-wrap gap-2" aria-label="Acciones internas de sincronización">
+          <button
+            type="button"
+            onClick={handleActualizar}
+            disabled={syncing}
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg)] disabled:opacity-50"
+          >
+            {syncing ? "Sincronizando…" : "Actualizar datos oficiales"}
+          </button>
+          <button
+            type="button"
+            onClick={handleProvisional}
+            disabled={syncing}
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg)] disabled:opacity-50"
+          >
+            Comprobar provisionales
+          </button>
+        </div>
+      )}
+      {syncMsg && (
+        <p role="status" className="mb-4 rounded-lg bg-[var(--color-input-bg)] p-3 text-sm text-[var(--color-text-secondary)]">
+          {syncMsg}
+        </p>
+      )}
       {/* Visión general */}
       <section aria-label="Visión general de la economía" className="mb-10">
         <h2 className="ideas-h2">Visión general</h2>

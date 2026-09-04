@@ -31,9 +31,16 @@ export async function POST(
     return NextResponse.json({ data: null, error: 'No autorizado', count: 0 }, { status: 401 })
   }
   const { codigoINE } = await params
-  const input: EconomiaSyncInput = {}
+  const url = new URL(request.url)
+  const dryRunParam = url.searchParams.get('dryRun')
+  const provisionalParam = url.searchParams.get('provisional')
+  const input: EconomiaSyncInput = {
+    // Por defecto dry-run hasta autorización expresa para escribir en R2
+    dryRun: dryRunParam ? dryRunParam !== 'false' : true,
+    provisional: provisionalParam === 'true',
+  }
   try {
-    const body = (await request.json()) as Partial<EconomiaSyncInput>
+    const body = (await request.json()) as Partial<EconomiaSyncInput & { dryRun?: boolean; provisional?: boolean }>
     if (body && typeof body === 'object') {
       if (typeof body.aeatEjercicio === 'number') input.aeatEjercicio = body.aeatEjercicio
       if (typeof body.aeatBaseUrl === 'string') input.aeatBaseUrl = body.aeatBaseUrl
@@ -46,9 +53,18 @@ export async function POST(
         input.censoAgrarioUrls = body.censoAgrarioUrls.filter((u): u is string => typeof u === 'string')
       }
       if (typeof body.conDirce === 'boolean') input.conDirce = body.conDirce
+      if (typeof body.dryRun === 'boolean') input.dryRun = body.dryRun
+      if (typeof body.provisional === 'boolean') input.provisional = body.provisional
     }
   } catch {
     // Sin body: sincronización con valores por defecto (marcas de pendiente).
+  }
+  // En batch 1, "Comprobar provisionales" debe indicar que no hay fuente provisional configurada
+  if (input.provisional) {
+    return NextResponse.json(
+      { data: { provisional: false, motivo: 'No hay fuente provisional configurada para economía (ADRH provisional 2024 excluido)' }, error: null, count: 0 },
+      { status: 200 },
+    )
   }
   try {
     const supabase = createSupabaseServer()

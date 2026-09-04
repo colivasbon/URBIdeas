@@ -1,5 +1,6 @@
 // Acceso a R2 para datos masivos SOCideas (SOLO servidor para escritura;
 // la lectura pública no necesita credenciales).
+import { cache } from "react";
 //
 // Arquitectura Fase 2A.2: Supabase guarda catálogo, buscador territorial,
 // runs de sincronización y último-año; el GRUESO (historia completa por
@@ -200,6 +201,15 @@ export async function readMunicipioJson(codigoIne: string): Promise<R2MunicipioE
   }
   return null
 }
+
+/**
+ * Lectura única por request: deduplica múltiples llamadas a readMunicipioJson
+ * dentro de la misma petición (filtrosIniciales base+perfil, Demografía+Economía).
+ * Usa React.cache → scope de request, sin persistencia entre usuarios, sin datos obsoletos.
+ */
+export const getMunicipioEnvelopeForRequest = cache(async (codigoIne: string): Promise<R2MunicipioEnvelope | null> => {
+  return readMunicipioJson(codigoIne).catch(() => null);
+});
 
 async function fetchR2Key(
   base: string,

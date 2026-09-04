@@ -5,7 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { IndicatorValue, PerfilEconomico, SocideasMunicipio } from './socideas'
 import { SOCIDEAS_ECONOMY_INDICATORS } from './socideas'
-import { expandV2Envelope, readMunicipioJson } from './socideas-r2'
+import { expandV2Envelope, getMunicipioEnvelopeForRequest } from './socideas-r2'
 import type { R2MunicipioEnvelopeV2 } from './socideas-r2'
 
 export type PerfilEconomiaResult =
@@ -48,7 +48,8 @@ export async function getPerfilEconomico(
     centroide_lat: null,
   }
 
-  const envelope = await readMunicipioJson(codigoIne).catch(() => null)
+  // Una sola lectura por request (deduplicada con Demografía si se piden ambas)
+  const envelope = await getMunicipioEnvelopeForRequest(codigoIne).catch(() => null)
   const valoresRaw =
     envelope?.version === 2
       ? (expandV2Envelope(envelope as unknown as R2MunicipioEnvelopeV2) as unknown as IndicatorValue[])

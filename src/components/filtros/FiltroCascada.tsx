@@ -23,11 +23,17 @@ export default function FiltroCascada({ onMunicipioSeleccionado, onProvinciaSele
   const [loadingMun, setLoadingMun] = useState(false)
 
   const onMunRef = useRef(onMunicipioSeleccionado)
-  onMunRef.current = onMunicipioSeleccionado
   const onProvRef = useRef(onProvinciaSeleccionada)
-  onProvRef.current = onProvinciaSeleccionada
+  useEffect(() => {
+    onMunRef.current = onMunicipioSeleccionado
+  }, [onMunicipioSeleccionado])
+  useEffect(() => {
+    onProvRef.current = onProvinciaSeleccionada
+  }, [onProvinciaSeleccionada])
 
   useEffect(() => {
+    // Necesario para reflejar el inicio de la carga asíncrona de comunidades al montar el componente.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingCCAA(true)
     fetch("/api/comunidades")
       .then(r => r.json())
@@ -37,6 +43,8 @@ export default function FiltroCascada({ onMunicipioSeleccionado, onProvinciaSele
   }, [])
 
   useEffect(() => {
+    // Necesario para limpiar provincias cuando se deselecciona la comunidad autónoma y evitar mostrar datos obsoletos.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!selCCAA) { setProvincias([]); return }
     setLoadingProv(true)
     fetch(`/api/provincias?comunidad_autonoma_id=${selCCAA}`)
@@ -50,6 +58,8 @@ export default function FiltroCascada({ onMunicipioSeleccionado, onProvinciaSele
   }, [selCCAA])
 
   useEffect(() => {
+    // Necesario para limpiar municipios cuando se deselecciona la provincia y evitar mostrar datos obsoletos.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!selProv) { setMunicipios([]); onProvRef.current?.(null); return }
     setLoadingMun(true)
     onProvRef.current?.(selProv)

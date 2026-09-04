@@ -93,12 +93,24 @@ export async function generateMetadata({
   params: Promise<{ codigoINE: string }>;
 }): Promise<Metadata> {
   const { codigoINE } = await params;
-  const perfil = await getPerfil(codigoINE, {}, false);
-  const nombre = perfil?.municipio.nombre ?? codigoINE;
-  return {
-    title: `${nombre} | SOCideas`,
-    description: `Ficha sociodemográfica de ${nombre} (INE ${codigoINE}): población, evolución y estructura por edad y sexo con fuentes oficiales.`,
-  };
+  try {
+    const supabase = createSupabaseServer();
+    const { data } = await supabase
+      .from("municipios")
+      .select("nombre")
+      .eq("codigo_ine", codigoINE)
+      .single();
+    const nombre = (data as unknown as { nombre?: string })?.nombre ?? codigoINE;
+    return {
+      title: `${nombre} | SOCideas`,
+      description: `Ficha sociodemográfica de ${nombre} (INE ${codigoINE}): población, evolución y estructura por edad y sexo con fuentes oficiales.`,
+    };
+  } catch {
+    return {
+      title: `${codigoINE} | SOCideas`,
+      description: `Ficha sociodemográfica de ${codigoINE} (INE ${codigoINE}): población, evolución y estructura por edad y sexo con fuentes oficiales.`,
+    };
+  }
 }
 
 export default async function SocideasFicha({

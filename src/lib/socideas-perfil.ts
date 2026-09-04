@@ -13,7 +13,7 @@ import type {
   SocideasMunicipio,
 } from './socideas'
 import { AMBITOS } from './socideas'
-import { expandV2Envelope, readMunicipioJson } from './socideas-r2'
+import { expandV2Envelope, getMunicipioEnvelopeForRequest } from './socideas-r2'
 import type { R2MunicipioEnvelopeV2 } from './socideas-r2'
 
 export type PerfilResult =
@@ -135,7 +135,8 @@ export async function getPerfilDemografico(
   // El grueso vive en R2 (un JSON por municipio); en Supabase solo quedan
   // catálogo, territorio y runs. Sin objeto en R2 = sin perfil sincronizado.
   // (La tabla municipal_indicator_values queda como legado sin escrituras.)
-  const envelope = await readMunicipioJson(codigoIne).catch(() => null)
+  // Una sola lectura por request gracias a getMunicipioEnvelopeForRequest (React.cache)
+  const envelope = await getMunicipioEnvelopeForRequest(codigoIne).catch(() => null)
   // v2 compacto se expande a filas completas idénticas a v1.
   const valoresRaw =
     envelope?.version === 2

@@ -68,7 +68,7 @@ export default function SocideasSearch() {
     setMunicipios([]);
   };
 
-  const buscar = async (e?: React.FormEvent) => {
+  const buscar = async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
     const term = q.trim();
     if (term.length < 2) return;

@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import StatCard from "./StatCard";
 import EvolutionChart, { type SerieEvo } from "./EvolutionChart";
 import PyramidChart from "./PyramidChart";
 import Traceability from "./Traceability";
 import CopyTableButton from "./CopyTableButton";
-import type { AmbitoTerritorial, PerfilDemografico } from "@/lib/socideas";
+import type { AmbitoTerritorial, PerfilDemografico, IndicatorValue } from "@/lib/socideas";
 import { AMBITOS } from "@/lib/socideas";
 
 type SexoModo = "total" | "hombres" | "mujeres" | "comparar";
@@ -99,7 +98,6 @@ export default function FichaFiltros({
   initial: PerfilDemografico;
   searchParams: Record<string, string>;
 }) {
-  const router = useRouter();
   const sp = new URLSearchParams(searchParams);
   const defectos: FiltrosUI = {
     anio: null,
@@ -111,49 +109,28 @@ export default function FichaFiltros({
     pirModo: "abs",
   };
   const [filtros, setFiltros] = useState<FiltrosUI>(() => filtrosIniciales(sp, initial.disponibles));
-  const [perfil, setPerfil] = useState<PerfilDemografico>(initial);
-  const [cargando, setCargando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const primero = useRef(true);
+
+  // Derivación local sin R2 ni fetch: reutiliza initial.valores ya entregados por el Server Component.
+  // Memoizado para evitar recalcular tablas y gráficos en cada render.
+  const perfil = useMemo(() => derivarPerfil(initial, filtros), [initial, filtros]);
 
   const rangoInvalido =
     filtros.evoDesde !== null && filtros.evoHasta !== null && filtros.evoDesde > filtros.evoHasta;
 
-  useEffect(() => {
-    if (primero.current) {
-      primero.current = false;
-      return;
-    }
-    if (rangoInvalido) return;
-    // Sin setState síncrono aquí (regla set-state-in-effect): el estado de
-    // carga se activa en los manejadores que cambian los filtros.
-    const q = new URLSearchParams();
-    if (filtros.anio !== null) q.set("anio", String(filtros.anio));
-    if (filtros.evoDesde !== null) q.set("desde", String(filtros.evoDesde));
-    if (filtros.evoHasta !== null) q.set("hasta", String(filtros.evoHasta));
-    q.set("comparar", filtros.comparar.join(","));
-    if (filtros.pirAnio !== null) q.set("pir_anio", String(filtros.pirAnio));
-    const qs = q.toString();
-    fetch(`/api/socideas/perfil/${codigoINE}${qs ? `?${qs}` : ""}`)
-      .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
-      .then(({ ok, j }) => {
-        if (!ok || !j.data) throw new Error(j.error ?? "Error al cargar los datos");
-        setPerfil(j.data as PerfilDemografico);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : "Error al cargar los datos"))
-      .finally(() => setCargando(false));
-    router.replace(aURL(codigoINE, filtros, defectos), { scroll: false });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtros]);
+  const syncUrl = (next: FiltrosUI) => {
+    const url = aURL(codigoINE, next, defectos);
+    if (typeof window !== "undefined") window.history.replaceState(null, "", url);
+  };
 
   const set = (patch: Partial<FiltrosUI>) => {
-    setCargando(true);
-    setError(null);
-    setFiltros((f) => ({ ...f, ...patch }));
+    setFiltros((f) => {
+      const next = { ...f, ...patch };
+      syncUrl(next);
+      return next;
+    });
   };
   const restablecer = () => {
-    setCargando(true);
-    setError(null);
+    syncUrl(defectos);
     setFiltros({ ...defectos });
   };
 
@@ -211,17 +188,7 @@ export default function FichaFiltros({
   }
 
   return (
-    <div aria-busy={cargando}>
-      {cargando && (
-        <p role="status" className="mb-4 text-xs font-semibold text-[var(--color-secondary)]">
-          Actualizando datos…
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="mb-4 rounded-xl border border-red-500/40 p-4 text-sm text-red-500">
-          {error} Se mantienen los últimos datos cargados.
-        </p>
-      )}
+    <div>
 
       {/* Bloque 1: población actual */}
       <section aria-label="Población actual" className="mb-10">
@@ -528,6 +495,89 @@ export default function FichaFiltros({
     const fin = ev[ev.length - 1];
     set({ evoDesde: fin - anos, evoHasta: fin });
   }
+}
+
+function slugOf(v: IndicatorValue): string {
+  return (v.indicator as unknown as { slug?: string } | undefined)?.slug ?? "";
+}
+function isMunicipioAmbito(v: IndicatorValue): boolean {
+  return (v.dimensiones?.ambito ?? "municipio") === "municipio";
+}
+function derivarPerfil(base: PerfilDemografico, filtros: FiltrosUI): PerfilDemografico {
+  const d = base.disponibles;
+  const anioEff = filtros.anio !== null && d.anios_municipio.includes(filtros.anio) ? filtros.anio : null;
+  let desde = filtros.evoDesde;
+  let hasta = filtros.evoHasta;
+  if (desde !== null && !d.anios_evolucion.includes(desde)) desde = null;
+  if (hasta !== null && !d.anios_evolucion.includes(hasta)) hasta = null;
+  if (desde !== null && hasta !== null && desde > hasta) { desde = null; hasta = null; }
+  const pirAnioEff = filtros.pirAnio !== null && d.piramide_anios.includes(filtros.pirAnio) ? filtros.pirAnio : (d.piramide_anios.length > 0 ? d.piramide_anios[d.piramide_anios.length - 1] : null);
+  const ambitosEff = filtros.comparar.length > 0 ? filtros.comparar : [...AMBITOS] as AmbitoTerritorial[];
+  const valores = base.valores;
+  const bySlug = (slug: string) => valores.filter((v) => slugOf(v) === slug);
+  const latestIn = (anio: number | null, slug: string): IndicatorValue | null => {
+    const list = bySlug(slug).filter((v) => isMunicipioAmbito(v) && v.valor_numerico !== null && (anio === null || v.anio_referencia === anio));
+    list.sort((a, b) => (b.anio_referencia ?? 0) - (a.anio_referencia ?? 0));
+    return (list[0] as IndicatorValue) ?? null;
+  };
+  const total = latestIn(anioEff, "population_total");
+  const hombres = latestIn(anioEff, "population_male");
+  const mujeres = latestIn(anioEff, "population_female");
+  const evoAll = bySlug("population_evolution").filter((v) => isMunicipioAmbito(v) && v.valor_numerico !== null).sort((a,b)=>(a.anio_referencia??0)-(b.anio_referencia??0));
+  const inRange = (a:number, lo:number|null, hi:number|null) => (lo===null||a>=lo)&&(hi===null||a<=hi);
+  const evolucion = evoAll.filter((v)=> inRange(v.anio_referencia??0, desde, hasta)) as PerfilDemografico["evolucion"];
+  const serie = (list: IndicatorValue[]) => list.filter((v)=> v.valor_numerico!==null).sort((a,b)=>(a.anio_referencia??0)-(b.anio_referencia??0));
+  const inAmbito = (amb:string)=>(v:IndicatorValue)=> v.dimensiones?.ambito===amb;
+  const comparativas = {
+    provincia: ambitosEff.includes("provincia") ? serie(bySlug("population_total").filter(inAmbito("provincia"))).filter((v)=>inRange(v.anio_referencia??0, desde, hasta)) as PerfilDemografico["evolucion"] : [],
+    ccaa: ambitosEff.includes("ccaa") ? serie(bySlug("population_total").filter(inAmbito("ccaa"))).filter((v)=>inRange(v.anio_referencia??0, desde, hasta)) as PerfilDemografico["evolucion"] : [],
+    espana: ambitosEff.includes("espana") ? serie(bySlug("population_total").filter(inAmbito("espana"))).filter((v)=>inRange(v.anio_referencia??0, desde, hasta)) as PerfilDemografico["evolucion"] : [],
+  };
+  const ageRows = bySlug("population_age_sex").filter((v)=> v.valor_numerico!==null);
+  const ageMap2 = new Map<string, {hombres:number; mujeres:number}>();
+  for (const v of ageRows.filter((v)=> v.anio_referencia===pirAnioEff)) {
+    const tramo = (v.dimensiones as Record<string,string>)?.tramo_edad;
+    if (!tramo) continue;
+    const e = ageMap2.get(tramo) ?? {hombres:0, mujeres:0};
+    if ((v.dimensiones as Record<string,string>)?.sexo==="hombres") e.hombres = v.valor_numerico ?? 0;
+    if ((v.dimensiones as Record<string,string>)?.sexo==="mujeres") e.mujeres = v.valor_numerico ?? 0;
+    ageMap2.set(tramo, e);
+  }
+  const TRAMO_ORDER = ["0-4","5-9","10-14","15-19","20-24","25-29","30-34","35-39","40-44","45-49","50-54","55-59","60-64","65-69","70-74","75-79","80-84","85-89","90-94","95-99","100+"];
+  const grupos = TRAMO_ORDER.filter(t=> ageMap2.has(t)).map(t=> ({ tramo:t, hombres: ageMap2.get(t)!.hombres, mujeres: ageMap2.get(t)!.mujeres }));
+  const evoByYear = new Map(evoAll.map(v=> [v.anio_referencia, v.valor_numerico as number]));
+  const lastShown = evolucion.length>0 ? (evolucion[evolucion.length-1].anio_referencia ?? null) : null;
+  const refYear = anioEff ?? lastShown;
+  const pctChange = (back:number):number|null=> {
+    if (refYear===null) return null;
+    const baseVal = evoByYear.get(refYear-back);
+    const now = evoByYear.get(refYear);
+    if (baseVal===undefined||now===undefined||baseVal===0) return null;
+    return Math.round(((now-baseVal)/baseVal)*1000)/10;
+  };
+  const sumTramos = (pred:(t:string)=>boolean)=> grupos.filter(g=> pred(g.tramo)).reduce((a,g)=>a+g.hombres+g.mujeres,0);
+  const isOld = (t:string)=> { const n=parseInt(t.split("-")[0],10); return Number.isFinite(n)&&n>=65; };
+  const isYoung = (t:string)=> { const n=parseInt(t.split("-")[0],10); return Number.isFinite(n)&&n<15; };
+  const isWork = (t:string)=> !isOld(t)&&!isYoung(t);
+  const pop65=sumTramos(isOld); const pop014=sumTramos(isYoung); const pop1564=sumTramos(isWork);
+  const indiceEnvejecimiento = pop014>0 ? Math.round((pop65/pop014)*1000)/10 : null;
+  const indiceDependencia = pop1564>0 ? Math.round(((pop014+pop65)/pop1564)*1000)/10 : null;
+  return {
+    ...base,
+    total: total as PerfilDemografico["total"],
+    hombres: hombres as PerfilDemografico["hombres"],
+    mujeres: mujeres as PerfilDemografico["mujeres"],
+    evolucion,
+    comparativas,
+    piramide: { anio: pirAnioEff, grupos },
+    derivados: {
+      cambio_5y: pctChange(5),
+      cambio_10y: pctChange(10),
+      indice_envejecimiento: grupos.length>0 ? indiceEnvejecimiento : null,
+      indice_dependencia: grupos.length>0 ? indiceDependencia : null,
+    },
+    filtros: { anio: anioEff, desde: desde ?? null, hasta: hasta ?? null, ambitos: ambitosEff, pir_anio: pirAnioEff },
+  };
 }
 
 const pendientesFijas = [

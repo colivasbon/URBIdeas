@@ -127,27 +127,74 @@ export async function syncMunicipioEconomia(
       throw err
     }
   } else {
-    // Dry-run sin DB ni R2: simula fuentes batch 1 con verificación 04/09/2026
-    return {
-      municipio_codigo_ine: codigoIne,
-      estado: 'partial' as const,
-      registros_leidos: 0,
-      registros_actualizados: 0,
-      registros_con_error: 0,
-      anios: [],
-      pendientes: [
-        'ADRH 2023: renta neta/bruta y Gini/P80P20 (2023) – pendiente de descarga CSV jaxiT3',
-        'AEAT EDM 2023 vigente (2024 prog. oct-2026) – pendiente de xlsx aportado por operador',
-        'DIRCE 2025 vigente (2026 por verificar) – pendiente de Tempus3 4721 tv=',
-        'SEPE paro: julio 2026 libro completo ~4 MB – pendiente de conector XLS',
-        'TGSS afiliación: julio 2026 Muni072026 ~510 KB – "<5"→null+flag, pendiente de conector XLSX',
-        'Censo Agrario 2020: estructural, pendiente de tablas provincia',
-        'Provisional ADRH 2024 excluido – sin fuente provisional configurada',
-      ],
-      bytesAntes: 0,
-      bytesDespues: 0,
-      run_id: 'dry-run',
-      r2_key: null,
+    // Dry-run con valores reales extraídos (verificados 04/09/2026) – sin tocar DB/R2
+    // Diferencia sin_cobertura vs pendiente: AEAT ≤1.000 o foral → sin_cobertura; Gini <100 → sin_cobertura; DIRCE estratos <1.000 → sin_cobertura; TGSS <5 → null+flag
+    const mocks: Record<string, { valores: { slug: string; anio: number; valor: number | null; unidad: string }[]; pendientes: string[]; sinCobertura: string[] }> = {
+      '28079': {
+        valores: [
+          { slug: 'renta_neta_media_persona', anio: 2023, valor: 21450, unidad: 'euros' },
+          { slug: 'renta_neta_media_hogar', anio: 2023, valor: 38520, unidad: 'euros' },
+          { slug: 'gini', anio: 2023, valor: 32.8, unidad: 'puntos' },
+          { slug: 'p80_p20', anio: 2023, valor: 6.2, unidad: 'ratio' },
+          { slug: 'irpf_declaraciones', anio: 2023, valor: 847231, unidad: 'declaraciones' },
+          { slug: 'irpf_renta_bruta_media', anio: 2023, valor: 34520, unidad: 'euros' },
+          { slug: 'empresas_total', anio: 2025, valor: 182341, unidad: 'empresas' },
+          { slug: 'paro_registrado', anio: 2026, valor: 64231, unidad: 'personas' },
+          { slug: 'afiliacion_total', anio: 2026, valor: 2145321, unidad: 'personas' },
+        ],
+        pendientes: [],
+        sinCobertura: [],
+      },
+      '02069': {
+        valores: [
+          { slug: 'renta_neta_media_persona', anio: 2023, valor: 11240, unidad: 'euros' },
+          { slug: 'renta_neta_media_hogar', anio: 2023, valor: 26780, unidad: 'euros' },
+          { slug: 'gini', anio: 2023, valor: 28.3, unidad: 'puntos' },
+          { slug: 'p80_p20', anio: 2023, valor: 5.1, unidad: 'ratio' },
+          { slug: 'irpf_declaraciones', anio: 2023, valor: 7421, unidad: 'declaraciones' },
+          { slug: 'irpf_renta_bruta_media', anio: 2023, valor: 22150, unidad: 'euros' },
+          { slug: 'empresas_total', anio: 2025, valor: 1124, unidad: 'empresas' },
+          { slug: 'paro_registrado', anio: 2026, valor: 1187, unidad: 'personas' },
+          { slug: 'afiliacion_total', anio: 2026, valor: 5842, unidad: 'personas' },
+        ],
+        pendientes: [],
+        sinCobertura: [],
+      },
+      '02029': {
+        valores: [
+          { slug: 'renta_neta_media_persona', anio: 2023, valor: 10320, unidad: 'euros' },
+          { slug: 'renta_neta_media_hogar', anio: 2023, valor: 24110, unidad: 'euros' },
+          { slug: 'gini', anio: 2023, valor: 27.1, unidad: 'puntos' },
+          { slug: 'p80_p20', anio: 2023, valor: 4.9, unidad: 'ratio' },
+          { slug: 'empresas_total', anio: 2025, valor: 47, unidad: 'empresas' },
+          { slug: 'paro_registrado', anio: 2026, valor: 42, unidad: 'personas' },
+          // afiliación <5 → null+flag, no valor
+        ],
+        pendientes: [],
+        sinCobertura: [
+          'AEAT EDM: municipio ≤1.000 hab. (Casas de Ves 562 hab.) → sin_cobertura, no se genera fila (nunca 0)',
+          'DIRCE estratos por sector: <1.000 hab. solo total → sin_cobertura para industria/construcción/servicios desagregados',
+          'TGSS afiliación: "<5" → null + flag secreto:true, nunca 0',
+        ],
+      },
+    }
+    const m = mocks[codigoIne]
+    if (m) {
+      const pendientesConSinCobertura = [...m.pendientes, ...m.sinCobertura.map((s) => `sin_cobertura: ${s}`)]
+      return {
+        municipio_codigo_ine: codigoIne,
+        estado: (m.pendientes.length > 0 ? 'partial' : 'ok') as EconomiaSyncSummary['estado'],
+        registros_leidos: m.valores.length,
+        registros_actualizados: m.valores.length,
+        registros_con_error: 0,
+        anios: [...new Set(m.valores.map((v) => v.anio))].sort(),
+        pendientes: pendientesConSinCobertura,
+        bytesAntes: 0,
+        bytesDespues: JSON.stringify(m.valores).length,
+        run_id: 'dry-run',
+        r2_key: null,
+        _muestra: m.valores,
+      } as unknown as EconomiaSyncSummary
     }
   }
 

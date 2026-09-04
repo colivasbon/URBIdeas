@@ -178,16 +178,20 @@ export const SOCIDEAS_ECONOMY_INDICATORS = [
   'gan_aves_exp',
   'gan_aves_cab',
   'gan_ug_total',
+  'paro_registrado',
+  'afiliacion_total',
 ] as const
 
 export type EconomyIndicatorSlug = (typeof SOCIDEAS_ECONOMY_INDICATORS)[number]
 
-/** Fuentes estadísticas de Economía (slugs de `statistical_sources`, migración 029). */
+/** Fuentes estadísticas de Economía (slugs de `statistical_sources`, migración 029 + Batch 1 SEPE/TGSS). */
 export const SOCIDEAS_ECONOMY_SOURCES = [
   'aeat_edm',
   'ine_adrh',
   'ine_dirce',
   'ine_censo_agrario',
+  'sepe',
+  'tgss',
 ] as const
 
 export type CategoriaFicha = 'demografia' | 'economia'

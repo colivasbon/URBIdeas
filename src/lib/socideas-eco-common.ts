@@ -2,7 +2,7 @@
 // Ningún adaptador se importa desde componentes de cliente; las fuentes oficiales
 // solo se consultan en sincronizaciones controladas, nunca en la lectura de fichas.
 
-export type EconomySourceSlug = 'aeat_edm' | 'ine_adrh' | 'ine_dirce' | 'ine_censo_agrario'
+export type EconomySourceSlug = 'aeat_edm' | 'ine_adrh' | 'ine_dirce' | 'ine_censo_agrario' | 'sepe' | 'tgss'
 
 export interface EconomyRow {
   slug: string

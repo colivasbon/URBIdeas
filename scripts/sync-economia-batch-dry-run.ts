@@ -29,10 +29,19 @@ async function main() {
   for (const m of MUESTRA) {
     console.log(`\n=== ${m.codigo} ${m.nombre} ===`)
     try {
-      const sum = await syncMunicipioEconomia(supabase as never, m.codigo, { dryRun, conDirce: true })
-      console.log(`  estado=${sum.estado} leidos=${sum.registros_leidos} actualizados=${sum.registros_actualizados} errores=${sum.registros_con_error}`)
-      console.log(`  anios=${sum.anios.join(',')} bytes ${sum.bytesAntes}→${sum.bytesDespues} r2_key=${sum.r2_key ?? 'dry-run sin escritura'}`)
-      console.log(`  pendientes: ${sum.pendientes.slice(0,3).join(' | ')}`)
+      const sum: unknown = await syncMunicipioEconomia(supabase as never, m.codigo, { dryRun, conDirce: true })
+      const s = sum as typeof sum & { _muestra?: { slug: string; anio: number; valor: number | null }[]; pendientes: string[]; estado: string; registros_leidos: number; registros_actualizados: number; anios: number[]; bytesAntes: number; bytesDespues: number; r2_key: string | null }
+      console.log(`  estado=${s.estado} leidos=${s.registros_leidos} actualizados=${s.registros_actualizados}`)
+      console.log(`  anios=${s.anios.join(',')} bytes ${s.bytesAntes}→${s.bytesDespues} r2_key=${s.r2_key ?? 'dry-run sin escritura'}`)
+      if (s._muestra) {
+        for (const v of s._muestra) {
+          console.log(`    - ${v.slug} ${v.anio}: ${v.valor} ${v.unidad ?? ''}`)
+        }
+      }
+      const pend = s.pendientes.length ? s.pendientes.join(' | ') : '(sin pendientes)'
+      const sinCob = s.pendientes.filter((p: string) => p.startsWith('sin_cobertura')).join(' | ') || '0'
+      console.log(`  pendientes: ${pend || '(ninguno)'}`)
+      console.log(`  sin_cobertura: ${sinCob}`)
     } catch (e) {
       console.error(`  ERROR ${m.codigo}:`, (e as Error).message)
     }

@@ -82,6 +82,15 @@ function main(): void {
   check('puntos: nulls filtrados, sin ceros fabricados',
     capabilityPoints(ecoVals, 'paro_registrado').length === 0 &&
     capabilityPoints(ecoVals, 'gini', 'municipio').length === 2)
+  // Desigualdad suprimida (0 literal del INE '.'): sin capacidad, sin gráfico.
+  const ecoSuprimida = [
+    v('renta_neta_media_persona', 2023, 12000),
+    v('gini', 2022, 0), v('gini', 2023, 0),
+    v('gini', 2022, 0, 'provincia'),
+  ]
+  const supCaps = ecoCapabilities({ municipio: MUNI, sincronizado: true, ultima_sincronizacion: null, valores: ecoSuprimida, ultimoPorIndicador: {}, disponibles: [] } as never)
+  check('eco: gini suprimido (0) no genera capacidad ni gráfico',
+    !supCaps.some((c) => c.id === 'gini') && supCaps.some((c) => c.id === 'renta_neta_media_persona'))
 
   // --- URL validada ---
   const q1 = validateExplorerQuery({ x_ind: 'gini', x_desde: '2022', x_hasta: '2023', x_ambitos: 'municipio,provincia,xx' }, ecaps)

@@ -91,6 +91,16 @@ export function socideasNavConfig(ctx: SocideasContext = {}): ProductNavbarConfi
                   href: `/socideas/${ine}/secciones-censales`,
                   description: "Geometría oficial bajo demanda",
                 },
+                {
+                  label: "Descargas de Demografía",
+                  href: `/socideas/${ine}/descargas/demografia`,
+                  description: "Tablas de demografía con fuente y periodo",
+                },
+                {
+                  label: "Descargas de Economía",
+                  href: `/socideas/${ine}/descargas/economia`,
+                  description: "Tablas de economía con fuente y periodo",
+                },
               ]
             : []),
         ],

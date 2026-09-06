@@ -387,7 +387,7 @@ export default function FichaFiltros({
             <div>
               <h3 className="socideas-table-shell__title">Evolución anual</h3>
               <div className="mt-2">
-                <DataTableMeta meta={{ fuente: "INE · Tempus3", periodo: filasTabla.length > 0 ? `${filasTabla[0].anio}–${filasTabla[filasTabla.length - 1].anio}` : null }} />
+                <DataTableMeta meta={{ fuente: "INE · Tempus3", periodo: filasTabla.length > 0 ? `${filasTabla[0].anio}–${filasTabla[filasTabla.length - 1].anio}` : null, unidad: "habitantes" }} />
               </div>
               <div className="mt-3">
                 <EvolutionChart series={series} id={`evo-${codigoINE}`} />
@@ -485,7 +485,7 @@ export default function FichaFiltros({
             <div>
               <h3 className="socideas-table-shell__title">Pirámide de población</h3>
               <div className="mt-2">
-                <DataTableMeta meta={{ fuente: "INE · Padrón Continuo", periodo: perfil.piramide.anio ? String(perfil.piramide.anio) : null }} />
+                <DataTableMeta meta={{ fuente: "INE · Padrón Continuo", periodo: perfil.piramide.anio ? String(perfil.piramide.anio) : null, unidad: "personas" }} />
               </div>
               <div className="mt-3">
                 <PyramidChart grupos={pirGrupos} anio={perfil.piramide.anio} />

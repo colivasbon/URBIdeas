@@ -260,7 +260,7 @@ export default function EconomiaFicha({
                 <div>
                   <h3 className="socideas-table-shell__title">Evolución de la renta neta</h3>
                   <div className="mt-2">
-                    <DataTableMeta meta={{ fuente: "INE · ADRH", periodo: rentaChartPeriodo }} />
+                    <DataTableMeta meta={{ fuente: "INE · ADRH", periodo: rentaChartPeriodo, unidad: "euros" }} />
                   </div>
                   <div className="mt-3">
                     <EvolutionChart series={rentaChartSeries} id={`renta-${codigoINE}`} />

@@ -10,6 +10,7 @@ export interface TableMeta {
   periodo?: string | null;
   cobertura?: string | null;
   estado?: DataEstado | null;
+  unidad?: string | null;
 }
 
 export default function DataTableMeta({ meta }: { meta: TableMeta }) {
@@ -32,6 +33,13 @@ export default function DataTableMeta({ meta }: { meta: TableMeta }) {
     items.push(
       <span key="c">
         <span className="socideas-table-meta__label">Cobertura:</span> {meta.cobertura}
+      </span>,
+    );
+  }
+  if (meta.unidad) {
+    items.push(
+      <span key="u">
+        <span className="socideas-table-meta__label">Unidad:</span> {meta.unidad}
       </span>,
     );
   }

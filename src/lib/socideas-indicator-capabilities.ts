@@ -3,7 +3,7 @@
 // se declara disponible sin filas. Impide selectores ad hoc desconectados.
 // Reutilizable por ficha, tablas, gráficos, descargas futuras y coropletas.
 import type { IndicatorValue, PerfilDemografico, PerfilEconomico } from './socideas'
-import { isRealValue } from './socideas-availability'
+import { isPublishableValue, isRealValue } from './socideas-availability'
 
 export type SocideasDimension =
   | 'scope'
@@ -47,14 +47,15 @@ function slugOf(v: IndicatorValue): string {
   return (v.indicator as unknown as { slug?: string } | undefined)?.slug ?? ''
 }
 
-/** Puntos reales de un indicador y ámbito, ordenados. Sin estimar ni interpolar. */
+/** Puntos reales de un indicador y ámbito, ordenados. Sin estimar ni interpolar.
+ *  Aplica el filtro de publicabilidad (desigualdad suprimida como 0 → ausencia). */
 export function capabilityPoints(
   valores: IndicatorValue[],
   slug: string,
   scope = 'municipio',
 ): SocideasPoint[] {
   return valores
-    .filter((v) => slugOf(v) === slug && isRealValue(v.valor_numerico) && (v.dimensiones?.ambito ?? 'municipio') === scope)
+    .filter((v) => slugOf(v) === slug && isPublishableValue(slug, v.valor_numerico) && (v.dimensiones?.ambito ?? 'municipio') === scope)
     .map((v) => ({ anio: v.anio_referencia ?? 0, valor: v.valor_numerico as number }))
     .filter((p) => p.anio > 0)
     .sort((a, b) => a.anio - b.anio)

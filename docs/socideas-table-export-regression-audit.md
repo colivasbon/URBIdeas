@@ -79,6 +79,19 @@ Desigualdad que sí tiene Gini/P80-P20).
   endpoint (server-only; ausente en `.next/static`). `xlsx@0.18.5` queda como dependencia
   sin uso en exportación (verificado: pierde estilos al escribir).
 
+## 5. Hallazgo verificado durante la implementación (solo lectura, sin tocar parsers)
+
+El INE publica la desigualdad suprimida como `.` en el CSV
+(`37727.csv`: `28143 Somosierra … Índice de Gini 2023 .`). Esa marca llega al
+envelope como `0` literal (`valor_numerico=0`, `validado`), porque el parseo
+convierte cadena vacía en `Number('') === 0`. Parsers y datos almacenados NO se
+tocan en esta tarea. Tratamiento solo-lectura en presentación/exportación
+(`isPublishableValue` en `socideas-availability.ts`): `gini`/`p80_p20` con valor
+exacto `0` se tratan como secreto estadístico (ND + cobertura explícita), ya que
+Gini ∈ (0,100] y P80/P20 ≥ 1 por construcción. Los ceros de conteos (pirámide)
+sí son publicables y se conservan. La corrección del parser queda registrada
+como trabajo futuro fuera de esta tarea.
+
 ## 4. Alcance seguro
 
 Archivos a modificar: `EconomiaFicha.tsx` (gráfico renta), `globals.css` (solo bloque

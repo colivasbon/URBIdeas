@@ -3,7 +3,7 @@
 // CSV: UTF-8 con BOM, separador `;` (Excel español), pie de fuente+periodo.
 
 import type { IndicatorValue, PerfilDemografico, PerfilEconomico } from "./socideas";
-import { isRealValue } from "./socideas-availability";
+import { isPublishableValue, isRealValue } from "./socideas-availability";
 
 export interface ExportCell { text: string; numeric: number | null }
 export interface ExportTable {
@@ -34,13 +34,13 @@ export function fmtES(n: number | null, dec = 0): string {
 
 function ultimo(valores: IndicatorValue[], slug: string): IndicatorValue | null {
   const list = valores
-    .filter((v) => slugOf(v) === slug && isRealValue(v.valor_numerico) && (v.dimensiones?.ambito ?? "municipio") === "municipio")
+    .filter((v) => slugOf(v) === slug && isPublishableValue(slug, v.valor_numerico) && (v.dimensiones?.ambito ?? "municipio") === "municipio")
     .sort((a, b) => (a.anio_referencia ?? 0) - (b.anio_referencia ?? 0));
   return list.length > 0 ? list[list.length - 1] : null;
 }
 function serie(valores: IndicatorValue[], slug: string, ambito = "municipio"): { anio: number; valor: number }[] {
   return valores
-    .filter((v) => slugOf(v) === slug && isRealValue(v.valor_numerico) && (v.dimensiones?.ambito ?? "municipio") === ambito)
+    .filter((v) => slugOf(v) === slug && isPublishableValue(slug, v.valor_numerico) && (v.dimensiones?.ambito ?? "municipio") === ambito)
     .map((v) => ({ anio: v.anio_referencia ?? 0, valor: v.valor_numerico as number }))
     .sort((a, b) => a.anio - b.anio);
 }

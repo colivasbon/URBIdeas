@@ -19,7 +19,7 @@ import {
   HerramientasConsulta,
   Metodologia,
 } from "./ConsultaTools";
-import { isRealValue, type CoverageEntry } from "@/lib/socideas-availability";
+import { isPublishableValue, isRealValue, type CoverageEntry } from "@/lib/socideas-availability";
 import type { IndicatorValue, PerfilEconomico } from "@/lib/socideas";
 
 function slugOf(v: IndicatorValue): string {
@@ -33,7 +33,7 @@ function fmt(n: number | null, dec = 0): string {
 
 function filasPorSlug(valores: IndicatorValue[], slug: string): IndicatorValue[] {
   return valores
-    .filter((v) => slugOf(v) === slug && isRealValue(v.valor_numerico))
+    .filter((v) => slugOf(v) === slug && isPublishableValue(slug, v.valor_numerico))
     .sort((a, b) => (a.anio_referencia ?? 0) - (b.anio_referencia ?? 0));
 }
 

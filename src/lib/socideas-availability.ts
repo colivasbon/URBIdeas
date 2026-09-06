@@ -33,6 +33,21 @@ export function isRealValue(v: number | null | undefined): v is number {
   return typeof v === 'number' && Number.isFinite(v);
 }
 
+/**
+ * Valor publicable en ficha y descargas (solo lectura: no altera el envelope,
+ * el parser ni la sincronización). El INE marca la desigualdad suprimida con
+ * `.` en el CSV; esa marca llegó al envelope como `0` literal en algunos
+ * municipios. Gini ∈ (0,100] y P80/P20 ≥ 1 por construcción: un 0 exacto en
+ * `gini`/`p80_p20` nunca es un dato publicado, sino secreto estadístico, y se
+ * trata como ausencia (ND + cobertura explícita). Los ceros de conteos
+ * (pirámide, población) sí pueden ser reales y se conservan.
+ */
+export function isPublishableValue(slug: string, v: number | null | undefined): boolean {
+  if (!isRealValue(v)) return false;
+  if ((slug === 'gini' || slug === 'p80_p20') && v === 0) return false;
+  return true;
+}
+
 /** Orden analítico: disponibles y parciales primero, provisionales después,
  *  pendientes/sin cobertura/no aplicables al final (panel de cobertura). */
 const RANK: Record<IndicatorAvailability, number> = {

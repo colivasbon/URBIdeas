@@ -1454,6 +1454,10 @@ a:hover {
     grid-column: 1 / -1;
     max-width: 70%;
   }
+
+  .socideas-workspace--uncapped > .socideas-workspace__table {
+    max-width: none;
+  }
 }
 
 .socideas-workspace__table,

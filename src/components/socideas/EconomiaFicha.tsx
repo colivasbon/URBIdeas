@@ -278,6 +278,7 @@ export default function EconomiaFicha({
           <RentaCards valores={valores} />
           <TableWorkspace
             layout="half"
+            uncapped
             table={<RentaTable codigoINE={codigoINE} valores={valores} />}
             visual={
               rentaChartSeries.length > 0 ? (

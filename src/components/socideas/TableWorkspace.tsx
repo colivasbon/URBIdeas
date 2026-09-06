@@ -10,13 +10,18 @@ export default function TableWorkspace({
   visual,
   visualLabel,
   layout = "auto",
+  uncapped = false,
 }: {
   table: React.ReactNode;
   visual?: React.ReactNode;
   visualLabel?: string;
   layout?: "auto" | "half";
+  /** Tablas amplias sin gráfico: sin tope del 70 %, a izquierda con scroll-x. */
+  uncapped?: boolean;
 }) {
-  const cls = `socideas-workspace${visual ? "" : " socideas-workspace--bare"}${layout === "half" ? " socideas-workspace--half" : ""}`;
+  // El reparto 44–50/50–56 solo tiene sentido con gráfico real: sin visual,
+  // la tabla ancha (p. ej. renta de un solo año) ocupa todo el ancho disponible.
+  const cls = `socideas-workspace${visual ? "" : " socideas-workspace--bare"}${layout === "half" && visual ? " socideas-workspace--half" : ""}${uncapped ? " socideas-workspace--uncapped" : ""}`;
   return (
     <div className={cls}>
       <div className="socideas-workspace__table">{table}</div>

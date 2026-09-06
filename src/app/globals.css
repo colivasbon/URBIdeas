@@ -884,7 +884,9 @@ a:hover {
   will-change: transform;
 }
 
-/* --- Grid cartográfico: menor 22px + mayor 120px, solo CSS ---
+/* --- Grid cartográfico: menor 24px + mayor 120px, solo CSS ---
+   La menor es submúltiplo exacto de la mayor (120 = 5 × 24): cada línea
+   mayor coincide con una menor y no aparecen líneas dobles ni moaré.
    Opacidades efectivas: menor ~0.07, mayor ~0.12 (decor ya no reduce). */
 .territorial-grid {
   background-image:
@@ -901,12 +903,12 @@ a:hover {
     repeating-linear-gradient(
       0deg,
       color-mix(in srgb, var(--mineral) 7%, transparent) 0 1px,
-      transparent 1px 22px
+      transparent 1px 24px
     ),
     repeating-linear-gradient(
       90deg,
       color-mix(in srgb, var(--mineral) 7%, transparent) 0 1px,
-      transparent 1px 22px
+      transparent 1px 24px
     );
 }
 

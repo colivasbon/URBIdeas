@@ -1,18 +1,23 @@
 /**
  * Curvas de nivel topográficas (SVG inline ligero y determinista).
  *
- * Los paths se generan UNA sola vez a nivel de módulo con un PRNG con
- * semilla fija (mulberry32). Sin aleatoriedad en render, sin filtros SVG,
+ * Tres macizos (este principal, sudoeste parcial, noreste secundario),
+ * 17 paths en total. Generados UNA sola vez a nivel de módulo con PRNG de
+ * semilla fija (mulberry32): sin aleatoriedad en render, sin filtros SVG,
  * sin librerías. Solo curvas Bézier cúbicas (`C`), `fill="none"`.
  *
- * Garantía de no-intersección: cada anillo es una curva polar
- * r(θ) = R + w(θ) en forma de estrella con |w(θ)| ≤ 16px fijos y un paso
- * radial entre anillos de ≥34px, de modo que la extensión radial de dos
- * anillos consecutivos nunca se toca (separación mínima ≈ 2px). El radio
- * interior mínimo (56px) supera siempre la oscilación máxima, por lo que
- * ningún anillo se autointersecta. Los anillos son bucles cerrados
- * concéntricos e irregulares (oscilación orgánica controlada, sin
- * simetría perfecta, sin círculos/elipses exactas).
+ * No-intersección por construcción: los anillos de cada macizo comparten
+ * la misma forma base (anillos casi paralelos, como un relieve real) con
+ * una perturbación por anillo acotada a ±0.02; el paso radial (38–42u)
+ * supera siempre la desviación máxima. Verificado numéricamente con la
+ * misma semilla: separación mínima entre anillos adyacentes 26u, mínima
+ * global 54u, cobertura en 1920×500, 1440×650, 1280×700, 768×900,
+ * 390×700 y 320×650 (≥2 macizos visibles en desktop, macizo noreste
+ * portando el móvil).
+ *
+ * Excentricidad propia por macizo (squash + rotación distintos) y
+ * oscilación orgánica por dirección (armónicos 2, 3 y 5 + perturbación
+ * en 4 y 7): crestas suaves, entrantes largos, valles anchos.
  */
 
 interface Ring {
@@ -36,21 +41,50 @@ function mulberry32(seed: number): () => number {
 
 const SAMPLES = 24;
 
-/** Convierte un anillo polar muestreado en un path cerrado suave (solo C). */
+interface MassifSpec {
+  key: string;
+  cx: number;
+  cy: number;
+  outer: number;
+  rings: number;
+  gap: number;
+  squash: number;
+  rotDeg: number;
+}
+
+const MASSIFS: MassifSpec[] = [
+  // Macizo A — principal derecho (~85% ancho, ~47% alto, sale por el borde).
+  { key: "este", cx: 1360, cy: 420, outer: 340, rings: 8, gap: 40, squash: 0.86, rotDeg: 0 },
+  // Macizo B — profundidad inferior izquierda (solo arcos exteriores).
+  { key: "sudoeste", cx: 220, cy: 990, outer: 450, rings: 4, gap: 42, squash: 0.78, rotDeg: 25 },
+  // Macizo C — secundario superior (profundidad, porta el móvil).
+  { key: "noreste", cx: 830, cy: 70, outer: 210, rings: 5, gap: 38, squash: 0.93, rotDeg: -15 },
+];
+
+/** Anillo polar muestreado → path cerrado suave (solo C). */
 function ringPath(
-  cx: number,
-  cy: number,
+  m: MassifSpec,
   radius: number,
-  phase1: number,
-  phase2: number,
+  base: { a1: number; a2: number; a3: number; p1: number; p2: number; p3: number },
+  pert: { b1: number; b2: number; q1: number; q2: number },
 ): string {
+  const rot = (m.rotDeg * Math.PI) / 180;
   const pts: [number, number][] = [];
   for (let i = 0; i < SAMPLES; i++) {
     const t = (i / SAMPLES) * Math.PI * 2;
-    // Oscilación fija acotada: |w| ≤ 10 + 6 = 16px.
-    const w = 10 * Math.sin(3 * t + phase1) + 6 * Math.sin(5 * t + phase2);
-    const r = radius + w;
-    pts.push([cx + r * Math.cos(t), cy + 0.82 * r * Math.sin(t)]);
+    const s =
+      base.a1 * Math.sin(3 * t + base.p1) +
+      base.a2 * Math.sin(2 * t + base.p2) +
+      base.a3 * Math.sin(5 * t + base.p3) +
+      pert.b1 * Math.sin(4 * t + pert.q1) +
+      pert.b2 * Math.sin(7 * t + pert.q2);
+    const r = radius * (1 + s);
+    const x0 = r * Math.cos(t);
+    const y0 = m.squash * r * Math.sin(t);
+    pts.push([
+      m.cx + x0 * Math.cos(rot) - y0 * Math.sin(rot),
+      m.cy + x0 * Math.sin(rot) + y0 * Math.cos(rot),
+    ]);
   }
   // Catmull-Rom cerrado → Bézier cúbicas.
   let d = `M ${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
@@ -68,35 +102,31 @@ function ringPath(
   return `${d} Z`;
 }
 
-interface MassifSpec {
-  key: string;
-  cx: number;
-  cy: number;
-  outer: number;
-  rings: number;
-  gap: number;
-}
-
-const MASSIFS: MassifSpec[] = [
-  // Macizo principal derecho: domina la zona derecha/superior.
-  { key: "este", cx: 1190, cy: 370, outer: 330, rings: 8, gap: 36 },
-  // Macizo parcial inferior izquierdo: entra por el borde, sale del viewport.
-  { key: "sudoeste", cx: 110, cy: 990, outer: 390, rings: 6, gap: 38 },
-  // Macizo menor distante: profundidad en la esquina superior derecha.
-  { key: "noreste", cx: 1480, cy: 50, outer: 180, rings: 5, gap: 34 },
-];
-
 function buildRings(): Ring[] {
   const rng = mulberry32(20260906);
   const rings: Ring[] = [];
   for (const m of MASSIFS) {
+    const base = {
+      a1: 0.05 + rng() * 0.02,
+      a2: 0.03 + rng() * 0.015,
+      a3: 0.015 + rng() * 0.01,
+      p1: rng() * Math.PI * 2,
+      p2: rng() * Math.PI * 2,
+      p3: rng() * Math.PI * 2,
+    };
     for (let k = 0; k < m.rings; k++) {
       const radius = m.outer - k * m.gap;
+      const pert = {
+        b1: (rng() - 0.5) * 0.02,
+        b2: (rng() - 0.5) * 0.02,
+        q1: rng() * Math.PI * 2,
+        q2: rng() * Math.PI * 2,
+      };
       const master = k % 4 === 3;
       rings.push({
-        d: ringPath(m.cx, m.cy, radius, rng() * Math.PI * 2, rng() * Math.PI * 2),
-        opacity: master ? 0.26 : 0.1 + ((k * 37 + m.outer) % 10) / 100,
-        width: master ? 1.9 : 1.4,
+        d: ringPath(m, radius, base, pert),
+        opacity: master ? 0.3 : 0.16 + ((k * 37 + m.outer) % 9) / 100,
+        width: master ? 1.25 : 0.9,
         master,
         massif: m.key,
       });

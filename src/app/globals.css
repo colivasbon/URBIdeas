@@ -822,7 +822,7 @@ a:hover {
   inset: -20% -5%;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 1;
   will-change: transform;
 }
 
@@ -884,28 +884,44 @@ a:hover {
   will-change: transform;
 }
 
-/* --- Grid cartográfico: menor 28px + mayor 140px, solo CSS --- */
+/* --- Grid cartográfico: menor 22px + mayor 120px, solo CSS ---
+   Opacidades efectivas: menor ~0.07, mayor ~0.12 (decor ya no reduce). */
 .territorial-grid {
   background-image:
     repeating-linear-gradient(
       0deg,
-      color-mix(in srgb, var(--mineral) 16%, transparent) 0 1px,
-      transparent 1px 140px
+      color-mix(in srgb, var(--mineral) 12%, transparent) 0 1px,
+      transparent 1px 120px
     ),
     repeating-linear-gradient(
       90deg,
-      color-mix(in srgb, var(--mineral) 16%, transparent) 0 1px,
-      transparent 1px 140px
+      color-mix(in srgb, var(--mineral) 12%, transparent) 0 1px,
+      transparent 1px 120px
     ),
     repeating-linear-gradient(
       0deg,
-      color-mix(in srgb, var(--mineral) 9%, transparent) 0 1px,
-      transparent 1px 28px
+      color-mix(in srgb, var(--mineral) 7%, transparent) 0 1px,
+      transparent 1px 22px
     ),
     repeating-linear-gradient(
       90deg,
-      color-mix(in srgb, var(--mineral) 9%, transparent) 0 1px,
-      transparent 1px 28px
+      color-mix(in srgb, var(--mineral) 7%, transparent) 0 1px,
+      transparent 1px 22px
+    );
+}
+
+/* Variante índice (Asistencias): solo retícula mayor, tenue y recto. */
+.territorial-grid--index {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--mineral) 6%, transparent) 0 1px,
+      transparent 1px 160px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--mineral) 6%, transparent) 0 1px,
+      transparent 1px 160px
     );
 }
 
@@ -915,44 +931,43 @@ a:hover {
   color: var(--mineral);
 }
 
-/* --- Home: transición grid (izq.) → curvas (dcha.), sin corte --- */
+/* --- Home: grid 0–30% → fundido 30–52% → curvas 38–60% → pleno 60–100% --- */
 .territorial-background--transition .territorial-grid {
-  rotate: -1.2deg;
-  scale: 1.04;
   -webkit-mask-image: linear-gradient(
     90deg,
     #000 0%,
-    #000 38%,
-    rgba(0, 0, 0, 0.78) 47%,
-    rgba(0, 0, 0, 0.18) 58%,
-    transparent 68%
+    #000 30%,
+    rgba(0, 0, 0, 0.55) 41%,
+    rgba(0, 0, 0, 0.12) 52%,
+    transparent 55%
   );
   mask-image: linear-gradient(
     90deg,
     #000 0%,
-    #000 38%,
-    rgba(0, 0, 0, 0.78) 47%,
-    rgba(0, 0, 0, 0.18) 58%,
-    transparent 68%
+    #000 30%,
+    rgba(0, 0, 0, 0.55) 41%,
+    rgba(0, 0, 0, 0.12) 52%,
+    transparent 55%
   );
 }
 
 .territorial-background--transition .topographic-contours {
-  opacity: 0.9;
   -webkit-mask-image: linear-gradient(
     90deg,
-    transparent 28%,
-    rgba(0, 0, 0, 0.06) 40%,
-    rgba(0, 0, 0, 0.55) 52%,
-    #000 66%,
+    transparent 0%,
+    transparent 35%,
+    rgba(0, 0, 0, 0.08) 38%,
+    rgba(0, 0, 0, 0.6) 50%,
+    #000 60%,
     #000 100%
   );
   mask-image: linear-gradient(
     90deg,
-    transparent 28%,
-    rgba(0, 0, 0, 0.06) 40%,
-    rgba(0, 0, 0, 0.55) 52%,
-    #000 66%,
+    transparent 0%,
+    transparent 35%,
+    rgba(0, 0, 0, 0.08) 38%,
+    rgba(0, 0, 0, 0.6) 50%,
+    #000 60%,
     #000 100%
   );
 }
@@ -967,26 +982,30 @@ a:hover {
   }
 }
 
-/* --- SOCideas: grid full-screen recto + quiet zone radial tras el contenido --- */
+/* --- SOCideas: grid full-screen recto + quiet zone (residual ~62%) --- */
 .territorial-background--grid .territorial-grid {
-  opacity: 0.9;
   -webkit-mask-image: radial-gradient(
     ellipse 72% 68% at 50% 40%,
-    rgba(0, 0, 0, 0.42) 0%,
-    rgba(0, 0, 0, 0.75) 55%,
+    rgba(0, 0, 0, 0.62) 0%,
+    rgba(0, 0, 0, 0.85) 55%,
     #000 100%
   );
   mask-image: radial-gradient(
     ellipse 72% 68% at 50% 40%,
-    rgba(0, 0, 0, 0.42) 0%,
-    rgba(0, 0, 0, 0.75) 55%,
+    rgba(0, 0, 0, 0.62) 0%,
+    rgba(0, 0, 0, 0.85) 55%,
     #000 100%
   );
 }
 
-/* --- URBideas: curvas full-screen --- */
+/* --- URBideas: curvas full-screen, opacidad plena de capa --- */
 .territorial-background--contours .topographic-contours {
-  opacity: 0.95;
+  opacity: 1;
+}
+
+/* --- Asistencias: retícula índice sobria, sin quiet zone radial --- */
+.territorial-background--index {
+  opacity: 0.55;
 }
 
 /* --- Tablet: intensidad -20% aprox. --- */
@@ -997,56 +1016,49 @@ a:hover {
   }
 }
 
-/* --- Mobile: transición vertical suave, menos líneas, sin overflow --- */
+/* --- Mobile: transición vertical suave, contraste reducido, sin overflow --- */
 @media (max-width: 640px) {
   .territorial-background--transition .territorial-grid {
-    rotate: none;
-    scale: none;
     -webkit-mask-image: linear-gradient(
       180deg,
       #000 0%,
-      #000 30%,
-      rgba(0, 0, 0, 0.25) 48%,
-      transparent 62%
+      #000 26%,
+      rgba(0, 0, 0, 0.2) 44%,
+      transparent 56%
     );
     mask-image: linear-gradient(
       180deg,
       #000 0%,
-      #000 30%,
-      rgba(0, 0, 0, 0.25) 48%,
-      transparent 62%
+      #000 26%,
+      rgba(0, 0, 0, 0.2) 44%,
+      transparent 56%
     );
-    opacity: 0.6;
+    opacity: 0.7;
   }
 
   .territorial-background--transition .topographic-contours {
     -webkit-mask-image: linear-gradient(
       180deg,
-      transparent 38%,
-      rgba(0, 0, 0, 0.4) 55%,
-      #000 72%,
+      transparent 34%,
+      rgba(0, 0, 0, 0.4) 52%,
+      #000 68%,
       #000 100%
     );
     mask-image: linear-gradient(
       180deg,
-      transparent 38%,
-      rgba(0, 0, 0, 0.4) 55%,
-      #000 72%,
+      transparent 34%,
+      rgba(0, 0, 0, 0.4) 52%,
+      #000 68%,
       #000 100%
     );
-    opacity: 0.7;
+    opacity: 0.8;
   }
 
   .territorial-background--grid .territorial-grid {
-    opacity: 0.55;
-  }
-
-  .territorial-background--contours .topographic-contours {
     opacity: 0.7;
   }
 
-  /* Menos líneas en móvil: se oculta el macizo menor distante. */
-  .topographic-contours .contour[data-massif="noreste"] {
-    display: none;
+  .territorial-background--contours .topographic-contours {
+    opacity: 0.85;
   }
 }

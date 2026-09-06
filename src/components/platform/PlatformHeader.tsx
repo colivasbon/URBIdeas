@@ -20,13 +20,19 @@ export default function PlatformHeader() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // El menú móvil se cierra vía onClick en cada enlace (sin efecto sobre pathname
-  // para evitar set-state-in-effect y renders en cascada).
+  // El menú móvil se cierra vía onClick en cada enlace y con Escape
+  // (sin efecto sobre pathname para evitar set-state-in-effect y renders en cascada).
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = "";
+      document.removeEventListener("keydown", onKey);
     };
   }, [menuOpen]);
 
@@ -35,6 +41,7 @@ export default function PlatformHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full">
+      <div aria-hidden="true" className="h-0.5 w-full bg-gradient-to-r from-[var(--color-primary)] via-[var(--color-secondary)] to-[var(--color-primary)] opacity-70" />
       <div className="border-b border-[var(--color-border-subtle)] bg-[var(--color-dark-bg)]/80 backdrop-blur-xl supports-[backdrop-filter]:bg-[var(--color-dark-bg)]/60">
         <div className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-3 shrink-0 group" aria-label="IDEAS Sostenibilidad — inicio">

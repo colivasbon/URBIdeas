@@ -18,12 +18,15 @@ export default function MunicipioLoadingOverlay({ nombre, provincia, comunidad }
 
   return (
     <div
-      className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--color-bg)]/70 backdrop-blur-[2px] p-4"
+      className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--color-dark-bg)]/70 backdrop-blur-[2px] p-4"
       role="status"
       aria-live="polite"
       aria-label={`Abriendo ficha municipal de ${nombre}`}
     >
-      <div className="w-full max-w-md rounded-[var(--border-radius-lg)] border border-[var(--color-border)] bg-[var(--color-card-bg)] p-6 shadow-lg">
+      <div className="premium-card w-full max-w-md p-6">
+        <div className="flex items-center gap-2">
+          <span aria-hidden="true" className="editorial-eyebrow">SOCideas · Ficha municipal</span>
+        </div>
         <div className="flex items-start gap-4">
           <span
             aria-hidden="true"

@@ -26,12 +26,19 @@ export default function PlatformFooter() {
 
           <nav className="flex flex-col gap-4 sm:flex-row sm:gap-10" aria-label="Navegación de pie de página">
             <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Plataforma</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Módulos</p>
               <div className="flex flex-col gap-1">
                 <Link href="/" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">Inicio</Link>
-                <Link href="/urbideas" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">URBideas</Link>
-                <Link href="/socideas" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">SOCideas</Link>
+                <Link href="/urbideas" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">URBideas · análisis territorial</Link>
+                <Link href="/socideas" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">SOCideas · diagnóstico municipal</Link>
                 <Link href="/asistencias" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">Asistencias</Link>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Fuentes</p>
+              <div className="flex flex-col gap-1">
+                <p className="text-xs text-[var(--color-text-secondary)]">INE · AEAT · SEPE · DIRCE</p>
+                <p className="text-xs text-[var(--color-text-muted)]">Trazabilidad por indicador y año</p>
               </div>
             </div>
             <div className="max-w-xs">

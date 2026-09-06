@@ -82,17 +82,19 @@ function paintHeaderRow(row: ExcelJS.Row): void {
   row.border = { bottom: { style: 'thin', color: { argb: ACCENT } } }
 }
 
-/** Límites de ancho por rol de columna (contenido +2, con mínimos y máximos). */
+/** Límites de ancho por rol de columna (contenido +2, con mínimos y máximos).
+ *  Sin medida fija universal y sin reutilizar anchos entre roles distintos. */
 export function columnLimitsFor(header: string, isFirst: boolean): [number, number] {
-  if (header === 'Año') return [9, 12]
-  if (header.includes('€')) return [14, 18]
+  if (header === 'Año') return [9, 11]
+  if (header.includes('€')) return [13, 17]
   if (header.includes('%')) return [12, 14]
-  if (header === 'Estado' || header === 'Incluida') return [14, 22]
+  if (header === 'Estado' || header === 'Incluida') return [13, 20]
   if (header === 'Fuente') return [20, 32]
-  if (header === 'Observación') return [24, 48]
+  if (header === 'Observación') return [24, 44]
   if (header === 'Período' || header === 'Cobertura') return [12, 24]
-  if (isFirst) return [18, 34]
-  return [12, 16]
+  if (header === 'Bloque' || header === 'Tabla' || header === 'Tabla / hoja') return [18, 32]
+  if (isFirst) return [14, 26]
+  return [10, 14]
 }
 
 function cellTextLength(text: string, numeric: number | null, header: string): number {
@@ -193,24 +195,97 @@ function applyTableWidths(
   })
 }
 
-/** Hoja de bloque (01/02): título corporativo + tablas apiladas con filtros. */
-function writeBlockSheet(
+export interface DetailSpec {
+  sheet: string
+  desc: string
+  match: (id: string) => boolean
+}
+
+const DEMO_DETAIL: DetailSpec[] = [
+  { sheet: '01A_Evolución demo', desc: 'Evolución anual de la población', match: (id) => id === 'evolucion' },
+  { sheet: '01B_Edad y sexo', desc: 'Pirámide por edad y sexo', match: (id) => id === 'piramide' },
+  { sheet: '01D_Comparativas demo', desc: 'Series comparativas por ámbito', match: (id) => id.startsWith('comparativa-') },
+]
+
+const DEMO_INDEX_IDS = new Set(['poblacion-actual', 'derivados'])
+
+const ECO_DETAIL: DetailSpec[] = [
+  { sheet: '02A_Renta', desc: 'Tabla anual de renta (AEAT y ADRH sin mezclar)', match: (id) => id === 'renta' },
+  { sheet: '02B_Desigualdad', desc: 'Gini y ratio P80/P20 (solo años reales)', match: (id) => id === 'gini' || id === 'p80_p20' },
+  { sheet: '02C_Empresas', desc: 'Tejido empresarial (DIRCE)', match: (id) => id === 'empresas' },
+  { sheet: '02D_Sector primario', desc: 'Estructura agraria y ganadería (Censo 2020)', match: (id) => id === 'agrario' || id === 'ganaderia' },
+]
+
+/** Enlace interno a otra hoja (el texto es el nombre: si el enlace fallara, queda listado). */
+function detailLink(ws: ExcelJS.Worksheet, rowN: number, sheet: string): void {
+  const c = ws.getRow(rowN).getCell(1)
+  c.value = { text: `→ ${sheet}`, hyperlink: `#'${sheet}'!A1` } as unknown as string
+  c.font = { name: FONT_NAME, size: 11, color: { argb: MINERAL }, underline: true }
+}
+
+/** Hoja detallada: UNA familia coherente de tablas con sus propios anchos.
+ *  Sin freeze panes, sin columnas fijadas, sin estilos fuera de rango. */
+function writeDetailSheet(
   wb: ExcelJS.Workbook,
-  name: string,
+  spec: DetailSpec,
   heading: string,
   meta: string,
   tablas: ExportTable[],
 ): ExcelJS.Worksheet {
-  const ws = wb.addWorksheet(name, {
+  const ws = wb.addWorksheet(spec.sheet, {
     properties: { tabColor: { argb: MINERAL } },
-    views: [{ state: 'frozen', ySplit: 0, xSplit: 0 }],
   })
   const nCols = Math.max(2, ...tablas.map((t) => t.columnas.length))
   paintTitle(ws, 1, nCols, `${XLSX_BRAND} — ${heading}`)
   paintMeta(ws, 2, nCols, meta)
   let cursor = 4
-  let firstHeader = 0
   tablas.forEach((t, ti) => {
+    const placed = writeTable(ws, cursor, t)
+    // Un único autofilter por hoja (límite de Excel): solo la tabla principal.
+    if (ti === 0) {
+      ws.autoFilter = {
+        from: { row: placed.headerRow, column: 1 },
+        to: { row: placed.endRow, column: placed.nCols },
+      }
+    }
+    cursor = placed.endRow + 2
+  })
+  return ws
+}
+
+/** Hoja índice (01/02): título, metadatos, tablas resumen compactas y lista de
+ *  hojas detalladas con enlaces internos. Sin series largas ni tablas amplias. */
+function writeIndexSheet(
+  wb: ExcelJS.Workbook,
+  name: string,
+  heading: string,
+  metaLines: [string, string][],
+  indexTables: ExportTable[],
+  details: { spec: DetailSpec; tablas: ExportTable[] }[],
+  note?: string,
+): ExcelJS.Worksheet {
+  const ws = wb.addWorksheet(name, {
+    properties: { tabColor: { argb: MINERAL } },
+  })
+  const nCols = Math.max(2, ...indexTables.map((t) => t.columnas.length))
+  paintTitle(ws, 1, nCols, `${XLSX_BRAND} — ${heading}`)
+  let cursor = 3
+  const meta = (k: string, v: string): void => {
+    const row = ws.getRow(cursor)
+    row.getCell(1).value = k
+    row.getCell(1).font = { name: FONT_NAME, size: 11, bold: true, color: { argb: INK } }
+    ws.mergeCells(cursor, 2, cursor, nCols)
+    const val = row.getCell(2)
+    val.value = v
+    val.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
+    val.alignment = { wrapText: true, vertical: 'middle' }
+    band(row, PAPER)
+    cursor += 1
+  }
+  for (const [k, v] of metaLines) meta(k, v)
+  cursor += 1
+  let firstHeader = 0
+  indexTables.forEach((t, ti) => {
     const placed = writeTable(ws, cursor, t)
     if (ti === 0) {
       firstHeader = placed.headerRow
@@ -221,17 +296,47 @@ function writeBlockSheet(
     }
     cursor = placed.endRow + 2
   })
-  if (firstHeader > 0) {
-    ws.views = [{ state: 'frozen', ySplit: firstHeader, xSplit: 0 }]
+  if (details.length > 0) {
+    const label = ws.getRow(cursor)
+    label.getCell(1).value = 'Hojas detalladas:'
+    label.getCell(1).font = { name: FONT_NAME, size: 11, bold: true, color: { argb: INK } }
+    cursor += 1
+    // Lista en una sola columna (sin banda verde: no es una tabla).
+    let maxName = 18
+    for (const d of details) {
+      detailLink(ws, cursor, d.spec.sheet)
+      const desc = ws.getRow(cursor).getCell(2)
+      desc.value = d.spec.desc
+      desc.font = { name: FONT_NAME, size: 11, color: { argb: MUTED } }
+      maxName = Math.min(34, Math.max(maxName, d.spec.sheet.length + 4))
+      cursor += 1
+    }
+    const prevA = ws.getColumn(1).width ?? 0
+    ws.getColumn(1).width = Math.max(prevA, maxName)
   }
+  if (note) {
+    cursor += 1
+    const row = ws.getRow(cursor)
+    ws.mergeCells(cursor, 1, cursor, nCols)
+    const c = row.getCell(1)
+    c.value = note
+    c.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: MUTED } }
+    c.alignment = { wrapText: true, vertical: 'middle' }
+    row.height = 30
+  }
+  void firstHeader
   return ws
 }
 
-/** Hoja 00_Resumen: trazabilidad completa + exclusiones. Sin números inventados. */
-function writeResumenSheet(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput): ExcelJS.Worksheet {
+/** Hoja 00_Resumen: trazabilidad completa + exclusiones. Sin números inventados.
+ *  Sin freeze panes ni columnas fijadas en esta versión. */
+function writeResumenSheet(
+  wb: ExcelJS.Workbook,
+  input: MunicipioWorkbookInput,
+  detailSheets: string[],
+): ExcelJS.Worksheet {
   const ws = wb.addWorksheet('00_Resumen', {
     properties: { tabColor: { argb: MINERAL } },
-    views: [{ state: 'frozen', ySplit: 3, xSplit: 0 }],
   })
   const nCols = 8
   paintTitle(ws, 1, nCols, `${XLSX_BRAND} — Libro municipal`)
@@ -243,6 +348,7 @@ function writeResumenSheet(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput):
     ['Comunidad autónoma', input.comunidadAutonoma],
     ['Fecha de generación', input.fechaGeneracion],
     ['Bloques incluidos', ['00_Resumen', input.demografia.length > 0 ? '01_Demografía' : null, input.economia.length > 0 ? '02_Economía' : null].filter(Boolean).join(', ')],
+    ['Hojas detalladas disponibles', detailSheets.length > 0 ? detailSheets.join(', ') : 'Ninguna (solo tablas resumen)'],
   ]
   let r = 4
   for (const [k, v] of metaRows) {
@@ -339,7 +445,6 @@ function writeEmptyBlockSheet(
 ): ExcelJS.Worksheet {
   const ws = wb.addWorksheet(name, {
     properties: { tabColor: { argb: MINERAL } },
-    views: [{ state: 'frozen', ySplit: 1, xSplit: 0 }],
   })
   paintTitle(ws, 1, 2, `${XLSX_BRAND} — ${heading}`)
   const row = ws.getRow(3)
@@ -354,29 +459,71 @@ function writeEmptyBlockSheet(
   return ws
 }
 
+function blockMeta(input: MunicipioWorkbookInput, tablas: ExportTable[]): [string, string][] {
+  const fuentes = [...new Set(tablas.map((t) => t.fuente))]
+  const periodos = [...new Set(tablas.map((t) => t.periodo))]
+  return [
+    ['Municipio', `${input.municipio} (${input.codigoINE}) · ${input.provincia} · ${input.comunidadAutonoma}`],
+    ['Generado', input.fechaGeneracion],
+    ['Fuentes', fuentes.length > 0 ? fuentes.join(' · ') : 'Sin tablas'],
+    ['Periodos', periodos.length > 0 ? periodos.join(' · ') : '—'],
+  ]
+}
+
 export async function buildMunicipioWorkbook(input: MunicipioWorkbookInput): Promise<Buffer> {
   const wb = new ExcelJS.Workbook()
   wb.creator = XLSX_BRAND
   wb.created = new Date()
   wb.modified = new Date()
-  writeResumenSheet(wb, input)
-  if (input.demografia.length > 0) {
-    writeBlockSheet(
-      wb, '01_Demografía', `Tablas de Demografía — ${input.municipio} (${input.codigoINE})`,
-      `Fuentes y periodos por tabla · Generado: ${input.fechaGeneracion}`,
-      input.demografia,
+  const demoDetails = DEMO_DETAIL.map((spec) => ({ spec, tablas: input.demografia.filter((t) => spec.match(t.id)) })).filter(
+    (d) => d.tablas.length > 0,
+  )
+  const ecoDetails = ECO_DETAIL.map((spec) => ({ spec, tablas: input.economia.filter((t) => spec.match(t.id)) })).filter(
+    (d) => d.tablas.length > 0,
+  )
+  const detailSheets = [...demoDetails, ...ecoDetails].map((d) => d.spec.sheet)
+  writeResumenSheet(wb, input, detailSheets)
+  const demoIndex = input.demografia.filter((t) => DEMO_INDEX_IDS.has(t.id))
+  if (input.demografia.length > 0 || demoDetails.length > 0) {
+    writeIndexSheet(
+      wb,
+      '01_Demografía',
+      `Tablas de Demografía — ${input.municipio} (${input.codigoINE})`,
+      blockMeta(input, input.demografia),
+      demoIndex,
+      demoDetails,
     )
   } else {
     writeEmptyBlockSheet(wb, '01_Demografía', `Tablas de Demografía — ${input.municipio} (${input.codigoINE})`)
   }
-  if (input.economia.length > 0) {
-    writeBlockSheet(
-      wb, '02_Economía', `Tablas de Economía — ${input.municipio} (${input.codigoINE})`,
-      `Fuentes y periodos por tabla · Generado: ${input.fechaGeneracion}`,
-      input.economia,
+  if (input.economia.length > 0 || ecoDetails.length > 0) {
+    writeIndexSheet(
+      wb,
+      '02_Economía',
+      `Tablas de Economía — ${input.municipio} (${input.codigoINE})`,
+      blockMeta(input, input.economia),
+      [],
+      ecoDetails,
+      'Cobertura y limitaciones: cada tabla conserva su fuente y periodo; la ausencia nunca equivale a 0.',
     )
   } else {
     writeEmptyBlockSheet(wb, '02_Economía', `Tablas de Economía — ${input.municipio} (${input.codigoINE})`)
+  }
+  for (const d of demoDetails) {
+    writeDetailSheet(
+      wb, d.spec,
+      `${d.spec.desc} — ${input.municipio} (${input.codigoINE})`,
+      `Fuentes y periodos por tabla · Generado: ${input.fechaGeneracion}`,
+      d.tablas,
+    )
+  }
+  for (const d of ecoDetails) {
+    writeDetailSheet(
+      wb, d.spec,
+      `${d.spec.desc} — ${input.municipio} (${input.codigoINE})`,
+      `Fuentes y periodos por tabla · Generado: ${input.fechaGeneracion}`,
+      d.tablas,
+    )
   }
   // 03_Secciones censales: solo cuando existan datos reales (hoy nunca: va a exclusiones).
   const buffer = await wb.xlsx.writeBuffer()

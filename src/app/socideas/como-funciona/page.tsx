@@ -443,6 +443,7 @@ export default function ComoFuncionaSocideas() {
                   de trazabilidad, pero no se rellenan con valores.
                 </P>
                 <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
+                  <li>Libro XLSX combinado por municipio (acceso principal desde la cabecera de la ficha): hojas de resumen con trazabilidad, demografía y economía, solo con tablas reales y estética corporativa.</li>
                   <li>CSV individual por tabla (UTF-8 con BOM, separador compatible con Excel español).</li>
                   <li>Informe HTML imprimible por bloque con identidad corporativa y hoja inicial de trazabilidad.</li>
                   <li>Descarga completa del bloque actual (nunca de toda la plataforma ni hojas vacías).</li>

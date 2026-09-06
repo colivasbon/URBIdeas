@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { getPerfilEconomico } from "@/lib/socideas-economia";
-import { buildEconomiaTables } from "@/lib/socideas-export";
+import { buildEconomiaTables, economiaExcluidas } from "@/lib/socideas-export";
 import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import PageShell from "@/components/ui/PageShell";
@@ -54,12 +54,7 @@ export default async function DescargasEconomia({
   }
   const perfil = result.perfil;
   const tablas = buildEconomiaTables(perfil);
-  const excluidas = [
-    { titulo: "Paro registrado (SEPE)", motivo: "Pendiente de conector en batch 1 (dry-run)." },
-    { titulo: "Afiliación a la Seguridad Social (TGSS)", motivo: "Pendiente de conector en batch 1 (dry-run)." },
-    { titulo: "Presupuestos, liquidaciones y ayudas", motivo: "Sin fuente nacional homogénea verificada." },
-    { titulo: "Renta AEAT por declaración", motivo: tablas.some((t) => t.id === "renta") ? "Incluida si el ejercicio fue aportado; en otro caso pendiente." : "Pendiente de aportar el fichero base del ejercicio." },
-  ];
+  const excluidas = economiaExcluidas(tablas.some((t) => t.id === "renta"));
 
   return (
     <div className="flex min-h-screen flex-col">

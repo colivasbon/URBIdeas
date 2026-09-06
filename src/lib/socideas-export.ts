@@ -157,7 +157,7 @@ export function buildDemografiaTables(perfil: PerfilDemografico): ExportTable[] 
   if (derivados.length > 0) {
     tablas.push({
       id: "derivados", titulo: "Indicadores derivados (cálculo propio sobre serie oficial)", hoja: "Derivados",
-      columnas: ["Indicador", "Valor"], filas: derivados,
+      columnas: ["Indicador", "Valor (%)"], filas: derivados,
       fuente: "Cálculo propio sobre serie oficial INE",
       periodo: refAnio ? String(refAnio) : "—",
       cobertura: `Municipio ${perfil.municipio.nombre}`,
@@ -279,6 +279,34 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
 export interface TraceabilitySheet {
   municipio: string; codigoINE: string; bloque: string;
   fechaGeneracion: string; tablas: ExportTable[]; excluidas: { titulo: string; motivo: string }[];
+}
+
+export interface Exclusion { titulo: string; motivo: string }
+
+/** Exclusiones documentadas de Demografía (fuente única para página y libro XLSX). */
+export function demografiaExcluidas(): Exclusion[] {
+  return [
+    { titulo: "Densidad de población", motivo: "Pendiente de integración de fuente de superficie." },
+    { titulo: "Población extranjera y saldo migratorio", motivo: "Sin cobertura municipal verificada en Tempus3." },
+    { titulo: "Indicadores por sección censal", motivo: "Sin tabla cargada; la geometría se carga solo bajo demanda." },
+  ];
+}
+
+/** Exclusiones documentadas de Economía (fuente única para página y libro XLSX). */
+export function economiaExcluidas(hasRenta: boolean): Exclusion[] {
+  return [
+    { titulo: "Paro registrado (SEPE)", motivo: "Pendiente de conector en batch 1 (dry-run)." },
+    { titulo: "Afiliación a la Seguridad Social (TGSS)", motivo: "Pendiente de conector en batch 1 (dry-run)." },
+    { titulo: "Presupuestos, liquidaciones y ayudas", motivo: "Sin fuente nacional homogénea verificada." },
+    { titulo: "Renta AEAT por declaración", motivo: hasRenta ? "Incluida si el ejercicio fue aportado; en otro caso pendiente." : "Pendiente de aportar el fichero base del ejercicio." },
+  ];
+}
+
+/** Exclusión documentada de secciones censales para el libro combinado. */
+export function seccionesExcluidas(): Exclusion[] {
+  return [
+    { titulo: "03_Secciones censales", motivo: "Sin tabla de indicadores por sección cargada; la geometría oficial se carga solo bajo demanda del usuario." },
+  ];
 }
 
 /** Filas de la hoja 00_Resumen_y_trazabilidad (también cabecera del informe HTML). */

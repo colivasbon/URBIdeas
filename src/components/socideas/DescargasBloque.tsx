@@ -85,11 +85,19 @@ export default function DescargasBloque({
           </p>
         )}
         <div className="mt-4 flex flex-wrap gap-2">
+          <a
+            href={`/api/socideas/exportar/${codigoINE}`}
+            download
+            title="Libro XLSX combinado del municipio (resumen con trazabilidad, demografía y economía)"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+          >
+            Descargar libro XLSX combinado
+          </a>
           <button
             type="button"
             onClick={descargarTodo}
             disabled={tablas.length === 0}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
           >
             Descargar todas las tablas (CSV)
           </button>

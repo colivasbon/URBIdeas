@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { getPerfilDemografico } from "@/lib/socideas-perfil";
-import { buildDemografiaTables } from "@/lib/socideas-export";
+import { buildDemografiaTables, demografiaExcluidas } from "@/lib/socideas-export";
 import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import PageShell from "@/components/ui/PageShell";
@@ -54,11 +54,7 @@ export default async function DescargasDemografia({
   }
   const perfil = result.perfil;
   const tablas = buildDemografiaTables(perfil);
-  const excluidas = [
-    { titulo: "Densidad de población", motivo: "Pendiente de integración de fuente de superficie." },
-    { titulo: "Población extranjera y saldo migratorio", motivo: "Sin cobertura municipal verificada en Tempus3." },
-    { titulo: "Indicadores por sección censal", motivo: "Sin tabla cargada; la geometría se carga solo bajo demanda." },
-  ];
+  const excluidas = demografiaExcluidas();
 
   return (
     <div className="flex min-h-screen flex-col">

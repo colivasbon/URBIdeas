@@ -12,9 +12,7 @@ import DataTableShell from "./DataTableShell";
 import DataTableMeta from "./DataTableMeta";
 import DataTableToolbar from "./DataTableToolbar";
 import TableWorkspace from "./TableWorkspace";
-import IndicatorExplorer from "./IndicatorExplorer";
 import { SERIES_MAX_HEIGHT, SERIES_SCROLL_THRESHOLD } from "@/lib/socideas-table-density";
-import { demoCapabilities } from "@/lib/socideas-indicator-capabilities";
 import {
   ComparadorPeriodos,
   FuenteOficial,
@@ -217,29 +215,8 @@ export default function FichaFiltros({
     coberturaDemografia.push({ titulo: "Periodos con rezago", estado: "partial", detalle: `La pirámide (${perfil.piramide.anio}) y la población total (${refAnio}) son de operaciones distintas, no contemporáneas.` });
   }
 
-  // Explorador unificado: capacidades y series sobre datos COMPLETOS (initial),
-  // no sobre la vista filtrada, para que los selectores reflejen disponibilidad real.
-  const explorerCaps = useMemo(() => demoCapabilities(initial), [initial]);
-  const explorerSeries = useMemo(() => {
-    const pts = (list: IndicatorValue[]) =>
-      list
-        .filter((vv) => vv.valor_numerico !== null)
-        .map((vv) => ({ anio: vv.anio_referencia ?? 0, valor: vv.valor_numerico as number }))
-        .filter((p) => p.anio > 0)
-        .sort((a, b) => a.anio - b.anio);
-    const single = (iv: IndicatorValue | null) =>
-      iv && iv.valor_numerico !== null && iv.anio_referencia ? [{ anio: iv.anio_referencia, valor: iv.valor_numerico }] : [];
-    return {
-      poblacion_total: {
-        municipio: pts(initial.evolucion),
-        provincia: pts(initial.comparativas.provincia),
-        ccaa: pts(initial.comparativas.ccaa),
-        espana: pts(initial.comparativas.espana),
-      },
-      poblacion_hombres: { municipio: single(initial.hombres) },
-      poblacion_mujeres: { municipio: single(initial.mujeres) },
-    };
-  }, [initial]);
+  // (Sin bloque "Explorar datos" separado: los controles viven integrados en
+  //  cada bloque de análisis y la cobertura va al final.)
 
   return (
     <div>
@@ -616,16 +593,6 @@ export default function FichaFiltros({
           </p>
         </details>
       </section>
-
-      {explorerCaps.length > 0 && (
-        <IndicatorExplorer
-          codigoINE={codigoINE}
-          municipioNombre={perfil.municipio.nombre}
-          capabilities={explorerCaps}
-          series={explorerSeries}
-          searchParams={searchParams}
-        />
-      )}
 
       <IndicatorAvailabilityPanel entries={coberturaDemografia} />
 

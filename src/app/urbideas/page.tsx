@@ -44,21 +44,21 @@ export default async function UrbideasHome() {
         <EditorialParallaxHero decor={<TerritorialBackground variant="contours" />}>
           <section className="relative border-b border-[var(--color-border-subtle)]">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <div className="py-8 sm:py-12 lg:py-16 flex flex-col items-center text-center gap-8">
+              <div className="py-8 sm:py-12 lg:py-16 flex flex-col items-start text-left gap-8">
                 <div className="max-w-3xl w-full premium-reveal">
                   <SectionEyebrow>URBideas · Módulo de IDEAS Sostenibilidad</SectionEyebrow>
-                  <h1 className="mt-3 tracking-tight leading-[0.95] text-center">
+                  <h1 className="mt-3 tracking-tight leading-[0.95] text-left">
                     <span className="editorial-display block text-4xl text-[var(--color-text-primary)] sm:text-5xl lg:text-6xl">URBideas</span>
                     <span className="block mt-3 text-xl sm:text-2xl lg:text-3xl font-semibold text-[var(--color-secondary)]">
                       Análisis territorial, urbanístico y geoespacial
                     </span>
                   </h1>
-                  <p className="mt-6 max-w-xl mx-auto text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed">
+                  <p className="mt-6 max-w-xl text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed">
                     Dictamen territorial de ámbito: dibuja o sube el recinto,
                     cruza el suelo con sus afecciones y recibe un juicio
                     compatible, condicionado o incompatible, listo para descargar.
                   </p>
-                  <div className="mt-8 flex flex-wrap justify-center gap-4">
+                  <div className="mt-8 flex flex-wrap justify-start gap-4">
                     <Link
                       href="/urbideas/municipios"
                       className="inline-flex items-center gap-3 px-7 py-3.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] hover:shadow-lg hover:shadow-[var(--color-primary)]/20 transition-all duration-300 active:scale-[0.97]"
@@ -75,7 +75,7 @@ export default async function UrbideasHome() {
                       Dictaminar un ámbito
                     </Link>
                   </div>
-                  <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-[var(--color-text-muted)]">
+                  <div className="mt-8 flex flex-wrap items-center justify-start gap-6 text-xs text-[var(--color-text-muted)]">
                     <span className="inline-flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-[var(--color-secondary)]" />{stats.totalMunicipios.toLocaleString("es-ES")} municipios</span>
                     <span className="hidden sm:inline text-[var(--color-border)]">·</span>
                     <span>{stats.totalLegalSources.toLocaleString("es-ES")} fuentes normativas</span>

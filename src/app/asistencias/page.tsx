@@ -3,6 +3,7 @@ import Link from "next/link";
 import PlatformHeader from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
+import TerritorialGrid from "@/components/ui/TerritorialGrid";
 import PageShell from "@/components/ui/PageShell";
 
 export const metadata: Metadata = {
@@ -25,8 +26,19 @@ export default function AsistenciasPage() {
       <PlatformHeader />
 
       <main className="flex-1">
-        <EditorialParallaxHero>
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+        <EditorialParallaxHero
+          decor={
+            <div
+              className="territorial-background territorial-background--index"
+              data-parallax="off"
+              aria-hidden="true"
+              role="presentation"
+            >
+              <TerritorialGrid depth={0} className="territorial-grid--index" />
+            </div>
+          }
+        >
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
             <PageShell
               eyebrow="Área de Sostenibilidad · Ideas Medioambientales"
               title="Asistencias de sostenibilidad"
@@ -37,11 +49,14 @@ export default function AsistenciasPage() {
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
 
           <section aria-label="Líneas de trabajo previstas" className="mb-8">
-            <div className="premium-card divide-y divide-[var(--color-border-subtle)] overflow-hidden p-0">
-              {lineas.map((linea) => (
-                <div key={linea} className="flex items-center justify-between gap-3 px-5 py-4">
-                  <p className="text-sm font-medium text-[var(--color-text-primary)]">{linea}</p>
-                  <span className="shrink-0 rounded-full border border-[var(--color-border)] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <div className="divide-y divide-[var(--color-border-subtle)] border-y border-[var(--color-border-subtle)]">
+              {lineas.map((linea, i) => (
+                <div key={linea} className="flex items-baseline gap-5 px-1 py-4 sm:px-2">
+                  <span aria-hidden="true" className="text-sm font-bold tabular-nums text-[var(--color-secondary)]/70">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <p className="flex-1 text-base font-semibold text-[var(--color-text-primary)]">{linea}</p>
+                  <span className="shrink-0 text-xs font-medium text-[var(--color-text-muted)]">
                     Próximamente
                   </span>
                 </div>

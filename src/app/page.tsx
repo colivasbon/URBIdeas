@@ -22,7 +22,7 @@ export default function PlatformHome() {
         <EditorialParallaxHero decor={<TerritorialBackground variant="transition" />}>
         <section className="relative border-b border-[var(--color-border-subtle)]">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="py-10 sm:py-14 lg:py-20 flex flex-col items-center text-center gap-6">
+            <div className="py-10 sm:py-14 lg:py-16 flex flex-col items-start text-left gap-6">
               <div className="max-w-3xl w-full premium-reveal">
                 <SectionEyebrow>
                   IDEAS Sostenibilidad · Área de Sostenibilidad de Ideas Medioambientales
@@ -30,11 +30,11 @@ export default function PlatformHome() {
                 <h1 className="editorial-display mt-4 text-4xl text-[var(--color-text-primary)] sm:text-5xl lg:text-6xl">
                   Conocimiento territorial para decisiones sostenibles
                 </h1>
-                <p className="editorial-lede mt-6 max-w-2xl mx-auto">
+                <p className="editorial-lede mt-6 max-w-2xl">
                   Análisis territorial, diagnóstico municipal con fuentes oficiales y apoyo técnico a
                   proyectos, en una sola plataforma.
                 </p>
-                <dl className="mt-8 flex flex-wrap items-stretch justify-center gap-3 text-left">
+                <dl className="mt-8 flex w-full flex-wrap items-stretch justify-start gap-3 border-t border-[var(--color-border-subtle)] pt-6 text-left">
                   {[
                     { v: "8.130", l: "Municipios con ficha territorial" },
                     { v: "INE · AEAT · SEPE", l: "Fuentes oficiales trazables" },
@@ -56,7 +56,7 @@ export default function PlatformHome() {
         </EditorialParallaxHero>
 
         <section aria-label="Módulos de la plataforma">
-          <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
             <div className="mb-8">
               <SectionEyebrow>Módulos</SectionEyebrow>
               <div className="mt-3">

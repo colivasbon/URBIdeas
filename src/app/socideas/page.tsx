@@ -22,38 +22,37 @@ export default function SocideasHub() {
 
       <main className="flex-1">
         <EditorialParallaxHero decor={<TerritorialBackground variant="grid" />}>
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+          <div className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 sm:pt-14 lg:px-8 pb-10">
             <PageShell
               eyebrow="SOCideas · Beta interna · Módulo de IDEAS Sostenibilidad"
               title="Diagnóstico municipal con fuentes oficiales"
               lede="Diagnóstico demográfico y económico de cualquier municipio español a partir de fuentes oficiales trazables. El buscador es el punto de partida: escriba, filtre y abra la ficha."
               meta={
-                <>
-                  <SourcePill title="Demografía disponible con trazabilidad INE">
-                    Demografía disponible · INE
-                  </SourcePill>
-                  <SourcePill title="Economía en desarrollo por subbloques con año declarado">
-                    Economía en desarrollo · AEAT · ADRH · DIRCE
-                  </SourcePill>
-                </>
+                <SourcePill title="Demografía disponible con trazabilidad INE">
+                  Demografía disponible · INE
+                </SourcePill>
               }
             />
+            <section aria-label="Buscador municipal" className="premium-card relative mt-8 p-5 sm:p-7">
+              <SectionHeading
+                title="Buscador municipal"
+                lede="Escriba el nombre del municipio o de su provincia para abrir su ficha de caracterización."
+              />
+              <div className="mt-5">
+                <SocideasSearch />
+              </div>
+            </section>
           </div>
         </EditorialParallaxHero>
 
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
-          <section aria-label="Buscador municipal" className="premium-card premium-reveal p-5 sm:p-7">
-            <SectionHeading
-              title="Buscador municipal"
-              lede="Escriba el nombre del municipio o de su provincia para abrir su ficha de caracterización."
-            />
-            <div className="mt-5">
-              <SocideasSearch />
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+          <section aria-label="Fuentes y cobertura" className="premium-card p-5 sm:p-6">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-base font-bold text-[var(--color-text-primary)]">Fuentes y cobertura (Fase 2B)</h2>
+              <SourcePill title="Economía en desarrollo por subbloques con año declarado">
+                Economía en desarrollo · AEAT · ADRH · DIRCE
+              </SourcePill>
             </div>
-          </section>
-
-          <section aria-label="Fuentes y cobertura" className="premium-card mt-8 p-5 sm:p-6">
-            <h2 className="text-base font-bold text-[var(--color-text-primary)]">Fuentes y cobertura (Fase 2B)</h2>
             <ul className="mt-3 list-disc pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
               <li>
                 <strong>Demografía (disponible):</strong> Instituto Nacional de Estadística (API

@@ -1,11 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import StatCard from "./StatCard";
 import EvolutionChart, { type SerieEvo } from "./EvolutionChart";
 import PyramidChart from "./PyramidChart";
 import Traceability from "./Traceability";
 import CopyTableButton from "./CopyTableButton";
+import AvailabilitySummary from "./AvailabilitySummary";
+import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
+import MunicipioDataActions from "./MunicipioDataActions";
+import {
+  ComparadorPeriodos,
+  FuenteOficial,
+  Metodologia,
+} from "./ConsultaTools";
+import type { CoverageEntry } from "@/lib/socideas-availability";
 import type { AmbitoTerritorial, PerfilDemografico, IndicatorValue } from "@/lib/socideas";
 import { AMBITOS } from "@/lib/socideas";
 
@@ -187,8 +197,19 @@ export default function FichaFiltros({
     if (r.puntos === 0) vista.push(`Sin comparativa de ${AMBITO_LABEL[a]} para el período.`);
   }
 
+  const coberturaDemografia: CoverageEntry[] = [
+    { titulo: "Densidad de población", estado: "pending", detalle: "Pendiente de integración de fuente de superficie. Nada se estima." },
+    { titulo: "Población extranjera y saldo migratorio", estado: "without_coverage", detalle: "La fuente no publica estos indicadores a nivel municipal de forma verificada en Tempus3." },
+    { titulo: "Natalidad, mortalidad y educación", estado: "without_coverage", detalle: "Sin cobertura municipal verificada en esta ficha; solo se incorporarían con fuente oficial y periodo homogéneo." },
+    { titulo: "Fuente provisional", estado: "provisional", detalle: "No hay fuente provisional configurada para demografía. Se conserva el último dato consolidado." },
+  ];
+  if (perfil.piramide.anio !== null && refAnio !== null && perfil.piramide.anio !== refAnio) {
+    coberturaDemografia.push({ titulo: "Periodos con rezago", estado: "partial", detalle: `La pirámide (${perfil.piramide.anio}) y la población total (${refAnio}) son de operaciones distintas, no contemporáneas.` });
+  }
+
   return (
     <div>
+      <MunicipioDataActions codigoINE={codigoINE} bloque="Demografía" ultimaReferencia={initial.ultima_sincronizacion} />
 
       {/* Bloque 1: población actual */}
       <section aria-label="Población actual" className="mb-10">
@@ -223,6 +244,12 @@ export default function FichaFiltros({
             <StatCard etiqueta="Mujeres" valor={fmt(mujeres)} detalle={`INE · ${perfil.mujeres?.anio_referencia ?? "—"}`} />
           </div>
         )}
+        <AvailabilitySummary
+          bloque="Demografía"
+          disponibles={[total, hombres, mujeres, perfil.evolucion.length > 0 ? 1 : 0, perfil.piramide.grupos.length > 0 ? 1 : 0].filter((v) => v !== null && v !== 0).length}
+          periodo={refAnio ? String(refAnio) : null}
+          fuentes={["INE"]}
+        />
         <div className="mt-4 flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Tabla del año {refAnio ?? "—"}</h3>
           <CopyTableButton tableId={`tabla-actual-${codigoINE}`} label="Copiar" />
@@ -355,6 +382,25 @@ export default function FichaFiltros({
             CCAA y España llegan a 2021; municipio y provincia, a 2025.
           </p>
         )}
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ComparadorPeriodos
+            serie={perfil.evolucion.filter((v) => v.valor_numerico !== null).map((v) => ({ anio: v.anio_referencia ?? 0, valor: v.valor_numerico as number }))}
+            unidad="hab."
+            titulo="Comparador de periodos (municipio)"
+          />
+          <Metodologia
+            nombre="Población y evolución (DPOP, INE)"
+            definicion="Cifras oficiales de población municipal y serie anual de evolución, con comparativas de provincia, comunidad autónoma y conjunto nacional."
+            fuente="INE · Tempus3 (DPOP provincial + tabla CCAA 70)"
+            periodo={`${d.anios_evolucion[0] ?? "—"}–${d.anios_evolucion[d.anios_evolucion.length - 1] ?? "—"}`}
+            cobertura="Municipio, provincia, CCAA y España (CCAA/España con rezago a 2021)"
+            estado="Consolidado"
+            limitacion="Los ámbitos con rezago no deben leerse como contemporáneos sin indicarlo."
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <FuenteOficial url={perfil.evolucion[0]?.source_url} />
+        </div>
       </section>
 
       {/* Bloque 3: pirámide */}
@@ -418,16 +464,28 @@ export default function FichaFiltros({
           </div>
         </div>
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <StatCard
-            etiqueta="Índice de envejecimiento"
-            valor={perfil.derivados.indice_envejecimiento !== null ? `${perfil.derivados.indice_envejecimiento.toLocaleString("es-ES")} %` : "No disponible para el período seleccionado"}
-            detalle="Población 65+ / 0-14 × 100"
-          />
-          <StatCard
-            etiqueta="Índice de dependencia"
-            valor={perfil.derivados.indice_dependencia !== null ? `${perfil.derivados.indice_dependencia.toLocaleString("es-ES")} %` : "No disponible para el período seleccionado"}
-            detalle="(0-14 + 65+) / 15-64 × 100"
-          />
+          {perfil.derivados.indice_envejecimiento !== null ? (
+            <StatCard
+              etiqueta="Índice de envejecimiento"
+              valor={`${perfil.derivados.indice_envejecimiento.toLocaleString("es-ES")} %`}
+              detalle="Población 65+ / 0-14 × 100"
+            />
+          ) : (
+            <p className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
+              Índice de envejecimiento: no disponible para el período seleccionado.
+            </p>
+          )}
+          {perfil.derivados.indice_dependencia !== null ? (
+            <StatCard
+              etiqueta="Índice de dependencia"
+              valor={`${perfil.derivados.indice_dependencia.toLocaleString("es-ES")} %`}
+              detalle="(0-14 + 65+) / 15-64 × 100"
+            />
+          ) : (
+            <p className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
+              Índice de dependencia: no disponible para el período seleccionado.
+            </p>
+          )}
         </div>
         <details className="mt-3">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)]">Cómo se calcula</summary>
@@ -442,27 +500,49 @@ export default function FichaFiltros({
       {/* Bloque 4: densidad */}
       <section aria-label="Densidad y lectura territorial" className="premium-card mb-10 p-5 sm:p-6">
         <h2 className="ideas-h2">Densidad y lectura territorial</h2>
-        <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-          {perfil.densidad.valor !== null
-            ? `${perfil.densidad.valor.toLocaleString("es-ES")} hab/km²`
-            : perfil.densidad.pendiente ?? "Pendiente de integración de fuente de superficie"}
-        </p>
+        {perfil.densidad.valor !== null ? (
+          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+            {perfil.densidad.valor.toLocaleString("es-ES")} hab/km²
+          </p>
+        ) : (
+          <div className="ideas-status mt-3" data-state="pending" role="status">
+            <div className="ideas-status__head">
+              <p className="ideas-status__title">Densidad no disponible</p>
+              <span className="ideas-status__badge">Pendiente</span>
+            </div>
+            <div className="ideas-status__body">
+              <p>{perfil.densidad.pendiente ?? "Pendiente de integración de fuente de superficie"}. El detalle figura en el panel de cobertura final; nada se estima.</p>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Bloque 5: derivados */}
       <section aria-label="Indicadores derivados" className="mb-10">
         <h2 className="ideas-h2 mb-4">Variaciones del período</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <StatCard
-            etiqueta="Variación 5 años"
-            valor={perfil.derivados.cambio_5y !== null ? `${perfil.derivados.cambio_5y > 0 ? "+" : ""}${perfil.derivados.cambio_5y.toLocaleString("es-ES")} %` : "No disponible para el período seleccionado"}
-            detalle="Cálculo propio sobre serie oficial"
-          />
-          <StatCard
-            etiqueta="Variación 10 años"
-            valor={perfil.derivados.cambio_10y !== null ? `${perfil.derivados.cambio_10y > 0 ? "+" : ""}${perfil.derivados.cambio_10y.toLocaleString("es-ES")} %` : "No disponible para el período seleccionado"}
-            detalle="Cálculo propio sobre serie oficial"
-          />
+          {perfil.derivados.cambio_5y !== null ? (
+            <StatCard
+              etiqueta="Variación 5 años"
+              valor={`${perfil.derivados.cambio_5y > 0 ? "+" : ""}${perfil.derivados.cambio_5y.toLocaleString("es-ES")} %`}
+              detalle="Cálculo propio sobre serie oficial"
+            />
+          ) : (
+            <p className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
+              Variación 5 años: no disponible para el período seleccionado (sin año comparable; no se muestra 0 %).
+            </p>
+          )}
+          {perfil.derivados.cambio_10y !== null ? (
+            <StatCard
+              etiqueta="Variación 10 años"
+              valor={`${perfil.derivados.cambio_10y > 0 ? "+" : ""}${perfil.derivados.cambio_10y.toLocaleString("es-ES")} %`}
+              detalle="Cálculo propio sobre serie oficial"
+            />
+          ) : (
+            <p className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
+              Variación 10 años: no disponible para el período seleccionado (sin año comparable; no se muestra 0 %).
+            </p>
+          )}
         </div>
         <details className="mt-3">
           <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)]">Cómo se calcula</summary>
@@ -475,9 +555,17 @@ export default function FichaFiltros({
         </details>
       </section>
 
+      <IndicatorAvailabilityPanel entries={coberturaDemografia} />
+
       <Traceability valores={perfil.valores} pendientes={pendientesFijas} vista={vista} />
 
-      <div className="mt-8">
+      <div className="mt-8 flex flex-wrap gap-3">
+        <Link
+          href={`/socideas/${codigoINE}/descargas/demografia`}
+          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+        >
+          Descargar tablas de Demografía →
+        </Link>
         <button
           type="button"
           onClick={restablecer}

@@ -12,6 +12,7 @@ import FichaToolbar from "@/components/socideas/FichaToolbar";
 import ActualizacionMenu from "@/components/socideas/ActualizacionMenu";
 import EconomiaFicha from "@/components/socideas/EconomiaFicha";
 import { buildDemografiaTables, buildEconomiaTables } from "@/lib/socideas-export";
+import { readDemographicPresentation } from "@/lib/socideas-demographic-summary";
 import EmptyState from "@/components/ui/EmptyState";
 import SourcePill from "@/components/ui/SourcePill";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
@@ -172,6 +173,10 @@ export default async function SocideasFicha({
       ? `/urbideas/mapa?lat=${municipio.centroide_lat.toFixed(4)}&lng=${municipio.centroide_lng.toFixed(4)}&zoom=12`
       : "/urbideas";
 
+  // Lectura lateral R2 (una sola por carga, solo en Demografía): nunca rompe
+  // la ficha; ante ausencia o error se omite sin estado visible.
+  const demografiaExtra =
+    categoria === "economia" ? null : await readDemographicPresentation(codigoINE).catch(() => null);
   // Objeto plano (serializable para el Client Component; URLSearchParams no lo es).
   const spObj: Record<string, string> = {};
   for (const [k, v] of Object.entries(sp)) {
@@ -265,7 +270,7 @@ export default async function SocideasFicha({
               }
             />
           ) : (
-            <FichaFiltros codigoINE={municipio.codigo_ine} initial={perfil} searchParams={spObj} />
+            <FichaFiltros codigoINE={municipio.codigo_ine} initial={perfil} searchParams={spObj} demografiaExtra={demografiaExtra} />
           )}
         </div>
       </main>

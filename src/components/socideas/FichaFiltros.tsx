@@ -8,6 +8,8 @@ import PyramidChart from "./PyramidChart";
 import Traceability from "./Traceability";
 import AvailabilitySummary from "./AvailabilitySummary";
 import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
+import { ArraigoBlock, NacimientoBlock, NacionalidadBlock } from "./DemographicBlocks";
+import type { DemographicPresentationData } from "@/lib/socideas-demographic-summary";
 import DataTableShell from "./DataTableShell";
 import DataTableMeta from "./DataTableMeta";
 import DataTableToolbar from "./DataTableToolbar";
@@ -112,10 +114,12 @@ export default function FichaFiltros({
   codigoINE,
   initial,
   searchParams,
+  demografiaExtra = null,
 }: {
   codigoINE: string;
   initial: PerfilDemografico;
   searchParams: Record<string, string>;
+  demografiaExtra?: DemographicPresentationData | null;
 }) {
   const sp = new URLSearchParams(searchParams);
   const defectos: FiltrosUI = {
@@ -593,6 +597,10 @@ export default function FichaFiltros({
           </p>
         </details>
       </section>
+
+      {demografiaExtra?.nationality && <NacionalidadBlock data={demografiaExtra.nationality} />}
+      {demografiaExtra?.birthCountry && <NacimientoBlock data={demografiaExtra.birthCountry} />}
+      {demografiaExtra?.birthResidenceRelation && <ArraigoBlock data={demografiaExtra.birthResidenceRelation} />}
 
       <IndicatorAvailabilityPanel entries={coberturaDemografia} />
 

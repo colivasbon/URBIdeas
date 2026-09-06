@@ -20,6 +20,9 @@ const INDICE = [
   { id: "arquitectura", label: "Arquitectura" },
   { id: "datos-y-fuentes", label: "Datos y fuentes" },
   { id: "flujo-de-datos", label: "Flujo de datos" },
+  { id: "herramientas-de-consulta", label: "Herramientas de consulta" },
+  { id: "descargas", label: "Descargas" },
+  { id: "actualizacion-y-control", label: "Actualización y control" },
   { id: "actualizacion-calidad", label: "Actualización y calidad" },
   { id: "cobertura-limitaciones", label: "Cobertura y limitaciones" },
   { id: "rendimiento", label: "Rendimiento" },
@@ -402,6 +405,69 @@ export default function ComoFuncionaSocideas() {
                   <li>Cada indicador conserva su fuente y su fecha de referencia.</li>
                   <li>Las actualizaciones se limitan al bloque correspondiente del municipio y no sustituyen sin control otros bloques de la ficha.</li>
                   <li>Tras una actualización autorizada, los documentos se revalidan de forma selectiva.</li>
+                </ul>
+              </section>
+
+              {/* 5b */}
+              <section id="herramientas-de-consulta" aria-labelledby="h-herramientas" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
+                <SectionEyebrow>Herramientas de consulta</SectionEyebrow>
+                <H2><span id="h-herramientas">Herramientas de consulta</span></H2>
+                <P>
+                  La ficha permite revisar los datos disponibles por bloque. Los filtros actúan sobre la
+                  información ya cargada, sin nuevas consultas a las fuentes oficiales. Las comparativas
+                  —por nivel territorial o por periodo— solo se muestran cuando hay cobertura y periodos
+                  compatibles; en caso contrario la herramienta se oculta o indica “No comparable”.
+                </P>
+                <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
+                  <li>Selector de nivel territorial (municipio, provincia, comunidad autónoma, España) solo con niveles y periodos homogéneos.</li>
+                  <li>Comparador de periodos con variación absoluta y porcentual, con años exactos.</li>
+                  <li>Filtros de tabla (búsqueda, año, restablecer) sobre datos ya cargados, accesibles con teclado.</li>
+                  <li>Vista de metodología “Ver definición y fuente” con definición, fuente, periodo, cobertura, estado y limitación.</li>
+                  <li>Copia de tabla visible con encabezados, fuente y periodo.</li>
+                  <li>Enlace “Consultar fuente oficial” solo cuando existe una URL pública verificada.</li>
+                </ul>
+                <P>
+                  La ausencia de un dato se comunica como ausencia, no como cero. La trazabilidad indica
+                  fuente, periodo y cobertura de cada valor.
+                </P>
+              </section>
+
+              {/* 5c */}
+              <section id="descargas" aria-labelledby="h-descargas" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
+                <SectionEyebrow>Descargas</SectionEyebrow>
+                <H2><span id="h-descargas">Descargas</span></H2>
+                <P>
+                  Demografía y Economía disponen de páginas separadas de tablas, contextuales al municipio
+                  (con su código INE en la URL). Solo se incluyen indicadores disponibles; cada exportación
+                  incorpora fuente, periodo y limitaciones. Las tablas no cubiertas se documentan en la hoja
+                  de trazabilidad, pero no se rellenan con valores.
+                </P>
+                <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
+                  <li>CSV individual por tabla (UTF-8 con BOM, separador compatible con Excel español).</li>
+                  <li>Informe HTML imprimible por bloque con identidad corporativa y hoja inicial de trazabilidad.</li>
+                  <li>Descarga completa del bloque actual (nunca de toda la plataforma ni hojas vacías).</li>
+                </ul>
+                <P>
+                  Los archivos pueden descargarse individualmente o por bloque. Las descargas son
+                  idempotentes: no modifican datos ni registran actualizaciones.
+                </P>
+              </section>
+
+              {/* 5d */}
+              <section id="actualizacion-y-control" aria-labelledby="h-act-control" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
+                <SectionEyebrow>Actualización y control</SectionEyebrow>
+                <H2><span id="h-act-control">Actualización y control</span></H2>
+                <P>
+                  Las actualizaciones se realizan por bloque y municipio: actualizar Demografía nunca
+                  sobrescribe Economía, ni a la inversa. Los datos consolidados y provisionales se
+                  diferencian siempre; si no existe una fuente provisional válida, se conserva el último
+                  dato consolidado y se comunica la ausencia de forma explícita.
+                </P>
+                <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
+                  <li>Cada actualización valida cobertura, periodo, código municipal y coherencia.</li>
+                  <li>Las operaciones internas están restringidas a personal autorizado.</li>
+                  <li>La consulta pública no permite modificar datos.</li>
+                  <li>Tras una actualización autorizada solo se revalida la ficha afectada.</li>
                 </ul>
               </section>
 

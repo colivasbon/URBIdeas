@@ -213,11 +213,47 @@ export const getMunicipioEnvelopeForRequest = cache(async (codigoIne: string): P
   return readMunicipioJson(codigoIne).catch(() => null);
 });
 
+/** Log de rendimiento solo en desarrollo: sin tokens, URLs firmadas,
+ * contenidos ni datos personales (solo clave, estado, bytes y ms). */
+function devLogR2(msg: string): void {
+  if (process.env.NODE_ENV !== 'production') {
+    console.debug(`[socideas][r2] ${msg}`)
+  }
+}
+
+/** Sonda de existencia sin Data Cache (`no-store`): un 404 de R2 nunca debe
+ * persistir 1 h en caché. Devuelve el estado HTTP o null si falla la red. */
+async function headR2Status(base: string, key: string): Promise<number | null> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 8000)
+  try {
+    const res = await fetch(`${base}/${key}`, {
+      method: 'HEAD',
+      signal: controller.signal,
+      cache: 'no-store',
+    })
+    return res.status
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 async function fetchR2Key(
   base: string,
   key: string,
   codigoIne: string,
 ): Promise<R2MunicipioEnvelope | null> {
+  const t0 = Date.now()
+  // Solo las respuestas 200 llegan al `GET` con Data Cache: los 404 se
+  // descartan aquí y jamás quedan persistidos. Si la sonda falla por red
+  // (null), se intenta el GET por disponibilidad.
+  const probe = await headR2Status(base, key)
+  if (probe !== null && probe !== 200) {
+    devLogR2(`ine=${codigoIne} key=${key} probe=${probe} ms=${Date.now() - t0} (no cacheado)`)
+    return null
+  }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 15000)
   try {
@@ -230,6 +266,9 @@ async function fetchR2Key(
     if (!res.ok) throw new Error(`R2 respondió ${res.status}`)
     const json = (await res.json()) as R2MunicipioEnvelope
     if (!json || json.codigo_ine !== codigoIne || !Array.isArray(json.valores)) return null
+    devLogR2(
+      `ine=${codigoIne} key=${key} status=200 bytes=${res.headers.get('content-length') ?? '?'} ms=${Date.now() - t0}`,
+    )
     return json
   } catch {
     return null

@@ -37,12 +37,18 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   const cargar = async () => {
     setEstado("cargando");
     setError(null);
+    // Medición dev-only de la carga bajo demanda (sin geometrías ni datos).
+    const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
     try {
       const res = await fetch(`/api/socideas/secciones/${codigoINE}`);
       const j = (await res.json()) as { data: SeccionesData | null; error: string | null };
       if (!res.ok || !j.data) throw new Error(j.error ?? "Error al cargar las secciones");
       setDatos(j.data);
       setEstado("ok");
+      if (process.env.NODE_ENV !== "production") {
+        const ms = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - t0);
+        console.debug(`[socideas][secciones] ine=${codigoINE} n=${j.data.n_secciones} ms=${ms}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar las secciones");
       setEstado("error");

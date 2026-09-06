@@ -32,6 +32,14 @@ async function fetchTimeout(url: string, ms = 20000): Promise<Response> {
   }
 }
 
+/** Log de rendimiento solo en desarrollo: duración, colección y conteo.
+ * Sin tokens, geometrías ni datos personales. */
+function devLogSecciones(msg: string): void {
+  if (process.env.NODE_ENV !== 'production') {
+    console.debug(`[socideas][secciones] ${msg}`)
+  }
+}
+
 /** GET /api/socideas/secciones/[codigoINE]: geometría de secciones censales del
  * municipio (proxy servidor; el navegador nunca llama al INE directamente).
  * Solo el municipio solicitado, colección más reciente disponible. */
@@ -44,6 +52,7 @@ export async function GET(
     return NextResponse.json({ data: null, error: 'Código INE inválido', count: 0 }, { status: 400 })
   }
   const ine = codigoINE.trim()
+  const t0 = Date.now()
 
   try {
     const supabase = createSupabaseServer()
@@ -68,6 +77,7 @@ export async function GET(
         if (res.ok) {
           const geo = (await res.json()) as { features?: unknown[] }
           if (Array.isArray(geo.features)) {
+            devLogSecciones(`ine=${ine} via=OGC coleccion=${coleccion} n=${geo.features.length} ms=${Date.now() - t0}`)
             return NextResponse.json({
               data: {
                 codigo_ine: ine,
@@ -96,6 +106,7 @@ export async function GET(
         if (res.ok) {
           const geo = (await res.json()) as { features?: unknown[] }
           if (Array.isArray(geo.features)) {
+            devLogSecciones(`ine=${ine} via=WFS coleccion=${coleccion} n=${geo.features.length} ms=${Date.now() - t0}`)
             return NextResponse.json({
               data: {
                 codigo_ine: ine,
@@ -115,6 +126,7 @@ export async function GET(
         lastError = `WFS ${coleccion}: fallo de red`
       }
     }
+    devLogSecciones(`ine=${ine} fallo (${lastError}) ms=${Date.now() - t0}`)
     return NextResponse.json({ data: null, error: `Secciones no disponibles (${lastError})`, count: 0 }, { status: 502 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error interno del servidor'

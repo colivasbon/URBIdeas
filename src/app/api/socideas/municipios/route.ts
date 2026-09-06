@@ -116,7 +116,23 @@ export async function GET(request: NextRequest) {
       else query = query.eq('provincia_id', provinciaId).order('nombre')
       const { data, error } = await query
       if (error) throw error
-      return NextResponse.json({ data: data ?? [], error: null, count: (data ?? []).length }, { headers: CDN_HEADERS })
+      // Misma forma mínima que la búsqueda textual: sin IDs internos ni
+      // objetos crudos de Supabase; el cliente solo usa estos campos.
+      const rows = ((data ?? []) as unknown as {
+        codigo_ine: string
+        nombre: string
+        poblacion: number | null
+        provincia: { nombre: string; comunidad_autonoma: { nombre: string } } | null
+      }[])
+      const slim = rows.map((m) => ({
+        codigo_ine: m.codigo_ine,
+        nombre: m.nombre,
+        poblacion: m.poblacion,
+        provincia: m.provincia
+          ? { nombre: m.provincia.nombre, comunidad_autonoma: { nombre: m.provincia.comunidad_autonoma?.nombre ?? '' } }
+          : null,
+      }))
+      return NextResponse.json({ data: slim, error: null, count: slim.length }, { headers: CDN_HEADERS })
     }
 
     // Búsqueda textual: insensible a acentos, municipio y provincia.

@@ -8,7 +8,9 @@ import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import FichaFiltros from "@/components/socideas/FichaFiltros";
 import CategoryTabs from "@/components/socideas/CategoryTabs";
+import FichaToolbar from "@/components/socideas/FichaToolbar";
 import EconomiaFicha from "@/components/socideas/EconomiaFicha";
+import { buildDemografiaTables, buildEconomiaTables } from "@/lib/socideas-export";
 import EmptyState from "@/components/ui/EmptyState";
 import SourcePill from "@/components/ui/SourcePill";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
@@ -56,6 +58,15 @@ function parseAnio(v: string | undefined, lista: number[]): number | null {
   if (!v || !/^\d{4}$/.test(v)) return null;
   const n = parseInt(v, 10);
   return lista.includes(n) ? n : null;
+}
+
+/** Rango compacto de periodos para la píldora de resumen (solo lectura de strings). */
+function periodoDe(periodos: string[]): string | null {
+  const anios = periodos.flatMap((p) => (p.match(/\b(19|20)\d{2}\b/g) ?? []).map(Number));
+  if (anios.length === 0) return null;
+  const min = Math.min(...anios);
+  const max = Math.max(...anios);
+  return min === max ? String(min) : `${min}–${max}`;
 }
 
 /** Filtros iniciales validados para la primera pintura en servidor. */
@@ -127,7 +138,10 @@ export default async function SocideasFicha({
   const sp = (await searchParams) ?? {};
   const categoria: CategoriaFicha = sp.categoria === "economia" ? "economia" : "demografia";
   const { perfil } = await filtrosIniciales(codigoINE, sp);
-  const economia = categoria === "economia" ? await getEconomia(codigoINE) : null;
+  // La barra operativa necesita el resumen de AMBOS bloques. La lectura R2 del
+  // envelope está deduplicada por React.cache en el mismo request (ver
+  // socideas-r2:getMunicipioEnvelopeForRequest): no añade lecturas nuevas.
+  const economia = await getEconomia(codigoINE);
 
   if (!perfil) {
     return (
@@ -212,8 +226,15 @@ export default async function SocideasFicha({
                 Abrir en URBideas →
               </Link>
             </div>
-            <div className="mt-6">
+            <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <CategoryTabs codigoINE={municipio.codigo_ine} activa={categoria} searchParams={spObj} />
+              <FichaToolbar
+                codigoINE={municipio.codigo_ine}
+                demoCount={buildDemografiaTables(perfil).length}
+                ecoCount={economia ? buildEconomiaTables(economia).length : 0}
+                demoPeriodo={periodoDe(buildDemografiaTables(perfil).map((t) => t.periodo))}
+                ecoPeriodo={economia ? periodoDe(buildEconomiaTables(economia).map((t) => t.periodo)) : null}
+              />
             </div>
           </section>
 

@@ -9,9 +9,13 @@ import type { Exclusion, ExportTable } from './socideas-export'
 
 export const XLSX_BRAND = 'Ideas Sostenibilidad · SOCideas'
 
-/** Verde mineral corporativo + auxiliares (misma paleta que el informe imprimible). */
-const MINERAL = 'FF1E4D3F'
-const MINERAL_LIGHT = 'FFEFF4F1'
+/** Verde mineral corporativo + auxiliares (tokens Ideas: #3E665C, #86B73D,
+ *  #F1F1F1; alerta #FBE122 reservada a alertas reales y sin uso en este libro).
+ *  Excel no soporta radios CSS: no se imitan. Sin imágenes, macros ni fórmulas. */
+const MINERAL = 'FF3E665C'
+const ACCENT = 'FF86B73D'
+const PAPER = 'FFF1F1F1'
+const ALT = 'FFEDF3EF'
 const WHITE = 'FFFFFFFF'
 const INK = 'FF1F2A26'
 const MUTED = 'FF5B6B62'
@@ -40,14 +44,16 @@ function paintTitle(ws: ExcelJS.Worksheet, rowN: number, nCols: number, text: st
   const row = ws.getRow(rowN)
   row.height = 24
   ws.mergeCells(rowN, 1, rowN, nCols)
-  const c = row.getCell(1)
-  c.value = text
-  c.font = { name: FONT_NAME, size: 14, bold: true, color: { argb: WHITE } }
-  c.alignment = { vertical: 'middle' }
-  band(row, MINERAL)
-  for (let i = 2; i <= nCols; i += 1) {
-    const filler = row.getCell(i)
-    filler.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MINERAL } }
+  const accentBottom = { bottom: { style: 'thin', color: { argb: ACCENT } } } as const
+  for (let i = 1; i <= nCols; i += 1) {
+    const c = row.getCell(i)
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MINERAL } }
+    c.border = { ...accentBottom }
+    if (i === 1) {
+      c.value = text
+      c.font = { name: FONT_NAME, size: 14, bold: true, color: { argb: WHITE } }
+      c.alignment = { vertical: 'middle' }
+    }
   }
 }
 
@@ -74,7 +80,39 @@ function paintHeaderRow(row: ExcelJS.Row): void {
   row.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: WHITE } }
   row.alignment = { vertical: 'middle' }
   band(row, MINERAL)
-  row.border = { bottom: { style: 'thin', color: { argb: HAIRLINE } } }
+  row.border = { bottom: { style: 'thin', color: { argb: ACCENT } } }
+}
+
+/** Límites de ancho por rol de columna (contenido +2, con mínimos y máximos). */
+function columnLimitsFor(header: string, isFirst: boolean): [number, number] {
+  if (header === 'Año') return [9, 12]
+  if (header.includes('€')) return [14, 18]
+  if (header.includes('%')) return [12, 14]
+  if (header === 'Estado' || header === 'Incluida') return [14, 22]
+  if (header === 'Fuente') return [20, 32]
+  if (header === 'Observación') return [24, 48]
+  if (header === 'Período' || header === 'Cobertura') return [12, 24]
+  if (isFirst) return [18, 34]
+  return [12, 16]
+}
+
+function cellTextLength(text: string, numeric: number | null, header: string): number {
+  if (numeric !== null && Number.isFinite(numeric)) {
+    return String(numeric).length + (header.includes('€') || header.includes('%') ? 2 : 0)
+  }
+  return text.length
+}
+
+/** Alineación corporativa: texto izquierda, año centro, números derecha, estado centro. */
+function cellAlign(header: string, isFirst: boolean): 'left' | 'center' | 'right' {
+  if (header === 'Año' || header === 'Estado' || header === 'Incluida') return 'center'
+  if (isFirst) return 'left'
+  return 'right'
+}
+
+/** wrapText en descriptiva/fuente/observación; nowrap en año, códigos, cifras y %. */
+function cellWrap(header: string, isFirst: boolean): boolean {
+  return isFirst || header === 'Fuente' || header === 'Observación'
 }
 
 /**
@@ -100,7 +138,7 @@ function writeTable(
   t.columnas.forEach((col, i) => {
     const c = header.getCell(i + 1)
     c.value = col
-    c.alignment = { vertical: 'middle', horizontal: col === 'Año' ? 'center' : i === 0 ? 'left' : 'right' }
+    c.alignment = { vertical: 'middle', horizontal: cellAlign(col, i === 0) }
   })
   paintHeaderRow(header)
   let r = headerRowN
@@ -111,7 +149,7 @@ function writeTable(
     fila.forEach((cell, ci) => {
       const c = row.getCell(ci + 1)
       const colName = t.columnas[ci]
-      const align = colName === 'Año' ? 'center' : ci === 0 ? 'left' : 'right'
+      const align = cellAlign(colName, ci === 0)
       if (cell.numeric !== null && Number.isFinite(cell.numeric)) {
         c.value = cell.numeric
         const fmt = numFmtFor(colName)
@@ -122,23 +160,38 @@ function writeTable(
         c.numFmt = '@'
       }
       c.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
-      c.alignment = { vertical: 'middle', horizontal: align, wrapText: ci === 0 }
+      c.alignment = { vertical: 'middle', horizontal: align, wrapText: cellWrap(colName, ci === 0) }
     })
-    if (fi % 2 === 1) band(row, MINERAL_LIGHT)
+    if (fi % 2 === 1) band(row, ALT)
   })
+  applyTableWidths(
+    ws,
+    t.columnas,
+    t.filas.map((f) => f.map((c) => ({ text: c.text, numeric: c.numeric }))),
+  )
   return { headerRow: headerRowN, endRow: r, nCols }
 }
 
-function fitColumns(ws: ExcelJS.Worksheet, nCols: number, maxRows: number): void {
-  for (let ci = 1; ci <= nCols; ci += 1) {
-    let longest = 10
-    for (let r = 1; r <= Math.min(maxRows, ws.rowCount); r += 1) {
-      const v = ws.getRow(r).getCell(ci).value
-      const len = v === null || v === undefined ? 0 : String(typeof v === 'object' ? '' : v).length
+/** Ancho por rol a partir del contenido real (encabezado + celdas de la tabla).
+ *  Nunca un fijo universal: cada columna se ajusta con sus mínimos y máximos. */
+function applyTableWidths(
+  ws: ExcelJS.Worksheet,
+  columnas: string[],
+  filas: { text: string; numeric: number | null }[][],
+): void {
+  columnas.forEach((col, ci) => {
+    const [min, max] = columnLimitsFor(col, ci === 0)
+    let longest = col.length
+    for (const fila of filas) {
+      const cell = fila[ci]
+      if (!cell) continue
+      const len = cellTextLength(cell.text, cell.numeric, col)
       if (len > longest) longest = len
     }
-    ws.getColumn(ci).width = Math.min(46, Math.max(14, longest + 2))
-  }
+    const w = Math.min(max, Math.max(min, longest + 2))
+    const prev = ws.getColumn(ci + 1).width ?? 0
+    ws.getColumn(ci + 1).width = Math.max(prev, w)
+  })
 }
 
 /** Hoja de bloque (01/02): título corporativo + tablas apiladas con filtros. */
@@ -172,7 +225,6 @@ function writeBlockSheet(
   if (firstHeader > 0) {
     ws.views = [{ state: 'frozen', ySplit: firstHeader, xSplit: 0 }]
   }
-  fitColumns(ws, nCols, cursor)
   return ws
 }
 
@@ -202,39 +254,47 @@ function writeResumenSheet(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput):
     const val = row.getCell(2)
     val.value = v
     val.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
-    if (r % 2 === 0) band(row, MINERAL_LIGHT)
+    band(row, PAPER)
     r += 1
   }
   r += 1
-  const section = (text: string): void => {
-    ws.mergeCells(r, 1, r, nCols)
-    const row = ws.getRow(r)
-    row.height = 18
-    const c = row.getCell(1)
-    c.value = text
-    c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: WHITE } }
-    band(row, MINERAL)
-    r += 1
-  }
+  const TRACE_HEADERS = ['Bloque', 'Tabla', 'Fuente', 'Período', 'Cobertura', 'Estado', 'Incluida', 'Observación']
+  const traceRows: { text: string; numeric: number | null }[][] = []
   const head = (cols: string[]): void => {
     const row = ws.getRow(r)
     cols.forEach((col, i) => {
       const c = row.getCell(i + 1)
       c.value = col
-      c.alignment = { horizontal: 'left', vertical: 'middle' }
+      c.alignment = { horizontal: cellAlign(col, i <= 1), vertical: 'middle' }
     })
     paintHeaderRow(row)
     r += 1
   }
   const body = (cells: (string | number)[]): void => {
     const row = ws.getRow(r)
+    traceRows.push(cells.map((v) => ({ text: String(v), numeric: null })))
     cells.forEach((val, i) => {
       const c = row.getCell(i + 1)
       c.value = val
       c.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
-      c.alignment = { vertical: 'middle', wrapText: true }
+      c.alignment = { vertical: 'middle', horizontal: cellAlign(TRACE_HEADERS[i] ?? '', i <= 1), wrapText: cellWrap(TRACE_HEADERS[i] ?? '', i <= 1) }
     })
-    if (r % 2 === 1) band(row, MINERAL_LIGHT)
+    if (r % 2 === 1) band(row, ALT)
+    r += 1
+  }
+  const section = (text: string): void => {
+    ws.mergeCells(r, 1, r, nCols)
+    const row = ws.getRow(r)
+    row.height = 18
+    for (let i = 1; i <= nCols; i += 1) {
+      const sc = row.getCell(i)
+      sc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MINERAL } }
+      sc.border = { bottom: { style: 'thin', color: { argb: ACCENT } } }
+      if (i === 1) {
+        sc.value = text
+        sc.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: WHITE } }
+      }
+    }
     r += 1
   }
   section('Tablas incluidas (solo datos reales)')
@@ -268,9 +328,7 @@ function writeResumenSheet(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput):
   lim.getCell(1).alignment = { wrapText: true, vertical: 'middle' }
   lim.height = 30
   ws.autoFilter = { from: { row: incluidasHeaderRow, column: 1 }, to: { row: incluidasHeaderRow, column: 8 } }
-  fitColumns(ws, nCols, r)
-  ws.getColumn(3).width = Math.min(60, Math.max(ws.getColumn(3).width ?? 14, 30))
-  ws.getColumn(8).width = Math.min(60, Math.max(ws.getColumn(8).width ?? 14, 30))
+  applyTableWidths(ws, TRACE_HEADERS, traceRows)
   return ws
 }
 

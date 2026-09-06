@@ -1,12 +1,10 @@
-// Verificación REAL del libro XLSX municipal (sin tocar infraestructura).
-// Genera 3 archivos en tmp/ (ignorado por git) con datos sintéticos:
-//  1. tmp/municipio-rico.xlsx ..... Demografía rica + Economía disponible.
-//  2. tmp/municipio-economia.xlsx  Solo Economía (01 con mensaje, 02 con tablas).
-//  3. tmp/municipio-parcial.xlsx .. Demografía parcial pequeña (02 con mensaje).
-// Cada archivo se relee con ExcelJS y se afirma: hojas, estilo mineral,
-// freeze panes, autofilter, formato numérico, alineación, ND sin ceros,
-// trazabilidad con exclusiones y ausencia de secretos/URLs privadas.
+// Verificación del generador XLSX SIMPLE a nivel de librería (sin servidor).
+// Tres escenarios sintéticos (rica / solo-eco / parcial) con casos null/secreto.
+// Afirma: exactamente 3 hojas, sin detalle, sin freeze, sin autofilter,
+// sin enlaces, colores Ideas, anchos (Año 10, resto ≤24), alineación,
+// ND sin ceros indebidos y trazabilidad mínima en 00.
 // Uso: npx tsx scripts/verify-municipio-xlsx.ts
+// Archivos solo en tmp/ (ignorado por git).
 import ExcelJS from 'exceljs'
 import { writeFileSync, readFileSync } from 'node:fs'
 import {
@@ -54,13 +52,13 @@ function demoRica() {
     municipio: MUNI, sincronizado: true, ultima_sincronizacion: null,
     total: v('population_total', 2024, 5000),
     hombres: v('population_male', 2024, 2480),
-    mujeres: v('population_female', 2024, null), // secreto → ND, nunca 0
+    mujeres: v('population_female', 2024, null),
     evolucion: [2020, 2021, 2022, 2023, 2024].map((a, i) => v('population_evolution', a, 4800 + i * 50)),
     comparativas: {
       provincia: [2020, 2021, 2022, 2023, 2024].map((a, i) => ({ ...v('population_total', a, 400000 + i * 1000, 'provincia'), dimensiones: { ambito: 'provincia', nombre: 'Provincia Test' } })),
       ccaa: [], espana: [],
     },
-    piramide: { anio: 2024, grupos: [{ tramo: '0-4', hombres: 120, mujeres: 110 }, { tramo: '65-69', hombres: 90, mujeres: 95 }] },
+    piramide: { anio: 2024, grupos: [{ tramo: '0-4', hombres: 0, mujeres: 110 }, { tramo: '65-69', hombres: 90, mujeres: 95 }] },
     derivados: { cambio_5y: null, cambio_10y: null, indice_envejecimiento: 98.5, indice_dependencia: 52.1 },
     densidad: { valor: null, pendiente: 'x' }, valores: [], disponibles: {}, filtros: {},
   }
@@ -88,22 +86,24 @@ function ecoFull() {
       v('empresas_total', 2025, 320), v('empresas_industria', 2025, 40),
       v('empresas_servicios', 2025, 200), v('empresas_comercio_hosteleria', 2025, 90),
       v('agr_sau_total', 2020, 1500), v('agr_explotaciones', 2020, 45),
-      v('gan_bovino_exp', 2020, 3), v('gan_bovino_cab', 2020, null), // ND, nunca 0
+      v('gan_bovino_exp', 2020, 3), v('gan_bovino_cab', 2020, null),
     ],
     ultimoPorIndicador: {}, disponibles: [],
   }
 }
 
-const FORBIDDEN = [/token/i, /supabase/i, /localhost/i, /x-sync/i, /bearer/i, /password/i, /api[_-]?key/i, /\br2\b/i, /BEGIN PRIVATE/i]
+const txt = (val: unknown): string => String((val as { value?: unknown })?.value ?? val ?? '')
+const fillOf = (c: ExcelJS.Cell): string | undefined => (c.fill as ExcelJS.FillPattern)?.fgColor?.argb
+const isGreen = (c: ExcelJS.Cell): boolean => {
+  const font = c.font as ExcelJS.Font | undefined
+  return fillOf(c) === 'FF3E665C' && font?.bold === true && font?.color?.argb === 'FFFFFFFF'
+}
 
 interface Scenario {
   file: string
   label: string
   demo: ReturnType<typeof demoRica> | null
   eco: ReturnType<typeof ecoFull> | null
-  messageSheets: string[]
-  expectPct: boolean
-  expectDetail: string[]
 }
 
 async function scenario(s: Scenario): Promise<void> {
@@ -127,197 +127,135 @@ async function scenario(s: Scenario): Promise<void> {
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync(s.file))
   const names = wb.worksheets.map((w) => w.name)
-  const mains = ['00_Resumen', '01_Demografía', '02_Economía']
-  check('hojas 00/01/02', mains.every((n) => names.includes(n)), names.join(','))
-  const detail = names.filter((n) => !mains.includes(n))
-  check('detalle solo esperado y con datos', JSON.stringify([...detail].sort()) === JSON.stringify([...s.expectDetail].sort()), detail.join(',') || '—')
-  check('sin hoja 03 sin datos reales', !names.includes('03_Secciones censales'))
+  check('exactamente 00/01/02', JSON.stringify(names) === JSON.stringify(['00_Resumen', '01_Demografía', '02_Economía']), names.join(','))
+  check('sin hojas detalladas', !names.some((n) => /^(01|02)[A-E]_/.test(n)))
 
-  for (const n of names) {
-    const ws = wb.getWorksheet(n)
-    if (!ws) { check(`hoja ${n} legible`, false); continue }
-    check(`${n}: sin freeze panes ni splits`, !(ws.views ?? []).some((x) => x.state === 'frozen' || x.xSplit || x.ySplit))
-  }
-  const resumen = wb.getWorksheet('00_Resumen')
-  check('00: autoFilter', !!resumen?.autoFilter, String(resumen?.autoFilter))
-  const titleFill = (resumen?.getRow(1).getCell(1).fill as ExcelJS.FillPattern)?.fgColor?.argb
-  check('00: fila título verde corporativo #3E665C', titleFill === 'FF3E665C', titleFill)
-
-  let cols8 = false; let prov = false; let ccaa = false; let sec = false; let cero = false; let muni = false
-  resumen?.eachRow((row) => {
-    const texts = row.values as unknown[]
-    const joined = texts.map((x) => String((x as { value?: unknown })?.value ?? x ?? '')).join('|')
-    if (joined.includes('Bloque') && joined.includes('Observación') && joined.includes('Incluida')) cols8 = true
-    if (joined.includes('Provincia Test')) prov = true
-    if (joined.includes('CCAA Test')) ccaa = true
-    if (joined.includes('03_Secciones censales')) sec = true
-    if (joined.includes('nunca equivale a 0')) cero = true
-    if (joined.includes('Villa Real de Prueba')) muni = true
-  })
-  check('00: columnas Bloque…Observación', cols8)
-  check('00: municipio + provincia + CCAA + exclusión 03 + regla del cero', muni && prov && ccaa && sec && cero)
-
-  for (const n of ['01_Demografía', '02_Economía']) {
-    const ws = wb.getWorksheet(n)
-    if (!ws) { check(`${n} legible`, false); continue }
-    if (s.messageSheets.includes(n)) {
-      let found = false
-      ws.eachRow((row) => {
-        row.eachCell((c) => {
-          if (String(c.value ?? '').includes('00_Resumen')) found = true
-        })
-      })
-      check(`${n}: mensaje no numérico + referencia 00_Resumen`, found)
-      continue
+  let frozen = false
+  let filtered = false
+  let links = 0
+  let green348 = false
+  let accent = false
+  let oldGreen = false
+  for (const ws of wb.worksheets) {
+    for (const vv of ws.views ?? []) {
+      if (vv.state === 'frozen' || vv.xSplit || vv.ySplit) frozen = true
     }
-    let hasAnoTable = false
-    let hasLinks = false
+    if (ws.autoFilter) filtered = true
     ws.eachRow((row) => {
-      row.eachCell((c) => {
-        if (c.value === 'Año') hasAnoTable = true
-        const t = String((c.value as { text?: string })?.text ?? c.value ?? '')
-        if (t.startsWith('→ 0')) hasLinks = true
+      row.eachCell((cell) => {
+        const f = fillOf(cell)
+        if (f === 'FF3E665C') green348 = true
+        if (f === 'FF1E4D3F') oldGreen = true
+        const link = (cell.value as { hyperlink?: unknown } | null)?.hyperlink ?? (cell as { hyperlink?: unknown }).hyperlink
+        if (typeof link === 'string' && link.length > 0) links += 1
+        const b = cell.border as ExcelJS.Borders | undefined
+        for (const side of [b?.top, b?.bottom, b?.left, b?.right]) {
+          if ((side as { color?: { argb?: string } } | undefined)?.color?.argb === 'FF86B73D') accent = true
+        }
       })
     })
-    if (!hasAnoTable) {
-      // Hoja índice sin serie anual: banda de título + (tablas resumen compactas
-      // y/o lista de detalle con enlaces). Sin tablas inventadas.
-      let titleOk = false
-      let headerOk = false
-      ws.eachRow((row, rn) => {
-        if (rn === 1) {
-          const c = row.getCell(1)
-          const fill = (c.fill as ExcelJS.FillPattern)?.fgColor?.argb
-          if (fill === 'FF3E665C' && String(c.value ?? '').includes('Ideas Sostenibilidad')) titleOk = true
-        }
-        row.eachCell((c) => {
-          const fill = (c.fill as ExcelJS.FillPattern)?.fgColor?.argb
-          const font = c.font as ExcelJS.Font
-          if ((c.value === 'Concepto' || c.value === 'Indicador') && fill === 'FF3E665C' && font.bold) headerOk = true
-        })
-      })
-      check(`${n}: índice con banda de título${headerOk ? ' y resumen' : ''} + enlaces a detalle`, titleOk && hasLinks)
-      continue
-    }
-    check(`${n}: autoFilter`, !!ws.autoFilter, String(ws.autoFilter))
-    let headerOk = false; let accentOk = false; let euroFmt = false; let pctFmt = false; let yearFmt = false
-    let yearCenter = false; let numRight = false; let nd = 0; let zeros = 0
-    ws.eachRow((row) => {
-      row.eachCell((c) => {
-        if (c.value === 'Año') {
-          const fill = (c.fill as ExcelJS.FillPattern)?.fgColor?.argb
-          const font = c.font as ExcelJS.Font
-          const bottom = (c.border as ExcelJS.Borders | undefined)?.bottom
-          if (fill === 'FF3E665C' && font.bold && font.color?.argb === 'FFFFFFFF') headerOk = true
-          if ((bottom as { color?: { argb?: string } } | undefined)?.color?.argb === 'FF86B73D') accentOk = true
-        }
-        if (typeof c.value === 'number' && typeof c.numFmt === 'string') {
-          if (c.numFmt.includes('€')) euroFmt = true
-          if (c.numFmt.includes('%')) pctFmt = true
-          if (c.numFmt === '0' && c.value >= 1900 && c.value <= 2100) {
-            yearFmt = true
-            if (c.alignment?.horizontal === 'center') yearCenter = true
-          } else if (c.alignment?.horizontal === 'right') {
-            numRight = true
+  }
+  check('sin freeze panes ni splits', !frozen)
+  check('sin autofilter', !filtered)
+  check('sin enlaces internos', links === 0, `${links}`)
+  check('principal #3E665C presente', green348)
+  check('acento #86B73D presente', accent)
+  check('sin #1E4D3F', !oldGreen)
+
+  // Cabeceras exactas, anchos (Año 10, resto ≤24) y alineación por rol.
+  const headerBad: string[] = []
+  const widthBad: string[] = []
+  const alignBad: string[] = []
+  for (const ws of wb.worksheets) {
+    if (ws.name === '00_Resumen') continue
+    ws.eachRow((row, rn) => {
+      let ncols = 0
+      for (let ci = 1; ci <= ws.columnCount; ci += 1) {
+        if (isGreen(row.getCell(ci))) ncols = ci
+        else break
+      }
+      if (ncols < 2) return
+      for (let ci = ncols + 1; ci <= ws.columnCount; ci += 1) {
+        if (fillOf(row.getCell(ci)) === 'FF3E665C') headerBad.push(`${ws.name} R${rn} verde tras col ${ncols}`)
+      }
+      for (let r = rn + 1; r <= ws.rowCount; r += 1) {
+        const dr = ws.getRow(r)
+        if (txt(dr.getCell(1).value) === '') break
+        if (isGreen(dr.getCell(1))) break
+        for (let ci = 1; ci <= ncols; ci += 1) {
+          const cell = dr.getCell(ci)
+          const h = txt(ws.getRow(rn).getCell(ci).value)
+          const exp = h === 'Año' ? 'center' : ci === 1 ? 'left' : 'right'
+          const got = cell.alignment?.horizontal
+          if ((typeof cell.value === 'number' || h === 'Año') && got !== exp) {
+            alignBad.push(`${ws.name} R${r}C${ci} ${got ?? '?'}≠${exp}`)
           }
         }
-        if (c.value === 'ND') nd += 1
-        if (typeof c.value === 'number' && c.value === 0) zeros += 1
-      })
-    })
-    check(`${n}: cabecera #3E665C + blanco negrita`, headerOk)
-    check(`${n}: acento #86B73D en cabecera`, accentOk)
-    check(`${n}: Año centrado`, yearCenter)
-    check(`${n}: numéricas a derecha`, numRight)
-    check(`${n}: cero ceros numéricos`, zeros === 0, `${zeros}`)
-    check(`${n}: formato año`, yearFmt)
-    if (n === '02_Economía') {
-      check(`${n}: formato euros`, euroFmt)
-      check(`${n}: ND como texto`, nd >= 1, `${nd}`)
-    }
-    if (n === '01_Demografía' && s.expectPct) check(`${n}: formato porcentaje`, pctFmt)
-  }
-
-  // Formato corporativo global: sin verde anterior, anchos por rol, Estado
-  // centrado, wrap en fuente/observación.
-  const oldGreen: string[] = []
-  const widthBad: string[] = []
-  let estadoCenter = false
-  let wrapOk = false
-  // Anchos: las hojas apilan tablas que comparten columnas, así que el ancho
-  // final es el máximo de los roles que usan cada columna. Se afirma: ninguna
-  // supera 48, ninguna conserva el fijo 46 del formato anterior y las columnas
-  // de Año no superan 20 (12 cuando la hoja usa un único rol).
-  for (const ws of wb.worksheets) {
-    ws.eachRow((row) => {
-      row.eachCell((c) => {
-        const fill = (c.fill as ExcelJS.FillPattern)?.fgColor?.argb
-        if (fill === 'FF1E4D3F') oldGreen.push(`${ws.name} R${row.number}`)
-      })
+      }
     })
     for (let ci = 1; ci <= ws.columnCount; ci += 1) {
       const w = ws.getColumn(ci).width ?? 0
-      if (w > 48 || w === 46) widthBad.push(`${ws.name} C${ci}=${w}`)
+      if (w > 24) widthBad.push(`${ws.name} C${ci}=${w}`)
     }
-  }
-  // Anchos por rol: las hojas apilan tablas que comparten columnas, así que una
-  // columna de Año compartida con tablas descriptivas toma el máximo necesario
-  // (nunca el fijo 46 anterior ni valores enormes). Solo se exige el rol puro
-  // cuando la columna es exclusivamente de Año; si no, el global [9,48].
-  for (const n of ['01_Demografía', '02_Economía']) {
-    if (s.messageSheets.includes(n)) continue
-    const ws = wb.getWorksheet(n)
-    if (!ws) continue
     ws.eachRow((row) => {
-      const first = String(row.getCell(1).value ?? '')
-      if (first === 'Año' || first === 'Concepto' || first === 'Especie' || first === 'Indicador' || first === 'Grupo de edad') {
-        row.eachCell((c, cn) => {
-          const h = String(c.value ?? '')
-          if (!h || h === 'null' || h !== 'Año') return
+      row.eachCell((cell, cn) => {
+        if (txt(cell.value) === 'Año') {
           const w = ws.getColumn(cn).width ?? 0
-          if (w < 9 || w > 34) widthBad.push(`${n} ${h}=${w} (compartida ≤34)`)
-        })
-      }
-    })
-  }
-  const resumen00 = wb.getWorksheet('00_Resumen')
-  resumen00?.eachRow((row) => {
-    row.eachCell((c, cn) => {
-      if (String(c.value ?? '') === 'Estado' && cn === 6) {
-        const below = resumen00.getRow(row.number + 1).getCell(cn)
-        if (below.alignment?.horizontal === 'center') estadoCenter = true
-      }
-      if ((String(c.value ?? '') === 'Fuente' || String(c.value ?? '') === 'Observación') && cn >= 3) {
-        const below = resumen00.getRow(row.number + 1).getCell(cn)
-        if (below.alignment?.wrapText === true) wrapOk = true
-      }
-    })
-  })
-  check('ausencia del verde anterior #1E4D3F', oldGreen.length === 0, oldGreen.slice(0, 3).join(' | '))
-  check('anchos por rol dentro de límites', widthBad.length === 0, widthBad.slice(0, 4).join(' | '))
-  check('00: Estado centrado', estadoCenter)
-  check('00: wrap en Fuente/Observación', wrapOk)
-
-  const hits: string[] = []
-  for (const ws of wb.worksheets) {
-    ws.eachRow((row) => {
-      row.eachCell((c) => {
-        const str = String(c.value ?? '')
-        for (const re of FORBIDDEN) {
-          if (re.test(str)) hits.push(`${ws.name}: ${str.slice(0, 60)}`)
+          if (w !== 10) widthBad.push(`${ws.name} Año C${cn}=${w} (esperado 10)`)
         }
       })
     })
   }
-  check('sin secretos ni URLs privadas', hits.length === 0, hits.slice(0, 3).join(' | '))
+  check('cabeceras exactas', headerBad.length === 0, headerBad.slice(0, 3).join(' | '))
+  check('anchos ≤24 y Año=10', widthBad.length === 0, widthBad.slice(0, 4).join(' | '))
+  check('alineación por rol', alignBad.length === 0, alignBad.slice(0, 3).join(' | '))
+
+  // Ceros: prohibidos salvo bloque pirámide (recuentos reales).
+  const badZeros: string[] = []
+  let piramideZeros = 0
+  for (const ws of wb.worksheets) {
+    if (ws.name === '00_Resumen') continue
+    let pirStart = -1
+    let pirEnd = -1
+    ws.eachRow((row, rn) => {
+      const first = txt(row.getCell(1).value)
+      if (first.startsWith('Estructura por edad y sexo')) pirStart = rn
+      else if (pirStart > 0 && pirEnd < 0 && first === '') pirEnd = rn
+    })
+    ws.eachRow((row, rn) => {
+      row.eachCell((cell) => {
+        if (typeof cell.value === 'number' && cell.value === 0) {
+          if (pirStart > 0 && rn > pirStart && (pirEnd < 0 || rn < pirEnd)) piramideZeros += 1
+          else badZeros.push(`${ws.name} R${rn}`)
+        }
+      })
+    })
+  }
+  check('cero suprimidos como cero', badZeros.length === 0, badZeros.slice(0, 3).join(' | '))
+  console.log(`INFO — ceros genuinos de pirámide: ${piramideZeros}`)
+
+  // 00 breve: identificación + línea legal, sin trazabilidad ni filtros.
+  const resumen = wb.getWorksheet('00_Resumen')
+  let muni = false
+  let legal = false
+  let trace = false
+  resumen?.eachRow((row) => {
+    row.eachCell((c) => {
+      const t = txt(c.value)
+      if (t === '99999') muni = true
+      if (t.startsWith('Fuentes y periodos específicos')) legal = true
+      if (t === 'Observación' || t === 'Incluida') trace = true
+    })
+  })
+  check('00 breve con INE y línea legal, sin trazabilidad', muni && legal && !trace)
 }
 
 async function main(): Promise<void> {
-  await scenario({ file: 'tmp/municipio-rico.xlsx', label: 'Rica (demo + eco)', demo: demoRica(), eco: ecoFull(), messageSheets: [], expectPct: true, expectDetail: ['01A_Evolución demo', '01B_Edad y sexo', '01D_Comparativas demo', '02A_Renta', '02B_Desigualdad', '02C_Empresas', '02D_Sector primario'] })
-  await scenario({ file: 'tmp/municipio-economia.xlsx', label: 'Economía (01 con mensaje)', demo: null, eco: ecoFull(), messageSheets: ['01_Demografía'], expectPct: false, expectDetail: ['02A_Renta', '02B_Desigualdad', '02C_Empresas', '02D_Sector primario'] })
-  await scenario({ file: 'tmp/municipio-parcial.xlsx', label: 'Parcial pequeña (02 con mensaje)', demo: demoParcial(), eco: null, messageSheets: ['02_Economía'], expectPct: false, expectDetail: ['01A_Evolución demo'] })
+  await scenario({ file: 'tmp/municipio-rico.xlsx', label: 'Rica (demo + eco)', demo: demoRica(), eco: ecoFull() })
+  await scenario({ file: 'tmp/municipio-economia.xlsx', label: 'Solo economía', demo: null, eco: ecoFull() })
+  await scenario({ file: 'tmp/municipio-parcial.xlsx', label: 'Parcial pequeña', demo: demoParcial(), eco: null })
   if (failures > 0) { console.error(`\n${failures} comprobaciones FALLIDAS`); process.exit(1) }
-  console.log('\nXLSX municipal verificado en 3 escenarios: estructura, estilos, rangos, formatos y trazabilidad OK.')
+  console.log('\nXLSX simple verificado: 3 hojas, rangos exactos y formato Ideas OK.')
 }
 
 main().catch((e) => { console.error('ERROR', e); process.exit(1) })

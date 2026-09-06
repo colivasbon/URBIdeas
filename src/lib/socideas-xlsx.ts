@@ -2,6 +2,8 @@
 // Este módulo importa `exceljs` y NUNCA debe importarse desde un Client Component
 // (ni directa ni transitivamente): la dependencia queda fuera del bundle cliente.
 // Genera un libro .xlsx REAL con estilos corporativos: no CSV disfrazado ni HTML.
+// Tipografía: Poppins no está garantizada en el entorno Excel del destinatario;
+// se usa Calibri como fallback explícito y documentado (sin fuentes incrustadas).
 import ExcelJS from 'exceljs'
 import type { Exclusion, ExportTable } from './socideas-export'
 
@@ -20,6 +22,8 @@ const FONT_NAME = 'Calibri'
 export interface MunicipioWorkbookInput {
   municipio: string
   codigoINE: string
+  provincia: string
+  comunidadAutonoma: string
   fechaGeneracion: string
   demografia: ExportTable[]
   economia: ExportTable[]
@@ -96,7 +100,7 @@ function writeTable(
   t.columnas.forEach((col, i) => {
     const c = header.getCell(i + 1)
     c.value = col
-    c.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' }
+    c.alignment = { vertical: 'middle', horizontal: col === 'Año' ? 'center' : i === 0 ? 'left' : 'right' }
   })
   paintHeaderRow(header)
   let r = headerRowN
@@ -106,9 +110,11 @@ function writeTable(
     row.height = 15
     fila.forEach((cell, ci) => {
       const c = row.getCell(ci + 1)
+      const colName = t.columnas[ci]
+      const align = colName === 'Año' ? 'center' : ci === 0 ? 'left' : 'right'
       if (cell.numeric !== null && Number.isFinite(cell.numeric)) {
         c.value = cell.numeric
-        const fmt = numFmtFor(t.columnas[ci])
+        const fmt = numFmtFor(colName)
         if (fmt) c.numFmt = fmt
       } else {
         // Ausencia (null/ND/secreto): texto explícito, NUNCA 0.
@@ -116,7 +122,7 @@ function writeTable(
         c.numFmt = '@'
       }
       c.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
-      c.alignment = { vertical: 'middle', horizontal: ci === 0 ? 'left' : 'right' }
+      c.alignment = { vertical: 'middle', horizontal: align, wrapText: ci === 0 }
     })
     if (fi % 2 === 1) band(row, MINERAL_LIGHT)
   })
@@ -176,14 +182,16 @@ function writeResumenSheet(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput):
     properties: { tabColor: { argb: MINERAL } },
     views: [{ state: 'frozen', ySplit: 3, xSplit: 0 }],
   })
-  const nCols = 5
+  const nCols = 8
   paintTitle(ws, 1, nCols, `${XLSX_BRAND} — Libro municipal`)
   paintMeta(ws, 2, nCols, `Municipio: ${input.municipio} (${input.codigoINE}) · Generado: ${input.fechaGeneracion}`)
   const metaRows: [string, string][] = [
     ['Municipio', input.municipio],
     ['Código INE', input.codigoINE],
+    ['Provincia', input.provincia],
+    ['Comunidad autónoma', input.comunidadAutonoma],
     ['Fecha de generación', input.fechaGeneracion],
-    ['Hojas incluidas', ['00_Resumen', input.demografia.length > 0 ? '01_Demografía' : null, input.economia.length > 0 ? '02_Economía' : null].filter(Boolean).join(', ')],
+    ['Bloques incluidos', ['00_Resumen', input.demografia.length > 0 ? '01_Demografía' : null, input.economia.length > 0 ? '02_Economía' : null].filter(Boolean).join(', ')],
   ]
   let r = 4
   for (const [k, v] of metaRows) {
@@ -231,15 +239,25 @@ function writeResumenSheet(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput):
   }
   section('Tablas incluidas (solo datos reales)')
   const incluidasHeaderRow = r
-  head(['Tabla', 'Filas', 'Fuente', 'Periodo', 'Estado'])
-  for (const t of [...input.demografia, ...input.economia]) {
-    body([t.titulo, t.filas.length, t.fuente, t.periodo, t.estado])
+  head(['Bloque', 'Tabla', 'Fuente', 'Período', 'Cobertura', 'Estado', 'Incluida', 'Observación'])
+  for (const t of input.demografia) {
+    body(['Demografía', t.titulo, t.fuente, t.periodo, t.cobertura, t.estado, 'Sí', `${t.filas.length} filas`])
+  }
+  for (const t of input.economia) {
+    body(['Economía', t.titulo, t.fuente, t.periodo, t.cobertura, t.estado, 'Sí', `${t.filas.length} filas`])
   }
   r += 1
   section('Tablas no incluidas por falta de cobertura (no se rellenan con valores)')
-  head(['Tabla / hoja', 'Motivo'])
-  for (const e of [...input.excluidasDemografia, ...input.excluidasEconomia, ...input.excluidasSecciones]) {
-    body([e.titulo, e.motivo])
+  head(['Bloque', 'Tabla / hoja', 'Fuente', 'Período', 'Cobertura', 'Estado', 'Incluida', 'Observación'])
+  const noAplica = 'No aplica'
+  for (const e of input.excluidasDemografia) {
+    body(['Demografía', e.titulo, noAplica, noAplica, noAplica, noAplica, 'No', e.motivo])
+  }
+  for (const e of input.excluidasEconomia) {
+    body(['Economía', e.titulo, noAplica, noAplica, noAplica, noAplica, 'No', e.motivo])
+  }
+  for (const e of input.excluidasSecciones) {
+    body(['Secciones censales', e.titulo, noAplica, noAplica, noAplica, noAplica, 'No', e.motivo])
   }
   r += 1
   section('Limitaciones')
@@ -249,9 +267,33 @@ function writeResumenSheet(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput):
   lim.getCell(1).font = { name: FONT_NAME, size: 10, italic: true, color: { argb: MUTED } }
   lim.getCell(1).alignment = { wrapText: true, vertical: 'middle' }
   lim.height = 30
-  ws.autoFilter = { from: { row: incluidasHeaderRow, column: 1 }, to: { row: incluidasHeaderRow, column: 5 } }
+  ws.autoFilter = { from: { row: incluidasHeaderRow, column: 1 }, to: { row: incluidasHeaderRow, column: 8 } }
   fitColumns(ws, nCols, r)
-  ws.getColumn(2).width = Math.min(60, Math.max(ws.getColumn(2).width ?? 14, 30))
+  ws.getColumn(3).width = Math.min(60, Math.max(ws.getColumn(3).width ?? 14, 30))
+  ws.getColumn(8).width = Math.min(60, Math.max(ws.getColumn(8).width ?? 14, 30))
+  return ws
+}
+
+/** Hoja de bloque sin tablas exportables: mensaje claro no numérico + referencia a 00. */
+function writeEmptyBlockSheet(
+  wb: ExcelJS.Workbook,
+  name: string,
+  heading: string,
+): ExcelJS.Worksheet {
+  const ws = wb.addWorksheet(name, {
+    properties: { tabColor: { argb: MINERAL } },
+    views: [{ state: 'frozen', ySplit: 1, xSplit: 0 }],
+  })
+  paintTitle(ws, 1, 2, `${XLSX_BRAND} — ${heading}`)
+  const row = ws.getRow(3)
+  ws.mergeCells(3, 1, 3, 2)
+  const c = row.getCell(1)
+  c.value = 'Sin tablas exportables en este bloque para el municipio. Ver hoja 00_Resumen (trazabilidad y exclusiones). Ningún valor se rellena con ceros.'
+  c.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: MUTED } }
+  c.alignment = { wrapText: true, vertical: 'middle' }
+  row.height = 30
+  ws.getColumn(1).width = 60
+  ws.getColumn(2).width = 30
   return ws
 }
 
@@ -267,6 +309,8 @@ export async function buildMunicipioWorkbook(input: MunicipioWorkbookInput): Pro
       `Fuentes y periodos por tabla · Generado: ${input.fechaGeneracion}`,
       input.demografia,
     )
+  } else {
+    writeEmptyBlockSheet(wb, '01_Demografía', `Tablas de Demografía — ${input.municipio} (${input.codigoINE})`)
   }
   if (input.economia.length > 0) {
     writeBlockSheet(
@@ -274,6 +318,8 @@ export async function buildMunicipioWorkbook(input: MunicipioWorkbookInput): Pro
       `Fuentes y periodos por tabla · Generado: ${input.fechaGeneracion}`,
       input.economia,
     )
+  } else {
+    writeEmptyBlockSheet(wb, '02_Economía', `Tablas de Economía — ${input.municipio} (${input.codigoINE})`)
   }
   // 03_Secciones censales: solo cuando existan datos reales (hoy nunca: va a exclusiones).
   const buffer = await wb.xlsx.writeBuffer()

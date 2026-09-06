@@ -51,6 +51,8 @@ export async function GET(
     const buffer = await buildMunicipioWorkbook({
       municipio,
       codigoINE,
+      provincia: perfilDemo?.municipio.provincia ?? perfilEco?.municipio.provincia ?? 'No disponible',
+      comunidadAutonoma: perfilDemo?.municipio.comunidad_autonoma ?? perfilEco?.municipio.comunidad_autonoma ?? 'No disponible',
       fechaGeneracion: new Date().toISOString().slice(0, 10),
       demografia,
       economia,

@@ -19,7 +19,6 @@ const ALT = 'FFEDF3EF'
 const WHITE = 'FFFFFFFF'
 const INK = 'FF1F2A26'
 const MUTED = 'FF5B6B62'
-const HAIRLINE = 'FFCBD5D1'
 
 const FONT_NAME = 'Calibri'
 
@@ -84,7 +83,7 @@ function paintHeaderRow(row: ExcelJS.Row): void {
 }
 
 /** Límites de ancho por rol de columna (contenido +2, con mínimos y máximos). */
-function columnLimitsFor(header: string, isFirst: boolean): [number, number] {
+export function columnLimitsFor(header: string, isFirst: boolean): [number, number] {
   if (header === 'Año') return [9, 12]
   if (header.includes('€')) return [14, 18]
   if (header.includes('%')) return [12, 14]
@@ -104,7 +103,7 @@ function cellTextLength(text: string, numeric: number | null, header: string): n
 }
 
 /** Alineación corporativa: texto izquierda, año centro, números derecha, estado centro. */
-function cellAlign(header: string, isFirst: boolean): 'left' | 'center' | 'right' {
+export function cellAlign(header: string, isFirst: boolean): 'left' | 'center' | 'right' {
   if (header === 'Año' || header === 'Estado' || header === 'Incluida') return 'center'
   if (isFirst) return 'left'
   return 'right'
@@ -350,8 +349,8 @@ function writeEmptyBlockSheet(
   c.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: MUTED } }
   c.alignment = { wrapText: true, vertical: 'middle' }
   row.height = 30
-  ws.getColumn(1).width = 60
-  ws.getColumn(2).width = 30
+  ws.getColumn(1).width = 48
+  ws.getColumn(2).width = 24
   return ws
 }
 

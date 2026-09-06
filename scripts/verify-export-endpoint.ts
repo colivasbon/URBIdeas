@@ -13,6 +13,7 @@ import { writeFileSync } from 'node:fs'
 const BASE = process.argv[2] ?? 'http://localhost:3000'
 const CASES = [
   { ine: '02069', label: 'medio con economía' },
+  { ine: '02081', label: 'medio con economía' },
   { ine: '28143', label: 'pequeño con serie larga' },
 ]
 const FORBIDDEN = [/token/i, /supabase/i, /localhost/i, /x-sync/i, /bearer/i, /password/i, /api[_-]?key/i, /\br2\b/i]
@@ -49,7 +50,7 @@ async function main(): Promise<void> {
     const resumen = wb.getWorksheet('00_Resumen')
     const titleFill = (resumen?.getRow(1).getCell(1).fill as ExcelJS.FillPattern)?.fgColor?.argb
     const titleText = String(resumen?.getRow(1).getCell(1).value ?? '')
-    check('identidad Ideas (marca + mineral)', titleText.includes('Ideas Sostenibilidad') && titleFill === 'FF1E4D3F', `${titleText.slice(0, 40)} / ${titleFill}`)
+    check('identidad Ideas (marca + #3E665C)', titleText.includes('Ideas Sostenibilidad') && titleFill === 'FF3E665C', `${titleText.slice(0, 40)} / ${titleFill}`)
     let cols8 = false; let excl = false; let cero = false
     resumen?.eachRow((row) => {
       const joined = (row.values as unknown[]).map((x) => String((x as { value?: unknown })?.value ?? x ?? '')).join('|')
@@ -74,19 +75,30 @@ async function main(): Promise<void> {
       check('renta real exportada', hasRenta)
       check('gini real exportado', hasGini)
     }
-    let headerOk = false
+    let headerOk = false; let accentOk = false; let oldGreen = false
+    const widthBad: string[] = []
     for (const ws of wb.worksheets) {
       ws.eachRow((row) => {
         row.eachCell((cell) => {
+          const fill = (cell.fill as ExcelJS.FillPattern)?.fgColor?.argb
+          if (fill === 'FF1E4D3F') oldGreen = true
           if (cell.value === 'Año') {
-            const fill = (cell.fill as ExcelJS.FillPattern)?.fgColor?.argb
             const font = cell.font as ExcelJS.Font
-            if (fill === 'FF1E4D3F' && font.bold && font.color?.argb === 'FFFFFFFF') headerOk = true
+            const bottom = (cell.border as ExcelJS.Borders | undefined)?.bottom as { color?: { argb?: string } } | undefined
+            if (fill === 'FF3E665C' && font.bold && font.color?.argb === 'FFFFFFFF') headerOk = true
+            if (bottom?.color?.argb === 'FF86B73D') accentOk = true
           }
         })
       })
+      for (let ci = 1; ci <= ws.columnCount; ci += 1) {
+        const w = ws.getColumn(ci).width ?? 0
+        if (w > 48 || w === 46) widthBad.push(`${ws.name} C${ci}=${w}`)
+      }
     }
-    check('cabeceras mineral/blanco en tablas con datos', headerOk)
+    check('cabeceras #3E665C + blanco negrita', headerOk)
+    check('acento #86B73D en cabeceras', accentOk)
+    check('ausencia del verde anterior #1E4D3F', !oldGreen)
+    check('anchos ≤48 y sin fijo 46', widthBad.length === 0, widthBad.slice(0, 3).join(' | '))
     // Política de ceros: prohibidos en todas las tablas SALVO pirámide por edad
     // y sexo, cuyos conteos 0 son publicables y reales en municipios pequeños
     // (verificado: INE publica el tramo; el 0 es recuento, no supresión).

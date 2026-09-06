@@ -137,7 +137,7 @@ async function scenario(s: Scenario): Promise<void> {
   const resumen = wb.getWorksheet('00_Resumen')
   check('00: autoFilter', !!resumen?.autoFilter, String(resumen?.autoFilter))
   const titleFill = (resumen?.getRow(1).getCell(1).fill as ExcelJS.FillPattern)?.fgColor?.argb
-  check('00: fila título verde mineral', titleFill === 'FF1E4D3F', titleFill)
+  check('00: fila título verde corporativo #3E665C', titleFill === 'FF3E665C', titleFill)
 
   let cols8 = false; let prov = false; let ccaa = false; let sec = false; let cero = false; let muni = false
   resumen?.eachRow((row) => {
@@ -167,14 +167,16 @@ async function scenario(s: Scenario): Promise<void> {
       continue
     }
     check(`${n}: autoFilter`, !!ws.autoFilter, String(ws.autoFilter))
-    let headerOk = false; let euroFmt = false; let pctFmt = false; let yearFmt = false
+    let headerOk = false; let accentOk = false; let euroFmt = false; let pctFmt = false; let yearFmt = false
     let yearCenter = false; let numRight = false; let nd = 0; let zeros = 0
     ws.eachRow((row) => {
       row.eachCell((c) => {
         if (c.value === 'Año') {
           const fill = (c.fill as ExcelJS.FillPattern)?.fgColor?.argb
           const font = c.font as ExcelJS.Font
-          if (fill === 'FF1E4D3F' && font.bold && font.color?.argb === 'FFFFFFFF') headerOk = true
+          const bottom = (c.border as ExcelJS.Borders | undefined)?.bottom
+          if (fill === 'FF3E665C' && font.bold && font.color?.argb === 'FFFFFFFF') headerOk = true
+          if ((bottom as { color?: { argb?: string } } | undefined)?.color?.argb === 'FF86B73D') accentOk = true
         }
         if (typeof c.value === 'number' && typeof c.numFmt === 'string') {
           if (c.numFmt.includes('€')) euroFmt = true
@@ -190,7 +192,8 @@ async function scenario(s: Scenario): Promise<void> {
         if (typeof c.value === 'number' && c.value === 0) zeros += 1
       })
     })
-    check(`${n}: cabecera mineral + blanco negrita`, headerOk)
+    check(`${n}: cabecera #3E665C + blanco negrita`, headerOk)
+    check(`${n}: acento #86B73D en cabecera`, accentOk)
     check(`${n}: Año centrado`, yearCenter)
     check(`${n}: numéricas a derecha`, numRight)
     check(`${n}: cero ceros numéricos`, zeros === 0, `${zeros}`)
@@ -201,6 +204,66 @@ async function scenario(s: Scenario): Promise<void> {
     }
     if (n === '01_Demografía' && s.expectPct) check(`${n}: formato porcentaje`, pctFmt)
   }
+
+  // Formato corporativo global: sin verde anterior, anchos por rol, Estado
+  // centrado, wrap en fuente/observación.
+  const oldGreen: string[] = []
+  const widthBad: string[] = []
+  let estadoCenter = false
+  let wrapOk = false
+  // Anchos: las hojas apilan tablas que comparten columnas, así que el ancho
+  // final es el máximo de los roles que usan cada columna. Se afirma: ninguna
+  // supera 48, ninguna conserva el fijo 46 del formato anterior y las columnas
+  // de Año no superan 20 (12 cuando la hoja usa un único rol).
+  for (const ws of wb.worksheets) {
+    ws.eachRow((row) => {
+      row.eachCell((c) => {
+        const fill = (c.fill as ExcelJS.FillPattern)?.fgColor?.argb
+        if (fill === 'FF1E4D3F') oldGreen.push(`${ws.name} R${row.number}`)
+      })
+    })
+    for (let ci = 1; ci <= ws.columnCount; ci += 1) {
+      const w = ws.getColumn(ci).width ?? 0
+      if (w > 48 || w === 46) widthBad.push(`${ws.name} C${ci}=${w}`)
+    }
+  }
+  // Anchos por rol: las hojas apilan tablas que comparten columnas, así que una
+  // columna de Año compartida con tablas descriptivas toma el máximo necesario
+  // (nunca el fijo 46 anterior ni valores enormes). Solo se exige el rol puro
+  // cuando la columna es exclusivamente de Año; si no, el global [9,48].
+  for (const n of ['01_Demografía', '02_Economía']) {
+    if (s.messageSheets.includes(n)) continue
+    const ws = wb.getWorksheet(n)
+    if (!ws) continue
+    ws.eachRow((row) => {
+      const first = String(row.getCell(1).value ?? '')
+      if (first === 'Año' || first === 'Concepto' || first === 'Especie' || first === 'Indicador' || first === 'Grupo de edad') {
+        row.eachCell((c, cn) => {
+          const h = String(c.value ?? '')
+          if (!h || h === 'null' || h !== 'Año') return
+          const w = ws.getColumn(cn).width ?? 0
+          if (w < 9 || w > 34) widthBad.push(`${n} ${h}=${w} (compartida ≤34)`)
+        })
+      }
+    })
+  }
+  const resumen00 = wb.getWorksheet('00_Resumen')
+  resumen00?.eachRow((row) => {
+    row.eachCell((c, cn) => {
+      if (String(c.value ?? '') === 'Estado' && cn === 6) {
+        const below = resumen00.getRow(row.number + 1).getCell(cn)
+        if (below.alignment?.horizontal === 'center') estadoCenter = true
+      }
+      if ((String(c.value ?? '') === 'Fuente' || String(c.value ?? '') === 'Observación') && cn >= 3) {
+        const below = resumen00.getRow(row.number + 1).getCell(cn)
+        if (below.alignment?.wrapText === true) wrapOk = true
+      }
+    })
+  })
+  check('ausencia del verde anterior #1E4D3F', oldGreen.length === 0, oldGreen.slice(0, 3).join(' | '))
+  check('anchos por rol dentro de límites', widthBad.length === 0, widthBad.slice(0, 4).join(' | '))
+  check('00: Estado centrado', estadoCenter)
+  check('00: wrap en Fuente/Observación', wrapOk)
 
   const hits: string[] = []
   for (const ws of wb.worksheets) {

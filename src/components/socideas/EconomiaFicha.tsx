@@ -3,7 +3,9 @@
 import Link from "next/link";
 import EvolutionChart, { type SerieEvo } from "./EvolutionChart";
 import Traceability from "./Traceability";
-import CopyTableButton from "./CopyTableButton";
+import DataTableShell from "./DataTableShell";
+import DataTableToolbar from "./DataTableToolbar";
+import TableWorkspace from "./TableWorkspace";
 import AvailabilitySummary, { AvailableIndicators } from "./AvailabilitySummary";
 import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
 import {
@@ -332,31 +334,37 @@ export default function EconomiaFicha({
       {ganOk && (
         <section aria-label="Ganadería" className="ideas-section">
           <h2 className="ideas-h2">Ganadería <span className="ideas-tag">Estructural · 2020</span></h2>
-          <div className="mt-3 overflow-x-auto">
-            <table id={`tabla-gan-${codigoINE}`} className="ideas-table">
-              <caption className="sr-only">Cabaña ganadera por especie, Censo Agrario 2020</caption>
-              <thead>
-                <tr>
-                  <th>Especie</th>
-                  <th className="text-right">Explotaciones</th>
-                  <th className="text-right">Cabezas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {especies.map((s) => (
-                  <tr key={s.nombre}>
-                    <td>{s.nombre}</td>
-                    <td className="text-right">{s.exp === null ? "ND" : fmt(s.exp)}</td>
-                    <td className="text-right">{s.cab === null ? "ND" : fmt(s.cab)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <CopyTableButton tableId={`tabla-gan-${codigoINE}`} label="Copiar" />
-            <FuenteOficial url={ultimo(valores, "gan_ug_total")?.source_url ?? ultimo(valores, "gan_bovino_cab")?.source_url} />
-          </div>
+          <TableWorkspace
+            table={
+              <DataTableShell
+                title="Cabaña ganadera por especie"
+                subtitle="Censo Agrario 2020 (estructural, no anual)"
+                meta={{ fuente: fuenteDe(ultimo(valores, "gan_ug_total") ?? ultimo(valores, "gan_bovino_cab")).split("·")[0].trim() || "INE · Censo Agrario 2020", periodo: "2020", cobertura: `Municipio ${municipio.nombre}`, estado: "consolidado" }}
+                toolbar={<DataTableToolbar tableId={`tabla-gan-${codigoINE}`} sourceUrl={ultimo(valores, "gan_ug_total")?.source_url ?? ultimo(valores, "gan_bovino_cab")?.source_url} />}
+                footnote="ND = no difundido por secreto estadístico; nunca equivale a cero."
+              >
+                <table id={`tabla-gan-${codigoINE}`} className="socideas-table">
+                  <caption className="sr-only">Cabaña ganadera por especie, Censo Agrario 2020</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col" className="socideas-table__text">Especie</th>
+                      <th scope="col" className="socideas-table__numeric">Explotaciones</th>
+                      <th scope="col" className="socideas-table__numeric">Cabezas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {especies.map((s) => (
+                      <tr key={s.nombre}>
+                        <td className="socideas-table__text">{s.nombre}</td>
+                        <td className="socideas-table__numeric">{s.exp === null ? "ND" : fmt(s.exp)}</td>
+                        <td className="socideas-table__numeric">{s.cab === null ? "ND" : fmt(s.cab)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </DataTableShell>
+            }
+          />
           <p className="ideas-note">
             Censo Agrario 2020 (INE). ND = no difundido por secreto estadístico; nunca equivale a cero.
           </p>
@@ -439,35 +447,30 @@ function RentaTable({ codigoINE, valores }: { codigoINE: string; valores: Indica
   const visibles = cols.filter((c) => anios.some((a) => val(c.slug, a) !== null));
   if (anios.length === 0 || visibles.length === 0) return null;
   const primera = ultimo(valores, visibles[0].slug);
+  const fuenteCorta = (primera?.source as unknown as { organismo?: string } | undefined)?.organismo ?? "AEAT · INE ADRH";
   return (
-    <div className="mt-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
-          Tabla anual de renta · Fuente {fuenteDe(primera).split("·")[0]?.trim()} · {anios[0]}–{anios[anios.length - 1]}
-        </h3>
-        <div className="flex flex-wrap items-center gap-2">
-          <FuenteOficial url={primera?.source_url} />
-          <CopyTableButton tableId={`tabla-renta-${codigoINE}`} label="Copiar" />
-        </div>
-      </div>
-      <div className="mt-3 overflow-x-auto">
-        <table id={`tabla-renta-${codigoINE}`} className="ideas-table">
-          <thead>
-            <tr>
-              <th>Año</th>
-              {visibles.map((c) => (<th key={c.slug} className="text-right">{c.label}</th>))}
+    <DataTableShell
+      title="Tabla anual de renta"
+      subtitle="AEAT por declaración y ADRH por persona/hogar, sin mezclar"
+      meta={{ fuente: fuenteCorta, periodo: `${anios[0]}–${anios[anios.length - 1]}`, cobertura: undefined, estado: "consolidado" }}
+      toolbar={<DataTableToolbar tableId={`tabla-renta-${codigoINE}`} sourceUrl={primera?.source_url} />}
+    >
+      <table id={`tabla-renta-${codigoINE}`} className="socideas-table">
+        <thead>
+          <tr>
+            <th scope="col" className="socideas-table__year">Año</th>
+            {visibles.map((c) => (<th scope="col" key={c.slug} className="socideas-table__numeric">{c.label}</th>))}
+          </tr>
+        </thead>
+        <tbody>
+          {anios.map((a) => (
+            <tr key={a}>
+              <td className="socideas-table__year">{a}</td>
+              {visibles.map((c) => (<td key={c.slug} className="socideas-table__numeric">{fmt(val(c.slug, a))}</td>))}
             </tr>
-          </thead>
-          <tbody>
-            {anios.map((a) => (
-              <tr key={a}>
-                <td>{a}</td>
-                {visibles.map((c) => (<td key={c.slug} className="text-right">{fmt(val(c.slug, a))}</td>))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+          ))}
+        </tbody>
+      </table>
+    </DataTableShell>
   );
 }

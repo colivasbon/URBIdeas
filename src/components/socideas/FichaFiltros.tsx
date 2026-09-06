@@ -6,9 +6,12 @@ import StatCard from "./StatCard";
 import EvolutionChart, { type SerieEvo } from "./EvolutionChart";
 import PyramidChart from "./PyramidChart";
 import Traceability from "./Traceability";
-import CopyTableButton from "./CopyTableButton";
 import AvailabilitySummary from "./AvailabilitySummary";
 import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
+import DataTableShell from "./DataTableShell";
+import DataTableMeta from "./DataTableMeta";
+import DataTableToolbar from "./DataTableToolbar";
+import TableWorkspace from "./TableWorkspace";
 import {
   ComparadorPeriodos,
   FuenteOficial,
@@ -91,7 +94,7 @@ function aURL(codigoINE: string, f: FiltrosUI, def: FiltrosUI): string {
 }
 
 function fmt(n: number | null): string {
-  return n === null ? "—" : n.toLocaleString("es-ES");
+  return n === null ? "ND" : n.toLocaleString("es-ES");
 }
 
 const selectCls =
@@ -247,34 +250,38 @@ export default function FichaFiltros({
           periodo={refAnio ? String(refAnio) : null}
           fuentes={["INE"]}
         />
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Tabla del año {refAnio ?? "—"}</h3>
-          <CopyTableButton tableId={`tabla-actual-${codigoINE}`} label="Copiar" />
-        </div>
-        <div className="mt-3 overflow-x-auto">
-          <table id={`tabla-actual-${codigoINE}`} className="ideas-table">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                <th className="py-2 pr-4">Concepto</th>
-                <th className="py-2 text-right">Personas</th>
-                <th className="py-2 text-right">% sobre total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { c: "Total", v: total, p: null as number | null },
-                { c: "Hombres", v: hombres, p: total ? Math.round(((hombres ?? 0) / total) * 1000) / 10 : null },
-                { c: "Mujeres", v: mujeres, p: total ? Math.round(((mujeres ?? 0) / total) * 1000) / 10 : null },
-              ].map((r) => (
-                <tr key={r.c} className="border-t border-[var(--color-border-subtle)] tabular-nums">
-                  <td className="py-2 pr-4">{r.c}</td>
-                  <td className="py-2 text-right">{fmt(r.v)}</td>
-                  <td className="py-2 text-right">{r.p === null ? "—" : `${r.p.toLocaleString("es-ES")} %`}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <TableWorkspace
+          table={
+            <DataTableShell
+              title={`Tabla del año ${refAnio ?? "—"}`}
+              meta={{ fuente: "INE", periodo: refAnio ? String(refAnio) : null, cobertura: `Municipio ${perfil.municipio.nombre}`, estado: "consolidado" }}
+              toolbar={<DataTableToolbar tableId={`tabla-actual-${codigoINE}`} />}
+            >
+              <table id={`tabla-actual-${codigoINE}`} className="socideas-table">
+                <thead>
+                  <tr>
+                    <th scope="col" className="socideas-table__text">Concepto</th>
+                    <th scope="col" className="socideas-table__numeric">Personas</th>
+                    <th scope="col" className="socideas-table__numeric">% sobre total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { c: "Total", v: total, p: total !== null ? 100 : null },
+                    { c: "Hombres", v: hombres, p: total ? Math.round(((hombres ?? 0) / total) * 1000) / 10 : null },
+                    { c: "Mujeres", v: mujeres, p: total ? Math.round(((mujeres ?? 0) / total) * 1000) / 10 : null },
+                  ].map((r) => (
+                    <tr key={r.c}>
+                      <td className="socideas-table__text">{r.c}</td>
+                      <td className="socideas-table__numeric">{fmt(r.v)}</td>
+                      <td className="socideas-table__numeric">{r.p === null ? "ND" : `${r.p.toLocaleString("es-ES")} %`}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </DataTableShell>
+          }
+        />
       </section>
 
       {/* Bloque 2: evolución + comparativas */}
@@ -333,46 +340,57 @@ export default function FichaFiltros({
             </label>
           ))}
         </fieldset>
-        <div className="mt-4 grid grid-cols-1 gap-6 xl:grid-cols-5">
-          <div className="xl:col-span-3">
-            <EvolutionChart series={series} id={`evo-${codigoINE}`} />
-          </div>
-          <div className="xl:col-span-2">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Tabla anual por ámbito</h3>
-              <CopyTableButton tableId={`tabla-evo-${codigoINE}`} label="Copiar" />
-            </div>
-            <div className="mt-3 max-h-72 overflow-auto">
-              <table id={`tabla-evo-${codigoINE}`} className="ideas-table">
-                <thead className="sticky top-0 bg-[var(--color-card-bg)]">
-                  <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                    <th className="py-2 pr-4">Año</th>
-                    {filtros.comparar.includes("municipio") && <th className="py-2 pr-4 text-right">Municipio</th>}
-                    {filtros.comparar.includes("provincia") && <th className="py-2 pr-4 text-right">Provincia</th>}
-                    {filtros.comparar.includes("ccaa") && <th className="py-2 pr-4 text-right">CCAA</th>}
-                    {filtros.comparar.includes("espana") && <th className="py-2 text-right">España</th>}
+        <TableWorkspace
+          table={
+            <DataTableShell
+              title="Tabla anual por ámbito"
+              meta={{
+                fuente: "INE · Tempus3",
+                periodo: filasTabla.length > 0 ? `${filasTabla[0].anio}–${filasTabla[filasTabla.length - 1].anio}` : null,
+                cobertura: filtros.comparar.map((a) => AMBITO_LABEL[a]).join(" · ") || null,
+                estado: "consolidado",
+              }}
+              toolbar={<DataTableToolbar tableId={`tabla-evo-${codigoINE}`} />}
+              maxHeight="18rem"
+              footnote={filasTabla.length === 0 ? "Sin datos para el período y los ámbitos seleccionados. Active al menos un ámbito con cobertura." : undefined}
+            >
+              <table id={`tabla-evo-${codigoINE}`} className="socideas-table">
+                <thead>
+                  <tr>
+                    <th scope="col" className="socideas-table__year">Año</th>
+                    {filtros.comparar.includes("municipio") && <th scope="col" className="socideas-table__numeric">Municipio</th>}
+                    {filtros.comparar.includes("provincia") && <th scope="col" className="socideas-table__numeric">Provincia</th>}
+                    {filtros.comparar.includes("ccaa") && <th scope="col" className="socideas-table__numeric">CCAA</th>}
+                    {filtros.comparar.includes("espana") && <th scope="col" className="socideas-table__numeric">España</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {filasTabla.map((row) => (
-                    <tr key={row.anio} className="border-t border-[var(--color-border-subtle)] tabular-nums">
-                      <td className="py-1.5 pr-4">{row.anio}</td>
-                      {filtros.comparar.includes("municipio") && <td className="py-1.5 pr-4 text-right">{fmt(row.municipio)}</td>}
-                      {filtros.comparar.includes("provincia") && <td className="py-1.5 pr-4 text-right">{fmt(row.provincia)}</td>}
-                      {filtros.comparar.includes("ccaa") && <td className="py-1.5 pr-4 text-right">{fmt(row.ccaa)}</td>}
-                      {filtros.comparar.includes("espana") && <td className="py-1.5 text-right">{fmt(row.espana)}</td>}
+                    <tr key={row.anio}>
+                      <td className="socideas-table__year">{row.anio}</td>
+                      {filtros.comparar.includes("municipio") && <td className="socideas-table__numeric">{fmt(row.municipio)}</td>}
+                      {filtros.comparar.includes("provincia") && <td className="socideas-table__numeric">{fmt(row.provincia)}</td>}
+                      {filtros.comparar.includes("ccaa") && <td className="socideas-table__numeric">{fmt(row.ccaa)}</td>}
+                      {filtros.comparar.includes("espana") && <td className="socideas-table__numeric">{fmt(row.espana)}</td>}
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {filasTabla.length === 0 && (
-                <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-                  Sin datos para el período y los ámbitos seleccionados. Active al menos un ámbito con cobertura.
-                </p>
-              )}
+            </DataTableShell>
+          }
+          visual={
+            <div>
+              <h3 className="socideas-table-shell__title">Evolución anual</h3>
+              <div className="mt-2">
+                <DataTableMeta meta={{ fuente: "INE · Tempus3", periodo: filasTabla.length > 0 ? `${filasTabla[0].anio}–${filasTabla[filasTabla.length - 1].anio}` : null }} />
+              </div>
+              <div className="mt-3">
+                <EvolutionChart series={series} id={`evo-${codigoINE}`} />
+              </div>
             </div>
-          </div>
-        </div>
+          }
+          visualLabel="Gráfico de evolución anual de la población"
+        />
         {filtros.comparar.some((a) => ambitoSinDatos(a)) && (
           <p className="mt-3 text-xs text-[var(--color-text-muted)]">
             Algún ámbito activado no tiene datos en este período: no se muestra como equivalente.
@@ -427,39 +445,47 @@ export default function FichaFiltros({
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
           Padrón Continuo (INE).{filtros.pirModo === "pct" ? " Porcentaje sobre la población total del municipio ese año." : ""}
         </p>
-        <div className="mt-4 grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <div>
-            <PyramidChart grupos={pirGrupos} anio={perfil.piramide.anio} />
-          </div>
-          <div>
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
-                Tabla por grupos{filtros.pirModo === "pct" ? " (%)" : ""}
-              </h3>
-              <CopyTableButton tableId={`tabla-pir-${codigoINE}`} label="Copiar" />
-            </div>
-            <div className="mt-3 max-h-80 overflow-auto">
-              <table id={`tabla-pir-${codigoINE}`} className="ideas-table">
-                <thead className="sticky top-0 bg-[var(--color-card-bg)]">
-                  <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
-                    <th className="py-1.5 pr-4">Edad</th>
-                    <th className="py-1.5 pr-4 text-right">H{filtros.pirModo === "pct" ? " %" : ""}</th>
-                    <th className="py-1.5 text-right">M{filtros.pirModo === "pct" ? " %" : ""}</th>
+        <TableWorkspace
+          table={
+            <DataTableShell
+              title={`Tabla por grupos${filtros.pirModo === "pct" ? " (%)" : ""}`}
+              meta={{ fuente: "INE · Padrón Continuo", periodo: perfil.piramide.anio ? String(perfil.piramide.anio) : null, cobertura: `Municipio ${perfil.municipio.nombre}`, estado: "consolidado" }}
+              toolbar={<DataTableToolbar tableId={`tabla-pir-${codigoINE}`} />}
+              maxHeight="20rem"
+            >
+              <table id={`tabla-pir-${codigoINE}`} className="socideas-table">
+                <thead>
+                  <tr>
+                    <th scope="col" className="socideas-table__text">Edad</th>
+                    <th scope="col" className="socideas-table__numeric">H{filtros.pirModo === "pct" ? " %" : ""}</th>
+                    <th scope="col" className="socideas-table__numeric">M{filtros.pirModo === "pct" ? " %" : ""}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pirGrupos.map((g) => (
-                    <tr key={g.tramo} className="border-t border-[var(--color-border-subtle)] tabular-nums">
-                      <td className="py-1.5 pr-4">{g.tramo}</td>
-                      <td className="py-1.5 pr-4 text-right">{filtros.pirModo === "pct" ? g.hombres.toLocaleString("es-ES") : fmt(g.hombres)}</td>
-                      <td className="py-1.5 text-right">{filtros.pirModo === "pct" ? g.mujeres.toLocaleString("es-ES") : fmt(g.mujeres)}</td>
+                    <tr key={g.tramo}>
+                      <td className="socideas-table__text">{g.tramo}</td>
+                      <td className="socideas-table__numeric">{filtros.pirModo === "pct" ? g.hombres.toLocaleString("es-ES") : fmt(g.hombres)}</td>
+                      <td className="socideas-table__numeric">{filtros.pirModo === "pct" ? g.mujeres.toLocaleString("es-ES") : fmt(g.mujeres)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </DataTableShell>
+          }
+          visual={
+            <div>
+              <h3 className="socideas-table-shell__title">Pirámide de población</h3>
+              <div className="mt-2">
+                <DataTableMeta meta={{ fuente: "INE · Padrón Continuo", periodo: perfil.piramide.anio ? String(perfil.piramide.anio) : null }} />
+              </div>
+              <div className="mt-3">
+                <PyramidChart grupos={pirGrupos} anio={perfil.piramide.anio} />
+              </div>
             </div>
-          </div>
-        </div>
+          }
+          visualLabel="Pirámide de población por edad y sexo"
+        />
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {perfil.derivados.indice_envejecimiento !== null ? (
             <StatCard

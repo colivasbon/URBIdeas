@@ -9,6 +9,9 @@ import PlatformFooter from "@/components/platform/PlatformFooter";
 import FichaFiltros from "@/components/socideas/FichaFiltros";
 import CategoryTabs from "@/components/socideas/CategoryTabs";
 import EconomiaFicha from "@/components/socideas/EconomiaFicha";
+import EmptyState from "@/components/ui/EmptyState";
+import SourcePill from "@/components/ui/SourcePill";
+import SectionEyebrow from "@/components/ui/SectionEyebrow";
 import type { AmbitoTerritorial, CategoriaFicha, PerfilDemografico, PerfilEconomico } from "@/lib/socideas";
 import { AMBITOS } from "@/lib/socideas";
 
@@ -130,14 +133,17 @@ export default async function SocideasFicha({
     return (
       <div className="flex min-h-screen flex-col">
         <PlatformHeader />
-        <main className="flex-1 flex items-center justify-center px-4">
-          <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] p-6 max-w-md text-center">
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              No se encontró el municipio con código INE {codigoINE}.
-            </p>
-            <Link href="/socideas" className="mt-4 inline-block text-sm font-semibold text-[var(--color-secondary)]">
-              Volver al buscador
-            </Link>
+        <main className="flex-1 flex items-center justify-center px-4 py-10">
+          <div className="w-full max-w-md">
+            <EmptyState
+              title={`No se encontró el municipio con código INE ${codigoINE}.`}
+              description="Compruebe el código o vuelva al buscador municipal de SOCideas."
+              action={
+                <Link href="/socideas" className="text-sm font-semibold text-[var(--color-secondary)]">
+                  Volver al buscador
+                </Link>
+              }
+            />
           </div>
         </main>
         <PlatformFooter />
@@ -171,33 +177,37 @@ export default async function SocideasFicha({
               <span className="mx-1.5">/</span>
               <span className="text-[var(--color-text-secondary)]">{municipio.nombre}</span>
             </nav>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
+            <SectionEyebrow>
+              Ficha municipal · {municipio.provincia} · {municipio.comunidad_autonoma}
+            </SectionEyebrow>
+            <h1 className="editorial-display mt-3 text-3xl text-[var(--color-text-primary)] sm:text-4xl">
               {municipio.nombre}
             </h1>
             <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
               {municipio.provincia} · {municipio.comunidad_autonoma} · Código INE {municipio.codigo_ine}
             </p>
             {perfil.ultima_sincronizacion && (
-              <p className="mt-2 inline-flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--color-secondary)]" />
-                Datos oficiales actualizados el{" "}
-                {new Date(perfil.ultima_sincronizacion).toLocaleDateString("es-ES", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
-              </p>
+              <div className="mt-3">
+                <SourcePill title={`Última sincronización: ${perfil.ultima_sincronizacion}`}>
+                  Datos oficiales actualizados el{" "}
+                  {new Date(perfil.ultima_sincronizacion).toLocaleDateString("es-ES", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </SourcePill>
+              </div>
             )}
             <div className="mt-4 flex flex-wrap gap-3">
               <Link
                 href="/socideas"
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)]"
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
               >
                 ← Volver a SOCideas
               </Link>
               <Link
                 href={mapHref}
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)]"
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
               >
                 Abrir en URBideas →
               </Link>
@@ -211,30 +221,21 @@ export default async function SocideasFicha({
             economia ? (
               <EconomiaFicha codigoINE={municipio.codigo_ine} initial={economia} />
             ) : (
-              <div className="rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-6 text-center">
-                <p className="text-base font-semibold text-[var(--color-text-primary)]">
-                  Bloque económico no disponible
-                </p>
-                <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-                  No se pudo cargar el bloque económico de este municipio. La sincronización la realiza
-                  el equipo técnico desde el servidor con fuentes oficiales.
-                </p>
-              </div>
+              <EmptyState
+                title="Bloque económico no disponible"
+                description="No se pudo cargar el bloque económico de este municipio. La sincronización la realiza el equipo técnico desde el servidor con fuentes oficiales."
+              />
             )
           ) : !perfil.sincronizado ? (
-            <div className="rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-6 text-center">
-              <p className="text-base font-semibold text-[var(--color-text-primary)]">
-                Preparando datos oficiales
-              </p>
-              <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-                Este municipio aún no tiene su perfil demográfico sincronizado.
-                La sincronización la realiza el equipo técnico desde el servidor
-                con fuentes oficiales; ningún dato se muestra sin trazabilidad.
-              </p>
-              <Link href="/socideas" className="mt-4 inline-block text-sm font-semibold text-[var(--color-secondary)]">
-                Volver al buscador
-              </Link>
-            </div>
+            <EmptyState
+              title="Preparando datos oficiales"
+              description="Este municipio aún no tiene su perfil demográfico sincronizado. La sincronización la realiza el equipo técnico desde el servidor con fuentes oficiales; ningún dato se muestra sin trazabilidad."
+              action={
+                <Link href="/socideas" className="text-sm font-semibold text-[var(--color-secondary)]">
+                  Volver al buscador
+                </Link>
+              }
+            />
           ) : (
             <FichaFiltros codigoINE={municipio.codigo_ine} initial={perfil} searchParams={spObj} />
           )}

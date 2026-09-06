@@ -16,8 +16,11 @@ export default function Traceability({ valores, pendientes, vista }: Props) {
   }
   const fuentes = [...vistos.values()];
   return (
-    <section aria-label="Trazabilidad de los datos" className="rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-5 sm:p-6">
-      <h2 className="text-base font-bold text-[var(--color-text-primary)]">Trazabilidad</h2>
+    <section aria-label="Trazabilidad de los datos" className="premium-card p-5 sm:p-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="editorial-eyebrow">Trazabilidad</p>
+      </div>
+      <h2 className="mt-2 text-base font-bold text-[var(--color-text-primary)]">Fuentes y consulta</h2>
       {vista && vista.length > 0 && (
         <ul className="mt-3 rounded-lg bg-[var(--color-input-bg)] p-4 text-sm text-[var(--color-text-secondary)]">
           {vista.map((v) => (

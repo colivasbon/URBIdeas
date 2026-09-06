@@ -5,17 +5,18 @@ interface StatCardProps {
 }
 
 // Tarjeta de indicador SOCideas (presentacional, sin datos propios).
+// Lenguaje premium: misma firma, clases del sistema compartido.
 export default function StatCard({ etiqueta, valor, detalle }: StatCardProps) {
   return (
-    <div className="rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-5">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
+    <div className="data-card">
+      <p className="data-card__label">
         {etiqueta}
       </p>
-      <p className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-[var(--color-text-primary)] tabular-nums">
+      <p className="data-card__value">
         {valor}
       </p>
       {detalle && (
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">{detalle}</p>
+        <p className="data-card__detail">{detalle}</p>
       )}
     </div>
   );

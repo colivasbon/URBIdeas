@@ -398,7 +398,7 @@ function PendingBlock({ titulo }: { titulo: string }) {
 
 function Barras({ filas, unidad }: { filas: { e: string; v: number | null; p: number | null }[]; unidad?: string }) {
   return (
-    <div className="mt-4 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-5">
+    <div className="premium-card mt-4 p-5">
       <div className="flex flex-col gap-3">
         {filas.map((r) => (
           <div key={r.e}>

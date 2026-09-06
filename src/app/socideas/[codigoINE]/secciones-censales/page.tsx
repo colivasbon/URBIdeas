@@ -4,6 +4,7 @@ import { createSupabaseServer } from "@/lib/supabase-server";
 import PlatformHeader from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import SeccionesMap from "@/components/socideas/SeccionesMap";
+import SectionEyebrow from "@/components/ui/SectionEyebrow";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +80,10 @@ export default async function SeccionesPage({
               <span className="mx-1.5">/</span>
               <span className="text-[var(--color-text-secondary)]">Secciones censales</span>
             </nav>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
+            <SectionEyebrow>
+              SOCideas · {muni.nombre} · Geometría oficial
+            </SectionEyebrow>
+            <h1 className="editorial-display mt-3 text-3xl text-[var(--color-text-primary)] sm:text-4xl">
               Secciones censales
             </h1>
             <p className="mt-2 text-sm text-[var(--color-text-secondary)]">

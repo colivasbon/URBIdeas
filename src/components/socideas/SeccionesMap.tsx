@@ -98,8 +98,11 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   return (
     <div>
       {estado === "idle" && (
-        <div className="ideas-status" data-state="pending">
+        <div className="ideas-status premium-card" data-state="pending">
           <div className="ideas-status__head">
+            <p className="editorial-eyebrow">Secciones censales · INE</p>
+          </div>
+          <div className="ideas-status__head mt-2">
             <p className="ideas-status__title">Geometría bajo demanda</p>
             <span className="ideas-status__badge">Pendiente</span>
           </div>
@@ -120,7 +123,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
         </p>
       )}
       {estado === "error" && (
-        <div className="ideas-status" data-state="error" role="alert">
+        <div className="ideas-status premium-card" data-state="error" role="alert">
           <div className="ideas-status__head">
             <p className="ideas-status__title">No se pudieron cargar las secciones</p>
             <span className="ideas-status__badge">No disponible</span>

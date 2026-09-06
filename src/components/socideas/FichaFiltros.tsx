@@ -193,7 +193,7 @@ export default function FichaFiltros({
       {/* Bloque 1: población actual */}
       <section aria-label="Población actual" className="mb-10">
         <div className="mb-4 flex flex-wrap items-end gap-3">
-          <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Población actual</h2>
+          <h2 className="ideas-h2">Población actual</h2>
           <div className="ml-auto flex flex-wrap gap-3">
             <div>
               <label htmlFor="f-anio" className={labelCls}>Año</label>
@@ -228,7 +228,7 @@ export default function FichaFiltros({
           <CopyTableButton tableId={`tabla-actual-${codigoINE}`} label="Copiar" />
         </div>
         <div className="mt-3 overflow-x-auto">
-          <table id={`tabla-actual-${codigoINE}`} className="w-auto min-w-[16rem] text-sm">
+          <table id={`tabla-actual-${codigoINE}`} className="ideas-table">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
                 <th className="py-2 pr-4">Concepto</th>
@@ -254,9 +254,9 @@ export default function FichaFiltros({
       </section>
 
       {/* Bloque 2: evolución + comparativas */}
-      <section aria-label="Evolución demográfica" className="mb-10 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-5 sm:p-6">
+      <section aria-label="Evolución demográfica" className="premium-card mb-10 p-5 sm:p-6">
         <div className="flex flex-wrap items-end gap-3">
-          <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Evolución demográfica</h2>
+          <h2 className="ideas-h2">Evolución demográfica</h2>
           <div className="ml-auto flex flex-wrap items-end gap-3">
             <div>
               <label htmlFor="f-desde" className={labelCls}>Desde</label>
@@ -319,7 +319,7 @@ export default function FichaFiltros({
               <CopyTableButton tableId={`tabla-evo-${codigoINE}`} label="Copiar" />
             </div>
             <div className="mt-3 max-h-72 overflow-auto">
-              <table id={`tabla-evo-${codigoINE}`} className="w-auto min-w-full text-sm">
+              <table id={`tabla-evo-${codigoINE}`} className="ideas-table">
                 <thead className="sticky top-0 bg-[var(--color-card-bg)]">
                   <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
                     <th className="py-2 pr-4">Año</th>
@@ -358,9 +358,9 @@ export default function FichaFiltros({
       </section>
 
       {/* Bloque 3: pirámide */}
-      <section aria-label="Población por edad y sexo" className="mb-10 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-5 sm:p-6">
+      <section aria-label="Población por edad y sexo" className="premium-card mb-10 p-5 sm:p-6">
         <div className="flex flex-wrap items-end gap-3">
-          <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
+          <h2 className="ideas-h2">
             Población por edad y sexo{perfil.piramide.anio ? ` (${perfil.piramide.anio})` : ""}
           </h2>
           <div className="ml-auto flex flex-wrap gap-3">
@@ -396,7 +396,7 @@ export default function FichaFiltros({
               <CopyTableButton tableId={`tabla-pir-${codigoINE}`} label="Copiar" />
             </div>
             <div className="mt-3 max-h-80 overflow-auto">
-              <table id={`tabla-pir-${codigoINE}`} className="w-auto min-w-full text-sm">
+              <table id={`tabla-pir-${codigoINE}`} className="ideas-table">
                 <thead className="sticky top-0 bg-[var(--color-card-bg)]">
                   <tr className="text-left text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
                     <th className="py-1.5 pr-4">Edad</th>
@@ -440,8 +440,8 @@ export default function FichaFiltros({
       </section>
 
       {/* Bloque 4: densidad */}
-      <section aria-label="Densidad y lectura territorial" className="mb-10 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-5 sm:p-6">
-        <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Densidad y lectura territorial</h2>
+      <section aria-label="Densidad y lectura territorial" className="premium-card mb-10 p-5 sm:p-6">
+        <h2 className="ideas-h2">Densidad y lectura territorial</h2>
         <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
           {perfil.densidad.valor !== null
             ? `${perfil.densidad.valor.toLocaleString("es-ES")} hab/km²`
@@ -451,7 +451,7 @@ export default function FichaFiltros({
 
       {/* Bloque 5: derivados */}
       <section aria-label="Indicadores derivados" className="mb-10">
-        <h2 className="text-lg font-bold text-[var(--color-text-primary)] mb-4">Variaciones del período</h2>
+        <h2 className="ideas-h2 mb-4">Variaciones del período</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <StatCard
             etiqueta="Variación 5 años"
@@ -613,7 +613,7 @@ function SexoBarras({ hombres, mujeres, anio }: { hombres: number | null; mujere
   const pH = Math.round((hombres / total) * 1000) / 10;
   const pM = Math.round((mujeres / total) * 1000) / 10;
   return (
-    <div className="rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-5">
+    <div className="premium-card p-5">
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
         Comparativa por sexo · {anio}
       </p>

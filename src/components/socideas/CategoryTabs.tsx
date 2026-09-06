@@ -26,7 +26,7 @@ export default function CategoryTabs({
     return s ? `/socideas/${codigoINE}?${s}` : `/socideas/${codigoINE}`;
   };
   return (
-    <nav aria-label="Categorías de la ficha" className="ideas-tabs" role="tablist">
+    <nav aria-label="Categorías de la ficha" className="ideas-tabs premium-reveal" role="tablist">
       {TABS.map((t) => {
         const selected = t.clave === activa;
         return (
@@ -36,7 +36,7 @@ export default function CategoryTabs({
             role="tab"
             aria-selected={selected}
             title={t.descripcion}
-            className="ideas-tab"
+            className="ideas-tab focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
             data-active={selected}
           >
             {t.etiqueta}
@@ -46,7 +46,7 @@ export default function CategoryTabs({
       <Link
         href={`/socideas/${codigoINE}/secciones-censales`}
         title="Geometría de secciones censales del municipio"
-        className="ideas-tab ideas-tab--link"
+        className="ideas-tab ideas-tab--link focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
       >
         Secciones censales
       </Link>

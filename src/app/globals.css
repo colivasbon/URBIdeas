@@ -1404,6 +1404,10 @@ a:hover {
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
   }
 
+  .socideas-workspace--half {
+    grid-template-columns: minmax(0, 11fr) minmax(0, 13fr);
+  }
+
   .socideas-workspace--bare > .socideas-workspace__table {
     grid-column: 1 / -1;
     max-width: 70%;

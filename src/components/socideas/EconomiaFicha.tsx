@@ -4,6 +4,7 @@ import Link from "next/link";
 import EvolutionChart, { type SerieEvo } from "./EvolutionChart";
 import Traceability from "./Traceability";
 import DataTableShell from "./DataTableShell";
+import DataTableMeta from "./DataTableMeta";
 import DataTableToolbar from "./DataTableToolbar";
 import TableWorkspace from "./TableWorkspace";
 import AvailabilitySummary, { AvailableIndicators } from "./AvailabilitySummary";
@@ -169,6 +170,24 @@ export default function EconomiaFicha({
     { clave: "p80", etiqueta: `${municipio.nombre} · Municipio`, color: "var(--color-secondary)", puntos: serie(valores, "p80_p20") },
   ];
   const rentaNetaSerie = serie(valores, "renta_neta_media_persona");
+  const rentaHogarSerie = serie(valores, "renta_neta_media_hogar");
+  // Comparativo de renta: solo series ADRH homogéneas (€) con ≥2 puntos reales.
+  // Sin interpolar años ni rellenar nulos; si no hay serie comparable, no hay gráfico.
+  const rentaChartSeries: SerieEvo[] = [
+    ...(rentaNetaSerie.length >= 2
+      ? [{ clave: "renta-persona", etiqueta: `${municipio.nombre} · Renta neta por persona`, color: "#86B73D", puntos: rentaNetaSerie }]
+      : []),
+    ...(rentaHogarSerie.length >= 2
+      ? [{ clave: "renta-hogar", etiqueta: `${municipio.nombre} · Renta neta por hogar`, color: "#3E665C", puntos: rentaHogarSerie }]
+      : []),
+  ];
+  const rentaChartPeriodo =
+    rentaChartSeries.length > 0
+      ? (() => {
+          const ys = rentaChartSeries.flatMap((s) => s.puntos.map((p) => p.anio));
+          return `${Math.min(...ys)}–${Math.max(...ys)}`;
+        })()
+      : null;
   const rentaAnios = [...new Set(
     RENTA_SLUGS.flatMap((s) => filasPorSlug(valores, s).map((v) => v.anio_referencia ?? 0)),
   )].filter((a) => a > 0).sort((a, b) => a - b);
@@ -233,7 +252,24 @@ export default function EconomiaFicha({
         <section aria-label="Renta y capacidad económica" className="ideas-section">
           <h2 className="ideas-h2">Renta y capacidad económica</h2>
           <RentaCards valores={valores} />
-          <RentaTable codigoINE={codigoINE} valores={valores} />
+          <TableWorkspace
+            layout="half"
+            table={<RentaTable codigoINE={codigoINE} valores={valores} />}
+            visual={
+              rentaChartSeries.length > 0 ? (
+                <div>
+                  <h3 className="socideas-table-shell__title">Evolución de la renta neta</h3>
+                  <div className="mt-2">
+                    <DataTableMeta meta={{ fuente: "INE · ADRH", periodo: rentaChartPeriodo }} />
+                  </div>
+                  <div className="mt-3">
+                    <EvolutionChart series={rentaChartSeries} id={`renta-${codigoINE}`} />
+                  </div>
+                </div>
+              ) : undefined
+            }
+            visualLabel="Gráfico de evolución de la renta neta (ADRH)"
+          />
           <p className="ideas-note">
             Nota metodológica: importes medios por declaración (AEAT), no renta media por habitante. La renta
             por declaración depende de la modalidad de tributación (individual o conjunta) y no equivale

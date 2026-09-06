@@ -3,6 +3,7 @@ import PlatformHeader, { CORPORATE_URL } from "@/components/platform/PlatformHea
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import ModuleCard from "@/components/platform/ModuleCard";
 import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
+import TerritorialBackground from "@/components/ui/TerritorialBackground";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
 import SectionHeading from "@/components/ui/SectionHeading";
 
@@ -18,7 +19,7 @@ export default function PlatformHome() {
       <PlatformHeader />
 
       <main className="flex-1">
-        <EditorialParallaxHero accent="ideas">
+        <EditorialParallaxHero decor={<TerritorialBackground variant="transition" />}>
         <section className="relative border-b border-[var(--color-border-subtle)]">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="py-10 sm:py-14 lg:py-20 flex flex-col items-center text-center gap-6">

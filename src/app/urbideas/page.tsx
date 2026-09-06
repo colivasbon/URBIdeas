@@ -4,6 +4,7 @@ import { createSupabaseServer } from "@/lib/supabase-server";
 import UrbideasHeader from "@/components/platform/UrbideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
+import TerritorialBackground from "@/components/ui/TerritorialBackground";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
 
 export const metadata: Metadata = {
@@ -40,7 +41,7 @@ export default async function UrbideasHome() {
       <UrbideasHeader />
 
       <main className="flex-1">
-        <EditorialParallaxHero accent="urb">
+        <EditorialParallaxHero decor={<TerritorialBackground variant="contours" />}>
           <section className="relative border-b border-[var(--color-border-subtle)]">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
               <div className="py-8 sm:py-12 lg:py-16 flex flex-col items-center text-center gap-8">

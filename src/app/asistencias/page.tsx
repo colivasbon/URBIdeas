@@ -25,7 +25,7 @@ export default function AsistenciasPage() {
       <PlatformHeader />
 
       <main className="flex-1">
-        <EditorialParallaxHero accent="ideas">
+        <EditorialParallaxHero>
           <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
             <PageShell
               eyebrow="Área de Sostenibilidad · Ideas Medioambientales"

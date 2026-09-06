@@ -4,6 +4,7 @@ import PlatformHeader from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import SocideasSearch from "@/components/socideas/SocideasSearch";
 import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
+import TerritorialBackground from "@/components/ui/TerritorialBackground";
 import PageShell from "@/components/ui/PageShell";
 import SectionHeading from "@/components/ui/SectionHeading";
 import SourcePill from "@/components/ui/SourcePill";
@@ -20,7 +21,7 @@ export default function SocideasHub() {
       <PlatformHeader />
 
       <main className="flex-1">
-        <EditorialParallaxHero accent="soc">
+        <EditorialParallaxHero decor={<TerritorialBackground variant="grid" />}>
           <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
             <PageShell
               eyebrow="SOCideas · Beta interna · Módulo de IDEAS Sostenibilidad"

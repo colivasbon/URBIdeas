@@ -169,6 +169,8 @@ function shortSource(fuente: string): string {
 function scopeLabel(id: string): string {
   if (id.startsWith('comparativa-')) {
     const amb = id.slice('comparativa-'.length)
+    if (amb === 'ccaa') return 'Comparativa: CCAA'
+    if (amb === 'espana') return 'Comparativa: España'
     return `Comparativa: ${amb.charAt(0).toUpperCase()}${amb.slice(1)}`
   }
   return SHORT_TITLES[id] ?? id

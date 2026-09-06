@@ -1165,6 +1165,11 @@ a:hover {
 }
 
 /* Tablas de 2 columnas: Año al contenido (80–110px), cifra con aire sin estirarse */
+.socideas-table--compact-two {
+  width: auto;
+  min-width: 0;
+}
+
 .socideas-table--compact-two th:first-child,
 .socideas-table--compact-two td:first-child {
   width: 1%;

@@ -145,15 +145,15 @@ export default function DescargasBloque({
               </div>
             </div>
             <div className="socideas-table-shell__scroll mt-3" style={t.filas.length > 11 ? { maxHeight: "24rem", overflowY: "auto" } : undefined} id={`tabla-${t.id}`} tabIndex={-1} role="region" aria-label={`Tabla ${t.titulo}`}>
-              <table className="socideas-table">
+              <table className={`socideas-table${t.columnas[0] === "Año" && t.columnas.length <= 3 ? " socideas-table--compact-two" : ""}`}>
                 <thead>
-                  <tr>{t.columnas.map((c) => (<th key={c} scope="col" className={c === t.columnas[0] ? "socideas-table__text" : "socideas-table__numeric"}>{c}</th>))}</tr>
+                  <tr>{t.columnas.map((c, ci) => (<th key={c} scope="col" className={c === "Año" ? "socideas-table__year" : ci === 0 ? "socideas-table__text" : "socideas-table__numeric"}>{c}</th>))}</tr>
                 </thead>
                 <tbody>
                   {t.filas.map((f, i) => (
                     <tr key={i}>
                       {f.map((c, j) => (
-                        <td key={j} className={j === 0 ? "socideas-table__text" : "socideas-table__numeric"}>{c.text}</td>
+                        <td key={j} className={t.columnas[j] === "Año" ? "socideas-table__year" : j === 0 ? "socideas-table__text" : "socideas-table__numeric"}>{c.text}</td>
                       ))}
                     </tr>
                   ))}

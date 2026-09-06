@@ -12,7 +12,13 @@ export interface SerieEvo {
 
 // Gráfico de línea SVG propio (sin dependencias) con varias series.
 // Incluye tabla de datos asociada en el componente padre (accesibilidad).
-export default function EvolutionChart({ series, id }: { series: SerieEvo[]; id: string }) {
+export interface ChartPointMeta {
+  unidad?: string;
+  fuente?: string;
+  estado?: string;
+}
+
+export default function EvolutionChart({ series, id, pointMeta }: { series: SerieEvo[]; id: string; pointMeta?: ChartPointMeta }) {
   const activas = series.filter((s) => s.puntos.length > 0);
   if (activas.length === 0) {
     return (
@@ -64,7 +70,7 @@ export default function EvolutionChart({ series, id }: { series: SerieEvo[]; id:
               <path d={path} fill="none" stroke={s.color} strokeWidth={s.clave === "municipio" ? 2.5 : 1.8} strokeLinejoin="round" />
               {s.puntos.map((p) => (
                 <circle key={`${s.clave}-${p.anio}`} cx={x(p.anio)} cy={y(p.valor)} r={s.clave === "municipio" ? 3.5 : 2.5} fill={s.color}>
-                  <title>{`${s.etiqueta} ${p.anio}: ${p.valor.toLocaleString("es-ES")}`}</title>
+                  <title>{`${s.etiqueta} ${p.anio}: ${p.valor.toLocaleString("es-ES")}${pointMeta?.unidad ? ` ${pointMeta.unidad}` : ""}${pointMeta?.fuente ? ` · ${pointMeta.fuente}` : ""}${pointMeta?.estado ? ` · ${pointMeta.estado}` : ""}`}</title>
                 </circle>
               ))}
             </g>

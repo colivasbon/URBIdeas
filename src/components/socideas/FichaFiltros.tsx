@@ -92,6 +92,12 @@ function aURL(codigoINE: string, f: FiltrosUI, def: FiltrosUI): string {
   if (f.comparar.join(",") !== def.comparar.join(",")) p.set("comparar", f.comparar.join(","));
   if (f.pirAnio !== null) p.set("pir_anio", String(f.pirAnio));
   if (f.pirModo !== "abs") p.set("pir_modo", f.pirModo);
+  // Preserva el estado validado del explorador (x_*) sin tocar su semántica.
+  if (typeof window !== "undefined") {
+    for (const [k, v] of new URLSearchParams(window.location.search)) {
+      if (k.startsWith("x_") && !p.has(k)) p.set(k, v);
+    }
+  }
   const qs = p.toString();
   return qs ? `/socideas/${codigoINE}?${qs}` : `/socideas/${codigoINE}`;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import StatCard from "./StatCard";
 import EvolutionChart, { type SerieEvo } from "./EvolutionChart";
 import DataTableShell from "./DataTableShell";
@@ -9,6 +9,7 @@ import DataTableToolbar from "./DataTableToolbar";
 import TableWorkspace from "./TableWorkspace";
 import {
   SCOPE_COLOR,
+  explorerQueryString,
   validateExplorerQuery,
   type ExplorerState,
   type SocideasIndicatorCapability,
@@ -49,6 +50,25 @@ export default function IndicatorExplorer({
 
   const [state, setState] = useState<ExplorerState | null>(initial);
   const [hint, setHint] = useState<string | null>(null);
+  const firstRender = useRef(true);
+
+  // URL compartible: solo filtros no sensibles (x_*), validados al leer.
+  // Preserva el resto de params (p. ej. categoria) y no rompe enlaces previos.
+  useEffect(() => {
+    if (typeof window === "undefined" || !state) return;
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    const current = new URLSearchParams(window.location.search);
+    for (const k of [...current.keys()]) {
+      if (k.startsWith('x_')) current.delete(k);
+    }
+    const next = new URLSearchParams(explorerQueryString(state));
+    for (const [k, v] of next) current.set(k, v);
+    const qs = current.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+  }, [state]);
 
   const derived = useMemo(() => {
     if (!state) return null;
@@ -134,6 +154,10 @@ export default function IndicatorExplorer({
 
   const tableId = `exp-tabla-${codigoINE}-${cap.id}`;
   const muniPeriods = cap.scopes.find((s) => s.id === cap.defaultScope)?.periods ?? [];
+  const announce =
+    cap.kind === 'series'
+      ? `Gráfico actualizado: ${cap.label}, ${activeScopes.map((s) => s.label).join(', ') || 'sin series'}, ${periodoLabel}.`
+      : `Dato actualizado: ${cap.label}, ${periodoLabel}.`;
 
   return (
     <section aria-label="Explorar datos" className="ideas-section">
@@ -233,6 +257,7 @@ export default function IndicatorExplorer({
       {hint && (
         <p role="status" className="mt-2 text-xs text-[var(--color-text-secondary)]">{hint}</p>
       )}
+      <div aria-live="polite" className="sr-only">{announce}</div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
@@ -292,7 +317,11 @@ export default function IndicatorExplorer({
                   <DataTableMeta meta={{ fuente: cap.source, periodo: periodoLabel, unidad: unitLabel(cap.unit) }} />
                 </div>
                 <div className="mt-3">
-                  <EvolutionChart series={chartSeries} id={`exp-${codigoINE}-${cap.id}`} />
+                  <EvolutionChart
+                    series={chartSeries}
+                    id={`exp-${codigoINE}-${cap.id}`}
+                    pointMeta={{ unidad: unitLabel(cap.unit), fuente: cap.source, estado: 'Consolidado' }}
+                  />
                 </div>
               </div>
             ) : undefined

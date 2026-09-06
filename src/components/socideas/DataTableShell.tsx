@@ -29,7 +29,7 @@ export default function DataTableShell({
   narrow?: boolean;
   /** Series largas: filas compactas 34–38px. */
   series?: boolean;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   const cls = `socideas-table-shell${narrow ? " socideas-table-shell--narrow" : ""}${series ? " socideas-table-shell--series" : ""}`;
   return (

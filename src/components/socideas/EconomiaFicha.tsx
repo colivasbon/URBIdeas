@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import EvolutionChart, { type SerieEvo } from "./EvolutionChart";
 import Traceability from "./Traceability";
 import DataTableShell from "./DataTableShell";
 import DataTableMeta from "./DataTableMeta";
 import DataTableToolbar from "./DataTableToolbar";
 import TableWorkspace from "./TableWorkspace";
+import { ecoCapabilities } from "@/lib/socideas-indicator-capabilities";
 import AvailabilitySummary, { AvailableIndicators } from "./AvailabilitySummary";
 import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
 import {
@@ -77,6 +79,22 @@ export default function EconomiaFicha({
   const empOk = hasData(EMPRESAS_SLUGS);
   const agrOk = hasData(AGR_SLUGS);
   const ganOk = hasData(GAN_SLUGS);
+
+  // Controles integrados de renta: solo métricas con filas reales (capacidades),
+  // sin mezclar AEAT (por declaración) con ADRH (persona/hogar). Hooks siempre
+  // incondicionales (antes del return temprano).
+  const rentaCaps = useMemo(
+    () => ecoCapabilities(initial).filter((c) => c.id.startsWith("renta_") || c.id.startsWith("irpf_")),
+    [initial],
+  );
+  const allRentaPeriods = useMemo(
+    () => [...new Set(rentaCaps.flatMap((c) => c.scopes.flatMap((s) => s.periods)))].sort((a, b) => a - b),
+    [rentaCaps],
+  );
+  const [rentaSel, setRentaSel] = useState<string[]>(() => rentaCaps.map((c) => c.id));
+  const [rentaDesde, setRentaDesde] = useState<number | null>(null);
+  const [rentaHasta, setRentaHasta] = useState<number | null>(null);
+  const [rentaHint, setRentaHint] = useState<string | null>(null);
 
   const sincronizado = initial.sincronizado;
   if (!sincronizado) {
@@ -170,14 +188,34 @@ export default function EconomiaFicha({
   ];
   const rentaNetaSerie = serie(valores, "renta_neta_media_persona");
   const rentaHogarSerie = serie(valores, "renta_neta_media_hogar");
-  // Comparativo de renta: solo series ADRH homogéneas (€) con ≥2 puntos reales.
-  // Sin interpolar años ni rellenar nulos; si no hay serie comparable, no hay gráfico.
+  // Comparativo de renta: solo series ADRH homogéneas (€) con ≥2 puntos reales
+  // dentro de la ventana de los controles integrados. Sin interpolar ni rellenar.
+  const inRentaWindow = (p: { anio: number }): boolean =>
+    (rentaDesde === null || p.anio >= rentaDesde) && (rentaHasta === null || p.anio <= rentaHasta);
+
+  const toggleRenta = (id: string, checked: boolean) => {
+    setRentaHint(null);
+    if (!checked && rentaSel.length <= 1) {
+      setRentaHint("Al menos un indicador debe permanecer activo.");
+      return;
+    }
+    setRentaSel((s) => (checked ? [...s, id] : s.filter((x) => x !== id)));
+  };
+
+  const resetRenta = () => {
+    setRentaHint(null);
+    setRentaSel(rentaCaps.map((c) => c.id));
+    setRentaDesde(null);
+    setRentaHasta(null);
+  };
+  const rentaPersonaW = rentaNetaSerie.filter(inRentaWindow);
+  const rentaHogarW = rentaHogarSerie.filter(inRentaWindow);
   const rentaChartSeries: SerieEvo[] = [
-    ...(rentaNetaSerie.length >= 2
-      ? [{ clave: "renta-persona", etiqueta: `${municipio.nombre} · Renta neta por persona`, color: "#86B73D", puntos: rentaNetaSerie }]
+    ...(rentaSel.includes("renta_neta_media_persona") && rentaPersonaW.length >= 2
+      ? [{ clave: "renta-persona", etiqueta: `${municipio.nombre} · Renta neta por persona`, color: "#86B73D", puntos: rentaPersonaW }]
       : []),
-    ...(rentaHogarSerie.length >= 2
-      ? [{ clave: "renta-hogar", etiqueta: `${municipio.nombre} · Renta neta por hogar`, color: "#3E665C", puntos: rentaHogarSerie }]
+    ...(rentaSel.includes("renta_neta_media_hogar") && rentaHogarW.length >= 2
+      ? [{ clave: "renta-hogar", etiqueta: `${municipio.nombre} · Renta neta por hogar`, color: "#3E665C", puntos: rentaHogarW }]
       : []),
   ];
   const rentaChartPeriodo =
@@ -250,11 +288,70 @@ export default function EconomiaFicha({
       {rentaOk && (
         <section aria-label="Renta y capacidad económica" className="ideas-section">
           <h2 className="ideas-h2">Renta y capacidad económica</h2>
+          {rentaCaps.length > 1 && (
+            <div className="mt-3 flex flex-wrap items-end gap-x-5 gap-y-3" role="group" aria-label="Controles de renta">
+              <fieldset>
+                <legend className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">Indicadores</legend>
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                  {rentaCaps.map((c) => (
+                    <label key={c.id} className="inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                      <input
+                        type="checkbox"
+                        checked={rentaSel.includes(c.id)}
+                        onChange={(e) => toggleRenta(c.id, e.target.checked)}
+                        className="h-4 w-4 accent-[var(--color-secondary)]"
+                      />
+                      {c.label}
+                      <span className="text-xs text-[var(--color-text-muted)]">{c.source}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              {allRentaPeriods.length > 1 && (
+                <>
+                  <div>
+                    <label htmlFor={`renta-desde-${codigoINE}`} className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">Desde</label>
+                    <select
+                      id={`renta-desde-${codigoINE}`}
+                      value={rentaDesde ?? ""}
+                      onChange={(e) => { setRentaHint(null); setRentaDesde(e.target.value ? parseInt(e.target.value, 10) : null); }}
+                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+                    >
+                      <option value="">Inicio</option>
+                      {allRentaPeriods.map((a) => (<option key={a} value={a}>{a}</option>))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor={`renta-hasta-${codigoINE}`} className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">Hasta</label>
+                    <select
+                      id={`renta-hasta-${codigoINE}`}
+                      value={rentaHasta ?? ""}
+                      onChange={(e) => { setRentaHint(null); setRentaHasta(e.target.value ? parseInt(e.target.value, 10) : null); }}
+                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+                    >
+                      <option value="">Fin</option>
+                      {allRentaPeriods.map((a) => (<option key={a} value={a}>{a}</option>))}
+                    </select>
+                  </div>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={resetRenta}
+                className="px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-md hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+              >
+                Restablecer
+              </button>
+            </div>
+          )}
+          {rentaHint && (
+            <p role="status" className="mt-2 text-xs text-[var(--color-text-secondary)]">{rentaHint}</p>
+          )}
           <RentaCards valores={valores} />
           <TableWorkspace
             layout="half"
             uncapped
-            table={<RentaTable codigoINE={codigoINE} valores={valores} />}
+            table={<RentaTable codigoINE={codigoINE} valores={valores} slugFilter={rentaSel} desde={rentaDesde} hasta={rentaHasta} />}
             visual={
               rentaChartSeries.length > 0 ? (
                 <div>
@@ -466,7 +563,19 @@ function Barras({ filas, unidad }: { filas: { e: string; v: number | null; p: nu
   );
 }
 
-function RentaTable({ codigoINE, valores }: { codigoINE: string; valores: IndicatorValue[] }) {
+function RentaTable({
+  codigoINE,
+  valores,
+  slugFilter,
+  desde,
+  hasta,
+}: {
+  codigoINE: string;
+  valores: IndicatorValue[];
+  slugFilter?: string[];
+  desde?: number | null;
+  hasta?: number | null;
+}) {
   const cols = [
     { slug: "irpf_declaraciones", label: "Declaraciones" },
     { slug: "irpf_renta_bruta_media", label: "Bruta media/decl. (€)" },
@@ -477,12 +586,25 @@ function RentaTable({ codigoINE, valores }: { codigoINE: string; valores: Indica
   ];
   const val = (slug: string, anio: number): number | null =>
     filasPorSlug(valores, slug).find((v) => v.anio_referencia === anio)?.valor_numerico ?? null;
+  const inWindow = (a: number): boolean =>
+    (desde === null || desde === undefined || a >= desde) && (hasta === null || hasta === undefined || a <= hasta);
   const anios = [...new Set(
     cols.flatMap((c) => filasPorSlug(valores, c.slug).map((v) => v.anio_referencia ?? 0)),
-  )].filter((a) => a > 0).sort((a, b) => a - b);
-  // Oculta columnas completamente vacías: nunca una columna de guiones.
-  const visibles = cols.filter((c) => anios.some((a) => val(c.slug, a) !== null));
-  if (anios.length === 0 || visibles.length === 0) return null;
+  )].filter((a) => a > 0 && inWindow(a)).sort((a, b) => a - b);
+  // Oculta columnas completamente vacías y las desmarcadas en los controles:
+  // nunca una columna de guiones.
+  const visibles = cols.filter(
+    (c) => (!slugFilter || slugFilter.includes(c.slug)) && anios.some((a) => val(c.slug, a) !== null),
+  );
+  if (anios.length === 0 || visibles.length === 0) {
+    return (
+      <DataTableShell
+        title="Tabla anual de renta"
+        subtitle="AEAT por declaración y ADRH por persona/hogar, sin mezclar"
+        footnote="No hay datos publicados para esta combinación de filtros."
+      />
+    );
+  }
   const primera = ultimo(valores, visibles[0].slug);
   const fuenteCorta = (primera?.source as unknown as { organismo?: string } | undefined)?.organismo ?? "AEAT · INE ADRH";
   return (

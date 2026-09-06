@@ -11,9 +11,9 @@ interface ModuleCardProps {
 
 export default function ModuleCard({ kicker, title, description, href, cta, badge }: ModuleCardProps) {
   return (
-    <article className="group relative flex flex-col rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-6 sm:p-7 transition-colors duration-300 hover:border-[var(--color-secondary)]/40">
-      <div className="flex items-center gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)]">{kicker}</p>
+    <article className="premium-card premium-card--hover group relative flex flex-col p-6 sm:p-7">
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="editorial-eyebrow">{kicker}</p>
         {badge && (
           <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-input-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-text-secondary)]">
             {badge}

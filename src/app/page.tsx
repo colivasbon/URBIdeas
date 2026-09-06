@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import PlatformHeader, { CORPORATE_URL } from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import ModuleCard from "@/components/platform/ModuleCard";
+import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
+import SectionEyebrow from "@/components/ui/SectionEyebrow";
+import SectionHeading from "@/components/ui/SectionHeading";
 
 export const metadata: Metadata = {
   title: "IDEAS Sostenibilidad | Ideas Medioambientales",
@@ -15,17 +18,18 @@ export default function PlatformHome() {
       <PlatformHeader />
 
       <main className="flex-1">
+        <EditorialParallaxHero accent="ideas">
         <section className="relative border-b border-[var(--color-border-subtle)]">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="py-10 sm:py-14 lg:py-20 flex flex-col items-center text-center gap-6">
-              <div className="max-w-3xl w-full">
-                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--color-secondary)] mb-3">
+              <div className="max-w-3xl w-full premium-reveal">
+                <SectionEyebrow>
                   IDEAS Sostenibilidad · Área de Sostenibilidad de Ideas Medioambientales
-                </p>
-                <h1 className="font-bold tracking-tight leading-[1.05] text-3xl sm:text-4xl lg:text-5xl text-[var(--color-text-primary)] text-balance">
+                </SectionEyebrow>
+                <h1 className="editorial-display mt-4 text-4xl text-[var(--color-text-primary)] sm:text-5xl lg:text-6xl">
                   Conocimiento territorial para decisiones sostenibles
                 </h1>
-                <p className="mt-6 max-w-2xl mx-auto text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed">
+                <p className="editorial-lede mt-6 max-w-2xl mx-auto">
                   Análisis territorial, diagnóstico municipal con fuentes oficiales y apoyo técnico a
                   proyectos, en una sola plataforma.
                 </p>
@@ -37,10 +41,10 @@ export default function PlatformHome() {
                   ].map((d) => (
                     <div
                       key={d.l}
-                      className="min-w-40 flex-1 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] px-5 py-4 sm:max-w-60"
+                      className="data-card min-w-40 flex-1 sm:max-w-60"
                     >
-                      <dt className="order-2 mt-1 block text-xs text-[var(--color-text-muted)]">{d.l}</dt>
-                      <dd className="text-lg font-bold tabular-nums text-[var(--color-text-primary)]">{d.v}</dd>
+                      <dt className="data-card__detail">{d.l}</dt>
+                      <dd className="data-card__value text-lg">{d.v}</dd>
                     </div>
                   ))}
                 </dl>
@@ -48,14 +52,18 @@ export default function PlatformHome() {
             </div>
           </div>
         </section>
+        </EditorialParallaxHero>
 
         <section aria-label="Módulos de la plataforma">
           <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="h-px w-12 bg-[var(--color-secondary)]" aria-hidden="true" />
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--color-text-muted)]">
-                Módulos
-              </p>
+            <div className="mb-8">
+              <SectionEyebrow>Módulos</SectionEyebrow>
+              <div className="mt-3">
+                <SectionHeading
+                  title="Dos módulos de consulta, un área en preparación"
+                  lede="URBideas para el análisis territorial y SOCideas para el diagnóstico municipal. Cada entrada conserva su acento y comparte el mismo lenguaje de datos."
+                />
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
               <ModuleCard

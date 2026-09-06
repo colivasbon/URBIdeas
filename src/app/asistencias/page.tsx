@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PlatformHeader from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
+import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
+import PageShell from "@/components/ui/PageShell";
 
 export const metadata: Metadata = {
   title: "Asistencias de sostenibilidad",
@@ -23,25 +25,19 @@ export default function AsistenciasPage() {
       <PlatformHeader />
 
       <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-          <section className="mb-8 border-b border-[var(--color-border-subtle)] pb-8">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-px w-8 bg-[var(--color-secondary)]" aria-hidden="true" />
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Área de Sostenibilidad
-              </p>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
-              Asistencias de sostenibilidad
-            </h1>
-            <p className="mt-3 max-w-3xl text-base leading-relaxed text-[var(--color-text-secondary)]">
-              Espacio destinado a herramientas y procesos de apoyo técnico del Área de
-              Sostenibilidad de Ideas Medioambientales.
-            </p>
-          </section>
+        <EditorialParallaxHero accent="ideas">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+            <PageShell
+              eyebrow="Área de Sostenibilidad · Ideas Medioambientales"
+              title="Asistencias de sostenibilidad"
+              lede="Espacio destinado a herramientas y procesos de apoyo técnico del Área de Sostenibilidad de Ideas Medioambientales."
+            />
+          </div>
+        </EditorialParallaxHero>
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
 
           <section aria-label="Líneas de trabajo previstas" className="mb-8">
-            <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] divide-y divide-[var(--color-border-subtle)]">
+            <div className="premium-card divide-y divide-[var(--color-border-subtle)] overflow-hidden p-0">
               {lineas.map((linea) => (
                 <div key={linea} className="flex items-center justify-between gap-3 px-5 py-4">
                   <p className="text-sm font-medium text-[var(--color-text-primary)]">{linea}</p>

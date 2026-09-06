@@ -3,6 +3,10 @@ import Link from "next/link";
 import PlatformHeader from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import SocideasSearch from "@/components/socideas/SocideasSearch";
+import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
+import PageShell from "@/components/ui/PageShell";
+import SectionHeading from "@/components/ui/SectionHeading";
+import SourcePill from "@/components/ui/SourcePill";
 
 export const metadata: Metadata = {
   title: "SOCideas",
@@ -16,34 +20,38 @@ export default function SocideasHub() {
       <PlatformHeader />
 
       <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-          <section className="mb-8 border-b border-[var(--color-border-subtle)] pb-8">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-px w-8 bg-[var(--color-secondary)]" aria-hidden="true" />
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Beta interna · Fase 2B
-              </p>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
-              SOCideas
-            </h1>
-            <p className="mt-3 max-w-3xl text-base leading-relaxed text-[var(--color-text-secondary)]">
-              Diagnóstico demográfico y económico de cualquier municipio español a partir de fuentes
-              oficiales trazables.
-            </p>
-          </section>
+        <EditorialParallaxHero accent="soc">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+            <PageShell
+              eyebrow="SOCideas · Beta interna · Módulo de IDEAS Sostenibilidad"
+              title="Diagnóstico municipal con fuentes oficiales"
+              lede="Diagnóstico demográfico y económico de cualquier municipio español a partir de fuentes oficiales trazables. El buscador es el punto de partida: escriba, filtre y abra la ficha."
+              meta={
+                <>
+                  <SourcePill title="Demografía disponible con trazabilidad INE">
+                    Demografía disponible · INE
+                  </SourcePill>
+                  <SourcePill title="Economía en desarrollo por subbloques con año declarado">
+                    Economía en desarrollo · AEAT · ADRH · DIRCE
+                  </SourcePill>
+                </>
+              }
+            />
+          </div>
+        </EditorialParallaxHero>
 
-          <section aria-label="Buscador municipal" className="ideas-section">
-            <h2 className="ideas-h2">Buscador municipal</h2>
-            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-              Escriba el nombre del municipio o de su provincia para abrir su ficha de caracterización.
-            </p>
-            <div className="mt-4">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
+          <section aria-label="Buscador municipal" className="premium-card premium-reveal p-5 sm:p-7">
+            <SectionHeading
+              title="Buscador municipal"
+              lede="Escriba el nombre del municipio o de su provincia para abrir su ficha de caracterización."
+            />
+            <div className="mt-5">
               <SocideasSearch />
             </div>
           </section>
 
-          <section aria-label="Fuentes y cobertura" className="mt-10 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] p-5 sm:p-6">
+          <section aria-label="Fuentes y cobertura" className="premium-card mt-8 p-5 sm:p-6">
             <h2 className="text-base font-bold text-[var(--color-text-primary)]">Fuentes y cobertura (Fase 2B)</h2>
             <ul className="mt-3 list-disc pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
               <li>
@@ -69,13 +77,13 @@ export default function SocideasHub() {
           <section aria-label="Enlaces relacionados" className="mt-8 flex flex-wrap gap-4">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] transition-all duration-300"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
             >
               Volver a la plataforma
             </Link>
             <Link
               href="/urbideas"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] transition-all duration-300"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
             >
               Acceder a URBideas
             </Link>

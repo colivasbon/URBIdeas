@@ -3,7 +3,8 @@ import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import UrbideasHeader from "@/components/platform/UrbideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
-import HeroParallax from "@/components/ui/HeroParallax";
+import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
+import SectionEyebrow from "@/components/ui/SectionEyebrow";
 
 export const metadata: Metadata = {
   title: "URBideas",
@@ -39,17 +40,15 @@ export default async function UrbideasHome() {
       <UrbideasHeader />
 
       <main className="flex-1">
-        <HeroParallax>
+        <EditorialParallaxHero accent="urb">
           <section className="relative border-b border-[var(--color-border-subtle)]">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
               <div className="py-8 sm:py-12 lg:py-16 flex flex-col items-center text-center gap-8">
-                <div className="max-w-3xl w-full">
-                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--color-secondary)] mb-3">
-                    URBideas · Módulo de IDEAS Sostenibilidad
-                  </p>
-                  <h1 className="font-bold tracking-tighter leading-[0.9] text-center">
-                    <span className="block text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--color-text-primary)]">URBideas</span>
-                    <span className="block mt-2 text-xl sm:text-2xl lg:text-3xl font-semibold text-[var(--color-secondary)]">
+                <div className="max-w-3xl w-full premium-reveal">
+                  <SectionEyebrow>URBideas · Módulo de IDEAS Sostenibilidad</SectionEyebrow>
+                  <h1 className="mt-3 tracking-tight leading-[0.95] text-center">
+                    <span className="editorial-display block text-4xl text-[var(--color-text-primary)] sm:text-5xl lg:text-6xl">URBideas</span>
+                    <span className="block mt-3 text-xl sm:text-2xl lg:text-3xl font-semibold text-[var(--color-secondary)]">
                       Análisis territorial, urbanístico y geoespacial
                     </span>
                   </h1>
@@ -86,7 +85,7 @@ export default async function UrbideasHome() {
               </div>
             </div>
           </section>
-        </HeroParallax>
+        </EditorialParallaxHero>
 
         <section id="stats-bar" className="border-b border-[var(--color-border-subtle)] bg-[var(--color-dark-bg-elevated)]">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

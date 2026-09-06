@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import dynamic from "next/dynamic"
 import UrbideasHeader from "@/components/platform/UrbideasHeader"
-import Footer from "@/components/layout/Footer"
+import PlatformFooter from "@/components/platform/PlatformFooter"
 import { Badge } from "@/components/ui/Badge"
 import FiltroCascada from "@/components/filtros/FiltroCascada"
 import SelectorMultiMunicipio from "@/components/filtros/SelectorMultiMunicipio"
@@ -368,14 +368,14 @@ export default function MunicipiosPage() {
           <div className="flex flex-col gap-6 lg:flex-row">
             {/* Left sidebar — distinct background panel */}
             <div className="w-full shrink-0 lg:w-80">
-              <div className="bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-xl p-5">
+              <div className="premium-card p-5">
                 <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">
                   Filtro por ubicación
                 </h2>
                 <FiltroCascada onMunicipioSeleccionado={handleMunicipioSeleccionado} onProvinciaSeleccionada={setProvinciaId} />
               </div>
 
-              <div className="bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-xl p-5 mt-4">
+              <div className="premium-card p-5 mt-4">
                 <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">
                   Comparación múltiple
                 </h2>
@@ -807,7 +807,7 @@ export default function MunicipiosPage() {
         </div>
       </main>
 
-      <Footer />
+      <PlatformFooter />
     </div>
   )
 }

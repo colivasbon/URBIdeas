@@ -12,7 +12,9 @@ import DataTableShell from "./DataTableShell";
 import DataTableMeta from "./DataTableMeta";
 import DataTableToolbar from "./DataTableToolbar";
 import TableWorkspace from "./TableWorkspace";
+import IndicatorExplorer from "./IndicatorExplorer";
 import { SERIES_MAX_HEIGHT, SERIES_SCROLL_THRESHOLD } from "@/lib/socideas-table-density";
+import { demoCapabilities } from "@/lib/socideas-indicator-capabilities";
 import {
   ComparadorPeriodos,
   FuenteOficial,
@@ -200,8 +202,7 @@ export default function FichaFiltros({
     if (r.puntos === 0) vista.push(`Sin comparativa de ${AMBITO_LABEL[a]} para el período.`);
   }
 
-  const coberturaDemografia: CoverageEntry[] = [
-    { titulo: "Densidad de población", estado: "pending", detalle: "Pendiente de integración de fuente de superficie. Nada se estima." },
+  const coberturaDemografia: CoverageEntry[] = [    { titulo: "Densidad de población", estado: "pending", detalle: "Pendiente de integración de fuente de superficie. Nada se estima." },
     { titulo: "Población extranjera y saldo migratorio", estado: "without_coverage", detalle: "La fuente no publica estos indicadores a nivel municipal de forma verificada en Tempus3." },
     { titulo: "Natalidad, mortalidad y educación", estado: "without_coverage", detalle: "Sin cobertura municipal verificada en esta ficha; solo se incorporarían con fuente oficial y periodo homogéneo." },
     { titulo: "Fuente provisional", estado: "provisional", detalle: "No hay fuente provisional configurada para demografía. Se conserva el último dato consolidado." },
@@ -209,6 +210,30 @@ export default function FichaFiltros({
   if (perfil.piramide.anio !== null && refAnio !== null && perfil.piramide.anio !== refAnio) {
     coberturaDemografia.push({ titulo: "Periodos con rezago", estado: "partial", detalle: `La pirámide (${perfil.piramide.anio}) y la población total (${refAnio}) son de operaciones distintas, no contemporáneas.` });
   }
+
+  // Explorador unificado: capacidades y series sobre datos COMPLETOS (initial),
+  // no sobre la vista filtrada, para que los selectores reflejen disponibilidad real.
+  const explorerCaps = useMemo(() => demoCapabilities(initial), [initial]);
+  const explorerSeries = useMemo(() => {
+    const pts = (list: IndicatorValue[]) =>
+      list
+        .filter((vv) => vv.valor_numerico !== null)
+        .map((vv) => ({ anio: vv.anio_referencia ?? 0, valor: vv.valor_numerico as number }))
+        .filter((p) => p.anio > 0)
+        .sort((a, b) => a.anio - b.anio);
+    const single = (iv: IndicatorValue | null) =>
+      iv && iv.valor_numerico !== null && iv.anio_referencia ? [{ anio: iv.anio_referencia, valor: iv.valor_numerico }] : [];
+    return {
+      poblacion_total: {
+        municipio: pts(initial.evolucion),
+        provincia: pts(initial.comparativas.provincia),
+        ccaa: pts(initial.comparativas.ccaa),
+        espana: pts(initial.comparativas.espana),
+      },
+      poblacion_hombres: { municipio: single(initial.hombres) },
+      poblacion_mujeres: { municipio: single(initial.mujeres) },
+    };
+  }, [initial]);
 
   return (
     <div>
@@ -585,6 +610,16 @@ export default function FichaFiltros({
           </p>
         </details>
       </section>
+
+      {explorerCaps.length > 0 && (
+        <IndicatorExplorer
+          codigoINE={codigoINE}
+          municipioNombre={perfil.municipio.nombre}
+          capabilities={explorerCaps}
+          series={explorerSeries}
+          searchParams={searchParams}
+        />
+      )}
 
       <IndicatorAvailabilityPanel entries={coberturaDemografia} />
 

@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import EvolutionChart, { type SerieEvo } from "./EvolutionChart";
 import Traceability from "./Traceability";
 import DataTableShell from "./DataTableShell";
 import DataTableMeta from "./DataTableMeta";
 import DataTableToolbar from "./DataTableToolbar";
 import TableWorkspace from "./TableWorkspace";
+import IndicatorExplorer from "./IndicatorExplorer";
+import { capabilityPoints, ecoCapabilities } from "@/lib/socideas-indicator-capabilities";
 import AvailabilitySummary, { AvailableIndicators } from "./AvailabilitySummary";
 import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
 import {
@@ -66,8 +69,7 @@ export default function EconomiaFicha({
 }) {
   const { valores, municipio } = initial;
 
-  const hasData = (slugs: string[]): boolean => slugs.some((s) => filasPorSlug(valores, s).length > 0);
-  const countData = (slugs: string[]): number => slugs.filter((s) => filasPorSlug(valores, s).length > 0).length;
+  const hasData = (slugs: string[]): boolean => slugs.some((s) => filasPorSlug(valores, s).length > 0);  const countData = (slugs: string[]): number => slugs.filter((s) => filasPorSlug(valores, s).length > 0).length;
   const lastYear = (slugs: string[]): number | null => {
     const anios = slugs.flatMap((s) => filasPorSlug(valores, s).map((v) => v.anio_referencia ?? 0)).filter((a) => a > 0);
     return anios.length > 0 ? Math.max(...anios) : null;
@@ -78,6 +80,19 @@ export default function EconomiaFicha({
   const empOk = hasData(EMPRESAS_SLUGS);
   const agrOk = hasData(AGR_SLUGS);
   const ganOk = hasData(GAN_SLUGS);
+
+  // Explorador unificado: capacidades derivadas de valores reales (sin AEAT↔ADRH
+  // mezclados: cada indicador conserva su fuente) y series por ámbito homogéneo.
+  // Antes del return temprano: los hooks nunca son condicionales.
+  const explorerCaps = useMemo(() => ecoCapabilities(initial), [initial]);
+  const explorerSeries = useMemo(() => {
+    const rec: Record<string, Record<string, { anio: number; valor: number }[]>> = {};
+    for (const c of explorerCaps) {
+      rec[c.id] = {};
+      for (const s of c.scopes) rec[c.id][s.id] = capabilityPoints(valores, c.id, s.id);
+    }
+    return rec;
+  }, [valores, explorerCaps]);
 
   const sincronizado = initial.sincronizado;
   if (!sincronizado) {
@@ -246,6 +261,15 @@ export default function EconomiaFicha({
         <ComparadorPeriodos serie={rentaNetaSerie} unidad="€" titulo="Comparador de renta neta por persona" />
         <FiltroTabla tableId={`tabla-renta-${codigoINE}`} anios={rentaAnios} placeholder="Filtrar renta por año o valor…" />
       </HerramientasConsulta>
+
+      {explorerCaps.length > 0 && (
+        <IndicatorExplorer
+          codigoINE={codigoINE}
+          municipioNombre={municipio.nombre}
+          capabilities={explorerCaps}
+          series={explorerSeries}
+        />
+      )}
 
       {/* Renta */}
       {rentaOk && (

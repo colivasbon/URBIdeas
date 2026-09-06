@@ -193,7 +193,10 @@ function applyTableWidths(
       const len = cellTextLength(cell.text, cell.numeric, col)
       if (len > longest) longest = len
     }
-    const w = Math.min(max, Math.max(min, longest + 2))
+    let w = Math.min(max, Math.max(min, longest + 2))
+    // Quirk verificado de ExcelJS 4.4.0: el ancho exactamente 9 no se serializa
+    // (la columna queda sin anchura). 10 sigue dentro del rol Año [9,11].
+    if (w === 9) w = 10
     const prev = ws.getColumn(ci + 1).width ?? 0
     ws.getColumn(ci + 1).width = Math.max(prev, w)
   })

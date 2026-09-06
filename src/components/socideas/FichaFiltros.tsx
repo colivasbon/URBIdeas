@@ -9,7 +9,6 @@ import Traceability from "./Traceability";
 import CopyTableButton from "./CopyTableButton";
 import AvailabilitySummary from "./AvailabilitySummary";
 import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
-import MunicipioDataActions from "./MunicipioDataActions";
 import {
   ComparadorPeriodos,
   FuenteOficial,
@@ -209,8 +208,6 @@ export default function FichaFiltros({
 
   return (
     <div>
-      <MunicipioDataActions codigoINE={codigoINE} bloque="Demografía" ultimaReferencia={initial.ultima_sincronizacion} />
-
       {/* Bloque 1: población actual */}
       <section aria-label="Población actual" className="mb-10">
         <div className="mb-4 flex flex-wrap items-end gap-3">

@@ -9,6 +9,7 @@ import PlatformFooter from "@/components/platform/PlatformFooter";
 import FichaFiltros from "@/components/socideas/FichaFiltros";
 import CategoryTabs from "@/components/socideas/CategoryTabs";
 import FichaToolbar from "@/components/socideas/FichaToolbar";
+import ActualizacionMenu from "@/components/socideas/ActualizacionMenu";
 import EconomiaFicha from "@/components/socideas/EconomiaFicha";
 import { buildDemografiaTables, buildEconomiaTables } from "@/lib/socideas-export";
 import EmptyState from "@/components/ui/EmptyState";
@@ -234,7 +235,13 @@ export default async function SocideasFicha({
                 ecoCount={economia ? buildEconomiaTables(economia).length : 0}
                 demoPeriodo={periodoDe(buildDemografiaTables(perfil).map((t) => t.periodo))}
                 ecoPeriodo={economia ? periodoDe(buildEconomiaTables(economia).map((t) => t.periodo)) : null}
-              />
+              >
+                <ActualizacionMenu
+                  codigoINE={municipio.codigo_ine}
+                  ultimaDemografia={perfil.ultima_sincronizacion}
+                  ultimaEconomia={economia?.ultima_sincronizacion}
+                />
+              </FichaToolbar>
             </div>
           </section>
 

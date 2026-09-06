@@ -6,7 +6,6 @@ import Traceability from "./Traceability";
 import CopyTableButton from "./CopyTableButton";
 import AvailabilitySummary, { AvailableIndicators } from "./AvailabilitySummary";
 import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
-import MunicipioDataActions from "./MunicipioDataActions";
 import {
   ComparadorPeriodos,
   FiltroTabla,
@@ -81,7 +80,6 @@ export default function EconomiaFicha({
   if (!sincronizado) {
     return (
       <div>
-        <MunicipioDataActions codigoINE={codigoINE} bloque="Economía" ultimaReferencia={initial.ultima_sincronizacion} />
         <div className="ideas-status" data-state="pending" role="status">
           <div className="ideas-status__head">
             <p className="ideas-status__title">Economía en preparación</p>
@@ -194,8 +192,6 @@ export default function EconomiaFicha({
 
   return (
     <div>
-      <MunicipioDataActions codigoINE={codigoINE} bloque="Economía" ultimaReferencia={initial.ultima_sincronizacion} />
-
       {/* Visión general: solo KPIs reales */}
       <section aria-label="Visión general de la economía" className="mb-10">
         <h2 className="ideas-h2">Visión general</h2>

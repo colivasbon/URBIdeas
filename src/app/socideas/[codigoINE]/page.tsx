@@ -4,7 +4,7 @@ import { createSupabaseServer } from "@/lib/supabase-server";
 import { getPerfilDemografico } from "@/lib/socideas-perfil";
 import type { FiltrosPerfil } from "@/lib/socideas-perfil";
 import { getPerfilEconomico } from "@/lib/socideas-economia";
-import PlatformHeader from "@/components/platform/PlatformHeader";
+import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import FichaFiltros from "@/components/socideas/FichaFiltros";
 import CategoryTabs from "@/components/socideas/CategoryTabs";
@@ -132,7 +132,7 @@ export default async function SocideasFicha({
   if (!perfil) {
     return (
       <div className="flex min-h-screen flex-col">
-        <PlatformHeader />
+        <SocideasHeader codigoINE={codigoINE} />
         <main className="flex-1 flex items-center justify-center px-4 py-10">
           <div className="w-full max-w-md">
             <EmptyState
@@ -166,7 +166,7 @@ export default async function SocideasFicha({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <PlatformHeader />
+      <SocideasHeader codigoINE={municipio.codigo_ine} search={new URLSearchParams(spObj).toString()} />
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
           <section className="mb-8 border-b border-[var(--color-border-subtle)] pb-8">

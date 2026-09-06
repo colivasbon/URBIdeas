@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import PlatformHeader from "@/components/platform/PlatformHeader";
+import AsistenciasHeader from "@/components/platform/AsistenciasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
 import TerritorialGrid from "@/components/ui/TerritorialGrid";
@@ -23,7 +23,7 @@ const lineas = [
 export default function AsistenciasPage() {
   return (
     <div className="flex min-h-screen flex-col">
-      <PlatformHeader />
+      <AsistenciasHeader />
 
       <main className="flex-1">
         <EditorialParallaxHero

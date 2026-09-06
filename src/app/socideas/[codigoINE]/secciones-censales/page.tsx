@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase-server";
-import PlatformHeader from "@/components/platform/PlatformHeader";
+import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import SeccionesMap from "@/components/socideas/SeccionesMap";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
@@ -53,7 +53,7 @@ export default async function SeccionesPage({
   if (!muni) {
     return (
       <div className="flex min-h-screen flex-col">
-        <PlatformHeader />
+        <SocideasHeader codigoINE={codigoINE} />
         <main className="flex flex-1 items-center justify-center px-4">
           <div className="ideas-status max-w-md text-center" data-state="error" role="alert">
             <p className="ideas-status__title">No se encontró el municipio con código INE {codigoINE}.</p>
@@ -69,7 +69,7 @@ export default async function SeccionesPage({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <PlatformHeader />
+      <SocideasHeader codigoINE={muni.codigo_ine} />
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
           <section className="mb-8 border-b border-[var(--color-border-subtle)] pb-8">

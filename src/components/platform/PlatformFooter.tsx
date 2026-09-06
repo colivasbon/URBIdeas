@@ -31,6 +31,7 @@ export default function PlatformFooter() {
                 <Link href="/" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">Inicio</Link>
                 <Link href="/urbideas" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">URBideas · análisis territorial</Link>
                 <Link href="/socideas" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">SOCideas · diagnóstico municipal</Link>
+                <Link href="/socideas/como-funciona" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">Cómo funciona SOCideas</Link>
                 <Link href="/asistencias" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">Asistencias</Link>
               </div>
             </div>

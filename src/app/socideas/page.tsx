@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import PlatformHeader from "@/components/platform/PlatformHeader";
+import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import SocideasSearch from "@/components/socideas/SocideasSearch";
 import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 export default function SocideasHub() {
   return (
     <div className="flex min-h-screen flex-col">
-      <PlatformHeader />
+      <SocideasHeader />
 
       <main className="flex-1">
         <EditorialParallaxHero decor={<TerritorialBackground variant="grid" />}>

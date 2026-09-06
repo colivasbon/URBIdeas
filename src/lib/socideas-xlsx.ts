@@ -35,14 +35,18 @@ export interface MunicipioWorkbookInput {
   excluidasSecciones: Exclusion[]
 }
 
-function band(row: ExcelJS.Row, fill: string): void {
-  row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }
+/** Rellena SOLO las celdas 1..nCols: jamás filas enteras (nada de verde residual). */
+function band(row: ExcelJS.Row, nCols: number, fill: string): void {
+  for (let i = 1; i <= nCols; i += 1) {
+    row.getCell(i).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }
+  }
 }
 
 function paintTitle(ws: ExcelJS.Worksheet, rowN: number, nCols: number, text: string): void {
+  // Sin mergeCells: fusionar desde A1 anula el ancho de la columna 1 en ExcelJS.
+  // El texto desborda visualmente sobre celdas vacías; la banda cubre 1..nCols.
   const row = ws.getRow(rowN)
   row.height = 24
-  ws.mergeCells(rowN, 1, rowN, nCols)
   const accentBottom = { bottom: { style: 'thin', color: { argb: ACCENT } } } as const
   for (let i = 1; i <= nCols; i += 1) {
     const c = row.getCell(i)
@@ -56,10 +60,9 @@ function paintTitle(ws: ExcelJS.Worksheet, rowN: number, nCols: number, text: st
   }
 }
 
-function paintMeta(ws: ExcelJS.Worksheet, rowN: number, nCols: number, text: string): void {
+function paintMeta(ws: ExcelJS.Worksheet, rowN: number, text: string): void {
   const row = ws.getRow(rowN)
   row.height = 16
-  ws.mergeCells(rowN, 1, rowN, nCols)
   const c = row.getCell(1)
   c.value = text
   c.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: MUTED } }
@@ -74,12 +77,14 @@ function numFmtFor(header: string): string | null {
   return '#,##0'
 }
 
-function paintHeaderRow(row: ExcelJS.Row): void {
+function paintHeaderRow(row: ExcelJS.Row, nCols: number): void {
   row.height = 18
-  row.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: WHITE } }
-  row.alignment = { vertical: 'middle' }
-  band(row, MINERAL)
-  row.border = { bottom: { style: 'thin', color: { argb: ACCENT } } }
+  for (let i = 1; i <= nCols; i += 1) {
+    const c = row.getCell(i)
+    c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: WHITE } }
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MINERAL } }
+    c.border = { bottom: { style: 'thin', color: { argb: ACCENT } } }
+  }
 }
 
 /** Límites de ancho por rol de columna (contenido +2, con mínimos y máximos).
@@ -129,11 +134,10 @@ function writeTable(
   const nCols = t.columnas.length
   const titleRow = ws.getRow(startRow)
   titleRow.height = 18
-  ws.mergeCells(startRow, 1, startRow, nCols)
   const title = titleRow.getCell(1)
   title.value = t.titulo
   title.font = { name: FONT_NAME, size: 12, bold: true, color: { argb: INK } }
-  paintMeta(ws, startRow + 1, nCols, `Fuente: ${t.fuente} · Periodo: ${t.periodo} · Cobertura: ${t.cobertura} · Estado: ${t.estado}`)
+  paintMeta(ws, startRow + 1, `Fuente: ${t.fuente} · Periodo: ${t.periodo} · Cobertura: ${t.cobertura} · Estado: ${t.estado}`)
   const headerRowN = startRow + 2
   const header = ws.getRow(headerRowN)
   t.columnas.forEach((col, i) => {
@@ -141,7 +145,7 @@ function writeTable(
     c.value = col
     c.alignment = { vertical: 'middle', horizontal: cellAlign(col, i === 0) }
   })
-  paintHeaderRow(header)
+  paintHeaderRow(header, nCols)
   let r = headerRowN
   t.filas.forEach((fila, fi) => {
     r += 1
@@ -163,7 +167,7 @@ function writeTable(
       c.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
       c.alignment = { vertical: 'middle', horizontal: align, wrapText: cellWrap(colName, ci === 0) }
     })
-    if (fi % 2 === 1) band(row, ALT)
+    if (fi % 2 === 1) band(row, nCols, ALT)
   })
   applyTableWidths(
     ws,
@@ -237,7 +241,7 @@ function writeDetailSheet(
   })
   const nCols = Math.max(2, ...tablas.map((t) => t.columnas.length))
   paintTitle(ws, 1, nCols, `${XLSX_BRAND} — ${heading}`)
-  paintMeta(ws, 2, nCols, meta)
+  paintMeta(ws, 2, meta)
   let cursor = 4
   tablas.forEach((t, ti) => {
     const placed = writeTable(ws, cursor, t)
@@ -274,21 +278,18 @@ function writeIndexSheet(
     const row = ws.getRow(cursor)
     row.getCell(1).value = k
     row.getCell(1).font = { name: FONT_NAME, size: 11, bold: true, color: { argb: INK } }
-    ws.mergeCells(cursor, 2, cursor, nCols)
     const val = row.getCell(2)
     val.value = v
     val.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
     val.alignment = { wrapText: true, vertical: 'middle' }
-    band(row, PAPER)
+    band(row, nCols, PAPER)
     cursor += 1
   }
   for (const [k, v] of metaLines) meta(k, v)
   cursor += 1
-  let firstHeader = 0
   indexTables.forEach((t, ti) => {
     const placed = writeTable(ws, cursor, t)
     if (ti === 0) {
-      firstHeader = placed.headerRow
       ws.autoFilter = {
         from: { row: placed.headerRow, column: 1 },
         to: { row: placed.endRow, column: placed.nCols },
@@ -317,14 +318,12 @@ function writeIndexSheet(
   if (note) {
     cursor += 1
     const row = ws.getRow(cursor)
-    ws.mergeCells(cursor, 1, cursor, nCols)
     const c = row.getCell(1)
     c.value = note
     c.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: MUTED } }
     c.alignment = { wrapText: true, vertical: 'middle' }
     row.height = 30
   }
-  void firstHeader
   return ws
 }
 
@@ -340,7 +339,7 @@ function writeResumenSheet(
   })
   const nCols = 8
   paintTitle(ws, 1, nCols, `${XLSX_BRAND} — Libro municipal`)
-  paintMeta(ws, 2, nCols, `Municipio: ${input.municipio} (${input.codigoINE}) · Generado: ${input.fechaGeneracion}`)
+  paintMeta(ws, 2, `Municipio: ${input.municipio} (${input.codigoINE}) · Generado: ${input.fechaGeneracion}`)
   const metaRows: [string, string][] = [
     ['Municipio', input.municipio],
     ['Código INE', input.codigoINE],
@@ -355,11 +354,10 @@ function writeResumenSheet(
     const row = ws.getRow(r)
     row.getCell(1).value = k
     row.getCell(1).font = { name: FONT_NAME, size: 11, bold: true, color: { argb: INK } }
-    ws.mergeCells(r, 2, r, nCols)
     const val = row.getCell(2)
     val.value = v
     val.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
-    band(row, PAPER)
+    band(row, nCols, PAPER)
     r += 1
   }
   r += 1
@@ -372,7 +370,7 @@ function writeResumenSheet(
       c.value = col
       c.alignment = { horizontal: cellAlign(col, i <= 1), vertical: 'middle' }
     })
-    paintHeaderRow(row)
+    paintHeaderRow(row, nCols)
     r += 1
   }
   const body = (cells: (string | number)[]): void => {
@@ -384,11 +382,10 @@ function writeResumenSheet(
       c.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
       c.alignment = { vertical: 'middle', horizontal: cellAlign(TRACE_HEADERS[i] ?? '', i <= 1), wrapText: cellWrap(TRACE_HEADERS[i] ?? '', i <= 1) }
     })
-    if (r % 2 === 1) band(row, ALT)
+    if (r % 2 === 1) band(row, nCols, ALT)
     r += 1
   }
   const section = (text: string): void => {
-    ws.mergeCells(r, 1, r, nCols)
     const row = ws.getRow(r)
     row.height = 18
     for (let i = 1; i <= nCols; i += 1) {
@@ -427,7 +424,6 @@ function writeResumenSheet(
   r += 1
   section('Limitaciones')
   const lim = ws.getRow(r)
-  ws.mergeCells(r, 1, r, nCols)
   lim.getCell(1).value = 'La ausencia de dato nunca equivale a 0. Cada tabla conserva su fuente y periodo de referencia. Los periodos de distintos bloques no deben leerse como contemporáneos sin indicarlo.'
   lim.getCell(1).font = { name: FONT_NAME, size: 10, italic: true, color: { argb: MUTED } }
   lim.getCell(1).alignment = { wrapText: true, vertical: 'middle' }
@@ -448,7 +444,6 @@ function writeEmptyBlockSheet(
   })
   paintTitle(ws, 1, 2, `${XLSX_BRAND} — ${heading}`)
   const row = ws.getRow(3)
-  ws.mergeCells(3, 1, 3, 2)
   const c = row.getCell(1)
   c.value = 'Sin tablas exportables en este bloque para el municipio. Ver hoja 00_Resumen (trazabilidad y exclusiones). Ningún valor se rellena con ceros.'
   c.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: MUTED } }

@@ -120,7 +120,7 @@ export default function DescargasBloque({
       {/* Índice de tablas */}
       <div className="mt-6 grid grid-cols-1 gap-4">
         {tablas.map((t) => (
-          <article key={t.id} className="premium-card p-5" aria-label={`Tabla ${t.titulo}`}>
+          <article key={t.id} className={`premium-card p-5${t.columnas.length <= 2 ? " socideas-narrow-card" : ""}`} aria-label={`Tabla ${t.titulo}`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="text-base font-bold text-[var(--color-text-primary)]">{t.titulo}</h2>
@@ -144,7 +144,7 @@ export default function DescargasBloque({
                 </button>
               </div>
             </div>
-            <div className="socideas-table-shell__scroll mt-3 max-h-72" style={{ overflowY: "auto" }} id={`tabla-${t.id}`} tabIndex={-1} role="region" aria-label={`Tabla ${t.titulo}`}>
+            <div className="socideas-table-shell__scroll mt-3" style={t.filas.length > 11 ? { maxHeight: "24rem", overflowY: "auto" } : undefined} id={`tabla-${t.id}`} tabIndex={-1} role="region" aria-label={`Tabla ${t.titulo}`}>
               <table className="socideas-table">
                 <thead>
                   <tr>{t.columnas.map((c) => (<th key={c} scope="col" className={c === t.columnas[0] ? "socideas-table__text" : "socideas-table__numeric"}>{c}</th>))}</tr>

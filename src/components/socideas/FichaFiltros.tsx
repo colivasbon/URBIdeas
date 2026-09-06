@@ -12,6 +12,7 @@ import DataTableShell from "./DataTableShell";
 import DataTableMeta from "./DataTableMeta";
 import DataTableToolbar from "./DataTableToolbar";
 import TableWorkspace from "./TableWorkspace";
+import { SERIES_MAX_HEIGHT, SERIES_SCROLL_THRESHOLD } from "@/lib/socideas-table-density";
 import {
   ComparadorPeriodos,
   FuenteOficial,
@@ -254,6 +255,7 @@ export default function FichaFiltros({
           table={
             <DataTableShell
               title={`Tabla del año ${refAnio ?? "—"}`}
+              narrow
               meta={{ fuente: "INE", periodo: refAnio ? String(refAnio) : null, cobertura: `Municipio ${perfil.municipio.nombre}`, estado: "consolidado" }}
               toolbar={<DataTableToolbar tableId={`tabla-actual-${codigoINE}`} />}
             >
@@ -341,9 +343,12 @@ export default function FichaFiltros({
           ))}
         </fieldset>
         <TableWorkspace
+          layout="half"
           table={
             <DataTableShell
               title="Tabla anual por ámbito"
+              narrow={filtros.comparar.length <= 3}
+              series={filasTabla.length > SERIES_SCROLL_THRESHOLD}
               meta={{
                 fuente: "INE · Tempus3",
                 periodo: filasTabla.length > 0 ? `${filasTabla[0].anio}–${filasTabla[filasTabla.length - 1].anio}` : null,
@@ -351,10 +356,10 @@ export default function FichaFiltros({
                 estado: "consolidado",
               }}
               toolbar={<DataTableToolbar tableId={`tabla-evo-${codigoINE}`} />}
-              maxHeight="18rem"
+              maxHeight={filasTabla.length > SERIES_SCROLL_THRESHOLD ? SERIES_MAX_HEIGHT : undefined}
               footnote={filasTabla.length === 0 ? "Sin datos para el período y los ámbitos seleccionados. Active al menos un ámbito con cobertura." : undefined}
             >
-              <table id={`tabla-evo-${codigoINE}`} className="socideas-table">
+              <table id={`tabla-evo-${codigoINE}`} className={`socideas-table${filtros.comparar.length <= 1 ? " socideas-table--compact-two" : ""}`}>
                 <thead>
                   <tr>
                     <th scope="col" className="socideas-table__year">Año</th>
@@ -446,12 +451,15 @@ export default function FichaFiltros({
           Padrón Continuo (INE).{filtros.pirModo === "pct" ? " Porcentaje sobre la población total del municipio ese año." : ""}
         </p>
         <TableWorkspace
+          layout="half"
           table={
             <DataTableShell
               title={`Tabla por grupos${filtros.pirModo === "pct" ? " (%)" : ""}`}
+              narrow
+              series={pirGrupos.length > SERIES_SCROLL_THRESHOLD}
               meta={{ fuente: "INE · Padrón Continuo", periodo: perfil.piramide.anio ? String(perfil.piramide.anio) : null, cobertura: `Municipio ${perfil.municipio.nombre}`, estado: "consolidado" }}
               toolbar={<DataTableToolbar tableId={`tabla-pir-${codigoINE}`} />}
-              maxHeight="20rem"
+              maxHeight={pirGrupos.length > SERIES_SCROLL_THRESHOLD ? SERIES_MAX_HEIGHT : undefined}
             >
               <table id={`tabla-pir-${codigoINE}`} className="socideas-table">
                 <thead>

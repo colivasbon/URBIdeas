@@ -375,6 +375,7 @@ export default function EconomiaFicha({
               <DataTableShell
                 title="Cabaña ganadera por especie"
                 subtitle="Censo Agrario 2020 (estructural, no anual)"
+                narrow
                 meta={{ fuente: fuenteDe(ultimo(valores, "gan_ug_total") ?? ultimo(valores, "gan_bovino_cab")).split("·")[0].trim() || "INE · Censo Agrario 2020", periodo: "2020", cobertura: `Municipio ${municipio.nombre}`, estado: "consolidado" }}
                 toolbar={<DataTableToolbar tableId={`tabla-gan-${codigoINE}`} sourceUrl={ultimo(valores, "gan_ug_total")?.source_url ?? ultimo(valores, "gan_bovino_cab")?.source_url} />}
                 footnote="ND = no difundido por secreto estadístico; nunca equivale a cero."

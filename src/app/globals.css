@@ -1152,6 +1152,43 @@ a:hover {
   outline-offset: -2px;
 }
 
+/* Cabecera sticky (solo actúa cuando el contenedor tiene scroll interno) */
+.socideas-table-shell__scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Variante estrecha: tablas de 2–3 columnas (420–560px), alineadas a izquierda */
+.socideas-table-shell--narrow {
+  max-width: 560px;
+}
+
+/* Tablas de 2 columnas: Año al contenido (80–110px), cifra con aire sin estirarse */
+.socideas-table--compact-two th:first-child,
+.socideas-table--compact-two td:first-child {
+  width: 1%;
+}
+
+/* Series largas: filas compactas 34–38px desktop, 38–42px móvil */
+.socideas-table-shell--series .socideas-table tbody td {
+  min-height: 0;
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+}
+
+@media (max-width: 639px) {
+  .socideas-table-shell--series .socideas-table tbody td {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+  }
+}
+
+/* Tarjeta estrecha para tablas de 2 columnas en descargas */
+.socideas-narrow-card {
+  max-width: 560px;
+}
+
 /* Metadata rail: Fuente · Período · Cobertura · Estado (12px móvil, 13px desktop) */
 .socideas-table-meta {
   display: flex;

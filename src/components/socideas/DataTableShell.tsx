@@ -14,6 +14,8 @@ export default function DataTableShell({
   tableLabel,
   maxHeight,
   footnote,
+  narrow,
+  series,
   children,
 }: {
   title: string;
@@ -23,11 +25,16 @@ export default function DataTableShell({
   tableLabel?: string;
   maxHeight?: string;
   footnote?: React.ReactNode;
+  /** Tablas de 2–3 columnas: tope 560px, alineadas a izquierda. */
+  narrow?: boolean;
+  /** Series largas: filas compactas 34–38px. */
+  series?: boolean;
   children: React.ReactNode;
 }) {
+  const cls = `socideas-table-shell${narrow ? " socideas-table-shell--narrow" : ""}${series ? " socideas-table-shell--series" : ""}`;
   return (
     <div className="socideas-table-block">
-      <div className="socideas-table-shell">
+      <div className={cls}>
         <div className="socideas-table-shell__head">
           <div className="min-w-0">
             <h3 className="socideas-table-shell__title">{title}</h3>

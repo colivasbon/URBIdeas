@@ -103,6 +103,7 @@ interface Scenario {
   eco: ReturnType<typeof ecoFull> | null
   messageSheets: string[]
   expectPct: boolean
+  expectDetail: string[]
 }
 
 async function scenario(s: Scenario): Promise<void> {
@@ -126,13 +127,16 @@ async function scenario(s: Scenario): Promise<void> {
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync(s.file))
   const names = wb.worksheets.map((w) => w.name)
-  check('hojas 00/01/02', JSON.stringify(names) === JSON.stringify(['00_Resumen', '01_Demografía', '02_Economía']), names.join(','))
+  const mains = ['00_Resumen', '01_Demografía', '02_Economía']
+  check('hojas 00/01/02', mains.every((n) => names.includes(n)), names.join(','))
+  const detail = names.filter((n) => !mains.includes(n))
+  check('detalle solo esperado y con datos', JSON.stringify([...detail].sort()) === JSON.stringify([...s.expectDetail].sort()), detail.join(',') || '—')
   check('sin hoja 03 sin datos reales', !names.includes('03_Secciones censales'))
 
   for (const n of names) {
     const ws = wb.getWorksheet(n)
     if (!ws) { check(`hoja ${n} legible`, false); continue }
-    check(`${n}: freeze panes`, ws.views.some((x) => x.state === 'frozen'))
+    check(`${n}: sin freeze panes ni splits`, !(ws.views ?? []).some((x) => x.state === 'frozen' || x.xSplit || x.ySplit))
   }
   const resumen = wb.getWorksheet('00_Resumen')
   check('00: autoFilter', !!resumen?.autoFilter, String(resumen?.autoFilter))
@@ -164,6 +168,35 @@ async function scenario(s: Scenario): Promise<void> {
         })
       })
       check(`${n}: mensaje no numérico + referencia 00_Resumen`, found)
+      continue
+    }
+    let hasAnoTable = false
+    let hasLinks = false
+    ws.eachRow((row) => {
+      row.eachCell((c) => {
+        if (c.value === 'Año') hasAnoTable = true
+        const t = String((c.value as { text?: string })?.text ?? c.value ?? '')
+        if (t.startsWith('→ 0')) hasLinks = true
+      })
+    })
+    if (!hasAnoTable) {
+      // Hoja índice sin serie anual: banda de título + (tablas resumen compactas
+      // y/o lista de detalle con enlaces). Sin tablas inventadas.
+      let titleOk = false
+      let headerOk = false
+      ws.eachRow((row, rn) => {
+        if (rn === 1) {
+          const c = row.getCell(1)
+          const fill = (c.fill as ExcelJS.FillPattern)?.fgColor?.argb
+          if (fill === 'FF3E665C' && String(c.value ?? '').includes('Ideas Sostenibilidad')) titleOk = true
+        }
+        row.eachCell((c) => {
+          const fill = (c.fill as ExcelJS.FillPattern)?.fgColor?.argb
+          const font = c.font as ExcelJS.Font
+          if ((c.value === 'Concepto' || c.value === 'Indicador') && fill === 'FF3E665C' && font.bold) headerOk = true
+        })
+      })
+      check(`${n}: índice con banda de título${headerOk ? ' y resumen' : ''} + enlaces a detalle`, titleOk && hasLinks)
       continue
     }
     check(`${n}: autoFilter`, !!ws.autoFilter, String(ws.autoFilter))
@@ -280,11 +313,11 @@ async function scenario(s: Scenario): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  await scenario({ file: 'tmp/municipio-rico.xlsx', label: 'Rica (demo + eco)', demo: demoRica(), eco: ecoFull(), messageSheets: [], expectPct: true })
-  await scenario({ file: 'tmp/municipio-economia.xlsx', label: 'Economía (01 con mensaje)', demo: null, eco: ecoFull(), messageSheets: ['01_Demografía'], expectPct: false })
-  await scenario({ file: 'tmp/municipio-parcial.xlsx', label: 'Parcial pequeña (02 con mensaje)', demo: demoParcial(), eco: null, messageSheets: ['02_Economía'], expectPct: false })
+  await scenario({ file: 'tmp/municipio-rico.xlsx', label: 'Rica (demo + eco)', demo: demoRica(), eco: ecoFull(), messageSheets: [], expectPct: true, expectDetail: ['01A_Evolución demo', '01B_Edad y sexo', '01D_Comparativas demo', '02A_Renta', '02B_Desigualdad', '02C_Empresas', '02D_Sector primario'] })
+  await scenario({ file: 'tmp/municipio-economia.xlsx', label: 'Economía (01 con mensaje)', demo: null, eco: ecoFull(), messageSheets: ['01_Demografía'], expectPct: false, expectDetail: ['02A_Renta', '02B_Desigualdad', '02C_Empresas', '02D_Sector primario'] })
+  await scenario({ file: 'tmp/municipio-parcial.xlsx', label: 'Parcial pequeña (02 con mensaje)', demo: demoParcial(), eco: null, messageSheets: ['02_Economía'], expectPct: false, expectDetail: ['01A_Evolución demo'] })
   if (failures > 0) { console.error(`\n${failures} comprobaciones FALLIDAS`); process.exit(1) }
-  console.log('\nXLSX municipal verificado en 3 escenarios: estilos, filtros, freeze, formatos y trazabilidad OK.')
+  console.log('\nXLSX municipal verificado en 3 escenarios: estructura, estilos, rangos, formatos y trazabilidad OK.')
 }
 
 main().catch((e) => { console.error('ERROR', e); process.exit(1) })

@@ -19,6 +19,13 @@ interface CacheRow {
   ccaa: string
 }
 
+// CDN Edge: la lista/catálogo de municipios es estable (8.130 filas en caché
+// de memoria + respuestas de búsqueda). s-maxage 24h + SWR 7 días evita
+// volver a consultar memoria del serverless en cada navegación.
+const CDN_HEADERS = {
+  'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800',
+}
+
 let cache: { filas: CacheRow[]; ts: number } | null = null
 const CACHE_MS = 3600_000
 
@@ -87,7 +94,7 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10) || 20, 1), maxLimit)
 
   if (!q && !provincia && !provinciaId && !codigoIne) {
-    return NextResponse.json({ data: [], error: null, count: 0 })
+    return NextResponse.json({ data: [], error: null, count: 0 }, { headers: CDN_HEADERS })
   }
   if (provinciaId && !/^[0-9a-f-]{36}$/i.test(provinciaId)) {
     return NextResponse.json({ data: null, error: 'provincia_id inválido', count: 0 }, { status: 400 })
@@ -109,13 +116,13 @@ export async function GET(request: NextRequest) {
       else query = query.eq('provincia_id', provinciaId).order('nombre')
       const { data, error } = await query
       if (error) throw error
-      return NextResponse.json({ data: data ?? [], error: null, count: (data ?? []).length })
+      return NextResponse.json({ data: data ?? [], error: null, count: (data ?? []).length }, { headers: CDN_HEADERS })
     }
 
     // Búsqueda textual: insensible a acentos, municipio y provincia.
     const termino = normaliza(q || provincia)
     if (termino.length < 2) {
-      return NextResponse.json({ data: [], error: null, count: 0 })
+      return NextResponse.json({ data: [], error: null, count: 0 }, { headers: CDN_HEADERS })
     }
     const filas = await cargarCache(supabase)
     const aliasProvs = new Set<string>()
@@ -146,7 +153,7 @@ export async function GET(request: NextRequest) {
       poblacion: m.poblacion,
       provincia: { nombre: m.provincia, comunidad_autonoma: { nombre: m.ccaa } },
     }))
-    return NextResponse.json({ data, error: null, count: data.length })
+    return NextResponse.json({ data, error: null, count: data.length }, { headers: CDN_HEADERS })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error interno del servidor'
     return NextResponse.json({ data: null, error: message, count: 0 }, { status: 500 })

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { syncMunicipioEconomia } from '@/lib/socideas-sync-economia'
 import type { EconomiaSyncInput } from '@/lib/socideas-sync-economia'
@@ -69,6 +70,16 @@ export async function POST(
   try {
     const supabase = createSupabaseServer()
     const summary = await syncMunicipioEconomia(supabase, codigoINE, input)
+    // Hot-update: invalida el Data Cache R2 de la ficha para que recargue
+    // inmediatamente el JSON nuevo (solo en escritura real, no en dry-run).
+    if (!input.dryRun) {
+      try {
+        revalidateTag(`socideas-muni-${codigoINE}`, { expire: 0 })
+      } catch {
+        // La sincronización ya ha terminado: un fallo de invalidación
+        // nunca debe tumbar la respuesta.
+      }
+    }
     return NextResponse.json({ data: summary, error: null, count: summary.registros_actualizados })
   } catch (error) {
     const status = (error as Error & { status?: number }).status ?? 500

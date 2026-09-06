@@ -191,7 +191,9 @@ function r2BucketFromEnv(): string {
 }
 
 /** Lee el JSON del municipio desde la URL pública (sin credenciales).
- * Prueba v2 y recurre a v1 durante la transición. */
+ * Prueba v2 y recurre a v1 durante la transición.
+ * Perf: Data Cache Next (ISR 1h + tag `socideas-muni-<ine>`) para servir
+ * el JSON en <50ms tras la primera visita e invalidación selectiva en hot-update. */
 export async function readMunicipioJson(codigoIne: string): Promise<R2MunicipioEnvelope | null> {
   const base = r2PublicBase()
   if (!base) return null
@@ -222,6 +224,7 @@ async function fetchR2Key(
     const res = await fetch(`${base}/${key}`, {
       signal: controller.signal,
       headers: { Accept: 'application/json' },
+      next: { revalidate: 3600, tags: [`socideas-muni-${codigoIne}`] },
     })
     if (res.status === 404) return null
     if (!res.ok) throw new Error(`R2 respondió ${res.status}`)

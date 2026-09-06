@@ -5,7 +5,7 @@ import { useState } from "react";
 // Copia una tabla en DOS formatos: text/html (tabla real que Word y Excel
 // convierten en tabla nativa con formato) y text/plain TSV como alternativa.
 // Solo con texto plano, Word pega líneas sueltas en vez de tabla.
-export default function CopyTableButton({ tableId, label }: { tableId: string; label: string }) {
+export default function CopyTableButton({ tableId, label, className }: { tableId: string; label: string; className?: string }) {
   const [estado, setEstado] = useState<"idle" | "ok" | "error">("idle");
 
   const esc = (s: string) =>
@@ -66,7 +66,7 @@ export default function CopyTableButton({ tableId, label }: { tableId: string; l
       type="button"
       onClick={copiar}
       aria-live="polite"
-      className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+      className={className ?? "socideas-btn"}
     >
       {estado === "ok" ? "¡Tabla copiada!" : estado === "error" ? "No se pudo copiar" : label}
     </button>

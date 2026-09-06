@@ -131,29 +131,29 @@ export default function DescargasBloque({
               <div className="flex flex-wrap gap-2">
                 <a
                   href={`#tabla-${t.id}`}
-                  className="inline-flex items-center px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+                  className="socideas-btn"
                 >
                   Ver tabla
                 </a>
                 <button
                   type="button"
                   onClick={() => csvTabla(t)}
-                  className="inline-flex items-center px-4 py-2 text-xs font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+                  className="socideas-btn socideas-btn--primary"
                 >
                   Descargar CSV
                 </button>
               </div>
             </div>
-            <div className="mt-3 max-h-72 overflow-auto" id={`tabla-${t.id}`} tabIndex={-1}>
-              <table className="ideas-table">
-                <thead className="sticky top-0 bg-[var(--color-card-bg)]">
-                  <tr>{t.columnas.map((c) => (<th key={c} scope="col" className={c === t.columnas[0] ? "text-left" : "text-right"}>{c}</th>))}</tr>
+            <div className="socideas-table-shell__scroll mt-3 max-h-72" style={{ overflowY: "auto" }} id={`tabla-${t.id}`} tabIndex={-1} role="region" aria-label={`Tabla ${t.titulo}`}>
+              <table className="socideas-table">
+                <thead>
+                  <tr>{t.columnas.map((c) => (<th key={c} scope="col" className={c === t.columnas[0] ? "socideas-table__text" : "socideas-table__numeric"}>{c}</th>))}</tr>
                 </thead>
                 <tbody>
                   {t.filas.map((f, i) => (
-                    <tr key={i} className="tabular-nums">
+                    <tr key={i}>
                       {f.map((c, j) => (
-                        <td key={j} className={j === 0 ? "text-left" : "text-right"}>{c.text}</td>
+                        <td key={j} className={j === 0 ? "socideas-table__text" : "socideas-table__numeric"}>{c.text}</td>
                       ))}
                     </tr>
                   ))}

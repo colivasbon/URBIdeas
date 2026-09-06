@@ -109,14 +109,14 @@ export function Metodologia({
   );
 }
 
-export function FuenteOficial({ url, etiqueta = "Consultar fuente oficial" }: { url: string | null | undefined; etiqueta?: string }) {
+export function FuenteOficial({ url, etiqueta = "Consultar fuente oficial", className }: { url: string | null | undefined; etiqueta?: string; className?: string }) {
   if (!isPublicSourceUrl(url)) return null;
   return (
     <a
       href={url}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+      className={className ?? "inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"}
     >
       {etiqueta} <span aria-hidden="true">↗</span>
     </a>
@@ -185,7 +185,7 @@ export function FiltroTabla({
         <button
           type="button"
           onClick={reset}
-          className="px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+          className="px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-md hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
         >
           Restablecer filtros
         </button>

@@ -1064,3 +1064,366 @@ a:hover {
     opacity: 0.85;
   }
 }
+
+/* ============================================================
+   SOCideas — Sistema corporativo de tablas y metadatos
+   Identidad: --company-* (Poppins, radio 6px, mineral #3E665C,
+   secundario #86B73D solo acentos, alerta #FBE122 solo real).
+   Solo clases nuevas `.socideas-*`. No se modifica nada existente.
+   Dark es el defecto; light vía [data-theme="light"].
+   ============================================================ */
+
+:root {
+  --company-primary: #3E665C;
+  --company-secondary: #86B73D;
+  --company-alert: #FBE122;
+  --company-dark: #3C403E;
+  --company-light: #F1F1F1;
+  --company-font: 'Poppins', sans-serif;
+  --company-radius: 6px;
+
+  --soc-table-row-h: 42px;
+  --soc-table-fs: 0.8125rem;
+  --soc-table-pad-x: 14px;
+  --soc-table-head-fs: 0.75rem;
+  --soc-table-alt: color-mix(in srgb, var(--company-primary) 7%, transparent);
+}
+
+[data-theme="light"] {
+  --soc-table-alt: color-mix(in srgb, var(--company-primary) 5%, #FFFFFF);
+}
+
+/* Bloque: ritmo vertical entre tablas (32–48px desktop, 24–32px móvil) */
+.socideas-table-block {
+  margin-bottom: 2.5rem;
+}
+
+@media (max-width: 639px) {
+  .socideas-table-block {
+    margin-bottom: 1.75rem;
+  }
+}
+
+.socideas-table-shell {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--company-radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.socideas-table-shell__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  padding: 0.9rem 0.9rem 0;
+}
+
+.socideas-table-shell__title {
+  font-family: var(--company-font);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text-primary);
+}
+
+.socideas-table-shell__subtitle {
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+
+.socideas-table-shell__meta {
+  padding: 0.5rem 0.9rem 0;
+}
+
+.socideas-table-shell__scroll {
+  margin-top: 0.875rem;
+  overflow-x: auto;
+  border-top: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
+  scrollbar-width: thin;
+}
+
+.socideas-table-shell__scroll:focus-visible {
+  outline: 2px solid var(--company-secondary);
+  outline-offset: -2px;
+}
+
+/* Metadata rail: Fuente · Período · Cobertura · Estado (12px móvil, 13px desktop) */
+.socideas-table-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  font-family: var(--company-font);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+@media (min-width: 640px) {
+  .socideas-table-meta {
+    font-size: 0.8125rem;
+  }
+}
+
+.socideas-table-meta__label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.socideas-table-meta__sep {
+  color: var(--color-text-muted);
+}
+
+/* Tabla corporativa: table-layout auto, sin bordes verticales fuertes */
+.socideas-table {
+  width: 100%;
+  min-width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-family: var(--company-font);
+  font-size: var(--soc-table-fs);
+}
+
+@media (max-width: 639px) {
+  .socideas-table {
+    font-size: 0.75rem;
+  }
+}
+
+.socideas-table thead th {
+  background: var(--company-primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: var(--soc-table-head-fs);
+  letter-spacing: 0.02em;
+  padding: 0.6rem var(--soc-table-pad-x);
+  border-bottom: 2px solid var(--company-secondary);
+  white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .socideas-table thead th {
+    font-size: 0.6875rem;
+    padding: 0.55rem 10px;
+  }
+}
+
+.socideas-table tbody td {
+  min-height: var(--soc-table-row-h);
+  padding: 0.6rem var(--soc-table-pad-x);
+  border-top: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 639px) {
+  .socideas-table tbody td {
+    padding: 0.6rem 10px;
+  }
+}
+
+.socideas-table tbody tr:nth-child(even) td {
+  background: var(--soc-table-alt);
+}
+
+.socideas-table tbody tr:first-child td {
+  border-top: none;
+}
+
+/* Alineación corporativa: el th usa SIEMPRE la misma clase que sus td */
+.socideas-table__text {
+  text-align: left;
+}
+
+.socideas-table__year {
+  text-align: center;
+  white-space: nowrap;
+  width: 1%;
+  font-variant-numeric: tabular-nums;
+}
+
+.socideas-table__numeric {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.socideas-table__status {
+  text-align: center;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.socideas-table__action {
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.socideas-table tbody td.socideas-table__text {
+  font-weight: 500;
+}
+
+.socideas-table__footnote {
+  padding: 0.65rem 0.9rem 0.9rem;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+/* Badge de estado: punto + texto, nunca solo color */
+.socideas-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--company-radius);
+  border: 1px solid var(--color-border);
+  font-family: var(--company-font);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+  background: var(--color-input-bg);
+}
+
+.socideas-badge__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: none;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.socideas-badge[data-tone="mineral"] {
+  border-color: var(--company-primary);
+  color: var(--color-text-primary);
+}
+
+.socideas-badge[data-tone="mineral"] .socideas-badge__dot {
+  background: var(--company-primary);
+}
+
+.socideas-badge[data-tone="positive"] {
+  border-color: var(--company-secondary);
+  color: var(--color-text-primary);
+}
+
+.socideas-badge[data-tone="positive"] .socideas-badge__dot {
+  background: var(--company-secondary);
+}
+
+.socideas-badge[data-tone="draft"] {
+  border-style: dashed;
+  border-color: var(--company-primary);
+  color: var(--color-text-secondary);
+}
+
+.socideas-badge[data-tone="draft"] .socideas-badge__dot {
+  background: transparent;
+  border: 1.5px solid var(--company-primary);
+}
+
+.socideas-badge[data-tone="alert"] {
+  border-color: var(--company-alert);
+  background: color-mix(in srgb, var(--company-alert) 16%, transparent);
+  color: var(--color-text-primary);
+}
+
+.socideas-badge[data-tone="alert"] .socideas-badge__dot {
+  background: var(--company-alert);
+}
+
+.socideas-badge[data-tone="error"] {
+  border-color: var(--color-error);
+  color: var(--color-error-light);
+}
+
+.socideas-badge[data-tone="error"] .socideas-badge__dot {
+  background: var(--color-error);
+}
+
+/* Botón compacto de tabla: misma altura, radio 6px, icono + texto */
+.socideas-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.8rem;
+  font-family: var(--company-font);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: var(--company-radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-input-bg);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.socideas-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.socideas-btn--primary {
+  background: var(--company-primary);
+  border-color: var(--company-primary);
+  color: #fff;
+}
+
+.socideas-btn--primary:hover {
+  color: #fff;
+}
+
+.socideas-btn:focus-visible {
+  outline: 2px solid var(--company-secondary);
+  outline-offset: 2px;
+}
+
+.socideas-btn__icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: none;
+}
+
+/* Workspace tabla + visualización: 64–70% / 30–36% en ≥1280px, apilado debajo */
+.socideas-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 1280px) {
+  .socideas-workspace {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+
+  .socideas-workspace--bare > .socideas-workspace__table {
+    grid-column: 1 / -1;
+    max-width: 70%;
+  }
+}
+
+.socideas-workspace__table,
+.socideas-workspace__rail {
+  min-width: 0;
+}
+
+.socideas-workspace__rail:empty {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .socideas-workspace,
+  .socideas-table-shell,
+  .socideas-badge,
+  .socideas-btn {
+    transition: none;
+  }
+}

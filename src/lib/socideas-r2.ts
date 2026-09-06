@@ -1,6 +1,7 @@
 // Acceso a R2 para datos masivos SOCideas (SOLO servidor para escritura;
 // la lectura pública no necesita credenciales).
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 //
 // Arquitectura Fase 2A.2: Supabase guarda catálogo, buscador territorial,
 // runs de sincronización y último-año; el GRUESO (historia completa por
@@ -192,8 +193,10 @@ function r2BucketFromEnv(): string {
 
 /** Lee el JSON del municipio desde la URL pública (sin credenciales).
  * Prueba v2 y recurre a v1 durante la transición.
- * Perf: Data Cache Next (ISR 1h + tag `socideas-muni-<ine>`) para servir
- * el JSON en <50ms tras la primera visita e invalidación selectiva en hot-update. */
+ * Perf: `unstable_cache` (1 h + tag `socideas-muni-<ine>`) persiste SOLO
+ * JSON 200 válidos; los 404/inválidos/timeouts lanzan `R2Invalid` dentro de
+ * la función cacheada y nunca quedan persistidos. Sin sondas HEAD: en
+ * caliente no hay ninguna petición de red. */
 export async function readMunicipioJson(codigoIne: string): Promise<R2MunicipioEnvelope | null> {
   const base = r2PublicBase()
   if (!base) return null
@@ -221,22 +224,79 @@ function devLogR2(msg: string): void {
   }
 }
 
-/** Sonda de existencia sin Data Cache (`no-store`): un 404 de R2 nunca debe
- * persistir 1 h en caché. Devuelve el estado HTTP o null si falla la red. */
-async function headR2Status(base: string, key: string): Promise<number | null> {
+/** Error controlado interno: 404, JSON inválido, timeout o error de red.
+ * Se lanza DENTRO de la función cacheada para que ese resultado jamás se
+ * persista en Data Cache (los rechazos no se guardan). */
+class R2Invalid extends Error {}
+
+/** Sonda de existencia eliminada (f55c39f): viajaba a R2 en cada lectura.
+ * La distinción válido/inválido vive dentro de `fetchValidateR2`. */
+
+/** Lee y valida el objeto R2 desde origen (sin persistir por sí misma).
+ * Solo resuelve con un envelope 200 válido; en cualquier otro caso lanza
+ * `R2Invalid`. La persistencia la gobierna `unstable_cache`, no `fetch`
+ * (por eso el GET usa `cache: 'no-store'`). */
+async function fetchValidateR2(
+  base: string,
+  key: string,
+  codigoIne: string,
+): Promise<R2MunicipioEnvelope> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 8000)
+  const timer = setTimeout(() => controller.abort(), 15000)
+  const t0 = Date.now()
   try {
     const res = await fetch(`${base}/${key}`, {
-      method: 'HEAD',
       signal: controller.signal,
+      headers: { Accept: 'application/json' },
       cache: 'no-store',
     })
-    return res.status
-  } catch {
-    return null
+    if (res.status !== 200) throw new R2Invalid(`R2 ${key} respondió ${res.status}`)
+    const json = (await res.json()) as R2MunicipioEnvelope
+    if (!json || json.codigo_ine !== codigoIne || !Array.isArray(json.valores)) {
+      throw new R2Invalid(`R2 ${key} no válido para ${codigoIne}`)
+    }
+    devLogR2(
+      `origen ine=${codigoIne} key=${key} bytes=${res.headers.get('content-length') ?? '?'} ms=${Date.now() - t0}`,
+    )
+    return json
+  } catch (err) {
+    if (err instanceof R2Invalid) throw err
+    throw new R2Invalid(`R2 ${key} error: ${err instanceof Error ? err.message : 'desconocido'}`)
   } finally {
     clearTimeout(timer)
+  }
+}
+
+function isMissingCacheStore(err: unknown): boolean {
+  return err instanceof Error && err.message.includes('incrementalCache missing')
+}
+
+async function readCachedKey(
+  base: string,
+  key: string,
+  codigoIne: string,
+): Promise<R2MunicipioEnvelope | null> {
+  const tag = `socideas-muni-${codigoIne}`
+  const t0 = Date.now()
+  try {
+    // Clave = fuente de fetchValidateR2 + [codigoIne, key] + args: v2 y v1
+    // nunca se mezclan. Tag por municipio para invalidación selectiva.
+    const cached = unstable_cache(fetchValidateR2, [codigoIne, key], {
+      revalidate: 3600,
+      tags: [tag],
+    })
+    const env = await cached(base, key, codigoIne)
+    devLogR2(`lectura ine=${codigoIne} key=${key} ms=${Date.now() - t0}`)
+    return env
+  } catch (err) {
+    if (isMissingCacheStore(err)) {
+      // Fuera del runtime Next (scripts tsx): lectura directa sin persistir.
+      devLogR2(`sin Data Cache (script) ine=${codigoIne} key=${key}`)
+      return fetchValidateR2(base, key, codigoIne).catch(() => null)
+    }
+    // 404 / inválido / timeout: el null se devuelve FUERA de la función
+    // cacheada, así que no queda persistido.
+    return null
   }
 }
 
@@ -245,36 +305,7 @@ async function fetchR2Key(
   key: string,
   codigoIne: string,
 ): Promise<R2MunicipioEnvelope | null> {
-  const t0 = Date.now()
-  // Solo las respuestas 200 llegan al `GET` con Data Cache: los 404 se
-  // descartan aquí y jamás quedan persistidos. Si la sonda falla por red
-  // (null), se intenta el GET por disponibilidad.
-  const probe = await headR2Status(base, key)
-  if (probe !== null && probe !== 200) {
-    devLogR2(`ine=${codigoIne} key=${key} probe=${probe} ms=${Date.now() - t0} (no cacheado)`)
-    return null
-  }
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 15000)
-  try {
-    const res = await fetch(`${base}/${key}`, {
-      signal: controller.signal,
-      headers: { Accept: 'application/json' },
-      next: { revalidate: 3600, tags: [`socideas-muni-${codigoIne}`] },
-    })
-    if (res.status === 404) return null
-    if (!res.ok) throw new Error(`R2 respondió ${res.status}`)
-    const json = (await res.json()) as R2MunicipioEnvelope
-    if (!json || json.codigo_ine !== codigoIne || !Array.isArray(json.valores)) return null
-    devLogR2(
-      `ine=${codigoIne} key=${key} status=200 bytes=${res.headers.get('content-length') ?? '?'} ms=${Date.now() - t0}`,
-    )
-    return json
-  } catch {
-    return null
-  } finally {
-    clearTimeout(timer)
-  }
+  return readCachedKey(base, key, codigoIne)
 }
 
 /** Escribe (sobrescribe) el JSON del municipio. Idempotente por clave. */

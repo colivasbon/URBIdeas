@@ -4,6 +4,17 @@
 
 import type { IndicatorValue, PerfilDemografico, PerfilEconomico } from "./socideas";
 import { isPublishableValue, isRealValue } from "./socideas-availability";
+import {
+  AEAT_EDM_IRPF,
+  OP_ADRH,
+  OP_CENSO_AGRARIO,
+  OP_DIRCE,
+  OP_DPOP,
+  OP_PIRAMIDE,
+  derivedFromSource,
+  ineTableSource,
+  type SourceReference,
+} from "./socideas-source-registry";
 
 export interface ExportCell { text: string; numeric: number | null }
 export interface ExportTable {
@@ -16,6 +27,9 @@ export interface ExportTable {
   periodo: string;
   cobertura: string;
   estado: string;
+  /** Procedencia pública centralizada (registro de fuentes). Opcional: si no
+   *  existe fuente atribuible, no se pinta enlace (solo línea de fuente). */
+  source?: SourceReference;
 }
 
 function slugOf(v: IndicatorValue): string {
@@ -97,6 +111,7 @@ export function buildDemografiaTables(perfil: PerfilDemografico): ExportTable[] 
       periodo: refAnio ? String(refAnio) : "—",
       cobertura: `Municipio ${perfil.municipio.nombre}`,
       estado: "Consolidado",
+      source: ineTableSource(perfil.total?.source_table_id, OP_DPOP) ?? undefined,
     });
   }
   if (perfil.evolucion.some((v) => isRealValue(v.valor_numerico))) {
@@ -112,6 +127,7 @@ export function buildDemografiaTables(perfil: PerfilDemografico): ExportTable[] 
       periodo: anios.length > 0 ? `${anios[0]}–${anios[anios.length - 1]}` : "—",
       cobertura: `Municipio ${perfil.municipio.nombre}`,
       estado: "Consolidado",
+      source: ineTableSource(perfil.evolucion[0]?.source_table_id, OP_DPOP) ?? undefined,
     });
     for (const [amb, lista] of [["Provincia", perfil.comparativas.provincia], ["CCAA", perfil.comparativas.ccaa], ["España", perfil.comparativas.espana]] as const) {
       if (lista.some((v) => isRealValue(v.valor_numerico))) {
@@ -127,6 +143,7 @@ export function buildDemografiaTables(perfil: PerfilDemografico): ExportTable[] 
           periodo: ys.length > 0 ? `${ys[0]}–${ys[ys.length - 1]}` : "—",
           cobertura: amb,
           estado: "Consolidado (atención al rezago: CCAA/España pueden terminar en 2021)",
+          source: ineTableSource(lista[0]?.source_table_id, OP_DPOP) ?? undefined,
         });
       }
     }
@@ -146,6 +163,7 @@ export function buildDemografiaTables(perfil: PerfilDemografico): ExportTable[] 
       periodo: String(perfil.piramide.anio),
       cobertura: `Municipio ${perfil.municipio.nombre}`,
       estado: "Consolidado",
+      source: ineTableSource("33570", OP_PIRAMIDE) ?? undefined,
     });
   }
   const d = perfil.derivados;
@@ -162,6 +180,7 @@ export function buildDemografiaTables(perfil: PerfilDemografico): ExportTable[] 
       periodo: refAnio ? String(refAnio) : "—",
       cobertura: `Municipio ${perfil.municipio.nombre}`,
       estado: "Derivado con definición explícita",
+      source: derivedFromSource(ineTableSource(perfil.total?.source_table_id, OP_DPOP)) ?? undefined,
     });
   }
   return tablas;
@@ -197,6 +216,7 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
       periodo: `${rentaAnios[0]}–${rentaAnios[rentaAnios.length - 1]}`,
       cobertura: `Municipio ${perfil.municipio.nombre}`,
       estado: "Consolidado (AEAT = por declaración; ADRH = por persona/hogar)",
+      source: AEAT_EDM_IRPF,
     });
   }
   for (const [slug, titulo] of [["gini", "Índice de Gini (0–100)"], ["p80_p20", "Ratio P80/P20"]] as const) {
@@ -210,6 +230,7 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
         periodo: `${s[0].anio}–${s[s.length - 1].anio}`,
         cobertura: `Municipio ${perfil.municipio.nombre} (desigualdad: ≥100 residentes)`,
         estado: "Consolidado",
+        source: ineTableSource(ultimo(valores, slug)?.source_table_id ?? "37683", OP_ADRH) ?? undefined,
       });
     }
   }
@@ -229,6 +250,7 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
       periodo: empTotal?.anio_referencia ? String(empTotal.anio_referencia) : "—",
       cobertura: `Municipio ${perfil.municipio.nombre}`,
       estado: "Consolidado (empresas ≠ ocupados)",
+      source: ineTableSource(empTotal?.source_table_id ?? "4721", OP_DIRCE) ?? undefined,
     });
   }
   const agrSau = ultimo(valores, "agr_sau_total");
@@ -249,6 +271,7 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
       periodo: "2020 (estructural, no anual)",
       cobertura: `Municipio ${perfil.municipio.nombre}`,
       estado: "Consolidado estructural",
+      source: ineTableSource((agrSau ?? agrExp)?.source_table_id ?? "29006", OP_CENSO_AGRARIO) ?? undefined,
     });
   }
   const especies: [string, string, string][] = [["Bovino", "gan_bovino_exp", "gan_bovino_cab"], ["Ovino y caprino", "gan_ovino_caprino_exp", "gan_ovino_caprino_cab"], ["Porcino", "gan_porcino_exp", "gan_porcino_cab"], ["Aves de corral", "gan_aves_exp", "gan_aves_cab"]];
@@ -271,6 +294,7 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
       periodo: "2020 (estructural, no anual)",
       cobertura: `Municipio ${perfil.municipio.nombre}`,
       estado: "Consolidado estructural con secreto estadístico",
+      source: ineTableSource(ug?.source_table_id ?? "29006", OP_CENSO_AGRARIO) ?? undefined,
     });
   }
   return tablas;

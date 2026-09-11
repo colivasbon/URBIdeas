@@ -8,8 +8,12 @@
 // Tipografía: Poppins no garantizada en Excel; Calibri como fallback explícito.
 import ExcelJS from 'exceljs'
 import type { ExportTable } from './socideas-export'
+import { isAllowedSourceUrl, visibleSourceLabel } from './socideas-source-registry'
 
 export const XLSX_BRAND = 'Ideas Sostenibilidad · SOCideas'
+
+/** Texto visible obligatorio del enlace de procedencia. */
+export const SOURCE_LINK_LABEL = 'Ver ficha oficial ↗'
 
 /** Tokens Ideas: principal #3E665C, acento #86B73D, fondo claro #F1F1F1.
  *  Alerta #FBE122 reservada a alertas reales (sin uso aquí). Sin degradados. */
@@ -59,12 +63,42 @@ function paintTitle(ws: ExcelJS.Worksheet, rowN: number, nCols: number, text: st
   }
 }
 
-/** Línea de metadatos: texto gris pequeño sin banda. */
-function paintMetaLine(ws: ExcelJS.Worksheet, rowN: number, text: string): void {
-  const c = ws.getRow(rowN).getCell(1)
-  c.value = text
+/** Línea de procedencia: texto gris pequeño en la columna A y, si existe una
+ *  fuente pública atribuible, un enlace discreto de botón-editorial en la misma
+ *  fila y en la ÚLTIMA columna real del bloque. Nunca ensancha columnas (los
+ *  anchos se calculan solo con los datos) ni crea columnas nuevas. */
+function paintSourceLine(
+  ws: ExcelJS.Worksheet,
+  rowN: number,
+  nCols: number,
+  t: ExportTable,
+): void {
+  const row = ws.getRow(rowN)
+  const c = row.getCell(1)
+  c.value = visibleSourceLabel(t.source, shortSource(t.fuente), t.periodo)
   c.font = { name: FONT_NAME, size: 10, color: { argb: MUTED } }
   c.alignment = { vertical: 'middle' }
+
+  const url = t.source?.publicUrl
+  // Salvaguarda: jamás pintar un enlace si no hay URL pública autorizada o si
+  // solo hay una columna (el enlace no puede pisar la línea de fuente).
+  if (nCols < 2 || !url || !isAllowedSourceUrl(url)) return
+
+  const link = row.getCell(nCols)
+  link.value = {
+    text: SOURCE_LINK_LABEL,
+    hyperlink: url,
+    tooltip: `Abrir fuente oficial: ${t.source?.shortLabel ?? ''}`,
+  }
+  link.font = { name: FONT_NAME, size: 10, bold: true, underline: true, color: { argb: MINERAL } }
+  link.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PAPER } }
+  link.border = {
+    top: { style: 'thin', color: { argb: ACCENT } },
+    left: { style: 'thin', color: { argb: ACCENT } },
+    bottom: { style: 'thin', color: { argb: ACCENT } },
+    right: { style: 'thin', color: { argb: ACCENT } },
+  }
+  link.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false, shrinkToFit: false }
 }
 
 function numFmtFor(header: string): string | null {
@@ -142,6 +176,9 @@ const SHORT_TITLES: Record<string, string> = {
   evolucion: 'Evolución anual de la población',
   piramide: 'Estructura por edad y sexo',
   derivados: 'Indicadores demográficos',
+  nacionalidad: 'Nacionalidad',
+  nacimiento: 'Lugar de nacimiento',
+  arraigo: 'Arraigo territorial',
   renta: 'Renta anual',
   gini: 'Índice de Gini',
   p80_p20: 'Ratio P80/P20',
@@ -189,7 +226,7 @@ function writeBlock(
   const columnas = t.columnas.map((c) => SHORT_COLS[c] ?? c)
   const nCols = columnas.length
   paintTitle(ws, startRow, nCols, `${scopeLabel(t.id)} · ${t.periodo}`)
-  paintMetaLine(ws, startRow + 1, `Fuente: ${shortSource(t.fuente)} · Período: ${t.periodo}`)
+  paintSourceLine(ws, startRow + 1, nCols, t)
   const headerRowN = startRow + 2
   const header = ws.getRow(headerRowN)
   columnas.forEach((col, i) => {
@@ -230,7 +267,7 @@ function writeBlock(
   return { headerRow: headerRowN, endRow: r, nCols }
 }
 
-const DEMO_ORDER = ['poblacion-actual', 'evolucion', 'piramide', 'comparativa-provincia', 'comparativa-ccaa', 'comparativa-espana', 'derivados']
+const DEMO_ORDER = ['poblacion-actual', 'evolucion', 'piramide', 'comparativa-provincia', 'comparativa-ccaa', 'comparativa-espana', 'derivados', 'nacionalidad', 'nacimiento', 'arraigo']
 const ECO_ORDER = ['renta', 'gini', 'p80_p20', 'empresas', 'agrario', 'ganaderia']
 
 function orderTables(tablas: ExportTable[], order: string[]): ExportTable[] {

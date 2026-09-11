@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { getPerfilDemografico } from '@/lib/socideas-perfil'
 import { getPerfilEconomico } from '@/lib/socideas-economia'
+import { readDemographicPresentation } from '@/lib/socideas-demographic-summary'
+import { buildDemographicDimensionTables } from '@/lib/socideas-demographic-export'
 import {
   buildDemografiaTables,
   buildEconomiaTables,
@@ -30,9 +32,10 @@ export async function GET(
   }
   try {
     const supabase = createSupabaseServer()
-    const [demo, eco] = await Promise.all([
+    const [demo, eco, demoExtra] = await Promise.all([
       getPerfilDemografico(supabase, codigoINE, {}),
       getPerfilEconomico(supabase, codigoINE),
+      readDemographicPresentation(codigoINE).catch(() => null),
     ])
     if ((demo.status === 'notFound' || demo.status === 'badRequest') && eco.status !== 'ok' && eco.status !== 'empty') {
       return NextResponse.json({ data: null, error: `No se encontró el municipio ${codigoINE}.` }, { status: 404 })
@@ -43,7 +46,10 @@ export async function GET(
       return NextResponse.json({ data: null, error: `No se encontró el municipio ${codigoINE}.` }, { status: 404 })
     }
     const municipio = perfilDemo?.municipio.nombre ?? perfilEco?.municipio.nombre ?? codigoINE
-    const demografia = perfilDemo ? buildDemografiaTables(perfilDemo) : []
+    const demografia = [
+      ...(perfilDemo ? buildDemografiaTables(perfilDemo) : []),
+      ...buildDemographicDimensionTables(demoExtra),
+    ]
     const economia = perfilEco ? buildEconomiaTables(perfilEco) : []
     if (demografia.length === 0 && economia.length === 0) {
       return NextResponse.json({ data: null, error: 'Este municipio aún no tiene tablas con datos reales para exportar.' }, { status: 404 })

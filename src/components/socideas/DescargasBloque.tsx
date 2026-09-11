@@ -29,6 +29,8 @@ export default function DescargasBloque({
   excluidas: { titulo: string; motivo: string }[];
 }) {
   const [aviso, setAviso] = useState<string | null>(null);
+  const [xlsxDownloading, setXlsxDownloading] = useState(false);
+  const [xlsxError, setXlsxError] = useState<string | null>(null);
   const fecha = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const periodoGlobal = useMemo(() => {
     const ps = tablas.map((t) => t.periodo).filter(Boolean);
@@ -65,6 +67,39 @@ export default function DescargasBloque({
 
   const imprimir = () => window.print();
 
+  const handleXlsxDownload = async () => {
+    if (xlsxDownloading) return;
+    setXlsxDownloading(true);
+    setXlsxError(null);
+    try {
+      const res = await fetch(`/api/socideas/exportar/${encodeURIComponent(codigoINE)}`);
+      if (!res.ok) {
+        let msg = "No se ha podido generar el Excel.";
+        try {
+          const body = await res.json();
+          if (body?.error && typeof body.error === "string") msg = body.error;
+        } catch { /* no-op */ }
+        setXlsxError(msg);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ??
+        `SOCideas_${codigoINE}_libro.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setXlsxError("No se ha podido generar el Excel. Inténtalo de nuevo más tarde.");
+    } finally {
+      setXlsxDownloading(false);
+    }
+  };
+
   return (
     <div>
       {/* Resumen de disponibilidad */}
@@ -85,14 +120,15 @@ export default function DescargasBloque({
           </p>
         )}
         <div className="mt-4 flex flex-wrap gap-2">
-          <a
-            href={`/api/socideas/exportar/${codigoINE}`}
-            download
-            title="Libro XLSX combinado del municipio (resumen con trazabilidad, demografía y economía)"
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+          <button
+            type="button"
+            onClick={handleXlsxDownload}
+            disabled={xlsxDownloading}
+            title={xlsxDownloading ? "Generando Excel…" : "Libro XLSX combinado del municipio (resumen con trazabilidad, demografía y economía)"}
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Descargar libro XLSX combinado
-          </a>
+            {xlsxDownloading ? "Generando Excel…" : "Descargar libro XLSX combinado"}
+          </button>
           <button
             type="button"
             onClick={descargarTodo}
@@ -111,6 +147,7 @@ export default function DescargasBloque({
           </button>
         </div>
         {aviso && <p role="status" className="mt-3 text-sm text-[var(--color-text-secondary)]">{aviso}</p>}
+        {xlsxError && <p role="alert" className="mt-3 text-sm text-red-600">{xlsxError}</p>}
         <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">
           Archivo base: {nombreBloque(municipio, codigoINE, bloque)}_*.csv · Excel estilizado (.xlsx corporativo) no disponible en
           esta versión — documentado en la auditoría; CSV + informe imprimible con identidad corporativa.

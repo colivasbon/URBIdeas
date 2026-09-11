@@ -17,10 +17,40 @@ import {
 } from "./socideas-source-registry";
 
 export interface ExportCell { text: string; numeric: number | null }
+
+/**
+ * Hojas oficiales del libro municipal comparativo. El orden es contractual:
+ * cualquier adición requiere reescribir el orden aquí Y en los validadores.
+ */
+export const SOCIDEAS_SHEET_IDS = [
+  "00_PROYECTO",
+  "01_PERFIL_DEMOGRÁFICO",
+  "02_CONTEXTO_POLÍTICO",
+  "03_CONTEXTO_ECONÓMICO",
+  "04_CONTEXTO_SOCIOCULTURAL",
+  "05_PATRIMONIO_Y_TURISMO",
+  "06_INFRAESTRUCTURA_Y_RECURSOS",
+  "07_ASOCIACIONES",
+  "08_CRITERIOS_Y_FUENTES",
+] as const;
+export type SocideasSheetId = (typeof SOCIDEAS_SHEET_IDS)[number];
+
+/** Modos de comparativa territorial admitidos por un bloque. */
+export type ComparisonMode =
+  | "national_autonomous_provincial_municipal"
+  | "autonomous_provincial_municipal"
+  | "municipal_only";
+
+/** Disponibilidad editorial de un bloque: distingue dato real de ausencia. */
+export type BlockAvailability =
+  | "available"
+  | "not_available"
+  | "pending_integration";
+
 export interface ExportTable {
   id: string;
   titulo: string;
-  hoja: string;
+  hoja: SocideasSheetId;
   columnas: string[];
   filas: ExportCell[][];
   fuente: string;
@@ -30,6 +60,15 @@ export interface ExportTable {
   /** Procedencia pública centralizada (registro de fuentes). Opcional: si no
    *  existe fuente atribuible, no se pinta enlace (solo línea de fuente). */
   source?: SourceReference;
+  /** Modo comparativo declarado por el bloque. Si no se indica se asume
+   *  municipal_only (no se pintan columnas territoriales que no tengan datos). */
+  comparisonMode?: ComparisonMode;
+  /** Disponibilidad editorial. Si `pending_integration` o `not_available`, el
+   *  renderer pinta una nota breve en vez de tabla con celdas vacías. */
+  availability?: BlockAvailability;
+  /** Nota metodológica opcional. Se muestra como línea discreta bajo la tabla
+   *  (no como columna adicional). Máximo 240 caracteres visibles. */
+  note?: string;
 }
 
 function slugOf(v: IndicatorValue): string {
@@ -92,66 +131,202 @@ export function tablaACSV(t: ExportTable): string {
 
 // ---------- Demografía ----------
 
+/** Busca un valor real publicado para un año y ámbito concretos en una serie. */
+function valorEnAnio(
+  valores: IndicatorValue[],
+  anio: number,
+  ambito: "municipio" | "provincia" | "ccaa" | "espana",
+): { valor: number; source_table_id: string | null } | null {
+  const v = valores.find(
+    (x) =>
+      x.anio_referencia === anio &&
+      (x.dimensiones?.ambito ?? "municipio") === ambito &&
+      isPublishableValue(x.indicator_id ?? "", x.valor_numerico),
+  );
+  if (!v || !isRealValue(v.valor_numerico)) return null;
+  return { valor: v.valor_numerico as number, source_table_id: v.source_table_id ?? null };
+}
+
+/** Devuelve la intersección de años donde los cuatro ámbitos tienen valor real. */
+function interseccionAnios(perfil: PerfilDemografico): number[] {
+  const sets = (arr: IndicatorValue[]): Set<number> =>
+    new Set(
+      arr
+        .filter((v) => isPublishableValue(v.indicator_id ?? "", v.valor_numerico))
+        .map((v) => v.anio_referencia ?? 0)
+        .filter((a) => a > 0),
+    );
+  const muni = sets(perfil.evolucion);
+  const prov = sets(perfil.comparativas.provincia);
+  const ccaa = sets(perfil.comparativas.ccaa);
+  const esp = sets(perfil.comparativas.espana);
+  const union: number[] = [];
+  for (const y of [...new Set([...muni, ...prov, ...ccaa, ...esp])].sort((a, b) => a - b)) {
+    const visibles = [muni, prov, ccaa, esp].filter((s) => s.has(y));
+    // Solo admitimos años donde al menos dos ámbitos publican valor real; si
+    // solo hay uno, no procede comparativa y se omite.
+    if (visibles.length >= 2) union.push(y);
+  }
+  return union;
+}
+
+/** Determina qué columnas territoriales tienen datos reales para un año concreto. */
+function ambitosConDato(
+  perfil: PerfilDemografico,
+  anio: number,
+): { hasNacional: boolean; hasCCAA: boolean; hasProv: boolean; hasMuni: boolean } {
+  return {
+    hasNacional: valorEnAnio(perfil.comparativas.espana, anio, "espana") !== null,
+    hasCCAA: valorEnAnio(perfil.comparativas.ccaa, anio, "ccaa") !== null,
+    hasProv: valorEnAnio(perfil.comparativas.provincia, anio, "provincia") !== null,
+    hasMuni: valorEnAnio(perfil.evolucion, anio, "municipio") !== null,
+  };
+}
+
+/** Construye los nombres de columna territoriales en orden contractual. */
+function columnasTerritoriales(
+  has: { hasNacional: boolean; hasCCAA: boolean; hasProv: boolean; hasMuni: boolean },
+): string[] {
+  const out: string[] = [];
+  if (has.hasNacional) out.push("España");
+  if (has.hasCCAA) out.push("CCAA");
+  if (has.hasProv) out.push("Provincia");
+  if (has.hasMuni) out.push("Municipio");
+  return out;
+}
+
+/** Compara dos conjuntos de disponibilidad y devuelve la intersección. */
+function interseccionAmbitos(
+  a: { hasNacional: boolean; hasCCAA: boolean; hasProv: boolean; hasMuni: boolean },
+  b: { hasNacional: boolean; hasCCAA: boolean; hasProv: boolean; hasMuni: boolean },
+): { hasNacional: boolean; hasCCAA: boolean; hasProv: boolean; hasMuni: boolean } {
+  return {
+    hasNacional: a.hasNacional && b.hasNacional,
+    hasCCAA: a.hasCCAA && b.hasCCAA,
+    hasProv: a.hasProv && b.hasProv,
+    hasMuni: a.hasMuni && b.hasMuni,
+  };
+}
+
+/** Traduce el conjunto de amibitos al modo comparativo contractual. */
+function modoComparativo(has: { hasNacional: boolean; hasCCAA: boolean; hasProv: boolean; hasMuni: boolean }): ComparisonMode {
+  if (has.hasNacional && has.hasCCAA && has.hasProv && has.hasMuni) {
+    return "national_autonomous_provincial_municipal";
+  }
+  if (has.hasCCAA && has.hasProv && has.hasMuni) {
+    return "autonomous_provincial_municipal";
+  }
+  return "municipal_only";
+}
+
 export function buildDemografiaTables(perfil: PerfilDemografico): ExportTable[] {
   const tablas: ExportTable[] = [];
   const refAnio = perfil.total?.anio_referencia ?? null;
   const total = perfil.total?.valor_numerico ?? null;
   const hombres = perfil.hombres?.valor_numerico ?? null;
   const mujeres = perfil.mujeres?.valor_numerico ?? null;
+
+  // 1. Población y composición por sexo (municipal, ya que hombres/mujeres
+  //    solo están disponibles a nivel municipal en el envelope actual).
   if (isRealValue(total)) {
+    const filaHombres: ExportCell[] = isRealValue(hombres)
+      ? [cell(fmtES(hombres), hombres), cell(`${fmtES(Math.round((hombres / total) * 1000) / 10, 1)} %`)]
+      : [cell("ND"), cell("ND")];
+    const filaMujeres: ExportCell[] = isRealValue(mujeres)
+      ? [cell(fmtES(mujeres), mujeres), cell(`${fmtES(Math.round((mujeres / total) * 1000) / 10, 1)} %`)]
+      : [cell("ND"), cell("ND")];
     tablas.push({
-      id: "poblacion-actual", titulo: "Población por sexo (año de referencia)", hoja: "Poblacion_actual",
+      id: "poblacion-actual",
+      titulo: "Población por sexo",
+      hoja: "01_PERFIL_DEMOGRÁFICO",
       columnas: ["Concepto", "Personas", "% sobre total"],
       filas: [
-        [cell("Total"), cell(fmtES(total), total), cell("—")],
-        [cell("Hombres"), cell(fmtES(hombres), hombres), cell(isRealValue(hombres) ? `${fmtES(Math.round((hombres / total) * 1000) / 10, 1)} %` : "ND")],
-        [cell("Mujeres"), cell(fmtES(mujeres), mujeres), cell(isRealValue(mujeres) ? `${fmtES(Math.round((mujeres / total) * 1000) / 10, 1)} %` : "ND")],
+        [cell("Población total"), cell(fmtES(total), total), cell("—")],
+        [cell("Hombres"), ...filaHombres],
+        [cell("Mujeres"), ...filaMujeres],
       ],
       fuente: fuenteDe(perfil.total) || "INE",
       periodo: refAnio ? String(refAnio) : "—",
       cobertura: `Municipio ${perfil.municipio.nombre}`,
       estado: "Consolidado",
       source: ineTableSource(perfil.total?.source_table_id, OP_DPOP) ?? undefined,
+      comparisonMode: "municipal_only",
+      availability: "available",
+      note: "Comparativa territorial no disponible para esta fuente: hombres y mujeres solo se publican en este nivel de detalle.",
     });
   }
-  if (perfil.evolucion.some((v) => isRealValue(v.valor_numerico))) {
-    const anios = [...new Set(perfil.evolucion.map((v) => v.anio_referencia ?? 0).filter((a) => a > 0))].sort((a, b) => a - b);
+
+  // 2. Densidad de población: pendiente en el envelope actual.
+  tablas.push({
+    id: "densidad",
+    titulo: "Densidad de población",
+    hoja: "01_PERFIL_DEMOGRÁFICO",
+    columnas: ["Concepto"],
+    filas: [],
+    fuente: "Pendiente de incorporación desde fuente de superficie homogénea",
+    periodo: "—",
+    cobertura: "Municipio / Provincia / CCAA / España",
+    estado: "Sin cobertura verificable",
+    availability: "pending_integration",
+    comparisonMode: "municipal_only",
+    note: "Densidad de población: pendiente de incorporación desde fuente de superficie.",
+  });
+
+  // 3. Evolución de la población: comparativa completa cuando hay datos
+  //    simultáneos en al menos dos amibitos. Nunca mezcla años incompatibles.
+  const ani = interseccionAnios(perfil);
+  if (ani.length > 0) {
+    const avail = ani.map((y) => ambitosConDato(perfil, y));
+    const inters = ani.reduce<ReturnType<typeof ambitosConDato>>(
+      (acc, _y, i) => interseccionAmbitos(acc, avail[i]),
+      { hasNacional: true, hasCCAA: true, hasProv: true, hasMuni: true },
+    );
+    const colAmbitos = columnasTerritoriales(inters);
+    const amAnio: Record<"municipio" | "provincia" | "ccaa" | "espana", (a: number) => number | null> = {
+      municipio: (a) => perfil.evolucion.find((x) => x.anio_referencia === a)?.valor_numerico ?? null,
+      provincia: (a) => valorEnAnio(perfil.comparativas.provincia, a, "provincia")?.valor ?? null,
+      ccaa: (a) => valorEnAnio(perfil.comparativas.ccaa, a, "ccaa")?.valor ?? null,
+      espana: (a) => valorEnAnio(perfil.comparativas.espana, a, "espana")?.valor ?? null,
+    };
+    const fuenteBase = fuenteDe(perfil.evolucion[0]) || "INE";
+    const primeraTabla = ani[0];
+    const sourceTableId =
+      perfil.evolucion[0]?.source_table_id ??
+      valorEnAnio(perfil.comparativas.provincia, primeraTabla, "provincia")?.source_table_id ??
+      null;
     tablas.push({
-      id: "evolucion", titulo: "Evolución anual de la población", hoja: "Evolucion",
-      columnas: ["Año", "Municipio"],
-      filas: anios.map((a) => {
-        const v = perfil.evolucion.find((x) => x.anio_referencia === a)?.valor_numerico ?? null;
-        return [cell(String(a), a), cell(fmtES(v), v)];
+      id: "evolucion",
+      titulo: "Evolución de la población",
+      hoja: "01_PERFIL_DEMOGRÁFICO",
+      columnas: ["Año", ...colAmbitos],
+      filas: ani.map((a) => {
+        const fila: ExportCell[] = [cell(String(a), a)];
+        if (inters.hasNacional) fila.push(cell(fmtES(amAnio.espana(a)), amAnio.espana(a)));
+        if (inters.hasCCAA) fila.push(cell(fmtES(amAnio.ccaa(a)), amAnio.ccaa(a)));
+        if (inters.hasProv) fila.push(cell(fmtES(amAnio.provincia(a)), amAnio.provincia(a)));
+        if (inters.hasMuni) fila.push(cell(fmtES(amAnio.municipio(a)), amAnio.municipio(a)));
+        return fila;
       }),
-      fuente: fuenteDe(perfil.evolucion[0]) || "INE",
-      periodo: anios.length > 0 ? `${anios[0]}–${anios[anios.length - 1]}` : "—",
-      cobertura: `Municipio ${perfil.municipio.nombre}`,
-      estado: "Consolidado",
-      source: ineTableSource(perfil.evolucion[0]?.source_table_id, OP_DPOP) ?? undefined,
+      fuente: fuenteBase,
+      periodo: ani.length > 0 ? `${ani[0]}–${ani[ani.length - 1]}` : "—",
+      cobertura: `${colAmbitos.join(" · ")} (mismo año y misma definición)`,
+      estado:
+        modoComparativo(inters) === "national_autonomous_provincial_municipal"
+          ? "Consolidado (CCAA/España pueden terminar antes por rezago del Tempus3)"
+          : "Comparativa parcial: solo se muestran los amibitos con dato publicado",
+      source: ineTableSource(sourceTableId, OP_DPOP) ?? undefined,
+      comparisonMode: modoComparativo(inters),
+      availability: "available",
     });
-    for (const [amb, lista] of [["Provincia", perfil.comparativas.provincia], ["CCAA", perfil.comparativas.ccaa], ["España", perfil.comparativas.espana]] as const) {
-      if (lista.some((v) => isRealValue(v.valor_numerico))) {
-        const ys = [...new Set(lista.map((v) => v.anio_referencia ?? 0).filter((a) => a > 0))].sort((a, b) => a - b);
-        tablas.push({
-          id: `comparativa-${amb.toLowerCase()}`, titulo: `Serie comparativa (${amb})`, hoja: `Comparativa_${amb}`,
-          columnas: ["Año", amb],
-          filas: ys.map((a) => {
-            const v = lista.find((x) => x.anio_referencia === a)?.valor_numerico ?? null;
-            return [cell(String(a), a), cell(fmtES(v), v)];
-          }),
-          fuente: fuenteDe(lista[0]) || "INE",
-          periodo: ys.length > 0 ? `${ys[0]}–${ys[ys.length - 1]}` : "—",
-          cobertura: amb,
-          estado: "Consolidado (atención al rezago: CCAA/España pueden terminar en 2021)",
-          source: ineTableSource(lista[0]?.source_table_id, OP_DPOP) ?? undefined,
-        });
-      }
-    }
   }
+
+  // 4. Estructura por edad y sexo (municipal, pirámide quinquenal del Padrón).
   if (perfil.piramide.grupos.length > 0 && perfil.piramide.anio !== null) {
     const suma = perfil.piramide.grupos.reduce((a, g) => a + g.hombres + g.mujeres, 0);
     tablas.push({
-      id: "piramide", titulo: `Estructura por edad y sexo (${perfil.piramide.anio})`, hoja: "Piramide",
+      id: "piramide",
+      titulo: `Estructura por edad y sexo (${perfil.piramide.anio})`,
+      hoja: "01_PERFIL_DEMOGRÁFICO",
       columnas: ["Grupo de edad", "Hombres", "Mujeres", "% sobre total"],
       filas: perfil.piramide.grupos.map((g) => [
         cell(g.tramo),
@@ -164,8 +339,13 @@ export function buildDemografiaTables(perfil: PerfilDemografico): ExportTable[] 
       cobertura: `Municipio ${perfil.municipio.nombre}`,
       estado: "Consolidado",
       source: ineTableSource("33570", OP_PIRAMIDE) ?? undefined,
+      comparisonMode: "municipal_only",
+      availability: "available",
+      note: "La estructura detallada por edad y sexo se muestra para el municipio.",
     });
   }
+
+  // 5. Indicadores demográficos derivados (cálculo SOCideas, municipal).
   const d = perfil.derivados;
   const derivados: ExportCell[][] = [];
   if (isRealValue(d.cambio_5y)) derivados.push([cell("Variación 5 años (%)"), cell(fmtES(d.cambio_5y, 1), d.cambio_5y)]);
@@ -174,15 +354,36 @@ export function buildDemografiaTables(perfil: PerfilDemografico): ExportTable[] 
   if (isRealValue(d.indice_dependencia)) derivados.push([cell("Índice de dependencia ((0-14+65+)/15-64×100)"), cell(fmtES(d.indice_dependencia, 1), d.indice_dependencia)]);
   if (derivados.length > 0) {
     tablas.push({
-      id: "derivados", titulo: "Indicadores derivados (cálculo propio sobre serie oficial)", hoja: "Derivados",
-      columnas: ["Indicador", "Valor (%)"], filas: derivados,
-      fuente: "Cálculo propio sobre serie oficial INE",
+      id: "derivados",
+      titulo: "Indicadores demográficos derivados",
+      hoja: "01_PERFIL_DEMOGRÁFICO",
+      columnas: ["Indicador", "Valor"],
+      filas: derivados,
+      fuente: "Cálculo SOCideas sobre datos oficiales INE",
       periodo: refAnio ? String(refAnio) : "—",
       cobertura: `Municipio ${perfil.municipio.nombre}`,
-      estado: "Derivado con definición explícita",
+      estado: "Cálculo SOCideas con definición explícita",
       source: derivedFromSource(ineTableSource(perfil.total?.source_table_id, OP_DPOP)) ?? undefined,
+      comparisonMode: "municipal_only",
+      availability: "available",
+    });
+  } else {
+    tablas.push({
+      id: "derivados",
+      titulo: "Indicadores demográficos derivados",
+      hoja: "01_PERFIL_DEMOGRÁFICO",
+      columnas: ["Indicador"],
+      filas: [],
+      fuente: "Cálculo SOCideas sobre datos oficiales INE",
+      periodo: "—",
+      cobertura: `Municipio ${perfil.municipio.nombre}`,
+      estado: "Pendiente de cálculo (datos previos insuficientes)",
+      availability: "pending_integration",
+      comparisonMode: "municipal_only",
+      note: "Indicadores demográficos derivados: pendiente de cálculo sobre la serie consolidada.",
     });
   }
+
   return tablas;
 }
 
@@ -192,67 +393,213 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
   const tablas: ExportTable[] = [];
   const { valores } = perfil;
 
-  const rentaSlugs = ["irpf_declaraciones", "irpf_renta_bruta_media", "irpf_renta_disponible_media", "renta_neta_media_persona", "renta_neta_media_hogar", "renta_bruta_media_hogar"] as const;
-  const rentaAnios = [...new Set(rentaSlugs.flatMap((s) => serie(valores, s).map((p) => p.anio)))].sort((a, b) => a - b);
-  const rentaVal = (slug: string, anio: number): number | null => {
-    const v = valores.find((x) => slugOf(x) === slug && x.anio_referencia === anio && isRealValue(x.valor_numerico) && (x.dimensiones?.ambito ?? "municipio") === "municipio");
+  // 1.1. Renta por declaración — AEAT (municipal, sin comparativa territorial
+  //      homogénea disponible en el envelope actual).
+  const aeatSlugs = ["irpf_declaraciones", "irpf_renta_bruta_media", "irpf_renta_disponible_media"] as const;
+  const aeatAnios = [...new Set(
+    aeatSlugs.flatMap((s) => serie(valores, s).map((p) => p.anio)),
+  )].sort((a, b) => a - b);
+  const aeatVal = (slug: string, anio: number): number | null => {
+    const v = valores.find(
+      (x) =>
+        slugOf(x) === slug &&
+        x.anio_referencia === anio &&
+        isRealValue(x.valor_numerico) &&
+        (x.dimensiones?.ambito ?? "municipio") === "municipio",
+    );
     return v?.valor_numerico ?? null;
   };
-  const rentaCols = [
+  const aeatCols = [
     { slug: "irpf_declaraciones", label: "Declaraciones" },
     { slug: "irpf_renta_bruta_media", label: "Bruta media/decl. (€)" },
     { slug: "irpf_renta_disponible_media", label: "Disponible media/decl. (€)" },
-    { slug: "renta_neta_media_persona", label: "Neta/hab. (€)" },
-    { slug: "renta_neta_media_hogar", label: "Neta/hogar (€)" },
-    { slug: "renta_bruta_media_hogar", label: "Bruta/hogar (€)" },
-  ].filter((c) => rentaAnios.some((a) => rentaVal(c.slug, a) !== null));
-  if (rentaAnios.length > 0 && rentaCols.length > 0) {
-    const primero = valores.find((x) => slugOf(x) === rentaCols[0].slug);
+  ].filter((c) => aeatAnios.some((a) => aeatVal(c.slug, a) !== null));
+  if (aeatAnios.length > 0 && aeatCols.length > 0) {
+    const primero = valores.find((x) => slugOf(x) === aeatCols[0].slug);
     tablas.push({
-      id: "renta", titulo: "Renta anual (AEAT por declaración y ADRH por persona/hogar, sin mezclar)", hoja: "Renta",
-      columnas: ["Año", ...rentaCols.map((c) => c.label)],
-      filas: rentaAnios.map((a) => [cell(String(a), a), ...rentaCols.map((c) => { const v = rentaVal(c.slug, a); return cell(fmtES(v), v); })]),
-      fuente: [fuenteDe(primero), "AEAT EDM + INE ADRH"].filter(Boolean).join(" · ") || "AEAT · INE ADRH",
-      periodo: `${rentaAnios[0]}–${rentaAnios[rentaAnios.length - 1]}`,
+      id: "renta-aeat",
+      titulo: "Renta por declaración — AEAT",
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Año", ...aeatCols.map((c) => c.label)],
+      filas: aeatAnios.map((a) => [
+        cell(String(a), a),
+        ...aeatCols.map((c) => {
+          const v = aeatVal(c.slug, a);
+          return cell(v === null ? "ND" : fmtES(v), v);
+        }),
+      ]),
+      fuente: fuenteDe(primero) || "AEAT · Estadística de declarantes del IRPF por municipios (EDM)",
+      periodo: `${aeatAnios[0]}–${aeatAnios[aeatAnios.length - 1]}`,
       cobertura: `Municipio ${perfil.municipio.nombre}`,
-      estado: "Consolidado (AEAT = por declaración; ADRH = por persona/hogar)",
+      estado: "Consolidado (definición AEAT por declaración)",
       source: AEAT_EDM_IRPF,
+      comparisonMode: "municipal_only",
+      availability: "available",
+      note: "Renta por declaración publicada por la AEAT. No se mezcla con renta por persona/hogar.",
+    });
+  } else {
+    tablas.push({
+      id: "renta-aeat",
+      titulo: "Renta por declaración — AEAT",
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Indicador"],
+      filas: [],
+      fuente: "AEAT · Estadística de declarantes del IRPF por municipios (EDM)",
+      periodo: "—",
+      cobertura: `Municipio ${perfil.municipio.nombre}`,
+      estado: "Pendiente de incorporación",
+      availability: "pending_integration",
+      comparisonMode: "municipal_only",
+      note: "Renta por declaración: pendiente de aportar el fichero base del ejercicio.",
     });
   }
-  for (const [slug, titulo] of [["gini", "Índice de Gini (0–100)"], ["p80_p20", "Ratio P80/P20"]] as const) {
+
+  // 1.2. Renta por persona y hogar — INE ADRH (municipal con comparativa
+  //      autonómica/provincial cuando los años coinciden).
+  const adrhSlugs = ["renta_neta_media_persona", "renta_neta_media_hogar", "renta_bruta_media_hogar"] as const;
+  const adrhAniosMuni = [...new Set(
+    adrhSlugs.flatMap((s) => serie(valores, s).map((p) => p.anio)),
+  )].sort((a, b) => a - b);
+  if (adrhAniosMuni.length > 0) {
+    const adrhCols = [
+      { slug: "renta_neta_media_persona", label: "Renta neta por persona (€)" },
+      { slug: "renta_neta_media_hogar", label: "Renta neta por hogar (€)" },
+      { slug: "renta_bruta_media_hogar", label: "Renta bruta por hogar (€)" },
+    ].filter((c) => adrhAniosMuni.some((a) => aeatVal(c.slug, a) !== null));
+    if (adrhCols.length > 0) {
+      const primero = valores.find((x) => slugOf(x) === adrhCols[0].slug);
+      tablas.push({
+        id: "renta-adrh",
+        titulo: "Renta por persona y hogar — INE ADRH",
+        hoja: "03_CONTEXTO_ECONÓMICO",
+        columnas: ["Indicador", ...adrhAniosMuni.map((a) => String(a))],
+        filas: adrhCols.map((c) => {
+          const fila: ExportCell[] = [cell(c.label)];
+          for (const a of adrhAniosMuni) {
+            const v = aeatVal(c.slug, a);
+            fila.push(cell(v === null ? "ND" : fmtES(v), v));
+          }
+          return fila;
+        }),
+        fuente: fuenteDe(primero) || "INE · Atlas de Distribución de Renta de los Hogares (ADRH)",
+        periodo: `${adrhAniosMuni[0]}–${adrhAniosMuni[adrhAniosMuni.length - 1]}`,
+        cobertura: `Municipio ${perfil.municipio.nombre}`,
+        estado: "Consolidado (definición ADRH por persona/hogar)",
+        source: ineTableSource(primero?.source_table_id, OP_ADRH) ?? undefined,
+        comparisonMode: "municipal_only",
+        availability: "available",
+        note: "Renta por persona y hogar publicada por INE ADRH. No se mezcla con renta por declaración.",
+      });
+    }
+  } else {
+    tablas.push({
+      id: "renta-adrh",
+      titulo: "Renta por persona y hogar — INE ADRH",
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Indicador"],
+      filas: [],
+      fuente: "INE · Atlas de Distribución de Renta de los Hogares (ADRH)",
+      periodo: "—",
+      cobertura: `Municipio ${perfil.municipio.nombre}`,
+      estado: "Pendiente de incorporación",
+      availability: "pending_integration",
+      comparisonMode: "municipal_only",
+      note: "Renta por persona y hogar: pendiente de integración desde INE ADRH.",
+    });
+  }
+
+  // 2. Desigualdad (Gini, P80/P20) — series municipales, sin comparativa
+  //    territorial homogénea en el envelope actual.
+  for (const [slug, titulo, fmt] of [
+    ["gini", "Índice de Gini", 1],
+    ["p80_p20", "Ratio P80/P20", 1],
+  ] as const) {
     const s = serie(valores, slug);
     if (s.length > 0) {
       tablas.push({
-        id: slug, titulo, hoja: slug === "gini" ? "Gini" : "P80_P20",
+        id: slug,
+        titulo,
+        hoja: "03_CONTEXTO_ECONÓMICO",
         columnas: ["Año", "Valor"],
-        filas: s.map((p) => [cell(String(p.anio), p.anio), cell(fmtES(p.valor, 1), p.valor)]),
+        filas: s.map((p) => [cell(String(p.anio), p.anio), cell(fmtES(p.valor, fmt), p.valor)]),
         fuente: fuenteDe(ultimo(valores, slug)) || "INE · ADRH",
         periodo: `${s[0].anio}–${s[s.length - 1].anio}`,
         cobertura: `Municipio ${perfil.municipio.nombre} (desigualdad: ≥100 residentes)`,
         estado: "Consolidado",
         source: ineTableSource(ultimo(valores, slug)?.source_table_id ?? "37683", OP_ADRH) ?? undefined,
+        comparisonMode: "municipal_only",
+        availability: "available",
+      });
+    } else {
+      const motivo =
+        slug === "gini"
+          ? "Desigualdad (Gini): pendiente de integración desde INE ADRH."
+          : "Desigualdad (P80/P20): pendiente de integración desde INE ADRH.";
+      tablas.push({
+        id: slug,
+        titulo,
+        hoja: "03_CONTEXTO_ECONÓMICO",
+        columnas: ["Indicador"],
+        filas: [],
+        fuente: "INE · ADRH",
+        periodo: "—",
+        cobertura: `Municipio ${perfil.municipio.nombre}`,
+        estado: "Pendiente de incorporación",
+        availability: "pending_integration",
+        comparisonMode: "municipal_only",
+        note: motivo,
       });
     }
   }
+
+  // 3. Tejido empresarial — DIRCE municipal.
   const empTotal = ultimo(valores, "empresas_total");
   if (isRealValue(empTotal?.valor_numerico)) {
     const f = (slug: string) => ultimo(valores, slug)?.valor_numerico ?? null;
     const rows: ExportCell[][] = [[cell("Total de empresas"), cell(fmtES(f("empresas_total")), f("empresas_total"))]];
-    const det: [string, string][] = [["Industria", "empresas_industria"], ["Construcción", "empresas_construccion"], ["Comercio, transporte y hostelería", "empresas_comercio_hosteleria"], ["Servicios", "empresas_servicios"]];
+    const det: [string, string][] = [
+      ["Industria", "empresas_industria"],
+      ["Construcción", "empresas_construccion"],
+      ["Comercio, transporte y hostelería", "empresas_comercio_hosteleria"],
+      ["Servicios", "empresas_servicios"],
+    ];
     for (const [label, slug] of det) {
       const v = f(slug);
       if (v !== null) rows.push([cell(label), cell(fmtES(v), v)]);
     }
     tablas.push({
-      id: "empresas", titulo: "Tejido empresarial (DIRCE, sede en el municipio)", hoja: "Empresas",
-      columnas: ["Concepto", "Empresas"], filas: rows,
+      id: "empresas",
+      titulo: "Tejido empresarial — DIRCE",
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Concepto", "Empresas"],
+      filas: rows,
       fuente: fuenteDe(empTotal) || "INE · DIRCE",
       periodo: empTotal?.anio_referencia ? String(empTotal.anio_referencia) : "—",
-      cobertura: `Municipio ${perfil.municipio.nombre}`,
+      cobertura: `Municipio ${perfil.municipio.nombre} (sede social)`,
       estado: "Consolidado (empresas ≠ ocupados)",
       source: ineTableSource(empTotal?.source_table_id ?? "4721", OP_DIRCE) ?? undefined,
+      comparisonMode: "municipal_only",
+      availability: "available",
+      note: "Empresas con sede en el municipio (DIRCE). No se mezcla con afiliación a la Seguridad Social.",
+    });
+  } else {
+    tablas.push({
+      id: "empresas",
+      titulo: "Tejido empresarial — DIRCE",
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Indicador"],
+      filas: [],
+      fuente: "INE · DIRCE",
+      periodo: "—",
+      cobertura: `Municipio ${perfil.municipio.nombre}`,
+      estado: "Pendiente de incorporación",
+      availability: "pending_integration",
+      comparisonMode: "municipal_only",
+      note: "Tejido empresarial: pendiente de integración desde INE DIRCE.",
     });
   }
+
+  // 4. Sector agrario — Censo Agrario 2020 (municipal, estructural).
   const agrSau = ultimo(valores, "agr_sau_total");
   const agrExp = ultimo(valores, "agr_explotaciones");
   if (isRealValue(agrSau?.valor_numerico) || isRealValue(agrExp?.valor_numerico)) {
@@ -265,38 +612,92 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
       if (v !== null) rows.push([cell(label), cell(fmtES(v), v)]);
     }
     tablas.push({
-      id: "agrario", titulo: "Estructura agraria (Censo Agrario 2020, estructural)", hoja: "Agrario",
-      columnas: ["Concepto", "Valor"], filas: rows,
+      id: "agrario",
+      titulo: "Estructura agraria — Censo Agrario 2020",
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Concepto", "Valor"],
+      filas: rows,
       fuente: fuenteDe(agrSau ?? agrExp) || "INE · Censo Agrario 2020",
       periodo: "2020 (estructural, no anual)",
       cobertura: `Municipio ${perfil.municipio.nombre}`,
-      estado: "Consolidado estructural",
+      estado: "Censo 2020: estructural",
       source: ineTableSource((agrSau ?? agrExp)?.source_table_id ?? "29006", OP_CENSO_AGRARIO) ?? undefined,
+      comparisonMode: "municipal_only",
+      availability: "available",
+      note: "Censo Agrario 2020: dato estructural municipal, no se presenta como serie anual.",
+    });
+  } else {
+    tablas.push({
+      id: "agrario",
+      titulo: "Sector agrario — Censo Agrario 2020",
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Indicador"],
+      filas: [],
+      fuente: "INE · Censo Agrario 2020",
+      periodo: "2020 (estructural)",
+      cobertura: `Municipio ${perfil.municipio.nombre}`,
+      estado: "Pendiente de incorporación",
+      availability: "pending_integration",
+      comparisonMode: "municipal_only",
+      note: "Sector agrario: pendiente de incorporación desde Censo Agrario 2020.",
     });
   }
-  const especies: [string, string, string][] = [["Bovino", "gan_bovino_exp", "gan_bovino_cab"], ["Ovino y caprino", "gan_ovino_caprino_exp", "gan_ovino_caprino_cab"], ["Porcino", "gan_porcino_exp", "gan_porcino_cab"], ["Aves de corral", "gan_aves_exp", "gan_aves_cab"]];
+
+  // 5. Ganadería — Censo Agrario 2020 (municipal, estructural).
+  const especies: [string, string, string][] = [
+    ["Bovino", "gan_bovino_exp", "gan_bovino_cab"],
+    ["Ovino y caprino", "gan_ovino_caprino_exp", "gan_ovino_caprino_cab"],
+    ["Porcino", "gan_porcino_exp", "gan_porcino_cab"],
+    ["Aves de corral", "gan_aves_exp", "gan_aves_cab"],
+  ];
   const ganRows = especies
     .map(([nombre, eSlug, cSlug]) => {
       const e = ultimo(valores, eSlug)?.valor_numerico ?? null;
       const c = ultimo(valores, cSlug)?.valor_numerico ?? null;
-      return (e !== null || c !== null) ? [cell(nombre), cell(e === null ? "ND" : fmtES(e), e), cell(c === null ? "ND" : fmtES(c), c)] : null;
+      return e !== null || c !== null
+        ? [cell(nombre), cell(e === null ? "ND" : fmtES(e), e), cell(c === null ? "ND" : fmtES(c), c)]
+        : null;
     })
     .filter((r): r is ExportCell[][][number] => r !== null);
   const ug = ultimo(valores, "gan_ug_total");
   if (ganRows.length > 0 || isRealValue(ug?.valor_numerico)) {
     const filas: ExportCell[][] = [];
-    if (isRealValue(ug?.valor_numerico)) filas.push([cell("Unidades ganaderas totales"), cell(fmtES(ug?.valor_numerico ?? null), ug?.valor_numerico ?? null), cell("")]);
+    if (isRealValue(ug?.valor_numerico)) {
+      filas.push([cell("Unidades ganaderas totales"), cell(fmtES(ug?.valor_numerico ?? null), ug?.valor_numerico ?? null), cell("")]);
+    }
     filas.push(...ganRows);
     tablas.push({
-      id: "ganaderia", titulo: "Ganadería (Censo Agrario 2020; ND = secreto, nunca 0)", hoja: "Ganaderia",
-      columnas: ["Especie", "Explotaciones", "Cabezas"], filas,
+      id: "ganaderia",
+      titulo: "Ganadería — Censo Agrario 2020",
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Especie", "Explotaciones", "Cabezas"],
+      filas,
       fuente: fuenteDe(ug) || "INE · Censo Agrario 2020",
       periodo: "2020 (estructural, no anual)",
       cobertura: `Municipio ${perfil.municipio.nombre}`,
-      estado: "Consolidado estructural con secreto estadístico",
+      estado: "Censo 2020: estructural con secreto estadístico (ND, nunca 0)",
       source: ineTableSource(ug?.source_table_id ?? "29006", OP_CENSO_AGRARIO) ?? undefined,
+      comparisonMode: "municipal_only",
+      availability: "available",
     });
   }
+
+  // 6. Presupuesto, empleo y subvenciones: bloque pendiente de integración.
+  tablas.push({
+    id: "presupuesto-empleo",
+    titulo: "Presupuesto municipal, empleo y subvenciones",
+    hoja: "03_CONTEXTO_ECONÓMICO",
+    columnas: ["Indicador"],
+    filas: [],
+    fuente: "Pendiente de integración desde fuentes administrativas oficiales",
+    periodo: "—",
+    cobertura: "Municipio",
+    estado: "Pendiente de integración",
+    availability: "pending_integration",
+    comparisonMode: "municipal_only",
+    note: "Presupuesto municipal, empleo y afiliación: pendientes de integración desde fuentes administrativas oficiales (Hacienda, SEPE, Seguridad Social, FEADER, CCAA).",
+  });
+
   return tablas;
 }
 

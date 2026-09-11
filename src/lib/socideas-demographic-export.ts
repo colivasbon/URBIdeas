@@ -45,11 +45,15 @@ function estadoFrom(status: string): string {
   }
 }
 
+function availabilityFrom(status: string): 'available' | 'not_available' {
+  return status === 'observed' || status === 'partial' ? 'available' : 'not_available'
+}
+
 function nationalityTable(data: NationalityData): ExportTable {
   return {
     id: DIMENSION_BLOCK_IDS.nacionalidad,
     titulo: 'Nacionalidad',
-    hoja: 'Nacionalidad',
+    hoja: '01_PERFIL_DEMOGRÁFICO',
     columnas: ['Nacionalidad', 'Personas', '% sobre total'],
     filas: [
       [labelCell('Española'), numCell(data.spanish), pctCell(data.spanishPercent)],
@@ -60,6 +64,12 @@ function nationalityTable(data: NationalityData): ExportTable {
     cobertura: 'Municipio',
     estado: estadoFrom(data.status),
     source: registrySource('ine_nationality_68535'),
+    comparisonMode: 'municipal_only',
+    availability: availabilityFrom(data.status),
+    note:
+      data.status === 'suppressed'
+        ? 'Nacionalidad: dato no publicado por secreto estadístico para este municipio.'
+        : 'Nacionalidad publicada por el INE a nivel municipal.',
   }
 }
 
@@ -73,7 +83,7 @@ function birthCountryTable(data: BirthCountryData): ExportTable {
   return {
     id: DIMENSION_BLOCK_IDS.nacimiento,
     titulo: 'Lugar de nacimiento',
-    hoja: 'Nacimiento',
+    hoja: '01_PERFIL_DEMOGRÁFICO',
     columnas: ['País de nacimiento', 'Personas'],
     filas,
     fuente: `${data.source.label} · ${OP_CENSO_ANUAL} · Tabla ${data.source.tableId}`,
@@ -81,6 +91,10 @@ function birthCountryTable(data: BirthCountryData): ExportTable {
     cobertura: 'Municipio',
     estado: estadoFrom(data.status),
     source: registrySource('ine_birth_country_66322'),
+    comparisonMode: 'municipal_only',
+    availability: availabilityFrom(data.status),
+    note:
+      'Las categorías publicadas no equivalen a una distribución completa de población nacida en el extranjero.',
   }
 }
 
@@ -88,7 +102,7 @@ function arraigoTable(data: ArraigoData): ExportTable {
   return {
     id: DIMENSION_BLOCK_IDS.arraigo,
     titulo: 'Arraigo territorial',
-    hoja: 'Arraigo',
+    hoja: '01_PERFIL_DEMOGRÁFICO',
     columnas: ['Arraigo territorial', 'Personas', '% sobre total'],
     filas: data.categories.map((c) => [labelCell(c.label), numCell(c.value), pctCell(c.percent)]),
     fuente: `${data.source.label} · ${OP_CENSO_ANUAL} · Tabla ${data.source.tableId}`,
@@ -96,6 +110,8 @@ function arraigoTable(data: ArraigoData): ExportTable {
     cobertura: 'Municipio',
     estado: estadoFrom(data.status),
     source: registrySource('ine_birth_residence_68540'),
+    comparisonMode: 'municipal_only',
+    availability: availabilityFrom(data.status),
   }
 }
 

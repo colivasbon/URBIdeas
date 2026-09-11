@@ -25,7 +25,17 @@ const CASES = [
   { ine: '28143', label: 'parcial con supresión' },
   { ine: '07010', label: 'Bunyola' },
 ]
-const MAIN_SHEETS = ['00_Resumen', '01_Demografía', '02_Economía']
+const MAIN_SHEETS = [
+  '00_PROYECTO',
+  '01_PERFIL_DEMOGRÁFICO',
+  '02_CONTEXTO_POLÍTICO',
+  '03_CONTEXTO_ECONÓMICO',
+  '04_CONTEXTO_SOCIOCULTURAL',
+  '05_PATRIMONIO_Y_TURISMO',
+  '06_INFRAESTRUCTURA_Y_RECURSOS',
+  '07_ASOCIACIONES',
+  '08_CRITERIOS_Y_FUENTES',
+]
 const DETAIL_RE = /^(01|02)[A-E]_/
 const FORBIDDEN_TEXT = ['Hojas detalladas', 'Tablas incluidas', 'Cobertura y limitaciones', 'Observación', 'Incluida', '03_Secciones']
 
@@ -54,7 +64,7 @@ async function main(): Promise<void> {
     check('content-type XLSX', (res.headers.get('content-type') ?? '').includes('spreadsheetml.sheet'))
     const cd = res.headers.get('content-disposition') ?? ''
     const m = cd.match(/filename="([^"]+)"/)
-    check('nombre SOCideas_*_tablas.xlsx', !!m && /^SOCideas_.+_\d{5}_tablas\.xlsx$/.test(m[1]), m?.[1])
+    check('nombre SOCideas_*_libro.xlsx', !!m && /^SOCideas_.+_\d{5}_libro\.xlsx$/.test(m[1]), m?.[1])
     const buf = Buffer.from(await res.arrayBuffer())
     check('firma ZIP y no vacío', buf.length > 0 && buf[0] === 0x50 && buf[1] === 0x4b, `${buf.length} B`)
     const file = `tmp/xlsx-simple-${c.ine}.xlsx`
@@ -63,7 +73,7 @@ async function main(): Promise<void> {
     const wb = new ExcelJS.Workbook()
     await wb.xlsx.load(buf)
     const names = wb.worksheets.map((w) => w.name)
-    check('exactamente tres hojas 00/01/02', JSON.stringify(names) === JSON.stringify(MAIN_SHEETS), names.join(','))
+    check('exactamente nueve hojas en orden contractual', JSON.stringify(names) === JSON.stringify(MAIN_SHEETS), names.join(','))
     check('sin hojas detalladas', !names.some((n) => DETAIL_RE.test(n)), names.join(','))
 
     let frozen = false
@@ -111,7 +121,7 @@ async function main(): Promise<void> {
     const widthBad: string[] = []
     const alignBad: string[] = []
     for (const ws of wb.worksheets) {
-      if (ws.name === '00_Resumen') continue
+      if (ws.name === '00_PROYECTO' || ws.name === '08_CRITERIOS_Y_FUENTES') continue
       // Detecta filas de cabecera: ≥2 celdas verdes contiguas desde col 1.
       ws.eachRow((row, rn) => {
         let ncols = 0
@@ -162,7 +172,7 @@ async function main(): Promise<void> {
     const badZeros: string[] = []
     let piramideZeros = 0
     for (const ws of wb.worksheets) {
-      if (ws.name === '00_Resumen') continue
+      if (ws.name === '00_PROYECTO' || ws.name === '08_CRITERIOS_Y_FUENTES') continue
       let pirStart = -1
       let pirEnd = -1
       ws.eachRow((row, rn) => {
@@ -185,7 +195,7 @@ async function main(): Promise<void> {
     const hits: string[] = []
     let wrongMuni = false
     for (const ws of wb.worksheets) {
-      if (ws.name !== '00_Resumen') {
+      if (ws.name !== '00_PROYECTO' && ws.name !== '08_CRITERIOS_Y_FUENTES') {
         if (!txt(ws.getRow(1).getCell(1).value).includes(c.ine)) wrongMuni = true
       }
       ws.eachRow((row) => {
@@ -201,7 +211,7 @@ async function main(): Promise<void> {
     check('todo del municipio', !wrongMuni)
   }
   if (failures > 0) { console.error(`\n${failures} comprobaciones FALLIDAS`); process.exit(1) }
-  console.log('\nLayout XLSX simple verificado: 3 hojas, rangos exactos y formato Ideas OK.')
+  console.log('\nLayout XLSX municipal comparativo verificado: nueve hojas en orden contractual y formato Ideas OK.')
 }
 
 main().catch((e) => { console.error('ERROR', e); process.exit(1) })

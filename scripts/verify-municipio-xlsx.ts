@@ -1,8 +1,8 @@
-// Verificación del generador XLSX SIMPLE a nivel de librería (sin servidor).
-// Tres escenarios sintéticos (rica / solo-eco / parcial) con casos null/secreto.
-// Afirma: exactamente 3 hojas, sin detalle, sin freeze, sin autofilter,
-// sin enlaces, colores Ideas, anchos (Año 10, resto ≤24), alineación,
-// ND sin ceros indebidos y trazabilidad mínima en 00.
+// Verificación del generador XLSX municipal comparativo a nivel de librería.
+// Tres escenarios sintéticos (rico / solo-eco / parcial) con casos null/secreto.
+// Afirma: nueve hojas en orden contractual, sin detalle, sin freeze, sin
+// autofilter, sin enlaces internos, colores Ideas, anchos (Año 10, resto ≤24),
+// alineación, ND sin ceros indebidos y nota metodológica en 00.
 // Uso: npx tsx scripts/verify-municipio-xlsx.ts
 // Archivos solo en tmp/ (ignorado por git).
 import ExcelJS from 'exceljs'
@@ -10,11 +10,9 @@ import { writeFileSync, readFileSync } from 'node:fs'
 import {
   buildDemografiaTables,
   buildEconomiaTables,
-  demografiaExcluidas,
-  economiaExcluidas,
-  seccionesExcluidas,
+  SOCIDEAS_SHEET_IDS,
 } from '../src/lib/socideas-export'
-import { buildMunicipioWorkbook } from '../src/lib/socideas-xlsx'
+import { buildMunicipioWorkbook, type ComparativeSheetInput } from '../src/lib/socideas-xlsx'
 import type { IndicatorValue } from '../src/lib/socideas'
 
 let failures = 0
@@ -112,14 +110,16 @@ async function scenario(s: Scenario): Promise<void> {
   const ecoTables = s.eco ? buildEconomiaTables(s.eco as never) : []
   if (s.demo) check('tablas demografía con filas reales', demografia.length > 0, `${demografia.length}`)
   if (s.eco) check('tablas economía con filas reales', ecoTables.length > 0, `${ecoTables.length}`)
+  const hojas: ComparativeSheetInput[] = [
+    { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil demográfico', bloques: demografia },
+    { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Contexto económico', bloques: ecoTables },
+  ]
   const buffer = await buildMunicipioWorkbook({
     municipio: 'Villa Real de Prueba', codigoINE: '99999',
     provincia: 'Provincia Test', comunidadAutonoma: 'CCAA Test',
     fechaGeneracion: '2026-09-06',
-    demografia, economia: ecoTables,
-    excluidasDemografia: demografiaExcluidas(),
-    excluidasEconomia: economiaExcluidas(ecoTables.some((t) => t.id === 'renta')),
-    excluidasSecciones: seccionesExcluidas(),
+    hojas,
+    ineLayers: null,
   })
   check('buffer no vacío y firma ZIP (PK)', buffer.length > 0 && buffer[0] === 0x50 && buffer[1] === 0x4b, `${buffer.length} B`)
   writeFileSync(s.file, buffer)
@@ -127,7 +127,7 @@ async function scenario(s: Scenario): Promise<void> {
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync(s.file))
   const names = wb.worksheets.map((w) => w.name)
-  check('exactamente 00/01/02', JSON.stringify(names) === JSON.stringify(['00_Resumen', '01_Demografía', '02_Economía']), names.join(','))
+  check('exactamente nueve hojas en orden contractual', JSON.stringify(names) === JSON.stringify([...SOCIDEAS_SHEET_IDS]), names.join(','))
   check('sin hojas detalladas', !names.some((n) => /^(01|02)[A-E]_/.test(n)))
 
   let frozen = false
@@ -167,7 +167,7 @@ async function scenario(s: Scenario): Promise<void> {
   const widthBad: string[] = []
   const alignBad: string[] = []
   for (const ws of wb.worksheets) {
-    if (ws.name === '00_Resumen') continue
+    if (ws.name === '00_PROYECTO' || ws.name === '08_CRITERIOS_Y_FUENTES') continue
     ws.eachRow((row, rn) => {
       let ncols = 0
       for (let ci = 1; ci <= ws.columnCount; ci += 1) {
@@ -214,7 +214,7 @@ async function scenario(s: Scenario): Promise<void> {
   const badZeros: string[] = []
   let piramideZeros = 0
   for (const ws of wb.worksheets) {
-    if (ws.name === '00_Resumen') continue
+    if (ws.name === '00_PROYECTO' || ws.name === '08_CRITERIOS_Y_FUENTES') continue
     let pirStart = -1
     let pirEnd = -1
     ws.eachRow((row, rn) => {
@@ -234,20 +234,20 @@ async function scenario(s: Scenario): Promise<void> {
   check('cero suprimidos como cero', badZeros.length === 0, badZeros.slice(0, 3).join(' | '))
   console.log(`INFO — ceros genuinos de pirámide: ${piramideZeros}`)
 
-  // 00 breve: identificación + línea legal, sin trazabilidad ni filtros.
-  const resumen = wb.getWorksheet('00_Resumen')
+  // 00 breve: identificación + nota metodológica, sin trazabilidad ni filtros.
+  const resumen = wb.getWorksheet('00_PROYECTO')
   let muni = false
-  let legal = false
+  let metodo = false
   let trace = false
   resumen?.eachRow((row) => {
     row.eachCell((c) => {
       const t = txt(c.value)
       if (t === '99999') muni = true
-      if (t.startsWith('Fuentes y periodos específicos')) legal = true
-      if (t === 'Observación' || t === 'Incluida') trace = true
+      if (t.includes('Solo se muestran comparativas cuando las fuentes')) metodo = true
+      if (t === 'Observación' || t === 'Incluida' || t === '03_Secciones') trace = true
     })
   })
-  check('00 breve con INE y línea legal, sin trazabilidad', muni && legal && !trace)
+  check('00 breve con INE y nota metodológica, sin trazabilidad', muni && metodo && !trace)
 }
 
 async function main(): Promise<void> {

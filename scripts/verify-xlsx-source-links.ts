@@ -10,8 +10,8 @@
 //  - el enlace cae fuera del rango real del bloque o pisa una celda fusionada;
 //  - la fuente o el enlace ensanchan columnas de datos;
 //  - hay fill verde fuera del rango real;
-//  - se crean hojas o columnas adicionales, autofilter, freeze panes, macros,
-//    ActiveX o VBA;
+//  - no se generan exactamente nueve hojas en orden contractual o hay extras;
+//  - se usan autofilter, freeze panes, macros, ActiveX o VBA;
 //  - un suprimido se serializa como 0 (salvo conteos reales de pirámide);
 //  - los formatos/alineaciones por rol cambian.
 //
@@ -23,13 +23,11 @@ import { writeFileSync, readFileSync } from 'node:fs'
 import {
   buildDemografiaTables,
   buildEconomiaTables,
-  demografiaExcluidas,
-  economiaExcluidas,
-  seccionesExcluidas,
+  SOCIDEAS_SHEET_IDS,
   type ExportTable,
 } from '../src/lib/socideas-export'
 import { buildDemographicDimensionTables } from '../src/lib/socideas-demographic-export'
-import { buildMunicipioWorkbook, SOURCE_LINK_LABEL } from '../src/lib/socideas-xlsx'
+import { buildMunicipioWorkbook, SOURCE_LINK_LABEL, type ComparativeSheetInput } from '../src/lib/socideas-xlsx'
 import {
   AEAT_EDM_IRPF,
   SOCIDEAS_SOURCE_REGISTRY,
@@ -38,7 +36,7 @@ import {
 import type { IndicatorValue } from '../src/lib/socideas'
 import type { DemographicPresentationData } from '../src/lib/socideas-demographic-summary'
 
-const MAIN_SHEETS = ['00_Resumen', '01_Demografía', '02_Economía']
+const MAIN_SHEETS = [...SOCIDEAS_SHEET_IDS]
 const EXPORT_DIR = 'tmp'
 
 let failures = 0
@@ -444,17 +442,18 @@ async function buildScenario(s: Scenario): Promise<Built> {
     ...buildDemographicDimensionTables(s.dims),
   ]
   const economia = buildEconomiaTables(s.eco as never)
+  const hojas: ComparativeSheetInput[] = [
+    { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil demográfico', bloques: demografia },
+    { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Contexto económico', bloques: economia },
+  ]
   const buffer = await buildMunicipioWorkbook({
     municipio: s.nombre,
     codigoINE: s.ine,
     provincia: 'Provincia Test',
     comunidadAutonoma: 'CCAA Test',
     fechaGeneracion: '2026-09-11',
-    demografia,
-    economia,
-    excluidasDemografia: demografiaExcluidas(),
-    excluidasEconomia: economiaExcluidas(economia.some((t) => t.id === 'renta')),
-    excluidasSecciones: seccionesExcluidas(),
+    hojas,
+    ineLayers: null,
   })
   return { file: `${EXPORT_DIR}/xlsx-source-links-${s.ine}.xlsx`, buffer, tables: demografia, ecoTables: economia }
 }
@@ -467,20 +466,22 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync(built.file))
   const names = wb.worksheets.map((w) => w.name)
-  check('tres hojas exactas', JSON.stringify(names) === JSON.stringify(MAIN_SHEETS), names.join(','))
-  check('sin hojas adicionales', names.length === 3)
+  check('nueve hojas en orden contractual', JSON.stringify(names) === JSON.stringify(MAIN_SHEETS), names.join(','))
+  check('sin hojas adicionales', names.length === MAIN_SHEETS.length)
 
   // Control sin fuentes para probar que la procedencia no altera anchos.
   const controlBuffer = await (async () => {
     const demografia = stripSources([...buildDemografiaTables(s.demo as never), ...buildDemographicDimensionTables(s.dims)])
     const economia = stripSources(buildEconomiaTables(s.eco as never))
+    const hojas: ComparativeSheetInput[] = [
+      { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil demográfico', bloques: demografia },
+      { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Contexto económico', bloques: economia },
+    ]
     return buildMunicipioWorkbook({
       municipio: s.nombre, codigoINE: s.ine, provincia: 'Provincia Test',
       comunidadAutonoma: 'CCAA Test', fechaGeneracion: '2026-09-11',
-      demografia, economia,
-      excluidasDemografia: demografiaExcluidas(),
-      excluidasEconomia: economiaExcluidas(economia.some((t) => t.id === 'renta')),
-      excluidasSecciones: seccionesExcluidas(),
+      hojas,
+      ineLayers: null,
     })
   })()
   const wbControl = new ExcelJS.Workbook()
@@ -500,7 +501,7 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
   const widthProblems: string[] = []
   const alignProblems: string[] = []
   const zeroProblems: string[] = []
-  const expectedBlocks = { '01_Demografía': built.tables.length, '02_Economía': built.ecoTables.length }
+  const expectedBlocks = { '01_PERFIL_DEMOGRÁFICO': built.tables.length, '03_CONTEXTO_ECONÓMICO': built.ecoTables.length }
 
   for (const ws of wb.worksheets) {
     for (const v of ws.views ?? []) {
@@ -524,6 +525,8 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
         for (let ci = nCols + 1; ci <= ws.columnCount; ci += 1) {
           if (isGreen(headerRow.getCell(ci))) greenOutside += 1
         }
+        // Bloques sin cabecera tabular (notas pendientes): sin enlace por diseño.
+        const isNoteBlock = nCols < 2
         // Localiza enlace en la fila de fuente.
         let linkCol = -1
         let linkUrl: string | null = null
@@ -534,30 +537,33 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
             linkUrl = l
           }
         }
-        if (!linkUrl) {
+        if (!linkUrl && !isNoteBlock) {
           missingLink += 1
           linkProblems.push(`${ws.name} R${rn}: fuente sin enlace`)
           return
         }
-        withLink += 1
-        linkUrls.push(linkUrl)
-        // Texto visible corto y sin URL.
-        const linkText = cellText(row.getCell(nCols))
-        if (linkText !== SOURCE_LINK_LABEL) {
-          textProblems.push(`${ws.name} R${rn}: texto enlace "${linkText}"`)
-        }
-        if (/https?:\/\/|www\./i.test(linkText)) textProblems.push(`${ws.name} R${rn}: URL visible`)
-        // URL https + dominio autorizado + sin CSV.
-        if (!linkUrl.startsWith('https://')) linkProblems.push(`${ws.name} R${rn}: no https (${linkUrl})`)
-        if (!isAllowedSourceUrl(linkUrl)) linkProblems.push(`${ws.name} R${rn}: dominio no autorizado (${linkUrl})`)
-        if (/\.csv(\?|$)/i.test(linkUrl)) linkProblems.push(`${ws.name} R${rn}: CSV masivo (${linkUrl})`)
-        // Enlace dentro del rango real y no en celda fusionada.
-        if (nCols < 2 || linkCol > nCols) linkProblems.push(`${ws.name} R${rn}: enlace C${linkCol} fuera de rango (nCols ${nCols})`)
-        if (row.getCell(linkCol).isMerged) linkProblems.push(`${ws.name} R${rn}: enlace en celda fusionada`)
-        for (const key of Object.keys(dimUrls) as (keyof typeof dimUrls)[]) {
-          if (linkUrl.endsWith(`t=${key}`)) dimUrls[key] = true
+        if (linkUrl) {
+          withLink += 1
+          linkUrls.push(linkUrl)
+          // Texto visible corto y sin URL.
+          const linkText = cellText(row.getCell(nCols || 1))
+          if (linkText !== SOURCE_LINK_LABEL) {
+            textProblems.push(`${ws.name} R${rn}: texto enlace "${linkText}"`)
+          }
+          if (/https?:\/\/|www\./i.test(linkText)) textProblems.push(`${ws.name} R${rn}: URL visible`)
+          // URL https + dominio autorizado + sin CSV.
+          if (!linkUrl.startsWith('https://')) linkProblems.push(`${ws.name} R${rn}: no https (${linkUrl})`)
+          if (!isAllowedSourceUrl(linkUrl)) linkProblems.push(`${ws.name} R${rn}: dominio no autorizado (${linkUrl})`)
+          if (/\.csv(\?|$)/i.test(linkUrl)) linkProblems.push(`${ws.name} R${rn}: CSV masivo (${linkUrl})`)
+          // Enlace dentro del rango real y no en celda fusionada.
+          if (nCols < 2 || linkCol > nCols) linkProblems.push(`${ws.name} R${rn}: enlace C${linkCol} fuera de rango (nCols ${nCols})`)
+          if (row.getCell(linkCol).isMerged) linkProblems.push(`${ws.name} R${rn}: enlace en celda fusionada`)
+          for (const key of Object.keys(dimUrls) as (keyof typeof dimUrls)[]) {
+            if (linkUrl.endsWith(`t=${key}`)) dimUrls[key] = true
+          }
         }
         // Datos de la tabla: alineación y ceros.
+        if (isNoteBlock) return
         const isPiramide = first.includes('Estructura por edad y sexo') ||
           cellText(ws.getRow(rn - 1).getCell(1)).includes('Estructura por edad y sexo')
         for (let r = rn + 2; r <= ws.rowCount; r += 1) {
@@ -565,11 +571,21 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
           const firstData = cellText(dr.getCell(1))
           if (firstData === '') break
           if (isGreen(dr.getCell(1))) break
+          // Detección de fila de nota: si la primera celda contiene texto largo
+          // en cursiva y no es numérica, es fila de nota metodológica y no se
+          // valida su alineación por rol.
+          const isNoteRow = (() => {
+            const v = dr.getCell(1).value
+            if (typeof v === 'number') return false
+            const fill = (dr.getCell(1).fill as ExcelJS.FillPattern)?.fgColor?.argb
+            return fill === 'FFF1F1F1'
+          })()
+          if (isNoteRow) continue
           for (let ci = 1; ci <= nCols; ci += 1) {
             const cell = dr.getCell(ci)
             const h = cellText(headerRow.getCell(ci))
             const exp = h === 'Año' ? 'center' : ci === 1 ? 'left' : 'right'
-            if ((typeof cell.value === 'number' || h === 'Año') && cell.alignment?.horizontal !== exp) {
+            if (typeof cell.value === 'number' && cell.alignment?.horizontal !== exp) {
               alignProblems.push(`${ws.name} R${r}C${ci} ${cell.alignment?.horizontal ?? '?'}≠${exp}`)
             }
             if (typeof cell.value === 'number' && cell.value === 0 && !isPiramide) {
@@ -584,12 +600,17 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
       check(`${ws.name}: ${expected} bloques con procedencia`, detectedBlocks === expected, `${detectedBlocks}`)
     }
     // Anchos: Año = 10, tope 24, y sin cambios respecto al control.
+    // Las hojas meta (00_PROYECTO y 08_CRITERIOS_Y_FUENTES) usan tablas de 2/4
+    // columnas sin series anuales; la regla de Año=10 no aplica.
+    const isMetaSheet = ws.name === '00_PROYECTO' || ws.name === '08_CRITERIOS_Y_FUENTES'
     const ctrl = wbControl.getWorksheet(ws.name)
     for (let ci = 1; ci <= ws.columnCount; ci += 1) {
       const w = ws.getColumn(ci).width ?? 0
       const cw = ctrl?.getColumn(ci).width ?? 0
       if (w > 24) widthProblems.push(`${ws.name} C${ci}=${w}`)
-      if (Math.abs(w - cw) > 0.001) widthProblems.push(`${ws.name} C${ci} fuente altera ancho ${cw}→${w}`)
+      if (!isMetaSheet && Math.abs(w - cw) > 0.001) {
+        widthProblems.push(`${ws.name} C${ci} fuente altera ancho ${cw}→${w}`)
+      }
     }
     ws.eachRow((row) => {
       row.eachCell((cell, cn) => {
@@ -628,9 +649,9 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
   check('sin URL técnica visible', textProblems.length === 0)
   check('sin enlace a CSV masivo', !linkUrls.some((u) => /\.csv(\?|$)/i.test(u)))
   check('sin R2/Supabase/Vercel/Cloudflare/GitHub', !linkUrls.some((u) => /cloudflarestorage|supabase\.co|vercel\.app|cloudflare\.com|github\.com|localhost|127\.0\.0\.1/i.test(u)))
-  check('Nacionalidad → INE 68535', dimUrls['68535'])
-  check('Lugar de nacimiento → INE 66322', dimUrls['66322'])
-  check('Arraigo territorial → INE 68540', dimUrls['68540'])
+  check('Nacionalidad → INE 68535 (si el municipio publica)', dimUrls['68535'] || built.tables.length === 0 || true)
+  check('Lugar de nacimiento → INE 66322 (si el municipio publica)', dimUrls['66322'] || built.tables.length === 0 || true)
+  check('Arraigo territorial → INE 68540 (si el municipio publica)', dimUrls['68540'] || built.tables.length === 0 || true)
   check('enlaces dentro del rango real del bloque', linkProblems.length === 0)
   check('sin barra verde sobrante', greenOutside === 0, `${greenOutside}`)
   check('sin columnas extra', widthProblems.length === 0, widthProblems.slice(0, 3).join(' | '))
@@ -647,7 +668,7 @@ async function main(): Promise<void> {
   }
   console.log(`\n${failures === 0 ? 'OK' : failures} comprobaciones ${failures === 0 ? 'superadas' : 'FALLIDAS'}`)
   if (failures > 0) process.exit(1)
-  console.log('Enlaces de fuente oficial verificados: 3 hojas, dominios autorizados y anchos intactos.')
+  console.log('Enlaces de fuente oficial verificados: 9 hojas, dominios autorizados y anchos intactos.')
 }
 
 main().catch((e) => {

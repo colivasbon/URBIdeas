@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { randomUUID } from 'node:crypto'
 import { createSupabaseServerSafe } from '@/lib/supabase-server'
 import { getPerfilDemografico } from '@/lib/socideas-perfil'
 import { getPerfilEconomico } from '@/lib/socideas-economia'
@@ -18,53 +19,135 @@ import {
 
 export const dynamic = 'force-dynamic'
 
+type ExportStage =
+  | 'validate_code'
+  | 'create_supabase_client'
+  | 'resolve_municipality'
+  | 'load_base_data'
+  | 'load_demographic_summary'
+  | 'load_ine_layers'
+  | 'build_project_sheet'
+  | 'build_demographic_sheet'
+  | 'build_political_sheet'
+  | 'build_economic_sheet'
+  | 'build_sociocultural_sheet'
+  | 'build_heritage_sheet'
+  | 'build_infrastructure_sheet'
+  | 'build_associations_sheet'
+  | 'build_criteria_sheet'
+  | 'serialize_xlsx'
+  | 'build_http_response'
+
+function logStage(
+  requestId: string,
+  stage: ExportStage,
+  ineCode: string,
+  extra?: Record<string, unknown>,
+): void {
+  console.log(JSON.stringify({
+    tag: 'SOCIDEAS_XLSX_EXPORT',
+    requestId,
+    stage,
+    ineCode,
+    ts: new Date().toISOString(),
+    ...extra,
+  }))
+}
+
+function logError(
+  requestId: string,
+  stage: ExportStage,
+  ineCode: string,
+  err: unknown,
+): { name: string; message: string } {
+  const errObj = err instanceof Error ? err : new Error(String(err))
+  const safeName = errObj.name || 'UnknownError'
+  // Sanitizar mensaje: eliminar rutas, tokens, URLs internas
+  const raw = errObj.message || 'unknown'
+  const safe = raw
+    .replace(/[A-Za-z]:\\[^\s]*/g, '[path]')
+    .replace(/\/[^\s]*/g, '[path]')
+    .replace(/Bearer\s+\S+/g, 'Bearer [redacted]')
+    .replace(/[a-f0-9]{20,}/gi, '[hash]')
+    .slice(0, 200)
+
+  console.error(JSON.stringify({
+    tag: 'SOCIDEAS_XLSX_EXPORT',
+    level: 'error',
+    requestId,
+    stage,
+    ineCode,
+    errorName: safeName,
+    errorMessage: safe,
+    ts: new Date().toISOString(),
+  }))
+
+  return { name: safeName, message: safe }
+}
+
 /**
  * GET /api/socideas/exportar/[codigoINE]: UN SOLO libro XLSX por municipio
  * con nueve hojas en orden contractual (libro municipal comparativo).
  *
- * Degradación segura:
- *  - Faltan env vars Supabase → 503 controlado
- *  - Municipio no encontrado → 404
- *  - Capas laterales ausentes (R2, INE layers) → XLSX se genera sin esas hojas
- *  - Error interno → 500 genérico, sin stack trace ni secretos
+ * Instrumentación: cada request lleva un requestId visible en el error
+ * y registrado en server logs para diagnóstico.
  */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ codigoINE: string }> },
 ) {
-  const { codigoINE } = await params
-  if (!/^\d{5}$/.test(codigoINE)) {
-    return NextResponse.json(
-      { error: 'Código INE inválido (se esperan 5 dígitos)' },
-      { status: 400 },
-    )
-  }
-
-  // 1. Supabase: configuración esencial. Sin ella no se puede leer el municipio.
-  const supabase = createSupabaseServerSafe()
-  if (!supabase) {
-    return NextResponse.json(
-      { error: 'La exportación no está disponible temporalmente.' },
-      { status: 503 },
-    )
-  }
+  const requestId = randomUUID().slice(0, 8).toUpperCase()
+  let stage: ExportStage = 'validate_code'
+  let ineCode = ''
 
   try {
-    // 2. Datos base (Supabase) + capas laterales (R2, opcionales).
-    //    Las capas laterales FALLAN SILENCIOSAMENTE: el XLSX se genera sin ellas.
+    // 1. Validar código INE
+    const { codigoINE } = await params
+    ineCode = codigoINE
+    if (!/^\d{5}$/.test(codigoINE)) {
+      return NextResponse.json(
+        { error: 'Código INE inválido (se esperan 5 dígitos)' },
+        { status: 400 },
+      )
+    }
+    logStage(requestId, 'validate_code', ineCode, { ok: true })
+
+    // 2. Supabase
+    stage = 'create_supabase_client'
+    const supabase = createSupabaseServerSafe()
+    if (!supabase) {
+      logStage(requestId, stage, ineCode, { ok: false, reason: 'env_missing' })
+      return NextResponse.json(
+        { error: 'La exportación no está disponible temporalmente.', requestId },
+        { status: 503 },
+      )
+    }
+    logStage(requestId, stage, ineCode, { ok: true })
+
+    // 3. Datos base + capas laterales
+    stage = 'load_base_data'
+    logStage(requestId, stage, ineCode, { parallel: true })
     const [demo, eco, demoExtra, ineLayers] = await Promise.all([
       getPerfilDemografico(supabase, codigoINE, {}),
       getPerfilEconomico(supabase, codigoINE),
-      readDemographicPresentation(codigoINE).catch(() => null),
-      readMunicipalIneLayers(codigoINE).catch(() => null),
+      readDemographicPresentation(codigoINE).catch((e) => {
+        logStage(requestId, 'load_demographic_summary', ineCode, { ok: false, error: String(e) })
+        return null
+      }),
+      readMunicipalIneLayers(codigoINE).catch((e) => {
+        logStage(requestId, 'load_ine_layers', ineCode, { ok: false, error: String(e) })
+        return null
+      }),
     ])
 
-    // 3. Validar que el municipio existe.
+    // 4. Validar que el municipio existe
+    stage = 'resolve_municipality'
     const ok =
       demo.status === 'ok' || demo.status === 'empty' || eco.status === 'ok' || eco.status === 'empty'
     if (!ok) {
+      logStage(requestId, stage, ineCode, { ok: false, demoStatus: demo.status, ecoStatus: eco.status })
       return NextResponse.json(
-        { error: `No se encontró el municipio ${codigoINE}.` },
+        { error: `No se encontró el municipio ${codigoINE}.`, requestId },
         { status: 404 },
       )
     }
@@ -72,32 +155,51 @@ export async function GET(
     const perfilDemo = demo.status === 'ok' || demo.status === 'empty' ? demo.perfil : null
     const perfilEco = eco.status === 'ok' || eco.status === 'empty' ? eco.perfil : null
     if (!perfilDemo && !perfilEco) {
+      logStage(requestId, stage, ineCode, { ok: false, reason: 'no_perfil' })
       return NextResponse.json(
-        { error: `No se encontró el municipio ${codigoINE}.` },
+        { error: `No se encontró el municipio ${codigoINE}.`, requestId },
         { status: 404 },
       )
     }
+    logStage(requestId, stage, ineCode, {
+      ok: true,
+      demoStatus: demo.status,
+      ecoStatus: eco.status,
+      hasDemographicPresentation: demoExtra !== null,
+      hasIneLayers: ineLayers !== null,
+    })
 
-    // 4. Construir tablas exportables.
+    // 5. Construir tablas
+    stage = 'build_demographic_sheet'
     const municipio = perfilDemo?.municipio.nombre ?? perfilEco?.municipio.nombre ?? codigoINE
     const demografia = [
       ...(perfilDemo ? buildDemografiaTables(perfilDemo) : []),
       ...buildDemographicDimensionTables(demoExtra),
     ]
+    logStage(requestId, stage, ineCode, { blocks: demografia.length })
+
+    stage = 'build_economic_sheet'
     const economia = perfilEco ? buildEconomiaTables(perfilEco) : []
+    logStage(requestId, stage, ineCode, { blocks: economia.length })
 
     if (demografia.length === 0 && economia.length === 0) {
       return NextResponse.json(
-        { error: 'Este municipio aún no tiene tablas con datos reales para exportar.' },
+        { error: 'Este municipio aún no tiene tablas con datos reales para exportar.', requestId },
         { status: 404 },
       )
     }
 
-    // 5. Generar XLSX.
+    // 6. Generar XLSX
+    stage = 'serialize_xlsx'
     const hojas: ComparativeSheetInput[] = [
       { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil demográfico', bloques: demografia },
       { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Contexto económico', bloques: economia },
     ]
+
+    logStage(requestId, stage, ineCode, {
+      totalBlocks: demografia.length + economia.length,
+      hasIneLayers: ineLayers !== null,
+    })
 
     const buffer = await buildMunicipioWorkbook({
       municipio,
@@ -109,9 +211,17 @@ export async function GET(
       ineLayers,
     })
 
-    // 6. Respuesta binaria XLSX.
+    // 7. Respuesta
+    stage = 'build_http_response'
     const filename = `SOCideas_${normalizarMunicipio(municipio)}_${codigoINE}_libro.xlsx`
     const body = new Uint8Array(buffer)
+
+    logStage(requestId, stage, ineCode, {
+      ok: true,
+      filename,
+      size: body.byteLength,
+    })
+
     return new NextResponse(body, {
       status: 200,
       headers: {
@@ -120,13 +230,17 @@ export async function GET(
         'Content-Length': String(body.byteLength),
         'Cache-Control': 'private, no-store',
         'X-Socideas-Brand': XLSX_BRAND,
+        'X-Socideas-Request-Id': requestId,
       },
     })
   } catch (err) {
-    // 7. Error interno: registrar sin exponer detalles al cliente.
-    console.error(`[socideas][exportar] Error generando XLSX para ${codigoINE}:`, err)
+    const { name, message } = logError(requestId, stage, ineCode, err)
     return NextResponse.json(
-      { error: 'No se pudo generar el archivo en este momento.' },
+      {
+        error: 'No se pudo generar el archivo en este momento.',
+        requestId,
+        ref: `XLSX-${requestId}`,
+      },
       { status: 500 },
     )
   }

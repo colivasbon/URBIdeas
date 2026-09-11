@@ -147,7 +147,7 @@ async function scenario(s: Scenario): Promise<void> {
         if (f === 'FF3E665C') green348 = true
         if (f === 'FF1E4D3F') oldGreen = true
         const link = (cell.value as { hyperlink?: unknown } | null)?.hyperlink ?? (cell as { hyperlink?: unknown }).hyperlink
-        if (typeof link === 'string' && link.length > 0) links += 1
+        if (typeof link === 'string' && link.startsWith('#')) links += 1
         const b = cell.border as ExcelJS.Borders | undefined
         for (const side of [b?.top, b?.bottom, b?.left, b?.right]) {
           if ((side as { color?: { argb?: string } } | undefined)?.color?.argb === 'FF86B73D') accent = true

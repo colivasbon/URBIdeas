@@ -82,7 +82,7 @@ async function main(): Promise<void> {
         row.eachCell((cell) => {
           const s = txt(cell.value)
           const link = (cell.value as { hyperlink?: unknown } | null)?.hyperlink ?? (cell as { hyperlink?: unknown }).hyperlink
-          if (typeof link === 'string' && link.length > 0) links += 1
+          if (typeof link === 'string' && link.startsWith('#')) links += 1
           if (s.startsWith('#')) links += 1
           const f = fillOf(cell)
           if (f === 'FF3E665C') green348 = true

@@ -13,6 +13,10 @@ import ActualizacionMenu from "@/components/socideas/ActualizacionMenu";
 import EconomiaFicha from "@/components/socideas/EconomiaFicha";
 import { buildDemografiaTables, buildEconomiaTables } from "@/lib/socideas-export";
 import { readDemographicPresentation } from "@/lib/socideas-demographic-summary";
+import { buildMunicipalUpdatePreview, readMunicipalIneLayers } from "@/lib/socideas-ine-layers";
+import type { MunicipalIneLayersV1 } from "@/lib/socideas-ine-layers";
+import { readTemporaryMunicipalData } from "@/lib/socideas-temporary-data";
+import type { TemporaryMunicipalData } from "@/lib/socideas-temporary-data";
 import EmptyState from "@/components/ui/EmptyState";
 import SourcePill from "@/components/ui/SourcePill";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
@@ -175,8 +179,17 @@ export default async function SocideasFicha({
 
   // Lectura lateral R2 (una sola por carga, solo en Demografía): nunca rompe
   // la ficha; ante ausencia o error se omite sin estado visible.
-  const demografiaExtra =
-    categoria === "economia" ? null : await readDemographicPresentation(codigoINE).catch(() => null);
+  const [demografiaExtra, ineLayers, temporaryData] = await Promise.all([
+    categoria === "economia" ? Promise.resolve(null) : readDemographicPresentation(codigoINE).catch(() => null),
+    readMunicipalIneLayers(codigoINE).catch(() => null) as Promise<MunicipalIneLayersV1 | null>,
+    readTemporaryMunicipalData(codigoINE).catch(() => null) as Promise<TemporaryMunicipalData | null>,
+  ]);
+  // Vista previa de actualización (sin I/O extra): qué capas hay y su período.
+  const capasPreview = buildMunicipalUpdatePreview(
+    codigoINE,
+    ineLayers,
+    temporaryData ? { label: temporaryData.label, source: temporaryData.source, period: temporaryData.period } : null,
+  );
   // Objeto plano (serializable para el Client Component; URLSearchParams no lo es).
   const spObj: Record<string, string> = {};
   for (const [k, v] of Object.entries(sp)) {
@@ -245,6 +258,7 @@ export default async function SocideasFicha({
                   codigoINE={municipio.codigo_ine}
                   ultimaDemografia={perfil.ultima_sincronizacion}
                   ultimaEconomia={economia?.ultima_sincronizacion}
+                  capasPreview={capasPreview}
                 />
               </FichaToolbar>
             </div>
@@ -270,7 +284,14 @@ export default async function SocideasFicha({
               }
             />
           ) : (
-            <FichaFiltros codigoINE={municipio.codigo_ine} initial={perfil} searchParams={spObj} demografiaExtra={demografiaExtra} />
+            <FichaFiltros
+              codigoINE={municipio.codigo_ine}
+              initial={perfil}
+              searchParams={spObj}
+              demografiaExtra={demografiaExtra}
+              ineLayers={ineLayers}
+              temporaryData={temporaryData}
+            />
           )}
         </div>
       </main>

@@ -6,7 +6,7 @@
 // Archivos solo en tmp/ (ignorado por git).
 import ExcelJS from 'exceljs'
 import { writeFileSync, readFileSync } from 'node:fs'
-import { buildDemografiaTables, buildEconomiaTables, SOCIDEAS_SHEET_IDS } from '../src/lib/socideas-export'
+import { buildDemografiaTables, buildEconomiaTables, normalizarMunicipio, toAsciiFilename, SOCIDEAS_SHEET_IDS } from '../src/lib/socideas-export'
 import { buildDemographicDimensionTables } from '../src/lib/socideas-demographic-export'
 import { buildMunicipioWorkbook, type ComparativeSheetInput } from '../src/lib/socideas-xlsx'
 import { buildMovilidadMigratoriaTable, buildNivelEducativoTable, buildDensidadTable, buildDemographicDerivedLayerTable } from '../src/lib/socideas-ine-layers-export'
@@ -307,6 +307,62 @@ async function testAllLayersFailGracefully() {
   check('Hoja 08 existe', !!wb.getWorksheet('08_CRITERIOS_Y_FUENTES'))
 }
 
+// ---------- Filename sanitization tests ----------
+
+function testFilenameSanitization() {
+  console.log('\n=== Test 10: Saneamiento de nombre de archivo (em dash U+2014) ===')
+
+  // Test 1: em dash en nombre de municipio
+  const input1 = 'SOCideas_Albacete\u2014_02003_libro.xlsx'
+  const result1 = toAsciiFilename(input1)
+  check('toAsciiFilename elimina em dash', !result1.includes('\u2014'), `result: ${result1}`)
+  check('toAsciiFilename produce ByteString válido',
+    (() => { try { new Headers({'Content-Disposition': `attachment; filename="${result1}"`}); return true } catch { return false } })(),
+    `result: ${result1}`)
+
+  // Test 2: normalizarMunicipio con em dash
+  const norm1 = normalizarMunicipio('Albacete\u2014test')
+  check('normalizarMunicipio convierte em dash a guion', norm1 === 'Albacete-test', `result: ${norm1}`)
+
+  // Test 3: todos los guiones Unicode
+  for (const [label, char] of [
+    ['hyphen U+2010', '\u2010'],
+    ['non-breaking hyphen U+2011', '\u2011'],
+    ['figure dash U+2012', '\u2012'],
+    ['en dash U+2013', '\u2013'],
+    ['em dash U+2014', '\u2014'],
+    ['horizontal bar U+2015', '\u2015'],
+    ['minus sign U+2212', '\u2212'],
+  ] as const) {
+    const r = toAsciiFilename(`test${char}name`)
+    check(`${label} saneado`, !r.includes(char), `result: ${r}`)
+  }
+
+  // Test 4: nombre real de Albacete con Content-Disposition
+  const filename = toAsciiFilename('SOCideas_Albacete_02003_libro.xlsx')
+  check('filename Albacete OK', filename === 'SOCideas_Albacete_02003_libro.xlsx')
+  try {
+    new Headers({'Content-Disposition': `attachment; filename="${filename}"`})
+    check('Content-Disposition Albacete válido', true)
+  } catch {
+    check('Content-Disposition Albacete válido', false)
+  }
+
+  // Test 5: municipio con ñ
+  const filenameN = toAsciiFilename('SOCideas_Peñarroya_02003_libro.xlsx')
+  check('filename con ñ saneado', !filenameN.includes('ñ'), `result: ${filenameN}`)
+
+  // Test 6: municipio con apóstrofo (válido en Content-Disposition)
+  const filenameA = toAsciiFilename("SOCideas_Sant'Antoni_02003_libro.xlsx")
+  check('filename con apóstrofo válido', filenameA.includes("'"), `result: ${filenameA}`)
+  try {
+    new Headers({'Content-Disposition': `attachment; filename="${filenameA}"`})
+    check('Content-Disposition con apóstrofo válido', true)
+  } catch {
+    check('Content-Disposition con apóstrofo válido', false)
+  }
+}
+
 // ---------- Main ----------
 
 async function main() {
@@ -319,6 +375,7 @@ async function main() {
   await testAllLayersFailGracefully()
   await testBlockThrowDoesNotBreakWorkbook()
   await testSheetThrowDoesNotBreakWorkbook()
+  testFilenameSanitization()
   console.log(`\n${failures === 0 ? 'OK' : failures} comprobaciones ${failures === 0 ? 'superadas' : 'FALLIDAS'}`)
   if (failures > 0) process.exit(1)
 }

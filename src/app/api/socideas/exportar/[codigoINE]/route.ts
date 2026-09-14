@@ -10,6 +10,7 @@ import {
   buildDemografiaTables,
   buildEconomiaTables,
   normalizarMunicipio,
+  toAsciiFilename,
 } from '@/lib/socideas-export'
 import {
   XLSX_BRAND,
@@ -258,7 +259,8 @@ export async function GET(
 
     // 7. Respuesta
     stage = 'build_http_response'
-    const filename = `SOCideas_${normalizarMunicipio(municipio)}_${codigoINE}_libro.xlsx`
+    const rawFilename = `SOCideas_${normalizarMunicipio(municipio)}_${codigoINE}_libro.xlsx`
+    const filename = toAsciiFilename(rawFilename)
     const body = new Uint8Array(buffer)
 
     logStage(requestId, stage, ineCode, {
@@ -271,7 +273,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        'Content-Disposition': `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(rawFilename)}`,
         'Content-Length': String(body.byteLength),
         'Cache-Control': 'private, no-store',
         'X-Socideas-Brand': XLSX_BRAND,

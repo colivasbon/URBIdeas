@@ -103,9 +103,24 @@ export function normalizarMunicipio(nombre: string): string {
   return nombre
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
     .replace(/[^a-zA-Z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 48) || "Municipio";
+}
+
+/**
+ * Sanea un nombre de archivo para Content-Disposition: solo ASCII imprimible.
+ * Usar siempre que se construya una cabecera Content-Disposition con nombre
+ * de archivo que pueda contener caracteres no-Latin1 (em dash, ñ, acentos, etc.).
+ */
+export function toAsciiFilename(input: string): string {
+  return input
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/\s+/g, "_");
 }
 
 export function nombreCSV(municipio: string, ine: string, bloque: string, tabla: string, periodo: string): string {

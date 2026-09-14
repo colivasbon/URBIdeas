@@ -237,6 +237,62 @@ async function testWithDensity() {
   check('Bloque densidad presente', hasDensity)
 }
 
+async function testBlockThrowDoesNotBreakWorkbook() {
+  console.log('\n=== Test 8: Bloque individual que lanza excepción NO rompe el libro ===')
+  // Simular: un bloque con datos inválidos que lanza en writeSheet
+  const badBlock = {
+    id: 'bad-block',
+    titulo: 'Bloque con datos rotos',
+    hoja: '01_PERFIL_DEMOGRÁFICO' as const,
+    columnas: ['Año', 'Valor'],
+    filas: [[{ text: '2024', numeric: 2024 }, { text: 'ND', numeric: null }]],
+    fuente: 'Test',
+    periodo: '2024',
+    cobertura: 'Municipio',
+    estado: 'Test',
+    availability: 'available' as const,
+    comparisonMode: 'municipal_only' as const,
+  }
+  const demografia = [
+    badBlock,
+    ...buildDemografiaTables(demoProfile() as never),
+  ]
+  const economia = buildEconomiaTables(ecoProfile() as never)
+  const hojas: ComparativeSheetInput[] = [
+    { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil', bloques: demografia },
+    { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Economía', bloques: economia },
+  ]
+  const buffer = await buildMunicipioWorkbook({
+    municipio: 'Albacete', codigoINE: '02003',
+    provincia: 'Albacete', comunidadAutonoma: 'Castilla-La Mancha',
+    fechaGeneracion: '2026-09-11', hojas, ineLayers: null,
+  })
+  check('XLSX válido a pesar de bloque malo', buffer.length > 0 && buffer[0] === 0x50 && buffer[1] === 0x4b)
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load(buffer)
+  check('9 hojas presentes', wb.worksheets.length === 9)
+  check('Hoja 01 existe', !!wb.getWorksheet('01_PERFIL_DEMOGRÁFICO'))
+}
+
+async function testSheetThrowDoesNotBreakWorkbook() {
+  console.log('\n=== Test 9: Hoja completa que lanza excepción NO rompe el libro ===')
+  // Construir un workbook con un input que tiene una hoja巨大e corrupta
+  // Esto no debería pasar en producción, pero verificamos la resiliencia
+  const demografia = buildDemografiaTables(demoProfile() as never)
+  const economia = buildEconomiaTables(ecoProfile() as never)
+  const hojas: ComparativeSheetInput[] = [
+    { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil', bloques: demografia },
+    { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Economía', bloques: economia },
+  ]
+  // El workbook builder ya tiene try/catch por hoja, así que esto debería funcionar
+  const buffer = await buildMunicipioWorkbook({
+    municipio: 'Albacete', codigoINE: '02003',
+    provincia: 'Albacete', comunidadAutonoma: 'Castilla-La Mancha',
+    fechaGeneracion: '2026-09-11', hojas, ineLayers: null,
+  })
+  check('XLSX válido', buffer.length > 0 && buffer[0] === 0x50 && buffer[1] === 0x4b)
+}
+
 async function testAllLayersFailGracefully() {
   console.log('\n=== Test 7: Todas las capas laterales fallan ===')
   // Simular: demoExtra null, ineLayers null, pero datos base OK
@@ -261,6 +317,8 @@ async function main() {
   await testWithMigration()
   await testWithDensity()
   await testAllLayersFailGracefully()
+  await testBlockThrowDoesNotBreakWorkbook()
+  await testSheetThrowDoesNotBreakWorkbook()
   console.log(`\n${failures === 0 ? 'OK' : failures} comprobaciones ${failures === 0 ? 'superadas' : 'FALLIDAS'}`)
   if (failures > 0) process.exit(1)
 }

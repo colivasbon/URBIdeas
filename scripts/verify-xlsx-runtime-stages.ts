@@ -106,6 +106,51 @@ function testRequestHeader() {
   check('requestId en 200 success', code.includes('requestId,') || code.includes('requestId}'))
 }
 
+function testFrontendRequestId() {
+  console.log('\n=== Test 5: Frontend muestra requestId ===')
+  const toolbar = readFileSync('src/components/socideas/FichaToolbar.tsx', 'utf-8')
+  const descargas = readFileSync('src/components/socideas/DescargasBloque.tsx', 'utf-8')
+
+  // FichaToolbar
+  check('FichaToolbar lee body.ref', toolbar.includes('body?.ref'))
+  check('FichaToolbar muestra ref en error', toolbar.includes('Ref: ${body.ref}'))
+  check('FichaToolbar distingue error de red', toolbar.includes('No se pudo conectar con el servidor'))
+
+  // DescargasBloque
+  check('DescargasBloque lee body.ref', descargas.includes('body?.ref'))
+  check('DescargasBloque muestra ref en error', descargas.includes('Ref: ${body.ref}'))
+  check('DescargasBloque distingue error de red', descargas.includes('No se pudo conectar con el servidor'))
+}
+
+function testBlockIsolation() {
+  console.log('\n=== Test 6: Aislamiento por bloque en XLSX ===')
+  const xlsx = readFileSync('src/lib/socideas-xlsx.ts', 'utf-8')
+
+  // Per-block try/catch in writeSheet
+  check('writeSheet tiene try/catch por bloque', xlsx.includes('SOCIDEAS_XLSX_BLOCK_SKIP'))
+  check('writeSheet loguea blockId', xlsx.includes('blockId: bloque.id'))
+
+  // Per-sheet try/catch in buildMunicipioWorkbook
+  check('buildMunicipioWorkbook tiene try/catch por hoja', xlsx.includes('SOCIDEAS_XLSX_SHEET_SKIP'))
+  check('buildMunicipioWorkbook loguea sheetId', xlsx.includes('sheetId: hoja.id'))
+
+  // Layer isolation
+  check('buildSheetCatalog aísla densidad', xlsx.includes('SOCIDEAS_XLSX_LAYER_SKIP') && xlsx.includes("'densidad'"))
+  check('buildSheetCatalog aísla derivados', xlsx.includes("'derivados'"))
+  check('buildSheetCatalog aísla movilidad', xlsx.includes("'movilidad'"))
+  check('buildSheetCatalog aísla nivel_educativo', xlsx.includes("'nivel_educativo'"))
+}
+
+function testRouteBlockIsolation() {
+  console.log('\n=== Test 7: Aislamiento por bloque en route handler ===')
+  const code = readFileSync('src/app/api/socideas/exportar/[codigoINE]/route.ts', 'utf-8')
+
+  // buildDemografiaTables is wrapped in try/catch
+  check('buildDemografiaTables tiene try/catch', code.includes("stage = 'build_demographic_sheet'") && code.includes('} catch (e)'))
+  // buildEconomiaTables is wrapped in try/catch
+  check('buildEconomiaTables tiene try/catch', code.includes("stage = 'build_economic_sheet'") && code.includes('} catch (e)'))
+}
+
 // ---------- Main ----------
 
 function main() {
@@ -113,6 +158,9 @@ function main() {
   testLogStructure()
   testErrorSecurity()
   testRequestHeader()
+  testFrontendRequestId()
+  testBlockIsolation()
+  testRouteBlockIsolation()
   console.log(`\n${failures === 0 ? 'OK' : failures} comprobaciones ${failures === 0 ? 'superadas' : 'FALLIDAS'}`)
   if (failures > 0) process.exit(1)
 }

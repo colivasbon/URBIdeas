@@ -169,17 +169,27 @@ export async function GET(
       hasIneLayers: ineLayers !== null,
     })
 
-    // 5. Construir tablas
+    // 5. Construir tablas (con aislamiento por bloque)
     stage = 'build_demographic_sheet'
     const municipio = perfilDemo?.municipio.nombre ?? perfilEco?.municipio.nombre ?? codigoINE
-    const demografia = [
-      ...(perfilDemo ? buildDemografiaTables(perfilDemo) : []),
-      ...buildDemographicDimensionTables(demoExtra),
-    ]
+    let demografia: Awaited<ReturnType<typeof buildDemografiaTables>> = []
+    try {
+      demografia = [
+        ...(perfilDemo ? buildDemografiaTables(perfilDemo) : []),
+        ...buildDemographicDimensionTables(demoExtra),
+      ]
+    } catch (e) {
+      logError(requestId, stage, ineCode, e)
+    }
     logStage(requestId, stage, ineCode, { blocks: demografia.length })
 
     stage = 'build_economic_sheet'
-    const economia = perfilEco ? buildEconomiaTables(perfilEco) : []
+    let economia: Awaited<ReturnType<typeof buildEconomiaTables>> = []
+    try {
+      economia = perfilEco ? buildEconomiaTables(perfilEco) : []
+    } catch (e) {
+      logError(requestId, stage, ineCode, e)
+    }
     logStage(requestId, stage, ineCode, { blocks: economia.length })
 
     if (demografia.length === 0 && economia.length === 0) {

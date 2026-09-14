@@ -424,16 +424,26 @@ function writeSheet(wb: ExcelJS.Workbook, input: ComparativeSheetInput, ctx: Mun
   writeScopeLine(ws, 2, maxCols, ctx)
   let cursor = 4
   for (const bloque of input.bloques) {
-    const isNote =
-      bloque.availability === 'pending_integration' ||
-      bloque.availability === 'not_available' ||
-      bloque.filas.length === 0
-    if (isNote) {
-      const placed = writeNoteBlock(ws, cursor, bloque)
-      cursor = placed.endRow + 2
-    } else {
-      const placed = writeDataBlock(ws, cursor, bloque)
-      cursor = placed.endRow + 2
+    try {
+      const isNote =
+        bloque.availability === 'pending_integration' ||
+        bloque.availability === 'not_available' ||
+        bloque.filas.length === 0
+      if (isNote) {
+        const placed = writeNoteBlock(ws, cursor, bloque)
+        cursor = placed.endRow + 2
+      } else {
+        const placed = writeDataBlock(ws, cursor, bloque)
+        cursor = placed.endRow + 2
+      }
+    } catch (blockErr) {
+      console.error(JSON.stringify({
+        tag: 'SOCIDEAS_XLSX_BLOCK_SKIP',
+        sheet: input.id,
+        blockId: bloque.id,
+        blockTitle: bloque.titulo,
+        error: blockErr instanceof Error ? blockErr.message : String(blockErr),
+      }))
     }
   }
   // Año compacto si la hoja contiene series anuales.
@@ -636,19 +646,31 @@ function buildSheetCatalog(input: MunicipioWorkbookInput): {
   const hoja01: ExportTable[] = []
   for (const b of input.hojas.find((h) => h.id === '01_PERFIL_DEMOGRÁFICO')?.bloques ?? []) hoja01.push(b)
   // Densidad: si la capa INE lateral la publica, reemplaza al placeholder.
-  const densidad = buildDensidadTable(input.ineLayers)
-  if (densidad) {
-    const idx = hoja01.findIndex((b) => b.id === 'densidad')
-    if (idx >= 0) hoja01[idx] = densidad
+  try {
+    const densidad = buildDensidadTable(input.ineLayers)
+    if (densidad) {
+      const idx = hoja01.findIndex((b) => b.id === 'densidad')
+      if (idx >= 0) hoja01[idx] = densidad
+    }
+  } catch (e) {
+    console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'densidad', error: e instanceof Error ? e.message : String(e) }))
   }
-  const derivados = buildDemographicDerivedLayerTable(input.ineLayers)
-  if (derivados) {
-    const idx = hoja01.findIndex((b) => b.id === 'derivados')
-    if (idx >= 0) hoja01[idx] = derivados
+  try {
+    const derivados = buildDemographicDerivedLayerTable(input.ineLayers)
+    if (derivados) {
+      const idx = hoja01.findIndex((b) => b.id === 'derivados')
+      if (idx >= 0) hoja01[idx] = derivados
+    }
+  } catch (e) {
+    console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'derivados', error: e instanceof Error ? e.message : String(e) }))
   }
   // Movilidad: si la capa INE lateral la publica, se añade al final.
-  const movilidad = buildMovilidadMigratoriaTable(input.ineLayers)
-  if (movilidad && movilidad.length > 0) hoja01.push(...movilidad)
+  try {
+    const movilidad = buildMovilidadMigratoriaTable(input.ineLayers)
+    if (movilidad && movilidad.length > 0) hoja01.push(...movilidad)
+  } catch (e) {
+    console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'movilidad', error: e instanceof Error ? e.message : String(e) }))
+  }
   sheetsById.set('01_PERFIL_DEMOGRÁFICO', hoja01)
 
   // 02. Contexto político
@@ -662,8 +684,12 @@ function buildSheetCatalog(input: MunicipioWorkbookInput): {
 
   // 04. Contexto sociocultural
   const hoja04: ExportTable[] = []
-  const nivelEduc = buildNivelEducativoTable(input.ineLayers)
-  if (nivelEduc) hoja04.push(nivelEduc)
+  try {
+    const nivelEduc = buildNivelEducativoTable(input.ineLayers)
+    if (nivelEduc) hoja04.push(nivelEduc)
+  } catch (e) {
+    console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'nivel_educativo', error: e instanceof Error ? e.message : String(e) }))
+  }
   hoja04.push(buildCentrosEducativosTable())
   sheetsById.set('04_CONTEXTO_SOCIOCULTURAL', hoja04)
 
@@ -758,7 +784,17 @@ export async function buildMunicipioWorkbook(input: MunicipioWorkbookInput): Pro
 
   const { hojas, fuentes } = buildSheetCatalog(input)
   writeProyecto(wb, input, hojas)
-  for (const hoja of hojas) writeSheet(wb, hoja, input)
+  for (const hoja of hojas) {
+    try {
+      writeSheet(wb, hoja, input)
+    } catch (sheetErr) {
+      console.error(JSON.stringify({
+        tag: 'SOCIDEAS_XLSX_SHEET_SKIP',
+        sheetId: hoja.id,
+        error: sheetErr instanceof Error ? sheetErr.message : String(sheetErr),
+      }))
+    }
+  }
   writeCriteriosFuentes(wb, { bloques: [], fuentes })
 
   const buffer = await wb.xlsx.writeBuffer()

@@ -264,11 +264,31 @@ export async function GET(
     const body = new Uint8Array(buffer)
 
     // Sanitización defensiva: el header Content-Disposition solo admite ByteString
-    // (rango 0-255). Si rawFilename contiene guiones Unicode que
-    // normalizarMunicipio no limpió, encodeURIComponent los codifica como
-    // %XX pero el runtime puede validar el string ANTES de codificar.
-    // Usar filename (ya ASCII-safe) para AMBAS partes del header.
+    // (rango 0-255). Usar filename (ya ASCII-safe) para AMBAS partes del header.
     const disposition = `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+
+    // Instrumentación: detectar caracteres > 255 en CUALQUIER header antes de enviar
+    const headersToSet: Record<string, string> = {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': disposition,
+      'Content-Length': String(body.byteLength),
+      'Cache-Control': 'private, no-store',
+      'X-Socideas-Brand': XLSX_BRAND,
+      'X-Socideas-Request-Id': requestId,
+    }
+    for (const [headerName, headerValue] of Object.entries(headersToSet)) {
+      for (let i = 0; i < headerValue.length; i++) {
+        const code = headerValue.charCodeAt(i)
+        if (code > 255) {
+          console.error('[SOCIDEAS_XLSX_EXPORT_BAD_HEADER]', {
+            requestId, ineCode, headerName,
+            charIndex: i, charCode: code,
+            contextBefore: headerValue.slice(Math.max(0, i - 15), i),
+            contextAfter: headerValue.slice(i, i + 15),
+          })
+        }
+      }
+    }
 
     logStage(requestId, stage, ineCode, {
       ok: true,
@@ -278,14 +298,7 @@ export async function GET(
 
     return new NextResponse(body, {
       status: 200,
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': disposition,
-        'Content-Length': String(body.byteLength),
-        'Cache-Control': 'private, no-store',
-        'X-Socideas-Brand': XLSX_BRAND,
-        'X-Socideas-Request-Id': requestId,
-      },
+      headers: headersToSet,
     })
   } catch (err) {
     console.error('[SOCIDEAS_XLSX_EXPORT_ERROR]', {

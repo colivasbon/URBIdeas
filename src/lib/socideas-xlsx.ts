@@ -31,7 +31,7 @@ import {
 } from './socideas-ine-layers-export'
 import type { MunicipalIneLayersV1 } from './socideas-ine-layers'
 
-export const XLSX_BRAND = 'Ideas Sostenibilidad · SOCideas — Libro municipal comparativo'
+export const XLSX_BRAND = 'Ideas Sostenibilidad - SOCideas - Libro municipal comparativo'
 
 /** Texto visible obligatorio del enlace de procedencia. */
 export const SOURCE_LINK_LABEL = 'Ver ficha oficial ↗'

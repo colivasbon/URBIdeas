@@ -312,19 +312,31 @@ async function testAllLayersFailGracefully() {
 function testFilenameSanitization() {
   console.log('\n=== Test 10: Saneamiento de nombre de archivo (em dash U+2014) ===')
 
-  // Test 1: em dash en nombre de municipio
-  const input1 = 'SOCideas_Albacete\u2014_02003_libro.xlsx'
-  const result1 = toAsciiFilename(input1)
-  check('toAsciiFilename elimina em dash', !result1.includes('\u2014'), `result: ${result1}`)
-  check('toAsciiFilename produce ByteString válido',
-    (() => { try { new Headers({'Content-Disposition': `attachment; filename="${result1}"`}); return true } catch { return false } })(),
-    `result: ${result1}`)
+  // Test 1: em dash en nombre de municipio — reproduce el fallo exacto de Vercel
+  const municipioConEmDash = 'Albacete\u2014'
+  const rawFilename = `SOCideas_${normalizarMunicipio(municipioConEmDash)}_02003_libro.xlsx`
+  const asciiFilename = toAsciiFilename(rawFilename)
 
-  // Test 2: normalizarMunicipio con em dash
+  // Construir el header EXACTAMENTE como lo hace route.ts (con filename para AMBAS partes)
+  const headerValue = `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(asciiFilename)}`
+
+  check('rawFilename no contiene em dash', !rawFilename.includes('\u2014'), `rawFilename: ${rawFilename}`)
+  check('header no contiene caracteres > 255',
+    !/[\u0100-\uFFFF]/.test(headerValue),
+    `header: ${headerValue}`)
+  check('Content-Disposition válido con em dash en municipio',
+    (() => { try { new Headers({'Content-Disposition': headerValue}); return true } catch { return false } })(),
+    `header: ${headerValue}`)
+
+  // Test 2: toAsciiFilename elimina em dash
+  const result1 = toAsciiFilename('SOCideas_Albacete\u2014_02003_libro.xlsx')
+  check('toAsciiFilename elimina em dash', !result1.includes('\u2014'), `result: ${result1}`)
+
+  // Test 3: normalizarMunicipio con em dash
   const norm1 = normalizarMunicipio('Albacete\u2014test')
   check('normalizarMunicipio convierte em dash a guion', norm1 === 'Albacete-test', `result: ${norm1}`)
 
-  // Test 3: todos los guiones Unicode
+  // Test 4: todos los guiones Unicode
   for (const [label, char] of [
     ['hyphen U+2010', '\u2010'],
     ['non-breaking hyphen U+2011', '\u2011'],
@@ -338,7 +350,7 @@ function testFilenameSanitization() {
     check(`${label} saneado`, !r.includes(char), `result: ${r}`)
   }
 
-  // Test 4: nombre real de Albacete con Content-Disposition
+  // Test 5: nombre real de Albacete con Content-Disposition
   const filename = toAsciiFilename('SOCideas_Albacete_02003_libro.xlsx')
   check('filename Albacete OK', filename === 'SOCideas_Albacete_02003_libro.xlsx')
   try {
@@ -348,11 +360,11 @@ function testFilenameSanitization() {
     check('Content-Disposition Albacete válido', false)
   }
 
-  // Test 5: municipio con ñ
+  // Test 6: municipio con ñ
   const filenameN = toAsciiFilename('SOCideas_Peñarroya_02003_libro.xlsx')
   check('filename con ñ saneado', !filenameN.includes('ñ'), `result: ${filenameN}`)
 
-  // Test 6: municipio con apóstrofo (válido en Content-Disposition)
+  // Test 7: municipio con apóstrofo (válido en Content-Disposition)
   const filenameA = toAsciiFilename("SOCideas_Sant'Antoni_02003_libro.xlsx")
   check('filename con apóstrofo válido', filenameA.includes("'"), `result: ${filenameA}`)
   try {
@@ -361,6 +373,17 @@ function testFilenameSanitization() {
   } catch {
     check('Content-Disposition con apóstrofo válido', false)
   }
+
+  // Test 8: reproduce EXACTAMENTE el escenario de Vercel con header completo
+  // (filename= + filename*=UTF-8'') usando el municipio con em dash
+  console.log('\n--- Verificación ByteString del header completo ---')
+  const fullHeader = `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(asciiFilename)}`
+  let maxCode = 0
+  for (let i = 0; i < fullHeader.length; i++) {
+    const c = fullHeader.charCodeAt(i)
+    if (c > maxCode) maxCode = c
+  }
+  check('header max char code <= 255 (ByteString válido)', maxCode <= 255, `maxCode: ${maxCode}`)
 }
 
 // ---------- Main ----------

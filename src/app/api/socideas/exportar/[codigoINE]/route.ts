@@ -263,6 +263,13 @@ export async function GET(
     const filename = toAsciiFilename(rawFilename)
     const body = new Uint8Array(buffer)
 
+    // Sanitización defensiva: el header Content-Disposition solo admite ByteString
+    // (rango 0-255). Si rawFilename contiene guiones Unicode que
+    // normalizarMunicipio no limpió, encodeURIComponent los codifica como
+    // %XX pero el runtime puede validar el string ANTES de codificar.
+    // Usar filename (ya ASCII-safe) para AMBAS partes del header.
+    const disposition = `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+
     logStage(requestId, stage, ineCode, {
       ok: true,
       filename,
@@ -273,7 +280,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(rawFilename)}`,
+        'Content-Disposition': disposition,
         'Content-Length': String(body.byteLength),
         'Cache-Control': 'private, no-store',
         'X-Socideas-Brand': XLSX_BRAND,

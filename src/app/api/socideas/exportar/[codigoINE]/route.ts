@@ -106,7 +106,7 @@ export async function GET(
     ineCode = codigoINE
     if (!/^\d{5}$/.test(codigoINE)) {
       return NextResponse.json(
-        { error: 'Código INE inválido (se esperan 5 dígitos)' },
+        { error: 'Código INE inválido (se esperan 5 dígitos)', requestId, ref: `XLSX-${requestId}` },
         { status: 400 },
       )
     }
@@ -118,7 +118,7 @@ export async function GET(
     if (!supabase) {
       logStage(requestId, stage, ineCode, { ok: false, reason: 'env_missing' })
       return NextResponse.json(
-        { error: 'La exportación no está disponible temporalmente.', requestId },
+        { error: 'La exportación no está disponible temporalmente.', requestId, ref: `XLSX-${requestId}` },
         { status: 503 },
       )
     }
@@ -147,7 +147,7 @@ export async function GET(
     if (!ok) {
       logStage(requestId, stage, ineCode, { ok: false, demoStatus: demo.status, ecoStatus: eco.status })
       return NextResponse.json(
-        { error: `No se encontró el municipio ${codigoINE}.`, requestId },
+        { error: `No se encontró el municipio ${codigoINE}.`, requestId, ref: `XLSX-${requestId}` },
         { status: 404 },
       )
     }
@@ -157,7 +157,7 @@ export async function GET(
     if (!perfilDemo && !perfilEco) {
       logStage(requestId, stage, ineCode, { ok: false, reason: 'no_perfil' })
       return NextResponse.json(
-        { error: `No se encontró el municipio ${codigoINE}.`, requestId },
+        { error: `No se encontró el municipio ${codigoINE}.`, requestId, ref: `XLSX-${requestId}` },
         { status: 404 },
       )
     }
@@ -194,7 +194,7 @@ export async function GET(
 
     if (demografia.length === 0 && economia.length === 0) {
       return NextResponse.json(
-        { error: 'Este municipio aún no tiene tablas con datos reales para exportar.', requestId },
+        { error: 'Este municipio aún no tiene tablas con datos reales para exportar.', requestId, ref: `XLSX-${requestId}` },
         { status: 404 },
       )
     }
@@ -220,6 +220,15 @@ export async function GET(
       hojas,
       ineLayers,
     })
+
+    // Validar que el buffer no esté vacío o sea sospechosamente pequeño
+    if (buffer.length < 1000) {
+      logStage(requestId, stage, ineCode, { ok: false, reason: 'buffer_too_small', size: buffer.length })
+      return NextResponse.json(
+        { error: 'El archivo generado está vacío o incompleto.', requestId, ref: `XLSX-${requestId}` },
+        { status: 500 },
+      )
+    }
 
     // 7. Respuesta
     stage = 'build_http_response'

@@ -100,8 +100,20 @@ export default function FichaToolbar({
         {downloading ? "Generando Excel…" : "Descargar XLSX"}
       </button>
       {error && (
-        <span role="alert" className="text-xs text-red-600 max-w-xs truncate">
+        <span role="alert" className="mt-1 block w-full text-xs text-red-600 break-words">
           {error}
+          {error.includes("XLSX-") && (
+            <button
+              type="button"
+              onClick={() => {
+                const ref = error.match(/XLSX-[A-Z0-9]+/)?.[0];
+                if (ref) navigator.clipboard.writeText(ref);
+              }}
+              className="ml-2 inline-flex items-center rounded border border-red-300 px-1.5 py-0.5 text-[10px] font-medium text-red-700 hover:bg-red-50"
+            >
+              Copiar ref
+            </button>
+          )}
         </span>
       )}
       {children}

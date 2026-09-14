@@ -100,8 +100,8 @@ export default function FichaToolbar({
         {downloading ? "Generando Excel…" : "Descargar XLSX"}
       </button>
       {error && (
-        <span role="alert" className="mt-1 block w-full text-xs text-red-600 break-words">
-          {error}
+        <div role="alert" className="basis-full mt-1 text-xs text-red-600 break-words">
+          <span>{error}</span>
           {error.includes("XLSX-") && (
             <button
               type="button"
@@ -114,7 +114,7 @@ export default function FichaToolbar({
               Copiar ref
             </button>
           )}
-        </span>
+        </div>
       )}
       {children}
     </div>

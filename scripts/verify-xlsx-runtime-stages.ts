@@ -55,7 +55,12 @@ function testRouteInstrumentation() {
   check('NO expone R2_SECRET_ACCESS_KEY', !code.includes('R2_SECRET_ACCESS_KEY'))
   check('NO expone R2_ACCESS_KEY_ID en logs', !code.includes('console.log.*R2_ACCESS'))
   check('NO expone stack trace al cliente', !code.includes("err.stack"))
-  check('NO expone err.message al cliente', !code.includes("err.message"))
+  // Verificar que err.message NO está en el body de NextResponse.json del catch
+  const catchIdx = code.indexOf('} catch (err)')
+  const catchCode = code.slice(catchIdx)
+  const jsonStart = catchCode.indexOf('NextResponse.json(')
+  const jsonBody = catchCode.slice(jsonStart, catchCode.indexOf(')', jsonStart + 20))
+  check('NO expone err.message al cliente', !jsonBody.includes("err.message"))
 }
 
 function testLogStructure() {

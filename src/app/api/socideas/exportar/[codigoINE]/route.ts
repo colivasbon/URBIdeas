@@ -104,6 +104,7 @@ export async function GET(
     // 1. Validar código INE
     const { codigoINE } = await params
     ineCode = codigoINE
+    console.log('[SOCIDEAS_XLSX_EXPORT_START]', { ineCode, requestId })
     if (!/^\d{5}$/.test(codigoINE)) {
       return NextResponse.json(
         { error: 'Código INE inválido (se esperan 5 dígitos)', requestId, ref: `XLSX-${requestId}` },
@@ -123,22 +124,32 @@ export async function GET(
       )
     }
     logStage(requestId, stage, ineCode, { ok: true })
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'create_supabase_client', ok: true })
 
     // 3. Datos base + capas laterales
     stage = 'load_base_data'
     logStage(requestId, stage, ineCode, { parallel: true })
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'load_base_data', parallel: true })
     const [demo, eco, demoExtra, ineLayers] = await Promise.all([
       getPerfilDemografico(supabase, codigoINE, {}),
       getPerfilEconomico(supabase, codigoINE),
       readDemographicPresentation(codigoINE).catch((e) => {
+        console.warn('[SOCIDEAS_XLSX_EXPORT_LAYER_SKIP]', { ineCode, requestId, layer: 'demographic_summary', errorName: e?.name, errorMessageSafe: String(e?.message).slice(0, 200) })
         logStage(requestId, 'load_demographic_summary', ineCode, { ok: false, error: String(e) })
         return null
       }),
       readMunicipalIneLayers(codigoINE).catch((e) => {
+        console.warn('[SOCIDEAS_XLSX_EXPORT_LAYER_SKIP]', { ineCode, requestId, layer: 'ine_layers', errorName: e?.name, errorMessageSafe: String(e?.message).slice(0, 200) })
         logStage(requestId, 'load_ine_layers', ineCode, { ok: false, error: String(e) })
         return null
       }),
     ])
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', {
+      ineCode, requestId, stage: 'load_base_data_done',
+      demoStatus: demo.status, ecoStatus: eco.status,
+      hasDemographicPresentation: demoExtra !== null,
+      hasIneLayers: ineLayers !== null,
+    })
 
     // 4. Validar que el municipio existe
     stage = 'resolve_municipality'
@@ -168,10 +179,15 @@ export async function GET(
       hasDemographicPresentation: demoExtra !== null,
       hasIneLayers: ineLayers !== null,
     })
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', {
+      ineCode, requestId, stage: 'resolve_municipality', ok: true,
+      demoStatus: demo.status, ecoStatus: eco.status,
+    })
 
     // 5. Construir tablas (con aislamiento por bloque)
     stage = 'build_demographic_sheet'
     const municipio = perfilDemo?.municipio.nombre ?? perfilEco?.municipio.nombre ?? codigoINE
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_demographic_sheet', start: true })
     let demografia: Awaited<ReturnType<typeof buildDemografiaTables>> = []
     try {
       demografia = [
@@ -182,8 +198,10 @@ export async function GET(
       logError(requestId, stage, ineCode, e)
     }
     logStage(requestId, stage, ineCode, { blocks: demografia.length })
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_demographic_sheet', blocks: demografia.length })
 
     stage = 'build_economic_sheet'
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_economic_sheet', start: true })
     let economia: Awaited<ReturnType<typeof buildEconomiaTables>> = []
     try {
       economia = perfilEco ? buildEconomiaTables(perfilEco) : []
@@ -191,6 +209,7 @@ export async function GET(
       logError(requestId, stage, ineCode, e)
     }
     logStage(requestId, stage, ineCode, { blocks: economia.length })
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_economic_sheet', blocks: economia.length })
 
     if (demografia.length === 0 && economia.length === 0) {
       return NextResponse.json(
@@ -210,6 +229,11 @@ export async function GET(
       totalBlocks: demografia.length + economia.length,
       hasIneLayers: ineLayers !== null,
     })
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', {
+      ineCode, requestId, stage: 'serialize_xlsx',
+      totalBlocks: demografia.length + economia.length,
+      hasIneLayers: ineLayers !== null,
+    })
 
     const buffer = await buildMunicipioWorkbook({
       municipio,
@@ -224,11 +248,13 @@ export async function GET(
     // Validar que el buffer no esté vacío o sea sospechosamente pequeño
     if (buffer.length < 1000) {
       logStage(requestId, stage, ineCode, { ok: false, reason: 'buffer_too_small', size: buffer.length })
+      console.error('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'serialize_xlsx', ok: false, reason: 'buffer_too_small', size: buffer.length })
       return NextResponse.json(
         { error: 'El archivo generado está vacío o incompleto.', requestId, ref: `XLSX-${requestId}` },
         { status: 500 },
       )
     }
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'serialize_xlsx_done', bufferSize: buffer.length })
 
     // 7. Respuesta
     stage = 'build_http_response'
@@ -253,7 +279,12 @@ export async function GET(
       },
     })
   } catch (err) {
-    const { name, message } = logError(requestId, stage, ineCode, err)
+    console.error('[SOCIDEAS_XLSX_EXPORT_ERROR]', {
+      ineCode, requestId, stage,
+      errorName: err instanceof Error ? err.name : 'Unknown',
+      errorMessageSafe: String(err instanceof Error ? err.message : err).slice(0, 300),
+    })
+    logError(requestId, stage, ineCode, err)
     return NextResponse.json(
       {
         error: 'No se pudo generar el archivo en este momento.',

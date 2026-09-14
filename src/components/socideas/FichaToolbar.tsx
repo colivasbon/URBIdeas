@@ -42,11 +42,11 @@ export default function FichaToolbar({
     try {
       const res = await fetch(`/api/socideas/exportar/${encodeURIComponent(codigoINE)}`);
       if (!res.ok) {
-        // Intentar leer el mensaje de error del JSON de respuesta.
         let msg = "No se ha podido generar el Excel.";
         try {
           const body = await res.json();
           if (body?.error && typeof body.error === "string") msg = body.error;
+          if (body?.ref && typeof body.ref === "string") msg += ` — Ref: ${body.ref}`;
         } catch {
           /* respuesta no-JSON: usar mensaje genérico */
         }
@@ -66,7 +66,7 @@ export default function FichaToolbar({
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setError("No se ha podido generar el Excel. Inténtalo de nuevo más tarde.");
+      setError("No se pudo conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.");
     } finally {
       setDownloading(false);
     }

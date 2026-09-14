@@ -78,6 +78,7 @@ export default function DescargasBloque({
         try {
           const body = await res.json();
           if (body?.error && typeof body.error === "string") msg = body.error;
+          if (body?.ref && typeof body.ref === "string") msg += ` — Ref: ${body.ref}`;
         } catch { /* no-op */ }
         setXlsxError(msg);
         return;
@@ -94,7 +95,7 @@ export default function DescargasBloque({
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setXlsxError("No se ha podido generar el Excel. Inténtalo de nuevo más tarde.");
+      setXlsxError("No se pudo conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.");
     } finally {
       setXlsxDownloading(false);
     }

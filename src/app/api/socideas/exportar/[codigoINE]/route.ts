@@ -7,6 +7,7 @@ import { readDemographicPresentation } from '@/lib/socideas-demographic-summary'
 import { readMigrationPresentation } from '@/lib/socideas-migration-summary'
 import { readMunicipalIneLayers } from '@/lib/socideas-ine-layers'
 import { buildDemographicDimensionTables } from '@/lib/socideas-demographic-export'
+import { buildElectoralTables } from '@/lib/socideas-electoral-export'
 import { buildMigrationFlowTables } from '@/lib/socideas-migration-export'
 import {
   buildDemografiaTables,
@@ -223,6 +224,17 @@ export async function GET(
     logStage(requestId, stage, ineCode, { blocks: economia.length })
     console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_economic_sheet', blocks: economia.length })
 
+    stage = 'build_political_sheet'
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_political_sheet', start: true })
+    let electoral: Awaited<ReturnType<typeof buildElectoralTables>> = []
+    try {
+      electoral = perfilDemo ? buildElectoralTables(perfilDemo.valores, municipio) : []
+    } catch (e) {
+      logError(requestId, stage, ineCode, e)
+    }
+    logStage(requestId, stage, ineCode, { blocks: electoral.length })
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_political_sheet', blocks: electoral.length })
+
     if (demografia.length === 0 && economia.length === 0) {
       return NextResponse.json(
         { error: 'Este municipio aún no tiene tablas con datos reales para exportar.', requestId, ref: `XLSX-${requestId}` },
@@ -234,16 +246,17 @@ export async function GET(
     stage = 'serialize_xlsx'
     const hojas: ComparativeSheetInput[] = [
       { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil demográfico', bloques: demografia },
+      { id: '02_CONTEXTO_POLÍTICO', titulo: 'Contexto político', bloques: electoral },
       { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Contexto económico', bloques: economia },
     ]
 
     logStage(requestId, stage, ineCode, {
-      totalBlocks: demografia.length + economia.length,
+      totalBlocks: demografia.length + economia.length + electoral.length,
       hasIneLayers: ineLayers !== null,
     })
     console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', {
       ineCode, requestId, stage: 'serialize_xlsx',
-      totalBlocks: demografia.length + economia.length,
+      totalBlocks: demografia.length + economia.length + electoral.length,
       hasIneLayers: ineLayers !== null,
     })
 

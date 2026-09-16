@@ -563,7 +563,7 @@ function writeCriteriosFuentes(wb: ExcelJS.Workbook, input: CriteriosFuentesInpu
 // Bloques pendientes fijos (hojas 02, 05, 06, 07)
 // ============================================================================
 
-function bloquePolitico(): ExportTable {
+function bloquePoliticoPendiente(): ExportTable {
   return {
     id: 'contexto-politico',
     titulo: 'Contexto político',
@@ -673,8 +673,11 @@ function buildSheetCatalog(input: MunicipioWorkbookInput): {
   }
   sheetsById.set('01_PERFIL_DEMOGRÁFICO', hoja01)
 
-  // 02. Contexto político
-  sheetsById.set('02_CONTEXTO_POLÍTICO', [bloquePolitico()])
+  // 02. Contexto político: tablas electorales reales cuando la entrada las
+  // trae (hoja 02_CONTEXTO_POLÍTICO); si no, bloque pendiente de integración.
+  const bloques02 = input.hojas.find((h) => h.id === '02_CONTEXTO_POLÍTICO')?.bloques ?? []
+  const has02Real = bloques02.some((b) => b.availability === 'available')
+  sheetsById.set('02_CONTEXTO_POLÍTICO', has02Real ? bloques02 : [bloquePoliticoPendiente()])
 
   // 03. Contexto económico
   sheetsById.set(
@@ -705,7 +708,12 @@ function buildSheetCatalog(input: MunicipioWorkbookInput): {
       titulo: 'Perfil demográfico',
       subtitulo: 'Población, composición, evolución, estructura, nacionalidad y arraigo',
     },
-    '02_CONTEXTO_POLÍTICO': { titulo: 'Contexto político', subtitulo: 'Bloque pendiente de integración desde fuente oficial' },
+    '02_CONTEXTO_POLÍTICO': {
+      titulo: 'Contexto político',
+      subtitulo: has02Real
+        ? 'Elecciones municipales 2023 · Ministerio del Interior (Infoelectoral)'
+        : 'Bloque pendiente de integración desde fuente oficial',
+    },
     '03_CONTEXTO_ECONÓMICO': {
       titulo: 'Contexto económico',
       subtitulo: 'Renta, desigualdad, tejido empresarial, sector agrario',
@@ -763,8 +771,9 @@ function buildSheetCatalog(input: MunicipioWorkbookInput): {
       )
     }
   }
-  // Fuentes garantizadas por contrato (hojas pendientes).
-  pushFuente('Contexto político', 'Pendiente', 'Fuente oficial pendiente', '—')
+  // Fuentes garantizadas por contrato (hojas pendientes). Con datos electorales
+  // reales, la fuente la aporta la propia tabla (Ministerio del Interior).
+  if (!has02Real) pushFuente('Contexto político', 'Pendiente', 'Fuente oficial pendiente', '—')
   pushFuente('Patrimonio y turismo', 'Pendiente', 'Inventarios culturales pendientes', '—')
   pushFuente('Infraestructura y recursos', 'Pendiente', 'Fuentes geográficas pendientes', '—')
   pushFuente('Asociaciones', 'Pendiente', 'Registros oficiales pendientes', '—')

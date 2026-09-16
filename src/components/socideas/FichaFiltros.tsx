@@ -9,6 +9,8 @@ import Traceability from "./Traceability";
 import AvailabilitySummary from "./AvailabilitySummary";
 import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
 import { ArraigoBlock, NacimientoBlock, NacionalidadBlock } from "./DemographicBlocks";
+import { BloqueElectoral } from "./ElectoralBlocks";
+import { buildElectoralPresentation } from "@/lib/socideas-elections";
 import { FlujosMigratoriosBlock } from "./MigrationBlocks";
 import { EducacionBlock, MigracionBlock } from "./IneLayersBlocks";
 import TemporaryDataNotice from "./TemporaryDataNotice";
@@ -148,6 +150,13 @@ export default function FichaFiltros({
   // Derivación local sin R2 ni fetch: reutiliza initial.valores ya entregados por el Server Component.
   // Memoizado para evitar recalcular tablas y gráficos en cada render.
   const perfil = useMemo(() => derivarPerfil(initial, filtros), [initial, filtros]);
+
+  // Bloque electoral (Fase 2B, SUBAGENTE 3): deriva de los valores del envelope
+  // ya presente, sin lecturas nuevas. Sin cobertura → estado "missing" (ND, nunca 0).
+  const electoral = useMemo(
+    () => buildElectoralPresentation(perfil.valores, perfil.municipio.nombre),
+    [perfil],
+  );
 
   const rangoInvalido =
     filtros.evoDesde !== null && filtros.evoHasta !== null && filtros.evoDesde > filtros.evoHasta;
@@ -614,6 +623,8 @@ export default function FichaFiltros({
       {demografiaExtra?.birthCountry && <NacimientoBlock data={demografiaExtra.birthCountry} />}
       {demografiaExtra?.birthResidenceRelation && <ArraigoBlock data={demografiaExtra.birthResidenceRelation} />}
       {migracion && <FlujosMigratoriosBlock data={migracion} />}
+
+      <BloqueElectoral data={electoral} />
 
       {temporaryData && <TemporaryDataNotice data={temporaryData} />}
 

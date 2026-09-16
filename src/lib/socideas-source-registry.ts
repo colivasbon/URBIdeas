@@ -18,6 +18,7 @@ export interface SourceReference {
 /** Instituciones oficiales usadas en el libro. */
 export const INE_INSTITUTION = 'Instituto Nacional de Estadística'
 export const AEAT_INSTITUTION = 'Agencia Estatal de Administración Tributaria'
+export const MIR_INSTITUTION = 'Ministerio del Interior'
 
 /** Operaciones estadísticas (etiqueta visible, sin URL). */
 export const OP_DPOP = 'Cifras oficiales de población (Padrón municipal)'
@@ -27,6 +28,7 @@ export const OP_DIRCE = 'Directorio Central de Empresas (DIRCE)'
 export const OP_CENSO_AGRARIO = 'Censo Agrario 2020 (resultados municipales)'
 export const OP_CENSO_ANUAL = 'Censo anual de población'
 export const OP_EMCR = 'Estadística de Migraciones y Cambios de Residencia'
+export const OP_MUNI_MAS250 = 'Infoelectoral · Datos Abiertos — Elecciones municipales de más de 250 habitantes'
 
 /**
  * Dominios públicos autorizados para hipervínculos de fuente. Cualquier enlace
@@ -37,6 +39,8 @@ export const ALLOWED_SOURCE_HOSTS = [
   'ine.es',
   'www.agenciatributaria.es',
   'sede.agenciatributaria.gob.es',
+  'infoelectoral.interior.gob.es',
+  'descargas.interior.gob.es',
 ] as const
 
 /** Dominios prohibidos explícitamente (infraestructura interna, R2, etc.). */
@@ -142,6 +146,13 @@ export const SOCIDEAS_SOURCE_REGISTRY = {
     tableId: '69746',
     publicUrl: 'https://www.ine.es/jaxiT3/Tabla.htm?t=69746',
     shortLabel: 'INE · EMCR · Tabla 69746',
+  },
+  mir_muni_mas250_2023: {
+    institution: MIR_INSTITUTION,
+    operation: OP_MUNI_MAS250,
+    tableId: 'MIR_MUNI_202305',
+    publicUrl: 'https://infoelectoral.interior.gob.es/es/elecciones-celebradas/datos-abiertos/',
+    shortLabel: 'Interior · Infoelectoral · Municipales 2023 · Tabla MIR_MUNI_202305',
   },
 } as const satisfies Record<string, SourceReference>
 

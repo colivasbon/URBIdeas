@@ -4,8 +4,10 @@ import { createSupabaseServerSafe } from '@/lib/supabase-server'
 import { getPerfilDemografico } from '@/lib/socideas-perfil'
 import { getPerfilEconomico } from '@/lib/socideas-economia'
 import { readDemographicPresentation } from '@/lib/socideas-demographic-summary'
+import { readMigrationPresentation } from '@/lib/socideas-migration-summary'
 import { readMunicipalIneLayers } from '@/lib/socideas-ine-layers'
 import { buildDemographicDimensionTables } from '@/lib/socideas-demographic-export'
+import { buildMigrationFlowTables } from '@/lib/socideas-migration-export'
 import {
   buildDemografiaTables,
   buildEconomiaTables,
@@ -26,6 +28,7 @@ type ExportStage =
   | 'resolve_municipality'
   | 'load_base_data'
   | 'load_demographic_summary'
+  | 'load_migration_summary'
   | 'load_ine_layers'
   | 'build_project_sheet'
   | 'build_demographic_sheet'
@@ -131,12 +134,17 @@ export async function GET(
     stage = 'load_base_data'
     logStage(requestId, stage, ineCode, { parallel: true })
     console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'load_base_data', parallel: true })
-    const [demo, eco, demoExtra, ineLayers] = await Promise.all([
+    const [demo, eco, demoExtra, migracion, ineLayers] = await Promise.all([
       getPerfilDemografico(supabase, codigoINE, {}),
       getPerfilEconomico(supabase, codigoINE),
       readDemographicPresentation(codigoINE).catch((e) => {
         console.warn('[SOCIDEAS_XLSX_EXPORT_LAYER_SKIP]', { ineCode, requestId, layer: 'demographic_summary', errorName: e?.name, errorMessageSafe: String(e?.message).slice(0, 200) })
         logStage(requestId, 'load_demographic_summary', ineCode, { ok: false, error: String(e) })
+        return null
+      }),
+      readMigrationPresentation(codigoINE).catch((e) => {
+        console.warn('[SOCIDEAS_XLSX_EXPORT_LAYER_SKIP]', { ineCode, requestId, layer: 'migration_summary', errorName: e?.name, errorMessageSafe: String(e?.message).slice(0, 200) })
+        logStage(requestId, 'load_migration_summary', ineCode, { ok: false, error: String(e) })
         return null
       }),
       readMunicipalIneLayers(codigoINE).catch((e) => {
@@ -149,6 +157,7 @@ export async function GET(
       ineCode, requestId, stage: 'load_base_data_done',
       demoStatus: demo.status, ecoStatus: eco.status,
       hasDemographicPresentation: demoExtra !== null,
+      hasMigrationPresentation: migracion !== null,
       hasIneLayers: ineLayers !== null,
     })
 
@@ -178,6 +187,7 @@ export async function GET(
       demoStatus: demo.status,
       ecoStatus: eco.status,
       hasDemographicPresentation: demoExtra !== null,
+      hasMigrationPresentation: migracion !== null,
       hasIneLayers: ineLayers !== null,
     })
     console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', {
@@ -194,6 +204,7 @@ export async function GET(
       demografia = [
         ...(perfilDemo ? buildDemografiaTables(perfilDemo) : []),
         ...buildDemographicDimensionTables(demoExtra),
+        ...buildMigrationFlowTables(migracion),
       ]
     } catch (e) {
       logError(requestId, stage, ineCode, e)

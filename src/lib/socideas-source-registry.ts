@@ -26,6 +26,7 @@ export const OP_ADRH = 'Atlas de Distribución de Renta de los Hogares (ADRH)'
 export const OP_DIRCE = 'Directorio Central de Empresas (DIRCE)'
 export const OP_CENSO_AGRARIO = 'Censo Agrario 2020 (resultados municipales)'
 export const OP_CENSO_ANUAL = 'Censo anual de población'
+export const OP_EMCR = 'Estadística de Migraciones y Cambios de Residencia'
 
 /**
  * Dominios públicos autorizados para hipervínculos de fuente. Cualquier enlace
@@ -120,6 +121,27 @@ export const SOCIDEAS_SOURCE_REGISTRY = {
     tableId: '68540',
     publicUrl: 'https://www.ine.es/jaxiT3/Tabla.htm?t=68540',
     shortLabel: 'INE · Censo anual · Tabla 68540',
+  },
+  ine_migration_abroad_69711: {
+    institution: INE_INSTITUTION,
+    operation: OP_EMCR,
+    tableId: '69711',
+    publicUrl: 'https://www.ine.es/jaxiT3/Tabla.htm?t=69711',
+    shortLabel: 'INE · EMCR · Tabla 69711',
+  },
+  ine_immigration_intermunicipal_69743: {
+    institution: INE_INSTITUTION,
+    operation: OP_EMCR,
+    tableId: '69743',
+    publicUrl: 'https://www.ine.es/jaxiT3/Tabla.htm?t=69743',
+    shortLabel: 'INE · EMCR · Tabla 69743',
+  },
+  ine_emigration_intermunicipal_69746: {
+    institution: INE_INSTITUTION,
+    operation: OP_EMCR,
+    tableId: '69746',
+    publicUrl: 'https://www.ine.es/jaxiT3/Tabla.htm?t=69746',
+    shortLabel: 'INE · EMCR · Tabla 69746',
   },
 } as const satisfies Record<string, SourceReference>
 

@@ -274,9 +274,13 @@ export async function main(): Promise<void> {
   const { createClient } = await import("@supabase/supabase-js");
   const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!SUPA_URL || !SERVICE_KEY) throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env.local");
   if (!process.env.R2_BUCKET) throw new Error("Faltan credenciales R2 en .env.local");
-  const supabase = createClient(SUPA_URL, SERVICE_KEY, { auth: { persistSession: false } });
+  // Sin service-role: modo local (catálogo local + metas hardcodeadas idénticas a
+  // las sembradas en Supabase + auditoría diferida a manifest.pendingAudit).
+  const supabase = SUPA_URL && SERVICE_KEY
+    ? createClient(SUPA_URL, SERVICE_KEY, { auth: { persistSession: false } })
+    : null;
+  if (!supabase) console.log("[supabase] Sin service-role: modo local (catálogos hardcodeados + auditoría diferida).");
   const catalog = parseCatalog();
   const { byIne } = indexConvocatoria();
 
@@ -292,11 +296,29 @@ export async function main(): Promise<void> {
   const sliceAll = onlyCodes ? catalog.filter((m) => onlyCodes.includes(m.codigo_ine)) : catalog;
   const slice = sliceAll.slice(offset, limit > 0 ? offset + limit : undefined);
   console.log(`[fase2] municipios en tramo: ${slice.length} (offset=${offset} limit=${limit || "∞"} fuerza=${force ? "sí" : "no"})`);
-  const { data: sources } = await supabase.from("statistical_sources").select("id, slug, organismo, nombre");
+  const LOCAL_SOURCES = [
+    { slug: "mir_infoelectoral", organismo: "Ministerio del Interior", nombre: "Infoelectoral · Datos Abiertos — Elecciones municipales de más de 250 habitantes" },
+  ];
+  const LOCAL_INDS = [
+    { slug: "elec_censo", nombre: "Censo electoral", unidad: "personas" },
+    { slug: "elec_votantes", nombre: "Votantes", unidad: "votos" },
+    { slug: "elec_participacion", nombre: "Participación electoral", unidad: "%" },
+    { slug: "elec_votos_validos", nombre: "Votos válidos", unidad: "votos" },
+    { slug: "elec_votos_candidaturas", nombre: "Votos a candidaturas", unidad: "votos" },
+    { slug: "elec_votos_blanco", nombre: "Votos en blanco", unidad: "votos" },
+    { slug: "elec_votos_nulos", nombre: "Votos nulos", unidad: "votos" },
+    { slug: "elec_votos_candidatura", nombre: "Votos por candidatura", unidad: "votos" },
+    { slug: "elec_concejales", nombre: "Concejales por candidatura", unidad: "concejales" },
+  ];
+  const { data: sources } = supabase
+    ? await supabase.from("statistical_sources").select("id, slug, organismo, nombre")
+    : { data: LOCAL_SOURCES };
   const srcMeta = new Map(
     ((sources ?? []) as { id: string; slug: string; organismo: string; nombre: string }[]).map((s) => [s.slug, s]),
   );
-  const { data: inds } = await supabase.from("indicator_definitions").select("id, slug, nombre, unidad").eq("activo", true);
+  const { data: inds } = supabase
+    ? await supabase.from("indicator_definitions").select("id, slug, nombre, unidad").eq("activo", true)
+    : { data: LOCAL_INDS };
   const indMeta = new Map(((inds ?? []) as { id: string; slug: string; nombre: string; unidad: string | null }[]).map((i) => [i.slug, i]));
 
   const t0 = Date.now();
@@ -440,7 +462,7 @@ export async function main(): Promise<void> {
       const bytesDespues = JSON.stringify(envelope).length;
       if (bytesDespues - bytesAntes > MAX_BYTES) throw new Error(`Presupuesto superado +${bytesDespues - bytesAntes}B`);
       const key = await putMunicipioJson(ine, envelope);
-      const base = (process.env.NEXT_PUBLIC_SOCIDEAS_R2_BASE ?? process.env.SOCIDEAS_R2_PUBLIC_BASE ?? "").replace(/\/$/, "");
+      const base = (process.env.NEXT_PUBLIC_SOCIDEAS_R2_BASE || process.env.SOCIDEAS_R2_PUBLIC_BASE || "https://pub-ecf1b1fd05e54263b2c664384c92c7b4.r2.dev").replace(/\/$/, "");
       const rb = await fetch(`${base}/socideas/v2/municipios/${ine}.json?v=${Date.now()}`, { headers: { Accept: "application/json" } });
       if (!rb.ok) throw new Error(`Read-back HTTP ${rb.status}`);
       const rbJson = (await rb.json()) as { codigo_ine?: string; valores?: unknown[] };
@@ -459,7 +481,7 @@ export async function main(): Promise<void> {
       if (isMissing) counts.missing += 1;
       else counts.actualizado += 1;
       const sha = createHash("sha256").update(JSON.stringify(envelope)).digest("hex").slice(0, 16);
-      await supabase.from("data_sync_runs").insert({
+      const auditRow = {
         source_id: null,
         tipo_sincronizacion: TIPO_SYNC,
         municipio_codigo_ine: ine,
@@ -472,7 +494,13 @@ export async function main(): Promise<void> {
         periodo: ELECTIONS_CONVOCATORIA.fecha,
         fuente: "mir_infoelectoral",
         metadata: { estado_bloque: estado, sha, tableId: ELECTIONS_CONVOCATORIA.tableId },
-      });
+      };
+      if (supabase) await supabase.from("data_sync_runs").insert(auditRow);
+      else {
+        const mm = manifest as unknown as { pendingAudit: unknown[] };
+        mm.pendingAudit = mm.pendingAudit ?? [];
+        mm.pendingAudit.push(auditRow);
+      }
       if ((idx + 1) % 100 === 0) {
         await writeFile(MANIFEST_PATH, JSON.stringify(manifest));
         console.log(`[progreso] ${idx + 1}/${slice.length} escritos=${escritos} errores=${errores}`);
@@ -482,7 +510,7 @@ export async function main(): Promise<void> {
       counts.error += 1;
       if (String((e as Error).message).startsWith("Read-back")) readbackErr += 1;
       manifest.items[ine] = { key: "", bytesAntes: 0, bytesDespues: 0, readback: "error", estado: "error" };
-      await supabase.from("data_sync_runs").insert({
+      const errRow = {
         source_id: null,
         tipo_sincronizacion: TIPO_SYNC,
         municipio_codigo_ine: ine,
@@ -493,7 +521,13 @@ export async function main(): Promise<void> {
         bloque: "politica",
         periodo: ELECTIONS_CONVOCATORIA.fecha,
         fuente: "mir_infoelectoral",
-      });
+      };
+      if (supabase) await supabase.from("data_sync_runs").insert(errRow);
+      else {
+        const mm = manifest as unknown as { pendingAudit: unknown[] };
+        mm.pendingAudit = mm.pendingAudit ?? [];
+        mm.pendingAudit.push(errRow);
+      }
     }
   }
   await writeFile(MANIFEST_PATH, JSON.stringify(manifest));

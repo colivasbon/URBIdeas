@@ -15,6 +15,7 @@ import {
   ineTableSource,
   type SourceReference,
 } from "./socideas-source-registry";
+import { densityYearsWarning } from "./socideas-density";
 
 export interface ExportCell { text: string; numeric: number | null }
 
@@ -271,21 +272,59 @@ export function buildDemografiaTables(perfil: PerfilDemografico): ExportTable[] 
     });
   }
 
-  // 2. Densidad de población: pendiente en el envelope actual.
-  tablas.push({
-    id: "densidad",
-    titulo: "Densidad de población",
-    hoja: "01_PERFIL_DEMOGRÁFICO",
-    columnas: ["Concepto"],
-    filas: [],
-    fuente: "Pendiente de incorporación desde fuente de superficie homogénea",
-    periodo: "—",
-    cobertura: "Municipio / Provincia / CCAA / España",
-    estado: "Sin cobertura verificable",
-    availability: "pending_integration",
-    comparisonMode: "municipal_only",
-    note: "Densidad de población: pendiente de incorporación desde fuente de superficie.",
-  });
+  // 2. Densidad de población: cálculo SOCideas cuando el envelope trae
+  //    superficie oficial IGN; si no, placeholder honesto (nada se estima).
+  if (perfil.densidad.valor !== null && perfil.densidad.valor !== undefined) {
+    const anioPopD = perfil.densidad.anioPoblacion ?? refAnio;
+    const anioSupD = perfil.densidad.anioSuperficie ?? null;
+    const periodoDensidad =
+      anioPopD !== null && anioPopD !== undefined && anioSupD !== null && anioSupD !== undefined
+        ? `población ${anioPopD} · superficie ${anioSupD}`
+        : (refAnio ? String(refAnio) : "—");
+    const avisoD =
+      anioPopD !== null && anioPopD !== undefined && anioSupD !== null && anioSupD !== undefined
+        ? densityYearsWarning(anioPopD, anioSupD)
+        : null;
+    tablas.push({
+      id: "densidad",
+      titulo: "Densidad de población",
+      hoja: "01_PERFIL_DEMOGRÁFICO",
+      columnas: ["Concepto", "Valor", "Unidad"],
+      filas: [
+        [cell("Densidad de población"), cell(fmtES(perfil.densidad.valor, 1), perfil.densidad.valor), cell("hab/km²")],
+        [cell("Superficie municipal (IGN · NGMEP)"),
+          perfil.densidad.superficieKm2 !== null && perfil.densidad.superficieKm2 !== undefined
+            ? cell(fmtES(perfil.densidad.superficieKm2, 2), perfil.densidad.superficieKm2)
+            : cell("ND"),
+          cell("km²")],
+      ],
+      fuente: "INE + IGN (NGMEP) · Cálculo SOCideas",
+      periodo: periodoDensidad,
+      cobertura: `Municipio ${perfil.municipio.nombre}`,
+      estado: "Cálculo SOCideas con definición explícita",
+      source: derivedFromSource(ineTableSource(perfil.total?.source_table_id, OP_DPOP)) ?? undefined,
+      comparisonMode: "municipal_only",
+      availability: "available",
+      note: avisoD
+        ? `Densidad = población / superficie IGN. ${avisoD}`
+        : "Densidad = población municipal / superficie oficial IGN (NGMEP). Cálculo SOCideas.",
+    });
+  } else {
+    tablas.push({
+      id: "densidad",
+      titulo: "Densidad de población",
+      hoja: "01_PERFIL_DEMOGRÁFICO",
+      columnas: ["Concepto"],
+      filas: [],
+      fuente: "Pendiente de incorporación desde fuente de superficie homogénea",
+      periodo: "—",
+      cobertura: "Municipio / Provincia / CCAA / España",
+      estado: "Sin cobertura verificable",
+      availability: "pending_integration",
+      comparisonMode: "municipal_only",
+      note: "Densidad de población: pendiente de incorporación desde fuente de superficie.",
+    });
+  }
 
   // 3. Evolución de la población: comparativa completa cuando hay datos
   //    simultáneos en al menos dos amibitos. Nunca mezcla años incompatibles.
@@ -724,9 +763,11 @@ export interface TraceabilitySheet {
 export interface Exclusion { titulo: string; motivo: string }
 
 /** Exclusiones documentadas de Demografía (fuente única para página y libro XLSX). */
-export function demografiaExcluidas(): Exclusion[] {
+export function demografiaExcluidas(hasDensidad = false): Exclusion[] {
   return [
-    { titulo: "Densidad de población", motivo: "Pendiente de integración de fuente de superficie." },
+    ...(hasDensidad
+      ? []
+      : [{ titulo: "Densidad de población", motivo: "Pendiente de integración de fuente de superficie." }]),
     { titulo: "Población extranjera y saldo migratorio", motivo: "Sin cobertura municipal verificada en Tempus3." },
     { titulo: "Indicadores por sección censal", motivo: "Sin tabla cargada; la geometría se carga solo bajo demanda." },
   ];

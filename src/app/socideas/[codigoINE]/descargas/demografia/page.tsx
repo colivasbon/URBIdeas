@@ -54,7 +54,7 @@ export default async function DescargasDemografia({
   }
   const perfil = result.perfil;
   const tablas = buildDemografiaTables(perfil);
-  const excluidas = demografiaExcluidas();
+  const excluidas = demografiaExcluidas(perfil.densidad.valor !== null);
 
   return (
     <div className="flex min-h-screen flex-col">

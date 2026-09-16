@@ -9,6 +9,8 @@ import Traceability from "./Traceability";
 import AvailabilitySummary from "./AvailabilitySummary";
 import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
 import { ArraigoBlock, NacimientoBlock, NacionalidadBlock } from "./DemographicBlocks";
+import { DensityBlock } from "./DensityBlocks";
+import { ANIO_SUPERFICIE, calcDensity, densityPendingReason } from "@/lib/socideas-density";
 import { FlujosMigratoriosBlock } from "./MigrationBlocks";
 import { EducacionBlock, MigracionBlock } from "./IneLayersBlocks";
 import TemporaryDataNotice from "./TemporaryDataNotice";
@@ -222,7 +224,10 @@ export default function FichaFiltros({
     if (r.puntos === 0) vista.push(`Sin comparativa de ${AMBITO_LABEL[a]} para el período.`);
   }
 
-  const coberturaDemografia: CoverageEntry[] = [    { titulo: "Densidad de población", estado: "pending", detalle: "Pendiente de integración de fuente de superficie. Nada se estima." },
+  const coberturaDemografia: CoverageEntry[] = [
+    ...(perfil.densidad.valor !== null
+      ? []
+      : [{ titulo: "Densidad de población", estado: "pending", detalle: "Pendiente de integración de fuente de superficie. Nada se estima." } as CoverageEntry]),
     { titulo: "Población extranjera y saldo migratorio", estado: "without_coverage", detalle: "La fuente no publica estos indicadores a nivel municipal de forma verificada en Tempus3." },
     { titulo: "Natalidad, mortalidad y educación", estado: "without_coverage", detalle: "Sin cobertura municipal verificada en esta ficha; solo se incorporarían con fuente oficial y periodo homogéneo." },
     { titulo: "Fuente provisional", estado: "provisional", detalle: "No hay fuente provisional configurada para demografía. Se conserva el último dato consolidado." },
@@ -552,14 +557,20 @@ export default function FichaFiltros({
         </details>
       </section>
 
-      {/* Bloque 4: densidad */}
+      {/* Bloque 4: densidad (cálculo SOCideas INE + IGN, patrón envejecimiento/dependencia) */}
+      {perfil.densidad.valor !== null ? (
+        <DensityBlock
+          data={{
+            densidad: perfil.densidad.valor,
+            superficieKm2: perfil.densidad.superficieKm2 ?? null,
+            anioPoblacion: perfil.densidad.anioPoblacion ?? null,
+            anioSuperficie: perfil.densidad.anioSuperficie ?? ANIO_SUPERFICIE,
+            poblacion: perfil.densidad.poblacion ?? null,
+          }}
+        />
+      ) : (
       <section aria-label="Densidad y lectura territorial" className="premium-card mb-10 p-5 sm:p-6">
         <h2 className="ideas-h2">Densidad y lectura territorial</h2>
-        {perfil.densidad.valor !== null ? (
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-            {perfil.densidad.valor.toLocaleString("es-ES")} hab/km²
-          </p>
-        ) : (
           <div className="ideas-status mt-3" data-state="pending" role="status">
             <div className="ideas-status__head">
               <p className="ideas-status__title">Densidad no disponible</p>
@@ -569,8 +580,8 @@ export default function FichaFiltros({
               <p>{perfil.densidad.pendiente ?? "Pendiente de integración de fuente de superficie"}. El detalle figura en el panel de cobertura final; nada se estima.</p>
             </div>
           </div>
-        )}
       </section>
+      )}
 
       {/* Bloque 5: derivados */}
       <section aria-label="Indicadores derivados" className="mb-10">
@@ -622,7 +633,7 @@ export default function FichaFiltros({
 
       <IndicatorAvailabilityPanel entries={coberturaDemografia} />
 
-      <Traceability valores={perfil.valores} pendientes={pendientesFijas} vista={vista} />
+      <Traceability valores={perfil.valores} pendientes={perfil.densidad.valor !== null ? pendientesFijas.filter((p) => !p.startsWith("Densidad:")) : pendientesFijas} vista={vista} />
 
       <div className="mt-8 flex flex-wrap gap-3">
         <Link
@@ -715,6 +726,17 @@ function derivarPerfil(base: PerfilDemografico, filtros: FiltrosUI): PerfilDemog
   const pop65=sumTramos(isOld); const pop014=sumTramos(isYoung); const pop1564=sumTramos(isWork);
   const indiceEnvejecimiento = pop014>0 ? Math.round((pop65/pop014)*1000)/10 : null;
   const indiceDependencia = pop1564>0 ? Math.round(((pop014+pop65)/pop1564)*1000)/10 : null;
+  // Densidad recalculada con el año filtrado (patrón envejecimiento/dependencia:
+  // derivado al leer, nunca persistido). Sin superficie en el envelope: pendiente honesto.
+  const areaCli = valores.filter((v)=> slugOf(v)==="area_km2" && isMunicipioAmbito(v) && v.valor_numerico!==null).sort((a,b)=> (b.anio_referencia??0)-(a.anio_referencia??0))[0];
+  const popCli = total?.valor_numerico ?? null;
+  const anioPopCli = total?.anio_referencia ?? null;
+  const supCli = areaCli?.valor_numerico ?? null;
+  const anioSupCli = areaCli?.anio_referencia ?? ANIO_SUPERFICIE;
+  const calcCli = calcDensity({ poblacion: popCli, anioPoblacion: anioPopCli, superficieKm2: supCli, anioSuperficie: anioSupCli });
+  const densidadCli = calcCli.valor !== null
+    ? { valor: calcCli.valor, pendiente: null as string | null, superficieKm2: supCli, poblacion: popCli, anioPoblacion: anioPopCli, anioSuperficie: anioSupCli, avisoAnios: calcCli.avisoAnios }
+    : { valor: null as number | null, pendiente: densityPendingReason(popCli, supCli), superficieKm2: supCli, poblacion: popCli, anioPoblacion: anioPopCli, anioSuperficie: anioSupCli, avisoAnios: false };
   return {
     ...base,
     total: total as PerfilDemografico["total"],
@@ -729,6 +751,7 @@ function derivarPerfil(base: PerfilDemografico, filtros: FiltrosUI): PerfilDemog
       indice_envejecimiento: grupos.length>0 ? indiceEnvejecimiento : null,
       indice_dependencia: grupos.length>0 ? indiceDependencia : null,
     },
+    densidad: densidadCli,
     filtros: { anio: anioEff, desde: desde ?? null, hasta: hasta ?? null, ambitos: ambitosEff, pir_anio: pirAnioEff },
   };
 }

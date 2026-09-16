@@ -128,7 +128,20 @@ export interface PerfilDemografico {
     indice_envejecimiento: number | null
     indice_dependencia: number | null
   }
-  densidad: { valor: number | null; pendiente: string | null }
+  densidad: {
+    valor: number | null
+    pendiente: string | null
+    /** Superficie oficial IGN en km² (solo cuando el envelope la trae). */
+    superficieKm2?: number | null
+    /** Población municipal usada en el cálculo (solo cuando hay densidad). */
+    poblacion?: number | null
+    /** Año de la población usada en el cálculo. */
+    anioPoblacion?: number | null
+    /** Año de la superficie oficial IGN. */
+    anioSuperficie?: number | null
+    /** true cuando población y superficie no son del mismo año (aviso obligatorio). */
+    avisoAnios?: boolean
+  }
   valores: IndicatorValue[]
   disponibles: Disponibles
   filtros: FiltrosAplicados

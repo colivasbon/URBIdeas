@@ -727,7 +727,7 @@ export interface Exclusion { titulo: string; motivo: string }
 export function demografiaExcluidas(): Exclusion[] {
   return [
     { titulo: "Densidad de población", motivo: "Pendiente de integración de fuente de superficie." },
-    { titulo: "Población extranjera y saldo migratorio", motivo: "Sin cobertura municipal verificada en Tempus3." },
+    { titulo: "Saldo migratorio agregado (capa antigua, INE tabla 69767)", motivo: "Sin cobertura municipal verificada; sigue pendiente. Los flujos migratorios (tablas 69711, 69743 y 69746) sí tienen cobertura y se incluyen en su bloque." },
     { titulo: "Indicadores por sección censal", motivo: "Sin tabla cargada; la geometría se carga solo bajo demanda." },
   ];
 }

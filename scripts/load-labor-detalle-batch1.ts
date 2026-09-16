@@ -116,9 +116,9 @@ function parseArgs(): Args {
     tgssXlsx: getOpt(argv, '--tgss-xlsx') ?? join('tmp', 'labor-100', 'Muni072026.xlsx'),
     out: getOpt(argv, '--out') ?? join('tmp', 'labor'),
     r2Base: (
-      getOpt(argv, '--r2-base') ??
-      process.env.NEXT_PUBLIC_SOCIDEAS_R2_BASE ??
-      process.env.SOCIDEAS_R2_PUBLIC_BASE ??
+      getOpt(argv, '--r2-base') ||
+      process.env.NEXT_PUBLIC_SOCIDEAS_R2_BASE ||
+      process.env.SOCIDEAS_R2_PUBLIC_BASE ||
       FALLBACK_R2_BASE
     ).replace(/\/$/, ''),
     muestras: flagVal(argv, '--muestras') || 5,

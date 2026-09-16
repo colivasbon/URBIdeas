@@ -4,6 +4,7 @@
 
 import type { IndicatorValue, PerfilDemografico, PerfilEconomico } from "./socideas";
 import { isPublishableValue, isRealValue } from "./socideas-availability";
+import { etiquetaPeriodoLabor } from "./socideas-labor-summary";
 import {
   AEAT_EDM_IRPF,
   OP_ADRH,
@@ -697,6 +698,126 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
     });
   }
 
+  // 5b. Mercado de trabajo — SEPE (paro registrado) y TGSS (afiliación),
+  //      dato MENSUAL municipal. Sin hipervínculo de fuente: los dominios SEPE
+  //      y TGSS no están en el registro de fuentes autorizadas, así que solo
+  //      se pinta la línea de fuente (nunca un falso botón). ND = suprimido.
+  const laborRows = valores.filter(
+    (v) =>
+      (slugOf(v) === "paro_registrado" || slugOf(v) === "afiliacion_total") &&
+      (v.dimensiones?.ambito ?? "municipio") === "municipio",
+  );
+  const laborCell = (slug: string, periodo: string, extra: Record<string, string>): number | null => {
+    const hit = laborRows.find(
+      (v) =>
+        slugOf(v) === slug &&
+        v.dimensiones?.periodo === periodo &&
+        Object.entries(extra).every(([k, val]) => v.dimensiones?.[k] === val),
+    );
+    return typeof hit?.valor_numerico === "number" ? hit.valor_numerico : null;
+  };
+  const laborPeriodos = [...new Set(
+    laborRows
+      .map((v) => v.dimensiones?.periodo)
+      .filter((p): p is string => typeof p === "string" && /^\d{4}-\d{2}$/.test(p)),
+  )].sort();
+  const laborPeriodo = laborPeriodos.length > 0 ? laborPeriodos[laborPeriodos.length - 1] : null;
+  const laborEtiqueta = laborPeriodo ? etiquetaPeriodoLabor(laborPeriodo) : "—";
+  const laborTiene = (slug: string): boolean =>
+    laborPeriodo !== null &&
+    laborRows.some((v) => slugOf(v) === slug && v.dimensiones?.periodo === laborPeriodo && typeof v.valor_numerico === "number");
+
+  if (laborTiene("paro_registrado") && laborPeriodo) {
+    const primero = laborRows.find((v) => slugOf(v) === "paro_registrado" && v.dimensiones?.periodo === laborPeriodo);
+    const paroRows: [string, number | null][] = [
+      ["Total parados registrados", laborCell("paro_registrado", laborPeriodo, {})],
+      ["Hombres", laborCell("paro_registrado", laborPeriodo, { sexo: "hombres" })],
+      ["Mujeres", laborCell("paro_registrado", laborPeriodo, { sexo: "mujeres" })],
+      ["Hombres menores de 25", laborCell("paro_registrado", laborPeriodo, { sexo: "hombres", tramo_edad: "<25" })],
+      ["Hombres de 25 a 45", laborCell("paro_registrado", laborPeriodo, { sexo: "hombres", tramo_edad: "25-45" })],
+      ["Hombres mayores de 45", laborCell("paro_registrado", laborPeriodo, { sexo: "hombres", tramo_edad: ">=45" })],
+      ["Mujeres menores de 25", laborCell("paro_registrado", laborPeriodo, { sexo: "mujeres", tramo_edad: "<25" })],
+      ["Mujeres de 25 a 45", laborCell("paro_registrado", laborPeriodo, { sexo: "mujeres", tramo_edad: "25-45" })],
+      ["Mujeres mayores de 45", laborCell("paro_registrado", laborPeriodo, { sexo: "mujeres", tramo_edad: ">=45" })],
+      ["Agricultura", laborCell("paro_registrado", laborPeriodo, { sector: "agricultura" })],
+      ["Industria", laborCell("paro_registrado", laborPeriodo, { sector: "industria" })],
+      ["Construcción", laborCell("paro_registrado", laborPeriodo, { sector: "construccion" })],
+      ["Servicios", laborCell("paro_registrado", laborPeriodo, { sector: "servicios" })],
+      ["Sin empleo anterior", laborCell("paro_registrado", laborPeriodo, { sector: "sin_empleo_anterior" })],
+    ];
+    tablas.push({
+      id: "paro-sepe",
+      titulo: "Paro registrado — SEPE",
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Concepto", "Personas"],
+      filas: paroRows.map(([label, v]) => [cell(label), cell(v === null ? "ND" : fmtES(v), v)]),
+      fuente: fuenteDe(primero) || "SEPE · Paro registrado por municipios",
+      periodo: `${laborEtiqueta} (dato mensual)`,
+      cobertura: `Municipio ${perfil.municipio.nombre}`,
+      estado: "Consolidado (coyuntura mensual)",
+      comparisonMode: "municipal_only",
+      availability: "available",
+      note: "Dato mensual de coyuntura; no comparable con bloques anuales. ND = secreto estadístico (<5), nunca 0.",
+    });
+  } else {
+    tablas.push({
+      id: "paro-sepe",
+      titulo: "Paro registrado — SEPE",
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Indicador"],
+      filas: [],
+      fuente: "SEPE · Paro registrado por municipios",
+      periodo: "—",
+      cobertura: `Municipio ${perfil.municipio.nombre}`,
+      estado: "Pendiente de incorporación",
+      availability: "pending_integration",
+      comparisonMode: "municipal_only",
+      note: "Paro registrado: pendiente de conector SEPE en batch 1 (dry-run). No se muestra como cero.",
+    });
+  }
+
+  if (laborTiene("afiliacion_total") && laborPeriodo) {
+    const primero = laborRows.find((v) => slugOf(v) === "afiliacion_total" && v.dimensiones?.periodo === laborPeriodo);
+    const afiliRows: [string, number | null][] = [
+      ["Total afiliados", laborCell("afiliacion_total", laborPeriodo, {})],
+      ["Régimen General", laborCell("afiliacion_total", laborPeriodo, { regimen: "general" })],
+      ["S. E. Agrario", laborCell("afiliacion_total", laborPeriodo, { regimen: "agrario" })],
+      ["S. E. Hogar", laborCell("afiliacion_total", laborPeriodo, { regimen: "hogar" })],
+      ["R. E. Mar", laborCell("afiliacion_total", laborPeriodo, { regimen: "mar" })],
+      ["R. E. T. Autónomos", laborCell("afiliacion_total", laborPeriodo, { regimen: "autonomos" })],
+      ["R. E. Minería del Carbón", laborCell("afiliacion_total", laborPeriodo, { regimen: "carbon" })],
+    ];
+    tablas.push({
+      id: "afiliacion-tgss",
+      titulo: "Afiliación a la Seguridad Social — TGSS",
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Concepto", "Personas"],
+      filas: afiliRows.map(([label, v]) => [cell(label), cell(v === null ? "ND" : fmtES(v), v)]),
+      fuente: fuenteDe(primero) || "TGSS · Afiliación por municipios (último día del mes)",
+      periodo: `${laborEtiqueta} (dato mensual)`,
+      cobertura: `Municipio ${perfil.municipio.nombre}`,
+      estado: "Consolidado (coyuntura mensual)",
+      comparisonMode: "municipal_only",
+      availability: "available",
+      note: "Afiliados el último día del mes; no comparable con bloques anuales. ND = rango de secreto, nunca 0.",
+    });
+  } else {
+    tablas.push({
+      id: "afiliacion-tgss",
+      titulo: "Afiliación a la Seguridad Social — TGSS",
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Indicador"],
+      filas: [],
+      fuente: "TGSS · Afiliación por municipios (último día del mes)",
+      periodo: "—",
+      cobertura: `Municipio ${perfil.municipio.nombre}`,
+      estado: "Pendiente de incorporación",
+      availability: "pending_integration",
+      comparisonMode: "municipal_only",
+      note: "Afiliación: pendiente de conector TGSS en batch 1 (dry-run). Valores “<5” nunca como cero.",
+    });
+  }
+
   // 6. Presupuesto, empleo y subvenciones: bloque pendiente de integración.
   tablas.push({
     id: "presupuesto-empleo",
@@ -710,7 +831,9 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
     estado: "Pendiente de integración",
     availability: "pending_integration",
     comparisonMode: "municipal_only",
-    note: "Presupuesto municipal, empleo y afiliación: pendientes de integración desde fuentes administrativas oficiales (Hacienda, SEPE, Seguridad Social, FEADER, CCAA).",
+    note: laborTiene("paro_registrado") || laborTiene("afiliacion_total")
+      ? "Presupuesto municipal y subvenciones: pendientes de integración desde fuentes administrativas oficiales."
+      : "Presupuesto municipal, empleo y afiliación: pendientes de integración desde fuentes administrativas oficiales (Hacienda, SEPE, Seguridad Social, FEADER, CCAA).",
   });
 
   return tablas;

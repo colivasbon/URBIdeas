@@ -165,8 +165,14 @@ export function sourceSlugForTable(tableId: string): string | null {
   return null
 }
 
+const R2_PUBLIC_BASE_FALLBACK = 'https://pub-ecf1b1fd05e54263b2c664384c92c7b4.r2.dev'
+
 function r2PublicBase(): string | null {
-  const base = process.env.NEXT_PUBLIC_SOCIDEAS_R2_BASE ?? process.env.SOCIDEAS_R2_PUBLIC_BASE
+  // Nota 2026-09-16 (incidente overwrite): si las env están vacías (cadena
+  // vacía cuenta como ausente), usar la base pública documentada en vez de
+  // devolver null — un null hacía que los loaders creyeran que no había
+  // envelope previo y escribieran un JSON mínimo encima del real.
+  const base = process.env.NEXT_PUBLIC_SOCIDEAS_R2_BASE || process.env.SOCIDEAS_R2_PUBLIC_BASE || R2_PUBLIC_BASE_FALLBACK
   return base ? base.replace(/\/$/, '') : null
 }
 

@@ -237,14 +237,17 @@ async function main(): Promise<void> {
   )
 
   // Supabase solo en --write (registro data_sync_runs). En parse-only ni se importa.
+  // Sin service-role: modo local con auditoría diferida a manifest.pendingAudit
+  // (bulk insert posterior con el mismo runid, como el parche TGSS).
   let supabase: { from: (t: string) => { insert: (r: unknown) => Promise<unknown> } } | null = null
+  const pendingAudit: unknown[] = []
   if (args.doWrite) {
     const { createClient } = await import('@supabase/supabase-js')
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!url || !key) throw new Error('Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY')
+    if (url && key) supabase = createClient(url, key, { auth: { persistSession: false } }) as unknown as typeof supabase
+    else console.log('[supabase] Sin service-role: auditoría diferida a manifest.pendingAudit.')
     if (!process.env.R2_BUCKET) throw new Error('Faltan credenciales R2 en el entorno')
-    supabase = createClient(url, key, { auth: { persistSession: false } }) as unknown as typeof supabase
   }
 
   const manifestPath = join(args.out, 'labor-detalle-manifest.json')
@@ -429,13 +432,15 @@ async function main(): Promise<void> {
       const rbJson = (await rb.json()) as { codigo_ine?: string; valores?: unknown[] }
       if (rbJson.codigo_ine !== ine || !Array.isArray(rbJson.valores)) throw new Error(`Read-back inválido en ${ine}`)
       r.motivo = key
-      await supabase?.from('data_sync_runs').insert({
+      const auditRow = {
         source_id: null, tipo_sincronizacion: SYNC_TIPO, municipio_codigo_ine: ine,
         estado: nuevas.length > 0 ? 'ok' : 'partial', registros_leidos: candidatas.length,
         registros_actualizados: nuevas.length, fin: new Date().toISOString(),
         estado_dato: 'consolidado', bloque: 'mercado_trabajo', periodo: PERIODO, fuente: 'sepe,tgss',
         metadata: { tableIds: [SEPE_TABLE, TGSS_TABLE], duplicadasOmitidas: duplicadas, warnings: warnings.length },
-      })
+      }
+      if (supabase) await supabase.from('data_sync_runs').insert(auditRow)
+      else pendingAudit.push(auditRow)
     } else if (nuevas.length > 0 && muestrasEscritas < args.muestras) {
       muestrasEscritas++
       writeFileSync(join(args.out, `muestra-detalle-${ine}.json`), JSON.stringify(merged))
@@ -509,6 +514,7 @@ async function main(): Promise<void> {
     tableIds: [SEPE_TABLE, TGSS_TABLE],
     presupuestoBytes: BUDGET_BYTES,
     fuentes: { sepe: SEPE_URL, tgss: TGSS_URL },
+    pendingAudit,
     universo: esSubconjunto ? acumulado.length : universo.length,
     conDetalleNuevo: conDetalle.length,    sinCambios: sinCambios.length,
     sinBaseR2: sinBase.length,

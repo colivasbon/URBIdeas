@@ -392,37 +392,61 @@ export async function main() {
     return
   }
 
-  // FASE 2: carga con MERGE (requiere credenciales)
+  // FASE 2: carga con MERGE (requiere credenciales R2; Supabase opcional).
+  // Sin service-role se opera en modo local: municipios desde el catálogo
+  // scripts/data/municipios-ine.json, catálogos mínimos hardcodeados (valores
+  // idénticos a los sembrados en Supabase) y auditoría diferida a
+  // manifest.pendingAudit para bulk insert posterior con el mismo runid.
   const { createClient } = await import('@supabase/supabase-js')
   const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
   const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!SUPA_URL || !SERVICE_KEY) throw new Error('Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env.local')
   if (!process.env.R2_BUCKET) throw new Error('Faltan credenciales R2 en .env.local')
-  const supabase = createClient(SUPA_URL, SERVICE_KEY, { auth: { persistSession: false } })
+  const supabase = SUPA_URL && SERVICE_KEY
+    ? createClient(SUPA_URL, SERVICE_KEY, { auth: { persistSession: false } })
+    : null
+  if (!supabase) console.log('[supabase] Sin service-role: modo local (catálogos hardcodeados + auditoría diferida).')
   // PostgREST limita a 1.000 filas por petición aunque se pida más: paginar con range
   const municipios: string[] = []
-  for (let from = 0; ; from += 1000) {
-    const { data: page, error: pageErr } = await supabase
-      .from('municipios')
-      .select('codigo_ine')
-      .order('codigo_ine')
-      .range(from, from + 999)
-    if (pageErr) throw pageErr
-    const rows = ((page ?? []) as { codigo_ine: string }[]).map((m) => m.codigo_ine)
-    municipios.push(...rows)
-    if (rows.length < 1000) break
+  if (supabase) {
+    for (let from = 0; ; from += 1000) {
+      const { data: page, error: pageErr } = await supabase
+        .from('municipios')
+        .select('codigo_ine')
+        .order('codigo_ine')
+        .range(from, from + 999)
+      if (pageErr) throw pageErr
+      const rows = ((page ?? []) as { codigo_ine: string }[]).map((m) => m.codigo_ine)
+      municipios.push(...rows)
+      if (rows.length < 1000) break
+    }
+  } else {
+    const cat = JSON.parse(readFileSync(join('scripts', 'data', 'municipios-ine.json'), 'utf8')) as { codigo_ine: string }[]
+    for (const m of cat) if (/^\d{5}$/.test(m.codigo_ine)) municipios.push(m.codigo_ine)
+    municipios.sort()
   }
   console.log(`[municipios] total=${municipios.length}`)
-  const { data: sources } = await supabase.from('statistical_sources').select('id, slug, organismo, nombre')
+  const LOCAL_SOURCES = [
+    { id: '', slug: 'ign_infogeo', organismo: 'Instituto Geográfico Nacional', nombre: 'Información Geográfica Destacada · Municipios (NGMEP)' },
+  ]
+  const LOCAL_INDS = [
+    { id: '', slug: 'area_km2', nombre: 'Superficie del término municipal', unidad: 'km²' },
+    { id: '', slug: 'density_per_km2', nombre: 'Densidad de población', unidad: 'hab/km²' },
+  ]
+  const { data: sources } = supabase
+    ? await supabase.from('statistical_sources').select('id, slug, organismo, nombre')
+    : { data: LOCAL_SOURCES }
   const srcMeta = new Map(((sources ?? []) as { id: string; slug: string; organismo: string; nombre: string }[]).map((s) => [s.slug, s]))
-  const { data: inds } = await supabase.from('indicator_definitions').select('id, slug, nombre, unidad').eq('activo', true)
+  const { data: inds } = supabase
+    ? await supabase.from('indicator_definitions').select('id, slug, nombre, unidad').eq('activo', true)
+    : { data: LOCAL_INDS }
   const indMeta = new Map(((inds ?? []) as { id: string; slug: string; nombre: string; unidad: string | null }[]).map((i) => [i.slug, i]))
 
-  let manifest: { started: string; items: Record<string, { key: string; bytesAntes: number; bytesDespues: number; readback: string; estado: string; created_minimal?: boolean }> }
+  let manifest: { started: string; items: Record<string, { key: string; bytesAntes: number; bytesDespues: number; readback: string; estado: string; created_minimal?: boolean }>; pendingAudit: unknown[] }
   try {
     manifest = JSON.parse((await readFile(MANIFEST_PATH)).toString('utf8'))
+    manifest.pendingAudit = manifest.pendingAudit ?? []
   } catch {
-    manifest = { started: new Date().toISOString(), items: {} }
+    manifest = { started: new Date().toISOString(), items: {}, pendingAudit: [] }
   }
   const t0 = Date.now()
   let escritos = 0
@@ -494,7 +518,7 @@ export async function main() {
       if (bytesDespues - bytesAntes > MAX_ADDED_BYTES) throw new Error(`Presupuesto superado +${bytesDespues - bytesAntes}B`)
       const key = await putMunicipioJson(ine, envelope)
       // Read-back con cache-buster (el CDN público puede cachear 86400s)
-      const base = (process.env.NEXT_PUBLIC_SOCIDEAS_R2_BASE ?? process.env.SOCIDEAS_R2_PUBLIC_BASE ?? '').replace(/\/$/, '')
+      const base = (process.env.NEXT_PUBLIC_SOCIDEAS_R2_BASE || process.env.SOCIDEAS_R2_PUBLIC_BASE || 'https://pub-ecf1b1fd05e54263b2c664384c92c7b4.r2.dev').replace(/\/$/, '')
       const rb = await fetch(`${base}/socideas/v2/municipios/${ine}.json?v=${Date.now()}`, { headers: { Accept: 'application/json' } })
       if (!rb.ok) throw new Error(`Read-back HTTP ${rb.status}`)
       const rbJson = (await rb.json()) as { codigo_ine?: string; valores?: unknown[] }
@@ -505,7 +529,9 @@ export async function main() {
       if (nuevas.some((r) => r.slug === DENSITY_SLUG)) counts.actualizado++
       else if (nuevas.length > 0) counts.pendiente++
       else counts.sin_cobertura++
-      await supabase.from('data_sync_runs').insert({ source_id: null, tipo_sincronizacion: 'densidad_batch1', municipio_codigo_ine: ine, estado: nuevas.some((r) => r.slug === DENSITY_SLUG) ? 'ok' : nuevas.length > 0 ? 'partial' : 'partial', registros_leidos: nuevas.length, registros_actualizados: nuevas.length, fin: new Date().toISOString(), estado_dato: 'consolidado', bloque: 'demografia', periodo: pop ? String(pop.anio) : String(ANIO_SUPERFICIE), fuente: 'ine_tempus3,ign_infogeo', metadata: { superficie_km2: sup?.superficieKm2 ?? null, anio_superficie: ANIO_SUPERFICIE, aviso_anios: pop ? pop.anio !== ANIO_SUPERFICIE : false, sin_cobertura: sinCob } })
+      const auditRow = { source_id: null, tipo_sincronizacion: 'densidad_batch1', municipio_codigo_ine: ine, estado: nuevas.some((r) => r.slug === DENSITY_SLUG) ? 'ok' : nuevas.length > 0 ? 'partial' : 'partial', registros_leidos: nuevas.length, registros_actualizados: nuevas.length, fin: new Date().toISOString(), estado_dato: 'consolidado', bloque: 'demografia', periodo: pop ? String(pop.anio) : String(ANIO_SUPERFICIE), fuente: 'ine_tempus3,ign_infogeo', metadata: { superficie_km2: sup?.superficieKm2 ?? null, anio_superficie: ANIO_SUPERFICIE, aviso_anios: pop ? pop.anio !== ANIO_SUPERFICIE : false, sin_cobertura: sinCob } }
+      if (supabase) await supabase.from('data_sync_runs').insert(auditRow)
+      else manifest.pendingAudit.push(auditRow)
       if ((idx + 1) % 100 === 0) {
         await writeFile(MANIFEST_PATH, JSON.stringify(manifest))
         console.log(`[progreso] ${idx + 1}/${slice.length} escritos=${escritos} errores=${errores}`)
@@ -515,7 +541,9 @@ export async function main() {
       counts.error++
       if (String((e as Error).message).startsWith('Read-back')) readbackErr++
       manifest.items[ine] = { key: '', bytesAntes: 0, bytesDespues: 0, readback: 'error', estado: 'error' }
-      await supabase.from('data_sync_runs').insert({ source_id: null, tipo_sincronizacion: 'densidad_batch1', municipio_codigo_ine: ine, estado: 'error', fin: new Date().toISOString(), error_message: String((e as Error).message).slice(0, 2000), estado_dato: 'consolidado', bloque: 'demografia', periodo: String(ANIO_SUPERFICIE), fuente: 'ine_tempus3,ign_infogeo' })
+      const errRow = { source_id: null, tipo_sincronizacion: 'densidad_batch1', municipio_codigo_ine: ine, estado: 'error', fin: new Date().toISOString(), error_message: String((e as Error).message).slice(0, 2000), estado_dato: 'consolidado', bloque: 'demografia', periodo: String(ANIO_SUPERFICIE), fuente: 'ine_tempus3,ign_infogeo' }
+      if (supabase) await supabase.from('data_sync_runs').insert(errRow)
+      else manifest.pendingAudit.push(errRow)
     }
   }
   await writeFile(MANIFEST_PATH, JSON.stringify(manifest))

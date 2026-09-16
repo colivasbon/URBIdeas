@@ -432,9 +432,29 @@ export async function main() {
     { id: '', slug: 'area_km2', nombre: 'Superficie del término municipal', unidad: 'km²' },
     { id: '', slug: 'density_per_km2', nombre: 'Densidad de población', unidad: 'hab/km²' },
   ]
+  // En modo local, los catálogos de lecturas previas (filasPrevias) se resuelven
+  // contra el PROPIO envelope vivo (sus arrays indicators/sources son la misma
+  // información), no contra mapas mínimos: así ningún slug antiguo (p. ej.
+  // ine_tempus3 en la fila de densidad, que hereda la fuente de la población)
+  // se descarta por falta de correspondencia. Los 3 slugs nuevos van por delante.
+  const envCatInd = new Map<string, { id: string; slug: string; nombre: string; unidad: string | null }>()
+  const envCatSrc = new Map<string, { id: string; slug: string; organismo: string; nombre: string }>()
+  try {
+    const probeIne = municipios[0]
+    if (probeIne) {
+      const probe = (await readMunicipioJson(probeIne).catch(() => null)) as unknown as {
+        indicators?: { slug: string; nombre: string; unidad: string | null }[]
+        sources?: { slug: string; organismo: string; nombre: string }[]
+      } | null
+      for (const x of probe?.indicators ?? []) envCatInd.set(x.slug, { id: '', slug: x.slug, nombre: x.nombre, unidad: x.unidad })
+      for (const x of probe?.sources ?? []) envCatSrc.set(x.slug, { id: '', slug: x.slug, organismo: x.organismo, nombre: x.nombre })
+    }
+  } catch { /* sin catálogo vivo: solo-local */ }
+  for (const x of LOCAL_INDS) envCatInd.set(x.slug, x)
+  for (const x of LOCAL_SOURCES) envCatSrc.set(x.slug, x)
   const { data: sources } = supabase
     ? await supabase.from('statistical_sources').select('id, slug, organismo, nombre')
-    : { data: LOCAL_SOURCES }
+    : { data: [...envCatSrc.values()] }
   const srcMeta = new Map(((sources ?? []) as { id: string; slug: string; organismo: string; nombre: string }[]).map((s) => [s.slug, s]))
   const { data: inds } = supabase
     ? await supabase.from('indicator_definitions').select('id, slug, nombre, unidad').eq('activo', true)
@@ -468,6 +488,16 @@ export async function main() {
     try {
       const previo = await readMunicipioJson(ine).catch(() => null)
       const bytesAntes = previo ? JSON.stringify(previo).length : 0
+      // Siembra por municipio: el propio envelope aporta sus catálogos, así que
+      // ningún slug antiguo se pierde aunque la sonda inicial fallara.
+      if (previo && previo.version === 2) {
+        for (const x of previo.indicators ?? []) if (!envCatInd.has(x.slug)) envCatInd.set(x.slug, { id: '', slug: x.slug, nombre: x.nombre, unidad: x.unidad ?? null })
+        for (const x of previo.sources ?? []) if (!envCatSrc.has(x.slug)) envCatSrc.set(x.slug, { id: '', slug: x.slug, organismo: x.organismo, nombre: x.nombre })
+        for (const x of LOCAL_INDS) envCatInd.set(x.slug, x)
+        for (const x of LOCAL_SOURCES) envCatSrc.set(x.slug, x)
+        for (const [k, v] of envCatInd) indMeta.set(k, v)
+        for (const [k, v] of envCatSrc) srcMeta.set(k, v)
+      }
       const filasPrevias: { slug: string; anio: number; valor: number; unidad: string; dim: Record<string, string>; sslug: string; surl: string; tid: string; sid: string | null; nombre: string; uind: string | null; org: string; nfuente: string }[] = []
       let createdMinimal = false
       if (previo && previo.version === 2) {

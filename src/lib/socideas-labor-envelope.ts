@@ -50,7 +50,15 @@ export const LABOR_SOURCE_NAMES = {
 
 export const LABOR_ORGANISMS = { sepe: 'SEPE', tgss: 'TGSS' } as const
 
-/** Convención tableId ya cargada en R2 (se reutiliza tal cual). */
+/** Convención tableId ya cargada en R2 (se reutiliza tal cual).
+ * Evidencia 2026-09-16 (3 municipios reales): 28079/07010/41091 usan
+ * 'sepe_2026_07' y 'tgss_2026_07' en sus filas de total. Escritor original:
+ * scripts/load-economia-batch1.ts (f2e81b2, 2026-09-04). Los tableId
+ * 'sepe_paro'/'tgss_afiliacion' de sepe-paro.ts/tgss-afiliacion.ts son una
+ * entrada de diseño anterior nunca publicada: NO usar para filas nuevas,
+ * para no crear dos tableId bajo el mismo indicador en un envelope (v2 §3B).
+ * Las filas de detalle (sexo/tramos/sectores/regímenes) de esta fase usan
+ * exactamente estos mismos tableId que los totales ya publicados. */
 export function sepeTableId(year: number, month: number): string {
   return `sepe_${year}_${String(month).padStart(2, '0')}`
 }

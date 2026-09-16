@@ -45,6 +45,14 @@ import {
 } from '../src/lib/socideas-labor-envelope'
 
 const BUDGET_BYTES = 150 * 1024
+// Carga .env.local sin dependencias (tsx no lo hace solo; mismo patrón que load-economia-batch1.ts).
+try {
+  const envTxt = readFileSync(join(process.cwd(), '.env.local'), 'utf8')
+  for (const line of envTxt.split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/)
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2]
+  }
+} catch { /* sin .env.local: fallará al necesitar credenciales */ }
 const PERIODO = '2026-07'
 const ANIO = 2026
 const MES = 7

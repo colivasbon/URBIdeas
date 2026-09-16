@@ -96,6 +96,9 @@ export function NacionalidadBlock({ data }: { data: NationalityData }) {
 export function NacimientoBlock({ data }: { data: BirthCountryData }) {
   const showSpain = data.spain !== null && data.spain.value !== null;
   const countries = data.topCountries.filter((c) => c.value !== null);
+  // Magnitud relativa al máximo del propio ranking mostrado (no al total de
+  // población ni a "Nacida en España"): el primer país (máximo) llena el 100 %.
+  const maxCountry = countries.reduce<number>((m, c) => (c.value !== null && c.value > m ? c.value : m), 0);
   const empty = data.status !== "observed" || (!showSpain && countries.length === 0);
   return (
     <section aria-label="Lugar de nacimiento" className="mb-10">
@@ -119,9 +122,10 @@ export function NacimientoBlock({ data }: { data: BirthCountryData }) {
           {countries.length > 0 && (
             <div className="premium-card mt-4 p-5">
               <div className="flex flex-col gap-3">
-                {countries.map((c) => (
-                  <Barra key={c.label} etiqueta={c.label} valor={fmt(c.value)} pct={null} color="var(--color-primary)" />
-                ))}
+                {countries.map((c) => {
+                  const pct = c.value !== null && maxCountry > 0 ? Math.round((c.value / maxCountry) * 1000) / 10 : null;
+                  return <Barra key={c.label} etiqueta={c.label} valor={fmt(c.value)} pct={pct} color="var(--color-primary)" />;
+                })}
               </div>
             </div>
           )}

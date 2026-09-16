@@ -13,6 +13,7 @@ import ActualizacionMenu from "@/components/socideas/ActualizacionMenu";
 import EconomiaFicha from "@/components/socideas/EconomiaFicha";
 import { buildDemografiaTables, buildEconomiaTables } from "@/lib/socideas-export";
 import { readDemographicPresentation } from "@/lib/socideas-demographic-summary";
+import { readMigrationPresentation } from "@/lib/socideas-migration-summary";
 import { buildMunicipalUpdatePreview, readMunicipalIneLayers } from "@/lib/socideas-ine-layers";
 import type { MunicipalIneLayersV1 } from "@/lib/socideas-ine-layers";
 import { readTemporaryMunicipalData } from "@/lib/socideas-temporary-data";
@@ -177,11 +178,12 @@ export default async function SocideasFicha({
       ? `/urbideas/mapa?lat=${municipio.centroide_lat.toFixed(4)}&lng=${municipio.centroide_lng.toFixed(4)}&zoom=12`
       : "/urbideas";
 
-  // Lectura lateral R2 (una sola por carga, solo en Demografía): nunca rompe
+  // Lectura lateral R2 (solo en Demografía): nunca rompe
   // la ficha; ante ausencia o error se omite sin estado visible.
-  const [demografiaExtra, ineLayers, temporaryData] = await Promise.all([
+  const [demografiaExtra, ineLayers, migracion, temporaryData] = await Promise.all([
     categoria === "economia" ? Promise.resolve(null) : readDemographicPresentation(codigoINE).catch(() => null),
     readMunicipalIneLayers(codigoINE).catch(() => null) as Promise<MunicipalIneLayersV1 | null>,
+    categoria === "economia" ? Promise.resolve(null) : readMigrationPresentation(codigoINE).catch(() => null),
     readTemporaryMunicipalData(codigoINE).catch(() => null) as Promise<TemporaryMunicipalData | null>,
   ]);
   // Vista previa de actualización (sin I/O extra): qué capas hay y su período.
@@ -290,6 +292,7 @@ export default async function SocideasFicha({
               searchParams={spObj}
               demografiaExtra={demografiaExtra}
               ineLayers={ineLayers}
+              migracion={migracion}
               temporaryData={temporaryData}
             />
           )}

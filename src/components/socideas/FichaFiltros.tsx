@@ -9,9 +9,11 @@ import Traceability from "./Traceability";
 import AvailabilitySummary from "./AvailabilitySummary";
 import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
 import { ArraigoBlock, NacimientoBlock, NacionalidadBlock } from "./DemographicBlocks";
+import { FlujosMigratoriosBlock } from "./MigrationBlocks";
 import { EducacionBlock, MigracionBlock } from "./IneLayersBlocks";
 import TemporaryDataNotice from "./TemporaryDataNotice";
 import type { DemographicPresentationData } from "@/lib/socideas-demographic-summary";
+import type { MigrationPresentationData } from "@/lib/socideas-migration-summary";
 import type { MunicipalIneLayersV1 } from "@/lib/socideas-ine-layers";
 import type { TemporaryMunicipalData } from "@/lib/socideas-temporary-data";
 import DataTableShell from "./DataTableShell";
@@ -120,6 +122,7 @@ export default function FichaFiltros({
   searchParams,
   demografiaExtra = null,
   ineLayers = null,
+  migracion = null,
   temporaryData = null,
 }: {
   codigoINE: string;
@@ -127,6 +130,7 @@ export default function FichaFiltros({
   searchParams: Record<string, string>;
   demografiaExtra?: DemographicPresentationData | null;
   ineLayers?: MunicipalIneLayersV1 | null;
+  migracion?: MigrationPresentationData | null;
   temporaryData?: TemporaryMunicipalData | null;
 }) {
   const sp = new URLSearchParams(searchParams);
@@ -609,6 +613,7 @@ export default function FichaFiltros({
       {demografiaExtra?.nationality && <NacionalidadBlock data={demografiaExtra.nationality} />}
       {demografiaExtra?.birthCountry && <NacimientoBlock data={demografiaExtra.birthCountry} />}
       {demografiaExtra?.birthResidenceRelation && <ArraigoBlock data={demografiaExtra.birthResidenceRelation} />}
+      {migracion && <FlujosMigratoriosBlock data={migracion} />}
 
       {temporaryData && <TemporaryDataNotice data={temporaryData} />}
 

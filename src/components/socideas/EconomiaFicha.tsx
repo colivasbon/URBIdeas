@@ -20,6 +20,12 @@ import {
 } from "./ConsultaTools";
 import { isPublishableValue, isRealValue, type CoverageEntry } from "@/lib/socideas-availability";
 import type { IndicatorValue, PerfilEconomico } from "@/lib/socideas";
+import { ParoRegistradoBlock, AfiliacionBlock } from "./LaborBlocks";
+import {
+  buildAfiliacionPresentation,
+  buildParoPresentation,
+  type LaborExpandedRow,
+} from "@/lib/socideas-labor-summary";
 
 function slugOf(v: IndicatorValue): string {
   return (v.indicator as unknown as { slug?: string } | undefined)?.slug ?? "";
@@ -79,6 +85,23 @@ export default function EconomiaFicha({
   const empOk = hasData(EMPRESAS_SLUGS);
   const agrOk = hasData(AGR_SLUGS);
   const ganOk = hasData(GAN_SLUGS);
+
+  // Mercado de trabajo (SEPE + TGSS, dato mensual de coyuntura): se deriva de
+  // los valores del envelope ya entregados (slugs `paro_registrado` y
+  // `afiliacion_total`, grupo `economia`). Patrón FlujosMigratoriosBlock: si no
+  // hay filas, el DTO es null y el bloque no se pinta (nunca 0, nunca ND a 0).
+  const laborRows: LaborExpandedRow[] = valores
+    .filter((v) => slugOf(v) === "paro_registrado" || slugOf(v) === "afiliacion_total")
+    .map((v) => ({
+      anio_referencia: v.anio_referencia,
+      valor_numerico: v.valor_numerico,
+      dimensiones: (v.dimensiones ?? {}) as Record<string, string>,
+      indicator: { slug: slugOf(v) },
+      source_table_id: v.source_table_id,
+      source_url: v.source_url,
+    }));
+  const paro = buildParoPresentation(laborRows);
+  const afiliacion = buildAfiliacionPresentation(laborRows);
 
   // Controles integrados de renta: solo métricas con filas reales (capacidades),
   // sin mezclar AEAT (por declaración) con ADRH (persona/hogar). Hooks siempre
@@ -240,8 +263,12 @@ export default function EconomiaFicha({
   if (!empOk) cobertura.push({ titulo: "Tejido empresarial", estado: "pending", detalle: "Pendiente de incorporación vía DIRCE." });
   if (!agrOk) cobertura.push({ titulo: "Estructura agraria", estado: "pending", detalle: "Pendiente de incorporación vía Censo Agrario. Indicador estructural, no anual." });
   if (!ganOk) cobertura.push({ titulo: "Ganadería", estado: "pending", detalle: "Sin cobertura verificable en este municipio (Censo Agrario 2020 con secreto estadístico)." });
-  cobertura.push({ titulo: "Empleo y desempleo (paro registrado)", estado: "pending", detalle: "Pendiente de conector SEPE en batch 1 (dry-run). No se muestra como cero." });
-  cobertura.push({ titulo: "Afiliación a la Seguridad Social", estado: "pending", detalle: "Pendiente de conector TGSS en batch 1 (dry-run). Valores “<5” se tratarán como ausencia con bandera, nunca como cero." });
+  if (!paro) cobertura.push({ titulo: "Empleo y desempleo (paro registrado)", estado: "pending", detalle: "Pendiente de conector SEPE en batch 1 (dry-run). No se muestra como cero." });
+  if (!afiliacion) cobertura.push({ titulo: "Afiliación a la Seguridad Social", estado: "pending", detalle: "Pendiente de conector TGSS en batch 1 (dry-run). Valores “<5” se tratarán como ausencia con bandera, nunca como cero." });
+  const laborPeriodo = paro?.periodo ?? afiliacion?.periodo ?? null;
+  if (laborPeriodo && ultimoAnioGlobal !== null) {
+    cobertura.push({ titulo: "Dato mensual de coyuntura", estado: "partial", detalle: `Paro registrado y afiliación (${laborPeriodo}) son mensuales; el resto de bloques son anuales: no deben leerse como contemporáneos.` });
+  }
   cobertura.push({ titulo: "Presupuesto municipal, liquidación y ayudas", estado: "without_coverage", detalle: "La fuente no publica este indicador de forma homogénea para el municipio. No se presentan presupuestos previstos como liquidación real." });
   cobertura.push({ titulo: "Fuente provisional", estado: "provisional", detalle: "No hay fuente provisional configurada para economía (ADRH provisional 2024 excluido). Se conserva el último dato consolidado." });
   if (lastYear(DESIGUALDAD_SLUGS) !== null && lastYear(EMPRESAS_SLUGS) !== null && lastYear(DESIGUALDAD_SLUGS) !== lastYear(EMPRESAS_SLUGS)) {
@@ -504,6 +531,10 @@ export default function EconomiaFicha({
           </p>
         </section>
       )}
+
+      {/* Mercado de trabajo (SEPE + TGSS): dato mensual de coyuntura, Economía */}
+      {paro && <ParoRegistradoBlock data={paro} />}
+      {afiliacion && <AfiliacionBlock data={afiliacion} />}
 
       <IndicatorAvailabilityPanel entries={cobertura} />
 

@@ -583,7 +583,8 @@ export default function ComoFuncionaSocideas() {
                   </Link>
                   <Link
                     href="/"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] bg-[var(--color-input-bg)] border-2 border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+                    style={{ borderColor: '#7E8A7E', color: '#2B2E2C', borderWidth: '2px', borderStyle: 'solid', backgroundColor: '#FFFFFF' }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:bg-[#E8EBE4] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
                   >
                     Volver a la plataforma
                   </Link>

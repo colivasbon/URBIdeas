@@ -10,37 +10,20 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean
 }
 
-const variantStyles: Record<ButtonVariant, string> = {
-  primary: [
-    'bg-musgo text-white',
-    'hover:bg-musgo-hover',
-    'active:bg-musgo-active',
-    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]',
-  ].join(' '),
-  secondary: [
-    'bg-transparent text-[var(--color-text-primary)] border-2 border-[var(--color-border)]',
-    'hover:bg-[var(--color-input-bg-hover)]',
-    'active:bg-[var(--color-border-subtle)]',
-    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]',
-  ].join(' '),
-  accent: [
-    'bg-retama text-carbon',
-    'hover:brightness-95',
-    'active:brightness-90',
-    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]',
-  ].join(' '),
-  danger: [
-    'bg-rupestre text-white',
-    'hover:bg-rupestre-hover',
-    'active:bg-rupestre-hover',
-    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]',
-  ].join(' '),
-  ghost: [
-    'bg-transparent text-[var(--color-text-secondary)]',
-    'hover:bg-[var(--color-input-bg-hover)] hover:text-[var(--color-text-primary)]',
-    'active:bg-[var(--color-border-subtle)]',
-    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]',
-  ].join(' '),
+const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
+  primary: { backgroundColor: '#3E665C', color: '#FFFFFF' },
+  secondary: { backgroundColor: 'transparent', color: '#2B2E2C', borderWidth: '2px', borderStyle: 'solid', borderColor: '#7E8A7E' },
+  accent: { backgroundColor: '#FBE122', color: '#3C403E' },
+  danger: { backgroundColor: '#643335', color: '#FFFFFF' },
+  ghost: { backgroundColor: 'transparent', color: '#505250' },
+}
+
+const variantHover: Record<ButtonVariant, string> = {
+  primary: 'hover:opacity-90',
+  secondary: 'hover:bg-[#E8EBE4]',
+  accent: 'hover:brightness-95',
+  danger: 'hover:opacity-90',
+  ghost: 'hover:bg-[#E8EBE4] hover:text-[#2B2E2C]',
 }
 
 const sizeStyles: Record<ButtonSize, string> = {
@@ -52,12 +35,13 @@ const sizeStyles: Record<ButtonSize, string> = {
 export function Button({ variant = 'primary', size = 'md', loading, className = '', children, disabled, ...props }: ButtonProps) {
   return (
     <button
+      style={variantStyles[variant]}
       className={[
         'inline-flex items-center justify-center font-semibold rounded-[6px]',
-        'transition-colors duration-200 ease-out',
+        'transition-opacity duration-200 ease-out',
         'disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',
         'select-none cursor-pointer',
-        variantStyles[variant],
+        variantHover[variant],
         sizeStyles[size],
         className,
       ].join(' ')}

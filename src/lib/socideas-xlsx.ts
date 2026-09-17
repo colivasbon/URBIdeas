@@ -6,7 +6,9 @@
 // bloques apilados verticalmente, sin hojas detalladas, sin enlaces internos,
 // sin autofilter, sin freeze panes, sin mergeCells (fusionar desde A1 anula el
 // ancho de la columna 1 en ExcelJS: verificado empíricamente).
-// Tipografía: Poppins no garantizada en Excel; Calibri como fallback explícito.
+// Tipografía: Poppins en todas las celdas (título 14 > header sección 12 >
+// cabecera 11 bold > dato 11). NOTA: si el lector no tiene Poppins instalada,
+// Excel/LibreOffice la sustituye por la fuente del sistema (limitación del formato).
 import ExcelJS from 'exceljs'
 import {
   SOCIDEAS_SHEET_IDS,
@@ -36,15 +38,47 @@ export const XLSX_BRAND = 'Ideas Sostenibilidad - SOCideas - Libro municipal com
 /** Texto visible obligatorio del enlace de procedencia. */
 export const SOURCE_LINK_LABEL = 'Ver ficha oficial ↗'
 
-/** Tokens Ideas: principal #3E665C, acento #86B73D, fondo claro #F1F1F1. */
-const MINERAL = 'FF3E665C'
-const ACCENT = 'FF86B73D'
-const PAPER = 'FFF1F1F1'
-const ALT = 'FFEDF3EF'
-const WHITE = 'FFFFFFFF'
-const INK = 'FF1F2A26'
-const MUTED = 'FF5B6B62'
-const FONT_NAME = 'Calibri'
+/** Paleta SOCideas (rebranding): SOLO estos tokens en el libro.
+ *  - Musgo #3E665C: headers de sección (texto Hueso).
+ *  - Conífera #86B73D: enlaces (bold + subrayado, nunca como fondo).
+ *  - Retama #FBE122: SOLO sobre oscuro, NUNCA sobre claro (no se usa: no hay fondos oscuros salvo Musgo).
+ *  - Carbón #3C403E: texto sobre claro.
+ *  - Hueso #F1F1F1: fondo de celdas de datos.
+ *  - Rupestre #643335: SOLO alertas reales con texto Hueso; un ND jamás es alerta.
+ *  - Limo #B0BDB0: bordes finos.
+ *  - Crisopa #C2E189: badges ND/missing (texto Carbón) y cabeceras de columna.
+ *  CERO gradientes: ExcelJS solo usa `pattern: 'solid'` en este libro. */
+const MUSGO = 'FF3E665C'
+const CONIFERA = 'FF86B73D'
+const HUESO = 'FFF1F1F1'
+const CARBON = 'FF3C403E'
+const LIMO = 'FFB0BDB0'
+const CRISOPA = 'FFC2E189'
+/** Tokens reservados y documentados (Retama nunca sobre claro, Rupestre solo
+ *  alerta real). Se exportan para evitar usos ad hoc fuera de paleta. */
+export const XLSX_PALETTE = {
+  musgo: MUSGO,
+  conifera: CONIFERA,
+  retama: 'FFFBE122',
+  carbon: CARBON,
+  hueso: HUESO,
+  rupestre: 'FF643335',
+  limo: LIMO,
+  crisopa: CRISOPA,
+} as const
+const FONT_NAME = 'Poppins'
+
+/** Borde fino Limo (único borde permitido en datos y cabeceras). */
+function thinLimoBorders() {
+  const side = { style: 'thin' as const, color: { argb: LIMO } }
+  return { top: side, left: side, bottom: side, right: side }
+}
+
+/** Un ND (texto exacto, sin numérico) es missing: badge Crisopa/Carbón.
+ *  Rupestre queda reservado a alertas reales (este libro no genera ninguna). */
+function isBadgeText(text: string, numeric: number | null): boolean {
+  return numeric === null && text === 'ND'
+}
 
 // ============================================================================
 // Entrada
@@ -84,18 +118,22 @@ function band(row: ExcelJS.Row, nCols: number, fill: string): void {
   }
 }
 
-/** Banda de título: termina exactamente en la última columna del bloque. */
+/** Banda de título (header de sección): fondo Musgo, texto Hueso. */
 function paintTitle(ws: ExcelJS.Worksheet, rowN: number, nCols: number, text: string, size = 12): void {
   const row = ws.getRow(rowN)
-  row.height = 22
+  row.height = 24
   for (let i = 1; i <= nCols; i += 1) {
     const c = row.getCell(i)
-    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MINERAL } }
-    c.border = { bottom: { style: 'thin', color: { argb: ACCENT } } }
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUSGO } }
+    c.border = { bottom: { style: 'thin', color: { argb: CONIFERA } } }
     if (i === 1) {
       c.value = text
-      c.font = { name: FONT_NAME, size, bold: true, color: { argb: WHITE } }
-      c.alignment = { vertical: 'middle' }
+      c.font = { name: FONT_NAME, size, bold: true, color: { argb: HUESO } }
+      c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+    } else {
+      // Extensión de banda sin texto: fuente explícita para que TODA celda
+      // pintada sea Poppins (nunca la Calibri por defecto del formato).
+      c.font = { name: FONT_NAME, size: 11, color: { argb: HUESO } }
     }
   }
 }
@@ -112,10 +150,11 @@ function paintSourceLine(
   periodo: string,
 ): void {
   const row = ws.getRow(rowN)
+  row.height = 16
   const c = row.getCell(1)
   c.value = visibleSourceLabel(source, fuente, periodo)
-  c.font = { name: FONT_NAME, size: 10, color: { argb: MUTED } }
-  c.alignment = { vertical: 'middle' }
+  c.font = { name: FONT_NAME, size: 10, color: { argb: CARBON } }
+  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
 
   const url = source?.publicUrl
   if (nCols < 2 || !url || !isAllowedSourceUrl(url)) return
@@ -126,14 +165,9 @@ function paintSourceLine(
     hyperlink: url,
     tooltip: `Abrir fuente oficial: ${source?.shortLabel ?? ''}`,
   }
-  link.font = { name: FONT_NAME, size: 10, bold: true, underline: true, color: { argb: MINERAL } }
-  link.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PAPER } }
-  link.border = {
-    top: { style: 'thin', color: { argb: ACCENT } },
-    left: { style: 'thin', color: { argb: ACCENT } },
-    bottom: { style: 'thin', color: { argb: ACCENT } },
-    right: { style: 'thin', color: { argb: ACCENT } },
-  }
+  link.font = { name: FONT_NAME, size: 10, bold: true, underline: true, color: { argb: CONIFERA } }
+  link.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HUESO } }
+  link.border = thinLimoBorders()
   link.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false, shrinkToFit: false }
 }
 
@@ -175,13 +209,15 @@ export function cellAlign(header: string, isFirst: boolean): 'left' | 'center' |
   return 'right'
 }
 
+/** Cabecera de columna: fondo Crisopa, texto Carbón, bordes finos Limo. */
 function paintHeaderRow(row: ExcelJS.Row, nCols: number): void {
-  row.height = 18
+  row.height = 20
+  const borders = thinLimoBorders()
   for (let i = 1; i <= nCols; i += 1) {
     const c = row.getCell(i)
-    c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: WHITE } }
-    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MINERAL } }
-    c.border = { bottom: { style: 'thin', color: { argb: ACCENT } } }
+    c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CRISOPA } }
+    c.border = { ...borders }
   }
 }
 
@@ -231,9 +267,10 @@ function writeDataBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable)
   paintHeaderRow(header, nCols)
 
   let r = headerRowN
-  t.filas.forEach((fila, fi) => {
+  t.filas.forEach((fila) => {
     r += 1
     const row = ws.getRow(r)
+    row.height = 18
     fila.forEach((cell, ci) => {
       const c = row.getCell(ci + 1)
       const colName = columnas[ci] ?? ''
@@ -245,14 +282,17 @@ function writeDataBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable)
         c.value = cell.text
         c.numFmt = '@'
       }
-      c.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
+      const badge = isBadgeText(cell.text, cell.numeric)
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: badge ? CRISOPA : HUESO } }
+      c.border = { ...thinLimoBorders() }
+      c.font = { name: FONT_NAME, size: 11, bold: badge, color: { argb: CARBON } }
       c.alignment = {
         vertical: 'middle',
         horizontal: cellAlign(colName, ci === 0),
         wrapText: ci === 0,
+        indent: ci === 0 ? 1 : undefined,
       }
     })
-    if (fi % 2 === 1) band(row, nCols, ALT)
   })
 
   if (t.note && r >= headerRowN) {
@@ -261,9 +301,18 @@ function writeDataBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable)
     noteRow.height = 28
     const nc = noteRow.getCell(1)
     nc.value = t.note
-    nc.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: MUTED } }
-    nc.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
-    band(noteRow, nCols, PAPER)
+    nc.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
+    nc.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
+    band(noteRow, nCols, HUESO)
+    // Bucle explícito 1..nCols: eachCell(includeEmpty:false) salta las celdas
+    // con solo estilo y quedarían con la Calibri por defecto del formato.
+    for (let i = 1; i <= nCols; i += 1) {
+      const c = noteRow.getCell(i)
+      c.border = { ...thinLimoBorders() }
+      if (c.value === null || c.value === undefined) {
+        c.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
+      }
+    }
   }
 
   applyTableWidths(
@@ -281,7 +330,8 @@ function writeDataBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable)
 
 /**
  * Bloque "pendiente" o "no disponible": pinta solo título, línea de fuente y
- * una nota breve en una columna. Sin tabla, sin bandas verdes ni cabecera.
+ * una nota breve. El missing es badge Crisopa/Carbón (nunca Rupestre: un ND
+ * no es una alerta).
  */
 function writeNoteBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable): {
   endRow: number; nCols: number
@@ -294,9 +344,10 @@ function writeNoteBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable)
   row.height = 36
   const cell = row.getCell(1)
   cell.value = t.note ?? t.estado
-  cell.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: MUTED } }
-  cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
-  band(row, nCols, PAPER)
+  cell.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
+  cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
+  band(row, nCols, CRISOPA)
+  row.getCell(1).border = { ...thinLimoBorders() }
   // Nota metodológica: ancho máximo 24 (regla contractual), con wrap.
   const minW = 24
   const prev = ws.getColumn(1).width ?? 0
@@ -320,12 +371,13 @@ function writeScopeLine(
     `Municipio: ${input.municipio} (${input.codigoINE}) · ` +
     `Provincia: ${input.provincia} · ` +
     `Comunidad autónoma: ${input.comunidadAutonoma}`
-  c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: INK } }
-  c.alignment = { vertical: 'middle', horizontal: 'left' }
+  c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
+  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
   if (nCols > 1) {
     const rest = row.getCell(2)
-    rest.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PAPER } }
-    rest.border = { bottom: { style: 'thin', color: { argb: ACCENT } } }
+    rest.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HUESO } }
+    rest.border = { bottom: { style: 'thin', color: { argb: LIMO } } }
+    rest.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
   }
 }
 
@@ -339,7 +391,7 @@ interface ProjectBlock {
 }
 
 function writeProyecto(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput, hojas: ComparativeSheetInput[]): void {
-  const ws = wb.addWorksheet('00_PROYECTO', { properties: { tabColor: { argb: MINERAL } } })
+  const ws = wb.addWorksheet('00_PROYECTO', { properties: { tabColor: { argb: MUSGO } } })
   const nCols = 2
   paintTitle(ws, 1, nCols, XLSX_BRAND, 14)
 
@@ -357,48 +409,59 @@ function writeProyecto(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput, hoja
   let r = 3
   for (const { label, value } of meta) {
     const row = ws.getRow(r)
+    row.height = 18
     const lbl = row.getCell(1)
     lbl.value = label
-    lbl.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: INK } }
-    lbl.alignment = { vertical: 'middle' }
+    lbl.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
+    lbl.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
     const val = row.getCell(2)
     val.value = value
-    val.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
+    val.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
     val.alignment = { vertical: 'middle', wrapText: true }
-    band(row, nCols, PAPER)
-    r += 1
-  }
-
-  r += 1
-  paintTitle(ws, r, nCols, 'Hojas del libro', 12)
-  r += 2
-  for (const hoja of hojas) {
-    const row = ws.getRow(r)
-    const lbl = row.getCell(1)
-    lbl.value = hoja.id
-    lbl.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: INK } }
-    lbl.alignment = { vertical: 'middle' }
-    const val = row.getCell(2)
-    val.value = hoja.titulo
-    val.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
-    val.alignment = { vertical: 'middle' }
-    if (hoja.subtitulo) {
-      r += 1
-      const sub = ws.getRow(r)
-      const subVal = sub.getCell(1)
-      subVal.value = hoja.subtitulo
-      subVal.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: MUTED } }
-      subVal.alignment = { vertical: 'middle' }
-      const subVal2 = sub.getCell(2)
-      subVal2.value = hoja.bloques.length + ' bloques'
-      subVal2.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: MUTED } }
-      subVal2.alignment = { vertical: 'middle', horizontal: 'right' }
-      band(sub, nCols, PAPER)
+    band(row, nCols, HUESO)
+    for (let i = 1; i <= nCols; i += 1) {
+      row.getCell(i).border = { ...thinLimoBorders() }
     }
     r += 1
   }
 
   r += 1
+  ws.getRow(r - 1).height = 20
+  paintTitle(ws, r, nCols, 'Hojas del libro', 12)
+  r += 2
+  for (const hoja of hojas) {
+    const row = ws.getRow(r)
+    row.height = 18
+    const lbl = row.getCell(1)
+    lbl.value = hoja.id
+    lbl.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
+    lbl.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+    const val = row.getCell(2)
+    val.value = hoja.titulo
+    val.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
+    val.alignment = { vertical: 'middle' }
+    band(row, nCols, HUESO)
+    for (let i = 1; i <= nCols; i += 1) {
+      row.getCell(i).border = { ...thinLimoBorders() }
+    }
+    if (hoja.subtitulo) {
+      r += 1
+      const sub = ws.getRow(r)
+      const subVal = sub.getCell(1)
+      subVal.value = hoja.subtitulo
+      subVal.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
+      subVal.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+      const subVal2 = sub.getCell(2)
+      subVal2.value = hoja.bloques.length + ' bloques'
+      subVal2.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
+      subVal2.alignment = { vertical: 'middle', horizontal: 'right' }
+      band(sub, nCols, HUESO)
+    }
+    r += 1
+  }
+
+  r += 1
+  ws.getRow(r - 1).height = 20
   paintTitle(ws, r, nCols, 'Criterio metodológico', 12)
   r += 2
   const nota = ws.getRow(r)
@@ -406,9 +469,16 @@ function writeProyecto(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput, hoja
   const notaCell = nota.getCell(1)
   notaCell.value =
     'Solo se muestran comparativas cuando las fuentes, períodos y definiciones son homogéneos entre ámbitos.'
-  notaCell.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: MUTED } }
-  notaCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
-  band(nota, nCols, PAPER)
+  notaCell.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
+  notaCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
+  band(nota, nCols, HUESO)
+  for (let i = 1; i <= nCols; i += 1) {
+    const c = nota.getCell(i)
+    c.border = { ...thinLimoBorders() }
+    if (c.value === null || c.value === undefined) {
+      c.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
+    }
+  }
   ws.getColumn(1).width = Math.min(24, Math.max(20, 22))
   ws.getColumn(2).width = Math.min(24, Math.max(20, 24))
 }
@@ -418,10 +488,11 @@ function writeProyecto(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput, hoja
 // ============================================================================
 
 function writeSheet(wb: ExcelJS.Workbook, input: ComparativeSheetInput, ctx: MunicipioWorkbookInput): void {
-  const ws = wb.addWorksheet(input.id, { properties: { tabColor: { argb: MINERAL } } })
+  const ws = wb.addWorksheet(input.id, { properties: { tabColor: { argb: MUSGO } } })
   const maxCols = Math.max(1, ...input.bloques.map((b) => b.columnas.length || 1))
   paintTitle(ws, 1, maxCols, input.titulo, 14)
   writeScopeLine(ws, 2, maxCols, ctx)
+  ws.getRow(3).height = 20
   let cursor = 4
   for (const bloque of input.bloques) {
     try {
@@ -429,13 +500,12 @@ function writeSheet(wb: ExcelJS.Workbook, input: ComparativeSheetInput, ctx: Mun
         bloque.availability === 'pending_integration' ||
         bloque.availability === 'not_available' ||
         bloque.filas.length === 0
-      if (isNote) {
-        const placed = writeNoteBlock(ws, cursor, bloque)
-        cursor = placed.endRow + 2
-      } else {
-        const placed = writeDataBlock(ws, cursor, bloque)
-        cursor = placed.endRow + 2
-      }
+      const endRow = isNote
+        ? writeNoteBlock(ws, cursor, bloque).endRow
+        : writeDataBlock(ws, cursor, bloque).endRow
+      // Aire vertical entre bloques: dos filas en blanco, la primera alta.
+      ws.getRow(endRow + 1).height = 20
+      cursor = endRow + 3
     } catch (blockErr) {
       console.error(JSON.stringify({
         tag: 'SOCIDEAS_XLSX_BLOCK_SKIP',
@@ -475,7 +545,7 @@ const CRITERIOS_LECTURA = [
 ]
 
 function writeCriteriosFuentes(wb: ExcelJS.Workbook, input: CriteriosFuentesInput): void {
-  const ws = wb.addWorksheet('08_CRITERIOS_Y_FUENTES', { properties: { tabColor: { argb: MINERAL } } })
+  const ws = wb.addWorksheet('08_CRITERIOS_Y_FUENTES', { properties: { tabColor: { argb: MUSGO } } })
   const nCols = 2
   paintTitle(ws, 1, nCols, XLSX_BRAND, 14)
   writeScopeLine(ws, 2, nCols, {
@@ -486,17 +556,27 @@ function writeCriteriosFuentes(wb: ExcelJS.Workbook, input: CriteriosFuentesInpu
   })
 
   paintTitle(ws, 4, nCols, 'Criterios de lectura', 12)
+  ws.getRow(5).height = 20
   let r = 6
   for (const c of CRITERIOS_LECTURA) {
     const row = ws.getRow(r)
+    row.height = 18
     const cell = row.getCell(1)
     cell.value = `• ${c}`
-    cell.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
-    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
-    band(row, nCols, PAPER)
+    cell.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
+    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
+    band(row, nCols, HUESO)
+    for (let i = 1; i <= nCols; i += 1) {
+      const cc = row.getCell(i)
+      cc.border = { ...thinLimoBorders() }
+      if ((cc.value === null || cc.value === undefined) && nCols > 1) {
+        cc.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
+      }
+    }
     r += 1
   }
   r += 1
+  ws.getRow(r - 1).height = 20
 
   paintTitle(ws, r, nCols, 'Fuentes oficiales utilizadas', 12)
   r += 2
@@ -513,6 +593,7 @@ function writeCriteriosFuentes(wb: ExcelJS.Workbook, input: CriteriosFuentesInpu
   for (const f of input.fuentes) {
     fr += 1
     const row = ws.getRow(fr)
+    row.height = 18
     row.getCell(1).value = f.area
     row.getCell(3).value = f.operacion
     row.getCell(4).value = f.periodo
@@ -522,25 +603,27 @@ function writeCriteriosFuentes(wb: ExcelJS.Workbook, input: CriteriosFuentesInpu
       fuenteCell.font = {
         name: FONT_NAME,
         size: 11,
-        color: { argb: MINERAL },
+        color: { argb: CONIFERA },
         underline: true,
         bold: true,
       }
     } else {
       fuenteCell.value = f.fuente
-      fuenteCell.font = { name: FONT_NAME, size: 11, color: { argb: INK } }
+      fuenteCell.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
     }
-    row.getCell(1).font = { name: FONT_NAME, size: 11, color: { argb: INK } }
-    row.getCell(3).font = { name: FONT_NAME, size: 11, color: { argb: INK } }
-    row.getCell(4).font = { name: FONT_NAME, size: 11, color: { argb: INK } }
+    row.getCell(1).font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
+    row.getCell(3).font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
+    row.getCell(4).font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
     for (let i = 1; i <= 4; i += 1) {
       row.getCell(i).alignment = {
         vertical: 'middle',
         horizontal: cellAlign(fuentesCols[i - 1] ?? '', i === 1),
         wrapText: i === 1,
+        indent: i === 1 ? 1 : undefined,
       }
+      row.getCell(i).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HUESO } }
+      row.getCell(i).border = { ...thinLimoBorders() }
     }
-    if ((fr - headerRowN) % 2 === 0) band(row, 4, ALT)
   }
   applyTableWidths(
     ws,

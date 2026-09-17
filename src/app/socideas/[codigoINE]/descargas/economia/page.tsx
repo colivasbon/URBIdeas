@@ -77,7 +77,8 @@ export default async function DescargasEconomia({
           <div className="mt-4 flex flex-wrap gap-3">
             <Link
               href={`/socideas/${codigoINE}?categoria=economia`}
-              className="inline-flex min-h-[36px] items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)]"
+              className="inline-flex min-h-[36px] items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)]"
+              style={{ backgroundColor: 'var(--color-input-bg)' }}
             >
               ← Volver a la ficha
             </Link>

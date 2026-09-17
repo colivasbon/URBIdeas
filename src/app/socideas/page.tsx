@@ -72,7 +72,7 @@ export default function SocideasHub() {
               <div className="border-t-2 border-dashed border-t-limo pt-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Secciones censales</p>
                 <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">Geometría oficial del INE bajo demanda. Indicadores por sección solo con fuente oficial a ese nivel.</p>
-                <p className="mt-3 inline-flex rounded-[6px] border border-[var(--color-border)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-secondary)]">En preparación</p>
+                <p className="mt-3 inline-flex rounded-[6px] border border-[var(--color-border)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-muted)]" style={{ backgroundColor: 'var(--color-input-bg)' }}>En preparación</p>
               </div>
             </div>
             <p className="mt-6 border-t border-[var(--color-border-subtle)] pt-4 text-xs leading-relaxed text-[var(--color-text-muted)]">

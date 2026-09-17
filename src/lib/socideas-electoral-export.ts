@@ -89,7 +89,7 @@ export function buildElectoralTables(
       source,
       comparisonMode: "municipal_only",
       availability: "available",
-      note: "5 candidaturas más votadas + «Otras candidaturas». Un 0 de concejales observado es dato real.",
+      note: "5 candidaturas más votadas + «Otras candidaturas». Un 0 de concejales observado es dato real. Los municipios en concejo abierto (generalmente <100 hab.) no publican resultados por candidatura; los pequeños con listas se muestran con normalidad.",
     },
   ];
 }

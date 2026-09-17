@@ -136,7 +136,9 @@ export function BloqueElectoral({ data }: { data: ElectoralPresentationData }) {
       <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
         Se muestran las 5 candidaturas más votadas; el resto se agrupa en «Otras candidaturas».
         La participación es un cálculo SOCideas (votantes / censo). La ausencia de dato se muestra
-        como ND; nunca como 0.
+        como ND; nunca como 0. Los municipios en régimen de concejo abierto (generalmente, menos
+        de 100 habitantes) no publican resultados por candidatura en esta fuente; los municipios
+        pequeños que sí votan por listas se muestran con normalidad.
       </p>
     </section>
   );

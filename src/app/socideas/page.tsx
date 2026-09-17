@@ -83,7 +83,7 @@ export default function SocideasHub() {
           <section aria-label="Enlaces relacionados" className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/"
-              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-[6px] hover:bg-[var(--color-input-bg-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]"
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] border-2 border-[var(--color-border)] rounded-[6px] hover:bg-[var(--color-input-bg-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]"
             >
               Volver a la plataforma
             </Link>

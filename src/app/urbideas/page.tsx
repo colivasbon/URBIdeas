@@ -77,7 +77,7 @@ export default async function UrbideasHome() {
                   </Link>
                   <Link
                     href="/urbideas/mapa"
-                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-[6px] hover:bg-[var(--color-input-bg-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]"
+                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold text-[var(--color-text-primary)] border-2 border-[var(--color-border)] rounded-[6px] hover:bg-[var(--color-input-bg-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]"
                   >
                     Dictaminar un ámbito
                   </Link>
@@ -189,7 +189,7 @@ export default async function UrbideasHome() {
               <div className="flex flex-wrap items-center gap-3">
                 <Link
                   href="/"
-                  className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-[6px] hover:bg-[var(--color-input-bg-hover)] transition-colors"
+                  className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] border-2 border-[var(--color-border)] rounded-[6px] hover:bg-[var(--color-input-bg-hover)] transition-colors"
                 >
                   Volver a la plataforma
                 </Link>

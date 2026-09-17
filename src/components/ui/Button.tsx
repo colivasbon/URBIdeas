@@ -18,7 +18,7 @@ const variantStyles: Record<ButtonVariant, string> = {
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]',
   ].join(' '),
   secondary: [
-    'bg-transparent text-[var(--color-text-primary)] border border-[var(--color-border)]',
+    'bg-transparent text-[var(--color-text-primary)] border-2 border-[var(--color-border)]',
     'hover:bg-[var(--color-input-bg-hover)]',
     'active:bg-[var(--color-border-subtle)]',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]',

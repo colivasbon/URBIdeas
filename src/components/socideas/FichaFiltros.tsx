@@ -223,7 +223,7 @@ export default function FichaFiltros({
   }
 
   const coberturaDemografia: CoverageEntry[] = [    { titulo: "Densidad de población", estado: "pending", detalle: "Pendiente de integración de fuente de superficie. Nada se estima." },
-    { titulo: "Población extranjera y saldo migratorio", estado: "without_coverage", detalle: "La fuente no publica estos indicadores a nivel municipal de forma verificada en Tempus3." },
+    { titulo: "Saldo migratorio agregado", estado: "without_coverage", detalle: "La capa antigua de saldo agregado (INE, tabla 69767) sigue sin cobertura municipal verificada. Los flujos migratorios (tablas 69711, 69743 y 69746) sí tienen cobertura y se muestran en su bloque." },
     { titulo: "Natalidad, mortalidad y educación", estado: "without_coverage", detalle: "Sin cobertura municipal verificada en esta ficha; solo se incorporarían con fuente oficial y periodo homogéneo." },
     { titulo: "Fuente provisional", estado: "provisional", detalle: "No hay fuente provisional configurada para demografía. Se conserva el último dato consolidado." },
   ];
@@ -735,7 +735,8 @@ function derivarPerfil(base: PerfilDemografico, filtros: FiltrosUI): PerfilDemog
 
 const pendientesFijas = [
   "Densidad: pendiente de integración de fuente de superficie.",
-  "Población extranjera y saldo migratorio: sin cobertura municipal verificada en Tempus3.",
+  "Saldo migratorio agregado (capa antigua, INE tabla 69767): sin cobertura municipal verificada; sigue pendiente.",
+  "Flujos migratorios (INE tablas 69711, 69743 y 69746): con cobertura municipal desde esta fase; se muestran en su bloque.",
 ];
 
 function tablaComparada(perfil: PerfilDemografico, ambitos: AmbitoTerritorial[]) {

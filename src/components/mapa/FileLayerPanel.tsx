@@ -132,7 +132,7 @@ export function FileLayerPanel({
           </div>
           <div className="flex items-center gap-2">
             {selectedProvinces.length > 0 && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-[6px] border border-[var(--conifera)] bg-[var(--crisopa)] text-[var(--carbon-deep)]">
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-[6px] border border-conifera bg-crisopa text-carbon-deep">
                 {selectedProvinces.length}
               </span>
             )}

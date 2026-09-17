@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useRef } from 'react'
 
 interface ModalProps {
   isOpen: boolean
@@ -9,6 +9,8 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose()
   }, [onClose])
@@ -17,6 +19,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
       document.addEventListener('keydown', handleKeyDown)
+      dialogRef.current?.focus()
     } else {
       document.body.style.overflow = ''
     }
@@ -29,18 +32,23 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
       <div
         className="absolute inset-0 bg-[var(--color-overlay)] backdrop-blur-sm animate-fade-in"
         onClick={onClose}
+        aria-hidden="true"
       />
-      <div className="relative bg-[var(--color-card-bg-solid)] border border-[var(--color-border)] rounded-[6px] w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto shadow-xl animate-slide-in-down">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="relative bg-[var(--color-card-bg-solid)] border border-[var(--color-border)] rounded-[6px] w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto shadow-xl animate-slide-in-down focus:outline-none"
+      >
         {title && (
           <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] px-6 py-4 sticky top-0 bg-[var(--color-card-bg-solid)] z-10">
             <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
             <button
               onClick={onClose}
-              className="flex items-center justify-center w-9 h-9 rounded-[6px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg)] transition-colors"
+              className="flex items-center justify-center w-9 h-9 rounded-[6px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg)] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
               aria-label="Cerrar"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

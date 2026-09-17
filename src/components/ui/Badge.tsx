@@ -1,6 +1,6 @@
 import React from 'react'
 
-type BadgeVariant = 'primary' | 'secondary' | 'accent' | 'danger' | 'success' | 'muted'
+type BadgeVariant = 'primary' | 'secondary' | 'accent' | 'danger' | 'success' | 'muted' | 'crisopa'
 
 interface BadgeProps {
   variant?: BadgeVariant
@@ -9,12 +9,13 @@ interface BadgeProps {
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
-  primary: 'bg-[var(--musgo)] text-[var(--hueso)] border border-[var(--musgo)]',
-  secondary: 'bg-[var(--crisopa)] text-[var(--carbon)] border border-[var(--conifera)]',
-  accent: 'bg-[var(--retama)] text-[var(--carbon)] border border-[var(--retama)]',
-  danger: 'bg-[var(--rupestre)] text-[var(--hueso)] border border-[var(--rupestre)]',
-  success: 'bg-[var(--conifera)] text-[var(--carbon)] border border-[var(--conifera-active)]',
+  primary: 'bg-musgo text-hueso border border-musgo',
+  secondary: 'bg-crisopa text-carbon border border-conifera',
+  accent: 'bg-retama text-carbon border border-retama',
+  danger: 'bg-rupestre text-hueso border border-rupestre',
+  success: 'bg-conifera text-carbon border border-[var(--conifera-active)]',
   muted: 'bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)]',
+  crisopa: 'bg-crisopa/16 text-[var(--color-text-primary)] border border-crisopa',
 }
 
 export function Badge({ variant = 'primary', children, className = '' }: BadgeProps) {

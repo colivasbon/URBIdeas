@@ -49,7 +49,7 @@ export default async function UrbideasHome() {
       <UrbideasHeader />
 
       <main className="flex-1 bg-[var(--color-dark-bg)]">
-        <EditorialParallaxHero decor={<TerritorialBackground variant="contours" />} className="hero-musgo bg-[var(--brand-bg)] text-[var(--hueso)]">
+        <EditorialParallaxHero decor={<TerritorialBackground variant="contours" />} className="hero-musgo bg-[var(--brand-bg)] text-hueso">
         <section className="relative">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="py-12 sm:py-16 lg:py-20">
@@ -60,10 +60,10 @@ export default async function UrbideasHome() {
                 <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl" style={{ lineHeight: 1.08 }}>
                   URBideas
                 </h1>
-                <p className="mt-3 text-xl font-semibold text-[var(--hueso)] sm:text-2xl">
+                <p className="mt-3 text-xl font-semibold text-hueso sm:text-2xl">
                   Análisis territorial, urbanístico y geoespacial
                 </p>
-                <p className="mt-6 max-w-xl text-base leading-relaxed text-[var(--hueso)] sm:text-lg">
+                <p className="mt-6 max-w-xl text-base leading-relaxed text-hueso sm:text-lg">
                   Dictamen territorial de ámbito: dibuja o sube el recinto,
                   cruza el suelo con sus afecciones y recibe un juicio
                   compatible, condicionado o incompatible, listo para descargar.
@@ -71,18 +71,18 @@ export default async function UrbideasHome() {
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
                     href="/urbideas/municipios"
-                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold text-[var(--carbon-deep)] bg-[var(--conifera)] rounded-[6px] hover:bg-[var(--conifera-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    className="cta-glow inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold text-carbon-deep bg-conifera rounded-[6px] hover:bg-conifera-hover transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                   >
                     Buscar municipio
                   </Link>
                   <Link
                     href="/urbideas/mapa"
-                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold text-[var(--hueso)] border border-[var(--hueso)]/40 rounded-[6px] hover:bg-white/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold text-hueso border border-hueso/40 rounded-[6px] hover:bg-white/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                   >
                     Dictaminar un ámbito
                   </Link>
                 </div>
-                <p className="tnum mt-8 border-t border-white/20 pt-4 text-sm text-[var(--hueso)]">
+                <p className="tnum mt-8 border-t border-white/20 pt-4 text-sm text-hueso">
                   {stats.totalMunicipios.toLocaleString("es-ES")} municipios · {stats.totalLegalSources.toLocaleString("es-ES")} fuentes normativas · {stats.totalCapasWMS.toLocaleString("es-ES")} capas WMS
                 </p>
               </div>
@@ -152,12 +152,12 @@ export default async function UrbideasHome() {
                   number: "04",
                 },
               ].map((item) => (
-                <Link key={item.title} href={item.href} className="group relative block rounded-[6px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]">
+                <Link key={item.title} href={item.href} className="group relative block rounded-[6px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]">
                   <div className="flex items-start gap-5">
                     <span className="tnum text-sm font-bold text-[var(--moss-ink)] mt-0.5">
                       {item.number}
                     </span>
-                    <div className="flex-1 border-b-2 border-[var(--color-border-subtle)] pb-6 group-hover:border-[var(--conifera)] transition-colors duration-200">
+                    <div className="flex-1 border-b-2 border-[var(--color-border-subtle)] pb-6 group-hover:border-conifera transition-colors duration-200">
                       <p className="text-xl font-bold text-[var(--color-text-primary)]">
                         {item.title}
                       </p>
@@ -195,7 +195,7 @@ export default async function UrbideasHome() {
                 </Link>
                 <Link
                   href="/urbideas/api-docs"
-                  className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--hueso)] bg-[var(--musgo)] rounded-[6px] hover:bg-[var(--musgo-hover)] transition-colors"
+                  className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-hueso bg-musgo rounded-[6px] hover:bg-musgo-hover transition-colors"
                 >
                   Documentación API
                 </Link>

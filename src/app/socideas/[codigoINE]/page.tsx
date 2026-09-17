@@ -242,7 +242,7 @@ export default async function SocideasFicha({
               </Link>
               <Link
                 href={mapHref}
-                className="inline-flex min-h-[36px] items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--hueso)] bg-[var(--musgo)] rounded-[6px] hover:bg-[var(--musgo-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+                className="inline-flex min-h-[36px] items-center gap-2 px-4 py-2 text-xs font-semibold text-hueso bg-musgo rounded-[6px] hover:bg-musgo-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
               >
                 Abrir en URBideas →
               </Link>

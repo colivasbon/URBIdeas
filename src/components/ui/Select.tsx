@@ -28,7 +28,7 @@ export function Select({ options, placeholder, label, className = '', ...props }
             'text-[var(--color-text-primary)]',
             'transition-all duration-200 ease-out',
             'hover:border-[var(--color-border)] hover:bg-[var(--color-input-bg-hover)]',
-            'focus:outline-none focus:border-[var(--color-secondary)] focus:ring-2 focus:ring-[var(--color-secondary)]/20 focus:bg-[var(--color-input-bg-hover)]',
+            'focus:outline-none focus:border-musgo focus:ring-2 focus:ring-musgo/25 focus:bg-[var(--color-input-bg-hover)]',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             className,
           ].join(' ')}

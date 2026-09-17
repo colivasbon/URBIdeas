@@ -1450,8 +1450,8 @@ a:hover {
   color: var(--color-error);
 }
 
-/* Texto y botón de error reutilizables (sustituyen a los rojos hardcodeados
-   text-red-*/border-red-*: Rupestre en claro, variante aclarada en oscuro). */
+/* Texto y botón de error reutilizables (sustituyen a los rojos hardcodeados:
+   Rupestre en claro, variante aclarada en oscuro). */
 .socideas-error-text {
   color: var(--color-error-light);
 }
@@ -1601,26 +1601,113 @@ a:hover {
 }
 
 [data-theme="dark"] {
-  /* Oscuro verde-carbón: cero grises neutros, todo de la familia del musgo */
-  --color-dark-bg: #1F2824;
-  --color-dark-bg-elevated: #26302B;
-  --color-dark-surface: #2E3A33;
-  --color-card-bg: #2B352F;
-  --color-card-bg-solid: #2B352F;
-  --color-input-bg: #313D36;
-  --color-input-bg-hover: #3A4840;
-  --color-border: #43544A;
-  --color-border-subtle: #35443B;
-  --color-border-light: #4A5C51;
+  /* Oscuro todo verde musgo: página, bandas, tarjetas e inputs de la
+     misma familia. El hero (#22332E) queda un punto por encima del fondo. */
+  --color-dark-bg: #161F1C;
+  --color-dark-bg-elevated: #1C2622;
+  --color-dark-surface: #232E28;
+  --color-card-bg: #222D28;
+  --color-card-bg-solid: #222D28;
+  --color-input-bg: #28352E;
+  --color-input-bg-hover: #303E36;
+  --color-border: #3B4C43;
+  --color-border-subtle: #2D3A33;
+  --color-border-light: #46584D;
   --color-text-primary: var(--hueso);
-  --color-text-secondary: #D2DCD6;
-  --color-text-muted: #A3B8AD;
-  --background: #1F2824;
+  --color-text-secondary: #CFD8D2;
+  --color-text-muted: #9DB0A4;
+  --background: #161F1C;
   --foreground: var(--hueso);
-  --color-overlay: rgba(20, 28, 24, 0.6);
+  --color-overlay: rgba(10, 16, 13, 0.6);
   --brand-bg: #22332E;
   --moss-ink: var(--crisopa);
   --danger-ink: #E3A6A8;
+}
+
+[data-theme="light"] {
+  /* Claro fondo blanco: página y tarjetas blancas, bandas en Hueso. */
+  --color-dark-bg: #FFFFFF;
+  --color-dark-bg-elevated: #F1F1F1;
+  --color-dark-surface: #FFFFFF;
+  --color-card-bg: #FFFFFF;
+  --color-card-bg-solid: #FFFFFF;
+  --color-input-bg: #FFFFFF;
+  --color-input-bg-hover: #F1F1F1;
+  --background: #FFFFFF;
+}
+
+/* Colores corporativos como utilidades de primera clase (bg-musgo,
+   text-hueso, border-limo…): generación garantizada en Tailwind v4. */
+@theme {
+  --color-musgo: #3E665C;
+  --color-musgo-hover: #33544B;
+  --color-musgo-active: #2E4F47;
+  --color-conifera: #86B73D;
+  --color-conifera-hover: #769F34;
+  --color-conifera-active: #6F9A2E;
+  --color-retama: #FBE122;
+  --color-carbon: #3C403E;
+  --color-carbon-deep: #2B2E2C;
+  --color-hueso: #F1F1F1;
+  --color-rupestre: #643335;
+  --color-rupestre-hover: #542B2D;
+  --color-limo: #B0BDB0;
+  --color-crisopa: #C2E189;
+  --color-paper: #FAF8F3;
+  --color-paper-elevated: #FFFFFF;
+  --color-ink: #10201C;
+  --color-ink-2: #33403C;
+  --color-mineral: #3E665C;
+  --color-mineral-deep: #22332E;
+  --color-teal-muted: #5E8A7D;
+}
+
+/* Footer: Carbón en claro, musgo casi negro en oscuro */
+.site-footer {
+  background: var(--carbon);
+}
+
+[data-theme="dark"] .site-footer {
+  background: #101614;
+}
+
+/* Glow sobrio para la acción principal (solo Conífera) */
+.cta-glow {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--conifera) 55%, transparent),
+    0 10px 28px -8px color-mix(in srgb, var(--conifera) 55%, transparent);
+  transition: box-shadow 200ms ease-out, background-color 200ms ease-out;
+}
+
+.cta-glow:hover {
+  box-shadow:
+    0 0 0 1px var(--conifera),
+    0 14px 34px -6px color-mix(in srgb, var(--conifera) 70%, transparent);
+}
+
+/* Glassmorphism medido: header fijo y panel de búsqueda */
+.header-glass {
+  background: color-mix(in srgb, var(--brand-bg) 88%, transparent);
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+}
+
+.glass-card {
+  background: color-mix(in srgb, var(--color-card-bg) 92%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta-glow {
+    transition: none;
+  }
+}
+
+/* Tablas: cabecera sticky siempre opaca (nunca texto sobre filas) */
+.socideas-table-shell__scroll thead th {
+  background: var(--color-card-bg);
 }
 
 /* Enlaces de contenido: tokens de bajo nivel en @layer base para que las
@@ -1705,6 +1792,41 @@ a:hover {
 /* Cifras tabulares */
 .tnum, .tnum * {
   font-variant-numeric: tabular-nums;
+}
+
+/* Utilidades de foco corporativo: outline visible sobre cualquier fondo */
+.focus-ring-musgo:focus-visible {
+  outline: 2px solid var(--musgo);
+  outline-offset: 2px;
+}
+
+.focus-ring-retama:focus-visible {
+  outline: 2px solid var(--retama);
+  outline-offset: 2px;
+}
+
+.focus-ring-conifera:focus-visible {
+  outline: 2px solid var(--conifera);
+  outline-offset: 2px;
+}
+
+/* Transiciones de elevación para tarjetas interactivas */
+.hover-lift {
+  transition: transform 180ms var(--ease-editorial), box-shadow 280ms var(--ease-editorial);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-premium-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-lift {
+    transition: none;
+  }
+  .hover-lift:hover {
+    transform: none;
+  }
 }
 
 /* --- Hero Musgo: retícula y curvas en Hueso sobre fondo oscuro --- */

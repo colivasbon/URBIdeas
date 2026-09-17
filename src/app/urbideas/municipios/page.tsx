@@ -80,17 +80,17 @@ function getEstadoBadge(estado: string) {
   switch (estado.toLowerCase()) {
     case "aprobado":
     case "vigente":
-      return `${base} bg-[var(--conifera)] text-[var(--carbon-deep)] border-[var(--conifera-active)]`
+      return `${base} bg-conifera text-carbon-deep border-[var(--conifera-active)]`
     case "en tramite":
     case "en trámite":
     case "pendiente":
-      return `${base} bg-[var(--crisopa)] text-[var(--carbon)] border-[var(--conifera)]`
+      return `${base} bg-crisopa text-carbon border-conifera`
     case "borrador":
     case "avance":
-      return `${base} bg-[var(--musgo)] text-[var(--hueso)] border-[var(--musgo-active)]`
+      return `${base} bg-musgo text-hueso border-[var(--musgo-active)]`
     case "derogado":
     case "caducado":
-      return `${base} bg-[var(--rupestre)] text-[var(--hueso)] border-[var(--rupestre)]`
+      return `${base} bg-rupestre text-hueso border-rupestre`
     default:
       return `${base} bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border-[var(--color-border)]`
   }
@@ -350,9 +350,9 @@ export default function MunicipiosPage() {
 
       <main className="flex-1">
         <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-          <section className="mb-8 border-b-2 border-[var(--musgo)] pb-6">
+          <section className="mb-8 border-b-2 border-musgo pb-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="h-0.5 w-8 bg-[var(--conifera)]" />
+              <div className="h-0.5 w-8 bg-conifera" />
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--moss-ink)]">
                 Exploración · URBideas
               </p>
@@ -567,9 +567,9 @@ export default function MunicipiosPage() {
                                         <div className="flex items-center gap-3 mt-2">
                                           <span className={`inline-flex items-center text-xs font-semibold px-1.5 py-0.5 rounded-[6px] border ${
                                             norm.estado_vigencia === "vigente"
-                                              ? "bg-[var(--conifera)] text-[var(--carbon-deep)] border-[var(--conifera-active)]"
+                                              ? "bg-conifera text-carbon-deep border-[var(--conifera-active)]"
                                               : norm.estado_vigencia === "derogada"
-                                                ? "bg-[var(--rupestre)] text-[var(--hueso)] border-[var(--rupestre)]"
+                                                ? "bg-rupestre text-hueso border-rupestre"
                                                 : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border-[var(--color-border)]"
                                           }`}>
                                             {norm.estado_vigencia}
@@ -656,7 +656,7 @@ export default function MunicipiosPage() {
                                           href={`/urbideas/mapa?layers=${capa.id}&center=${selectedMunicipio?.lng || 0},${selectedMunicipio?.lat || 0}&zoom=12`}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="shrink-0 ml-3 inline-flex min-h-[36px] items-center gap-1 text-xs font-semibold px-2.5 py-1 bg-[var(--musgo)] text-[var(--hueso)] rounded-[6px] hover:bg-[var(--musgo-hover)] transition-colors"
+                                          className="shrink-0 ml-3 inline-flex min-h-[36px] items-center gap-1 text-xs font-semibold px-2.5 py-1 bg-musgo text-hueso rounded-[6px] hover:bg-musgo-hover transition-colors"
                                         >
                                           Ver en mapa
                                         </a>

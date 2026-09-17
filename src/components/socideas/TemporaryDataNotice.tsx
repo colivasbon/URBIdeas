@@ -37,7 +37,7 @@ export default function TemporaryDataNotice({
   return (
     <section
       aria-label="Actualización temporal"
-      className="mb-6 rounded-xl border border-[color-mix(in_srgb,var(--color-secondary)_45%,transparent)] bg-[var(--color-input-bg)] p-3"
+      className="mb-6 rounded-[6px] border border-[color-mix(in_srgb,var(--color-secondary)_45%,transparent)] bg-[var(--color-input-bg)] p-3"
     >
       <div className="flex flex-wrap items-center gap-2">
         <DataStatusBadge estado="provisional" />

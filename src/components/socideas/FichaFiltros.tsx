@@ -117,7 +117,7 @@ function fmt(n: number | null): string {
 }
 
 const selectCls =
-  "rounded-xl border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]";
+  "rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]";
 const labelCls = "mb-1 block text-xs font-semibold text-[var(--color-text-muted)]";
 
 export default function FichaFiltros({
@@ -355,7 +355,7 @@ export default function FichaFiltros({
           </div>
         </div>
         {rangoInvalido && (
-          <p role="alert" className="mt-3 text-sm text-red-500">
+          <p role="alert" className="mt-3 text-sm socideas-error-text">
             El año inicial no puede ser posterior al final. Ajuste el rango.
           </p>
         )}
@@ -540,7 +540,7 @@ export default function FichaFiltros({
               detalle="Población 65+ / 0-14 × 100"
             />
           ) : (
-            <p className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
+            <p className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
               Índice de envejecimiento: no disponible para el período seleccionado.
             </p>
           )}
@@ -551,7 +551,7 @@ export default function FichaFiltros({
               detalle="(0-14 + 65+) / 15-64 × 100"
             />
           ) : (
-            <p className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
+            <p className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
               Índice de dependencia: no disponible para el período seleccionado.
             </p>
           )}
@@ -603,7 +603,7 @@ export default function FichaFiltros({
               detalle="Cálculo propio sobre serie oficial"
             />
           ) : (
-            <p className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
+            <p className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
               Variación 5 años: no disponible para el período seleccionado (sin año comparable; no se muestra 0 %).
             </p>
           )}
@@ -614,7 +614,7 @@ export default function FichaFiltros({
               detalle="Cálculo propio sobre serie oficial"
             />
           ) : (
-            <p className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
+            <p className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
               Variación 10 años: no disponible para el período seleccionado (sin año comparable; no se muestra 0 %).
             </p>
           )}
@@ -649,14 +649,14 @@ export default function FichaFiltros({
       <div className="mt-8 flex flex-wrap gap-3">
         <Link
           href={`/socideas/${codigoINE}/descargas/demografia`}
-          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-[6px] hover:bg-[var(--color-primary-light)] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
         >
           Descargar tablas de Demografía →
         </Link>
         <button
           type="button"
           onClick={restablecer}
-          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
         >
           Restablecer filtros
         </button>
@@ -832,7 +832,7 @@ function RangoBtn({ etiqueta, onClick }: { etiqueta: string; onClick: () => void
     <button
       type="button"
       onClick={onClick}
-      className="px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-lg hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+      className="px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
     >
       {etiqueta}
     </button>

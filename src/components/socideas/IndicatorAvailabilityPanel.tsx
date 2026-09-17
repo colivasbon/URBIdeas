@@ -35,7 +35,7 @@ export default function IndicatorAvailabilityPanel({
                 {g.items.map((e) => (
                   <li
                     key={e.titulo}
-                    className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-3.5 py-3"
+                    className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-3.5 py-3"
                   >
                     <p className="text-sm font-semibold text-[var(--color-text-primary)]">{e.titulo}</p>
                     <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">{e.detalle}</p>

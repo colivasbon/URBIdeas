@@ -35,13 +35,13 @@ export default function AvailabilitySummary({
       role="status"
       aria-label={`Disponibilidad del bloque ${bloque}`}
     >
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-input-bg)] px-3 py-1 font-semibold text-[var(--color-text-secondary)]">
-        <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" />
+      <span className="inline-flex items-center gap-1.5 rounded-[6px] bg-[var(--color-input-bg)] px-3 py-1 font-semibold text-[var(--color-text-secondary)]">
+        <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-[6px] bg-[var(--color-success)]" />
         {partes.join(" · ")}
         {periodo ? ` · Periodo ${periodo}` : ""}
       </span>
       {fuentes?.map((f) => (
-        <span key={f} className="inline-flex items-center rounded-full border border-[var(--color-border-subtle)] px-3 py-1">
+        <span key={f} className="inline-flex items-center rounded-[6px] border border-[var(--color-border-subtle)] px-3 py-1">
           {f}
         </span>
       ))}
@@ -86,7 +86,7 @@ export function AvailableIndicators({
           <p className="data-card__value">{k.valor}</p>
           {k.detalle && <p className="data-card__detail">{k.detalle}</p>}
           {k.estado && k.estado !== "available" && (
-            <p className="mt-1.5 inline-flex rounded-full bg-[var(--color-input-bg)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--color-text-secondary)]">
+            <p className="mt-1.5 inline-flex rounded-[6px] bg-[var(--color-input-bg)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--color-text-secondary)]">
               {AVAILABILITY_LABEL[k.estado]}
             </p>
           )}

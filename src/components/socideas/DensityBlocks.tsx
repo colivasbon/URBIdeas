@@ -45,7 +45,7 @@ function DensityTrace({
 /** Réplica del patrón EstadoLinea de DemographicBlocks (mismas clases, mensajes de densidad). */
 function DensityEstadoLinea({ motivo }: { motivo: string }) {
   return (
-    <p role="status" className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
+    <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
       {motivo}
     </p>
   );

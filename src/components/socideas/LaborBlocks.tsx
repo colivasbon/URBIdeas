@@ -41,20 +41,20 @@ function NotaMensual({ nota }: { nota: string }) {
 function EstadoLinea({ estado }: { estado: string }) {
   if (estado === "suppressed") {
     return (
-      <p role="status" className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
+      <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
         Dato no publicado por secreto estadístico.
       </p>
     );
   }
   if (estado === "missing") {
     return (
-      <p role="status" className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
+      <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
         Información no disponible para este municipio.
       </p>
     );
   }
   return (
-    <p role="status" className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
+    <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
       Cobertura parcial; consultar fuente y período.
     </p>
   );

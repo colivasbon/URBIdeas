@@ -112,15 +112,15 @@
   --color-card-bg: #FFFFFF;
   --color-card-bg-solid: #FFFFFF;
   --color-input-bg: #FFFFFF;
-  --color-input-bg-hover: #F1F1F1;
-  --color-border: #93A093;
-  --color-border-subtle: #CAD2CA;
-  --color-border-light: #B0BDB0;
-  --color-text-primary: #3C403E;
-  --color-text-secondary: #505250;
+  --color-input-bg-hover: #E8EBE4;
+  --color-border: #7E8A7E;
+  --color-border-subtle: #B0BDB0;
+  --color-border-light: #CAD2CA;
+  --color-text-primary: #2B2E2C;
+  --color-text-secondary: #3C403E;
   --color-text-muted: #5C605D;
   --background: #F1F1F1;
-  --foreground: #3C403E;
+  --foreground: #2B2E2C;
   --color-overlay: rgba(26, 28, 26, 0.5);
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
@@ -1633,7 +1633,7 @@ a:hover {
   --color-card-bg: #FFFFFF;
   --color-card-bg-solid: #FFFFFF;
   --color-input-bg: #FFFFFF;
-  --color-input-bg-hover: #F1F1F1;
+  --color-input-bg-hover: #E8EBE4;
   --background: #FFFFFF;
 }
 
@@ -1683,9 +1683,11 @@ a:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Overlay de carga: opaco, nada visible detrás */
+/* Overlay de carga: glassmorphism oscuro, nada legible detrás */
 .loading-overlay {
-  background: var(--color-dark-bg);
+  background: rgba(10, 16, 13, 0.82);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
 }
 
 /* Header glass: casi opaco para legibilidad del texto */

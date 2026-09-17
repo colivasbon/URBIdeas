@@ -156,7 +156,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
                       type="button"
                       onClick={() => setSeleccion(code)}
                       aria-pressed={active}
-                      className="w-full rounded-lg border px-3 py-2 text-left font-mono text-xs tabular-nums transition-colors"
+                      className="w-full rounded-[6px] border px-3 py-2 text-left font-mono text-xs tabular-nums transition-colors"
                       style={{
                         borderColor: active ? "var(--color-secondary)" : "var(--color-border-subtle)",
                         background: active ? "var(--color-input-bg-hover)" : "var(--color-card-bg)",

@@ -22,7 +22,7 @@ export default function Traceability({ valores, pendientes, vista }: Props) {
       </div>
       <h2 className="mt-2 text-base font-bold text-[var(--color-text-primary)]">Fuentes y consulta</h2>
       {vista && vista.length > 0 && (
-        <ul className="mt-3 rounded-lg bg-[var(--color-input-bg)] p-4 text-sm text-[var(--color-text-secondary)]">
+        <ul className="mt-3 rounded-[6px] bg-[var(--color-input-bg)] p-4 text-sm text-[var(--color-text-secondary)]">
           {vista.map((v) => (
             <li key={v} className="mb-1 last:mb-0">· {v}</li>
           ))}
@@ -63,7 +63,7 @@ export default function Traceability({ valores, pendientes, vista }: Props) {
         </dl>
       )}
       {pendientes && pendientes.length > 0 && (
-        <div className="mt-4 rounded-lg bg-[var(--color-input-bg)] p-4">
+        <div className="mt-4 rounded-[6px] bg-[var(--color-input-bg)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
             Limitaciones de cobertura
           </p>

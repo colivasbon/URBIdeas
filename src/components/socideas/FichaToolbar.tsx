@@ -81,7 +81,7 @@ export default function FichaToolbar({
         <span
           role="status"
           title={detalle}
-          className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-[var(--color-input-bg)] px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)]"
+          className="inline-flex max-w-full items-center gap-1.5 truncate rounded-[6px] bg-[var(--color-input-bg)] px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)]"
         >
           <span aria-hidden="true" className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-success)]" />
           <span className="truncate">
@@ -93,7 +93,7 @@ export default function FichaToolbar({
           onClick={handleDownload}
           disabled={downloading}
           title={downloading ? "Generando Excel…" : `Descargar libro XLSX combinado de este municipio. ${detalle}.`}
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-60 disabled:cursor-not-allowed"
+          className="inline-flex shrink-0 items-center gap-2 rounded-[6px] bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -103,7 +103,7 @@ export default function FichaToolbar({
         {children}
       </div>
       {error && (
-        <div role="alert" className="mt-2 w-full text-xs text-red-600 break-words">
+        <div role="alert" className="mt-2 w-full text-xs socideas-error-text break-words">
           <span>{error}</span>
           {error.includes("XLSX-") && (
             <button
@@ -112,7 +112,7 @@ export default function FichaToolbar({
                 const ref = error.match(/XLSX-[A-Z0-9]+/)?.[0];
                 if (ref) navigator.clipboard.writeText(ref);
               }}
-              className="ml-2 inline-flex items-center rounded border border-red-300 px-1.5 py-0.5 text-[10px] font-medium text-red-700 hover:bg-red-50"
+              className="ml-2 socideas-error-btn"
             >
               Copiar ref
             </button>

@@ -58,7 +58,7 @@ function Trace({ anio }: { anio: number }) {
 
 function EstadoLinea({ estado }: { estado: string }) {
   return (
-    <p role="status" className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
+    <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
       {estado === "missing"
         ? "Sin resultados municipales de esta convocatoria para este municipio (p. ej. régimen de concejo abierto ≤250 hab, fuera del alcance actual)."
         : "Cobertura parcial; consultar fuente y período."}

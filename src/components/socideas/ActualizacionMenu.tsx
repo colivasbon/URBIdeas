@@ -98,7 +98,7 @@ export default function ActualizacionMenu({
   };
 
   const itemCls =
-    "flex w-full flex-col gap-0.5 rounded-lg px-3 py-2 text-left text-xs hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-50";
+    "flex w-full flex-col gap-0.5 rounded-[6px] px-3 py-2 text-left text-xs hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-50";
 
   const municipio = capasPreview?.municipalityName ?? codigoINE;
 
@@ -111,7 +111,7 @@ export default function ActualizacionMenu({
         aria-expanded={abierto}
         onClick={() => { setAbierto((v) => !v); setMsg(null); setConfirmandoCapas(false); }}
         title="Acciones internas de actualización (dry-run, sin escrituras)"
-        className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] px-4 py-2 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+        className="inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--color-border)] bg-[var(--color-card-bg)] px-4 py-2 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
       >
         Actualizar datos
         <span aria-hidden="true" className={`transition-transform ${abierto ? "rotate-180" : ""}`}>▾</span>
@@ -123,7 +123,7 @@ export default function ActualizacionMenu({
           className="premium-card absolute right-0 z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] p-2"
         >
           {capasPreview && (
-            <div className="rounded-lg bg-[var(--color-input-bg)] p-3 text-[11px] text-[var(--color-text-secondary)]">
+            <div className="rounded-[6px] bg-[var(--color-input-bg)] p-3 text-[11px] text-[var(--color-text-secondary)]">
               <p className="font-semibold text-[var(--color-text-primary)]">Qué puede actualizar · {municipio}</p>
               <p className="mt-1">Última carga: {capasPreview.lastLoadedAt ?? "—"}</p>
               <ul className="mt-2 flex flex-col gap-1">
@@ -156,7 +156,7 @@ export default function ActualizacionMenu({
             <span className="text-[var(--color-text-muted)]">Nunca sobrescribe el consolidado</span>
           </button>
           {confirmandoCapas ? (
-            <div className="m-2 rounded-lg border border-[var(--color-border)] p-3 text-[11px] text-[var(--color-text-secondary)]">
+            <div className="m-2 rounded-[6px] border border-[var(--color-border)] p-3 text-[11px] text-[var(--color-text-secondary)]">
               <p>
                 Actualizar los datos de {municipio} ({codigoINE}) desde las fuentes configuradas.
                 No se sobrescribirán datos publicados sin crear una versión de rollback.
@@ -165,14 +165,14 @@ export default function ActualizacionMenu({
                 <button
                   type="button"
                   onClick={() => { setConfirmandoCapas(false); void accionar("capas"); }}
-                  className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-[11px] font-semibold text-white"
+                  className="rounded-[6px] bg-[var(--color-primary)] px-3 py-1.5 text-[11px] font-semibold text-white"
                 >
                   Confirmar
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmandoCapas(false)}
-                  className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[11px] font-semibold"
+                  className="rounded-[6px] border border-[var(--color-border)] px-3 py-1.5 text-[11px] font-semibold"
                 >
                   Cancelar
                 </button>
@@ -184,7 +184,7 @@ export default function ActualizacionMenu({
             </p>
           )}
           {msg && (
-            <p role="status" className="m-2 rounded-lg bg-[var(--color-input-bg)] p-3 text-xs text-[var(--color-text-secondary)]">
+            <p role="status" className="m-2 rounded-[6px] bg-[var(--color-input-bg)] p-3 text-xs text-[var(--color-text-secondary)]">
               {msg}
             </p>
           )}

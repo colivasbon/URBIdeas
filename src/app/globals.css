@@ -1,6 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+/* Poppins vía next/font/google en app/layout.tsx (self-hosted, display=swap).
+   Sin @import remoto: evita bloqueo de render y cumple el rebranding. */
 @import "tailwindcss";
 
+/* === Identidad Ideas Medioambientales S.L. — SOCideas (rebranding) ===
+   Musgo #3E665C primario · Conífera #86B73D CTA/acentos ·
+   Retama #FBE122 SOLO sobre oscuro · Carbón #3C403E texto en claro ·
+   Hueso #F1F1F1 fondos · Rupestre #643335 alertas reales ·
+   Limo #B0BDB0 bordes · Crisopa #C2E189 badges suaves / hover sobre oscuro.
+   Reglas: --color-primary→Musgo (botones/títulos: blanco sobre Musgo 5.4:1);
+   CTA y acentos→Conífera; textos Hueso/Carbón según fondo; muted→Carbón
+   atenuado o Limo; bordes→Limo (o derivados); input-bg→Hueso en tema claro
+   (en oscuro se mantiene superficie carbón por contraste); alertas→Rupestre
+   (texto sobre oscuro solo en su variante aclarada); badges suaves→Crisopa.
+   Todo texto ≥4.5:1 (AA); titular grande ≥3:1. Sin iconos nuevos. */
 :root {
   --color-primary: #3E665C;
   --color-primary-light: #4A7A6F;
@@ -8,33 +20,34 @@
   --color-secondary: #86B73D;
   --color-secondary-light: #9AC94E;
   --color-secondary-dark: #6F9A2E;
-  --color-accent: #E8C547;
-  --color-accent-light: #F0D060;
-  --color-accent-dark: #C9A83A;
-  --color-error: #C44545;
-  --color-error-light: #D85656;
-  --color-success: #3D9B6A;
-  --color-success-light: #4DAF7A;
-  --color-info: #4A7AB5;
-  --color-warning: #C49A30;
+  --color-secondary-lighter: #C2E189;
+  --color-accent: #FBE122;
+  --color-accent-light: #FCEB57;
+  --color-accent-dark: #C9B81C;
+  --color-error: #643335;
+  --color-error-light: #D98C8C;
+  --color-success: #86B73D;
+  --color-success-light: #C2E189;
+  --color-info: #4A7A6F;
+  --color-warning: #FBE122;
 
   --color-dark-bg: #1A1D1B;
   --color-dark-bg-elevated: #222523;
   --color-dark-surface: #282B29;
-  --color-light-bg: #F5F6F4;
+  --color-light-bg: #F1F1F1;
   --color-light-bg-elevated: #FFFFFF;
-  --color-light-surface: #ECEEEA;
+  --color-light-surface: #E8EBE4;
 
-  --color-text-primary: #EAEAE8;
-  --color-text-secondary: #A0A2A0;
-  --color-text-muted: #6E706E;
-  --color-text-dark: #1A1C1A;
+  --color-text-primary: #F1F1F1;
+  --color-text-secondary: #B0BDB0;
+  --color-text-muted: #8B948B;
+  --color-text-dark: #3C403E;
   --color-text-dark-secondary: #505250;
-  --color-text-dark-muted: #8A8C8A;
+  --color-text-dark-muted: #5C605D;
 
-  --color-border: #303330;
-  --color-border-subtle: #262926;
-  --color-border-light: #D0D2CE;
+  --color-border: #6B726C;
+  --color-border-subtle: #454B47;
+  --color-border-light: #B0BDB0;
 
   --color-card-bg: #222523;
   --color-card-bg-solid: #222523;
@@ -42,10 +55,12 @@
   --color-input-bg-hover: #282B29;
   --color-overlay: rgba(10, 12, 10, 0.75);
 
-  --font-family: 'Poppins', system-ui, -apple-system, sans-serif;
-  --border-radius: 8px;
-  --border-radius-lg: 12px;
-  --border-radius-xl: 16px;
+  /* Radio corporativo único 6px en botones/tarjetas/inputs/badges.
+     --radius-pill se conserva para la cápsula de categorías y los puntos. */
+  --font-family: var(--font-poppins), 'Poppins', system-ui, -apple-system, sans-serif;
+  --border-radius: 6px;
+  --border-radius-lg: 6px;
+  --border-radius-xl: 6px;
   --background: var(--color-dark-bg);
   --foreground: var(--color-text-primary);
 
@@ -77,21 +92,35 @@
 }
 
 [data-theme="light"] {
-  --color-dark-bg: #F5F6F4;
+  /* Tema claro: página Hueso, tarjetas blancas, texto Carbón; los verdes se
+     oscurecen para mantener ≥4.5:1 sobre claro (misma familia, sin Retama
+     como texto: la Retama queda reservada al tema oscuro). */
+  --color-secondary: #58761F;
+  --color-secondary-light: #4E6A1B;
+  --color-secondary-dark: #4E6A1B;
+  --color-secondary-lighter: #4E6A1B;
+  --color-accent: #6E6111;
+  --color-accent-light: #6E6111;
+  --color-accent-dark: #6E6111;
+  --color-error-light: #643335;
+  --color-success: #3F7A2D;
+  --color-success-light: #2E7A4E;
+  --color-warning: #7A6116;
+  --color-dark-bg: #F1F1F1;
   --color-dark-bg-elevated: #FFFFFF;
-  --color-dark-surface: #ECEEEA;
+  --color-dark-surface: #E8EBE4;
   --color-card-bg: #FFFFFF;
   --color-card-bg-solid: #FFFFFF;
-  --color-input-bg: #E8EAE6;
-  --color-input-bg-hover: #DEE0DC;
-  --color-border: #C8CAC6;
-  --color-border-subtle: #D8DAD6;
-  --color-border-light: #B0B2AE;
-  --color-text-primary: #1A1C1A;
+  --color-input-bg: #F1F1F1;
+  --color-input-bg-hover: #E2E5DD;
+  --color-border: #7E8A7E;
+  --color-border-subtle: #CAD2CA;
+  --color-border-light: #93A093;
+  --color-text-primary: #3C403E;
   --color-text-secondary: #505250;
-  --color-text-muted: #8A8C8A;
-  --background: #F5F6F4;
-  --foreground: #1A1C1A;
+  --color-text-muted: #5C605D;
+  --background: #F1F1F1;
+  --foreground: #3C403E;
   --color-overlay: rgba(26, 28, 26, 0.5);
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
@@ -308,6 +337,11 @@ a:hover {
   color: var(--color-text-muted) !important;
 }
 
+[data-theme="light"] .leaflet-popup-close-button:hover {
+  color: var(--color-primary-dark) !important;
+  background: var(--color-input-bg) !important;
+}
+
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -342,7 +376,7 @@ a:hover {
 
 /* Topo + Grid backgrounds — rendered via inline SVG in HeroParallax component */
 
-/* Glow accent line */
+/* Línea de acento: relleno plano Conífera (sin gradientes en la UI). */
 .accent-line {
   position: relative;
 }
@@ -354,7 +388,7 @@ a:hover {
   left: 0;
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--color-secondary), transparent);
+  background: var(--color-secondary);
   opacity: 0.3;
 }
 
@@ -453,8 +487,15 @@ a:hover {
   color: var(--color-accent-dark);
   background: color-mix(in srgb, var(--color-accent) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
-  border-radius: 999px;
+  border-radius: 6px;
   vertical-align: middle;
+}
+
+/* En tema claro la Retama no se usa como texto: oliva oscuro ≥4.5:1. */
+[data-theme="light"] .ideas-tag {
+  color: #6E6111;
+  background: color-mix(in srgb, #6E6111 10%, transparent);
+  border-color: color-mix(in srgb, #6E6111 40%, transparent);
 }
 
 /* Cápsula de categorías Demografía / Economía / Secciones */
@@ -524,7 +565,7 @@ a:hover {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  border-radius: 999px;
+  border-radius: 6px;
   border: 1px solid;
 }
 
@@ -544,8 +585,19 @@ a:hover {
 }
 
 .ideas-status[data-state="error"] .ideas-status__badge {
+  color: var(--color-error-light);
+  border-color: var(--color-error);
+}
+
+/* En tema claro el texto de error es Rupestre sobre blanco (10.2:1);
+   la Retama de "parcial" pasa a oliva oscuro (nunca Retama en claro). */
+[data-theme="light"] .ideas-status[data-state="error"] .ideas-status__badge {
   color: var(--color-error);
   border-color: var(--color-error);
+}
+
+[data-theme="light"] .ideas-status[data-state="partial"] .ideas-status__badge {
+  color: #6E6111;
 }
 
 .ideas-status__body {
@@ -606,7 +658,7 @@ a:hover {
   font-weight: 600;
   color: #fff;
   background: var(--color-primary);
-  border-radius: 0.75rem;
+  border-radius: 6px;
   min-height: 2.75rem;
 }
 
@@ -638,9 +690,9 @@ a:hover {
   --accent-eco: #B7791F;
   --accent-ideas: var(--mineral);
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-sm: 6px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
   --radius-pill: 999px;
 
   --font-display: Georgia, "Times New Roman", serif;
@@ -1351,9 +1403,12 @@ a:hover {
   background: var(--company-primary);
 }
 
+/* Badge suave: fondo tintado Crisopa (paleta), texto del tema (siempre
+   legible: Hueso sobre oscuro, Carbón sobre claro). */
 .socideas-badge[data-tone="positive"] {
   border-color: var(--company-secondary);
   color: var(--color-text-primary);
+  background: color-mix(in srgb, #C2E189 16%, transparent);
 }
 
 .socideas-badge[data-tone="positive"] .socideas-badge__dot {
@@ -1388,6 +1443,41 @@ a:hover {
 
 .socideas-badge[data-tone="error"] .socideas-badge__dot {
   background: var(--color-error);
+}
+
+/* En tema claro el error se lee en Rupestre sobre blanco (10.2:1). */
+[data-theme="light"] .socideas-badge[data-tone="error"] {
+  color: var(--color-error);
+}
+
+/* Texto y botón de error reutilizables (sustituyen a los rojos hardcodeados
+   text-red-*/border-red-*: Rupestre en claro, variante aclarada en oscuro). */
+.socideas-error-text {
+  color: var(--color-error-light);
+}
+
+[data-theme="light"] .socideas-error-text {
+  color: var(--color-error);
+}
+
+.socideas-error-btn {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-error-light);
+  border-radius: 6px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--color-error-light);
+}
+
+.socideas-error-btn:hover {
+  background: var(--color-input-bg);
+}
+
+[data-theme="light"] .socideas-error-btn {
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
 /* Botón compacto de tabla: misma altura, radio 6px, icono + texto */

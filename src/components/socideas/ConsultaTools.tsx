@@ -165,7 +165,7 @@ export function FiltroTabla({
             value={q}
             onChange={(e) => onQ(e.target.value)}
             placeholder={placeholder}
-            className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+            className="w-full rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
           />
         </div>
         {anios && anios.length > 1 && (
@@ -175,7 +175,7 @@ export function FiltroTabla({
               id={`${inputId}-anio`}
               value={anio ?? ""}
               onChange={(e) => onAnio(e.target.value)}
-              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+              className="rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
             >
               <option value="">Todos</option>
               {anios.map((a) => (<option key={a} value={a}>{a}</option>))}

@@ -106,12 +106,12 @@ export default function DescargasBloque({
       {/* Resumen de disponibilidad */}
       <div className="premium-card p-5 sm:p-6" role="status" aria-label="Resumen de disponibilidad">
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-input-bg)] px-3 py-1 font-semibold text-[var(--color-text-secondary)]">
-            <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" />
+          <span className="inline-flex items-center gap-1.5 rounded-[6px] bg-[var(--color-input-bg)] px-3 py-1 font-semibold text-[var(--color-text-secondary)]">
+            <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-[6px] bg-[var(--color-success)]" />
             {tablas.length} tabla{tablas.length === 1 ? "" : "s"} disponible{tablas.length === 1 ? "" : "s"} · Periodo: {periodoGlobal}
           </span>
           {fuentes.map((f) => (
-            <span key={f} className="inline-flex items-center rounded-full border border-[var(--color-border-subtle)] px-3 py-1 text-[var(--color-text-muted)]">{f}</span>
+            <span key={f} className="inline-flex items-center rounded-[6px] border border-[var(--color-border-subtle)] px-3 py-1 text-[var(--color-text-muted)]">{f}</span>
           ))}
         </div>
         {excluidas.length > 0 && (
@@ -126,7 +126,7 @@ export default function DescargasBloque({
             onClick={handleXlsxDownload}
             disabled={xlsxDownloading}
             title={xlsxDownloading ? "Generando Excel…" : "Libro XLSX combinado del municipio (resumen con trazabilidad, demografía y economía)"}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-[6px] hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {xlsxDownloading ? "Generando Excel…" : "Descargar libro XLSX combinado"}
           </button>
@@ -134,7 +134,7 @@ export default function DescargasBloque({
             type="button"
             onClick={descargarTodo}
             disabled={tablas.length === 0}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
           >
             Descargar todas las tablas (CSV)
           </button>
@@ -142,13 +142,13 @@ export default function DescargasBloque({
             type="button"
             onClick={imprimir}
             disabled={tablas.length === 0}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
           >
             Descargar informe imprimible
           </button>
         </div>
         {aviso && <p role="status" className="mt-3 text-sm text-[var(--color-text-secondary)]">{aviso}</p>}
-        {xlsxError && <p role="alert" className="mt-3 text-sm text-red-600">{xlsxError}</p>}
+        {xlsxError && <p role="alert" className="mt-3 text-sm socideas-error-text">{xlsxError}</p>}
         <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">
           Archivo base: {nombreBloque(municipio, codigoINE, bloque)}_*.csv · Excel estilizado (.xlsx corporativo) no disponible en
           esta versión — documentado en la auditoría; CSV + informe imprimible con identidad corporativa.
@@ -218,12 +218,12 @@ export default function DescargasBloque({
           .print-report, .print-report * { visibility: visible; }
           .print-report { position: absolute; inset: 0; padding: 24px; }
           .print-report table { width: 100%; border-collapse: collapse; }
-          .print-report th { background: #1e4d3f !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .print-report th, .print-report td { border: 1px solid #cbd5d1; padding: 6px 8px; font-size: 11px; }
-          .print-report tbody tr:nth-child(even) { background: #eef4f1 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .print-report th { background: #3E665C !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .print-report th, .print-report td { border: 1px solid #B0BDB0; padding: 6px 8px; font-size: 11px; }
+          .print-report tbody tr:nth-child(even) { background: #F1F1F1 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }`}</style>
-        <div className="overflow-hidden rounded-2xl border border-[var(--color-border-subtle)]">
-          <div className="bg-[#1e4d3f] px-6 py-5 text-white">
+        <div className="overflow-hidden rounded-[6px] border border-[var(--color-border-subtle)]">
+          <div className="bg-[var(--color-primary)] px-6 py-5 text-white">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/80">Ideas Sostenibilidad · SOCideas</p>
             <h2 className="mt-1 text-xl font-bold">Tablas de {bloque === "Demografia" ? "Demografía" : "Economía"} — {municipio} ({codigoINE})</h2>
             <p className="mt-1 text-xs text-white/80">Generado el {fecha} · Tablas generadas a partir de los indicadores disponibles en la ficha municipal, con fuente y periodo de referencia.</p>

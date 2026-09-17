@@ -15,6 +15,7 @@ import type {
 import { AMBITOS } from './socideas'
 import { expandV2Envelope, getMunicipioEnvelopeForRequest } from './socideas-r2'
 import type { R2MunicipioEnvelopeV2 } from './socideas-r2'
+import { ANIO_SUPERFICIE, AREA_SLUG, DENSITY_SLUG, calcDensity, densityPendingReason } from './socideas-density'
 
 export type PerfilResult =
   | { status: 'ok' | 'empty'; perfil: PerfilDemografico }
@@ -357,6 +358,58 @@ export async function getPerfilDemografico(
   const indiceEnvejecimiento = pop014 > 0 ? Math.round((pop65 / pop014) * 1000) / 10 : null
   const indiceDependencia = pop1564 > 0 ? Math.round(((pop014 + pop65) / pop1564) * 1000) / 10 : null
 
+  // Densidad de población (cálculo SOCideas, mismo patrón que los derivados:
+  // se calcula al leer, no se persiste). Prefiere la fila `density_per_km2`
+  // del envelope cuando exista; si no, deriva de `population_total` municipal
+  // + `area_km2` (superficie oficial IGN). Sin superficie en el envelope no
+  // se estima: pendiente honesto (los envelopes actuales aún no la traen).
+  const areaRow = bySlug(AREA_SLUG)
+    .filter((v) => isMunicipioAmbito(v) && v.valor_numerico !== null)
+    .sort((a, b) => (b.anio_referencia ?? 0) - (a.anio_referencia ?? 0))[0]
+  const densityRow = bySlug(DENSITY_SLUG)
+    .filter((v) => isMunicipioAmbito(v) && v.valor_numerico !== null)
+    .sort((a, b) => (b.anio_referencia ?? 0) - (a.anio_referencia ?? 0))[0]
+  const popForDensity = total?.valor_numerico ?? null
+  const anioPopForDensity = total?.anio_referencia ?? null
+  const supForDensity = areaRow?.valor_numerico ?? null
+  const calcDensidad =
+    densityRow !== undefined
+      ? {
+          valor: densityRow.valor_numerico,
+          anioPoblacion: anioPopForDensity,
+          anioSuperficie: areaRow?.anio_referencia ?? ANIO_SUPERFICIE,
+        }
+      : {
+          ...calcDensity({
+            poblacion: popForDensity,
+            anioPoblacion: anioPopForDensity,
+            superficieKm2: supForDensity,
+            anioSuperficie: areaRow?.anio_referencia ?? ANIO_SUPERFICIE,
+          }),
+        }
+  const densidad =
+    calcDensidad.valor !== null
+      ? {
+          valor: calcDensidad.valor,
+          pendiente: null as string | null,
+          superficieKm2: supForDensity,
+          poblacion: popForDensity,
+          anioPoblacion: anioPopForDensity,
+          anioSuperficie: areaRow?.anio_referencia ?? ANIO_SUPERFICIE,
+          avisoAnios:
+            anioPopForDensity !== null &&
+            anioPopForDensity !== (areaRow?.anio_referencia ?? ANIO_SUPERFICIE),
+        }
+      : {
+          valor: null as number | null,
+          pendiente: densityPendingReason(popForDensity, supForDensity),
+          superficieKm2: supForDensity,
+          poblacion: popForDensity,
+          anioPoblacion: anioPopForDensity,
+          anioSuperficie: areaRow?.anio_referencia ?? ANIO_SUPERFICIE,
+          avisoAnios: false,
+        }
+
   const perfil: PerfilDemografico = {
     municipio: socMuni,
     sincronizado: true,
@@ -389,7 +442,7 @@ export async function getPerfilDemografico(
       indice_envejecimiento: grupos.length > 0 ? indiceEnvejecimiento : null,
       indice_dependencia: grupos.length > 0 ? indiceDependencia : null,
     },
-    densidad: { valor: null, pendiente: 'Pendiente de integración de fuente de superficie' },
+    densidad,
     valores: fValues,
     disponibles,
     filtros: {

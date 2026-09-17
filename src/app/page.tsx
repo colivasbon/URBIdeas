@@ -43,7 +43,7 @@ export default function PlatformHome() {
                   </Link>
                   <Link
                     href="/socideas"
-                    className="inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-hueso border border-limo rounded-[6px] hover:bg-white/10 transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    className="inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-[var(--color-text-primary)] border border-limo rounded-[6px] hover:bg-[var(--color-input-bg-hover)] transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                   >
                     Buscar un municipio
                   </Link>

@@ -111,11 +111,11 @@
   --color-dark-surface: #E8EBE4;
   --color-card-bg: #FFFFFF;
   --color-card-bg-solid: #FFFFFF;
-  --color-input-bg: #F1F1F1;
-  --color-input-bg-hover: #E2E5DD;
-  --color-border: #7E8A7E;
+  --color-input-bg: #FFFFFF;
+  --color-input-bg-hover: #F1F1F1;
+  --color-border: #93A093;
   --color-border-subtle: #CAD2CA;
-  --color-border-light: #93A093;
+  --color-border-light: #B0BDB0;
   --color-text-primary: #3C403E;
   --color-text-secondary: #505250;
   --color-text-muted: #5C605D;
@@ -1673,23 +1673,26 @@ a:hover {
   background: #101614;
 }
 
-/* Glow sobrio para la acción principal (solo Conífera) */
+/* Sin glow: botones planos, sombra sutil solo en hover */
 .cta-glow {
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--conifera) 55%, transparent),
-    0 10px 28px -8px color-mix(in srgb, var(--conifera) 55%, transparent);
-  transition: box-shadow 200ms ease-out, background-color 200ms ease-out;
+  box-shadow: none;
+  transition: background-color 200ms ease-out, box-shadow 200ms ease-out;
 }
 
 .cta-glow:hover {
-  box-shadow:
-    0 0 0 1px var(--conifera),
-    0 14px 34px -6px color-mix(in srgb, var(--conifera) 70%, transparent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Glassmorphism medido: header fijo y panel de búsqueda */
+/* Overlay de carga: translúcido con blur */
+.loading-overlay {
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Header glass: casi opaco para legibilidad del texto */
 .header-glass {
-  background: color-mix(in srgb, var(--brand-bg) 88%, transparent);
+  background: color-mix(in srgb, var(--brand-bg) 95%, transparent);
   backdrop-filter: blur(12px) saturate(1.1);
   -webkit-backdrop-filter: blur(12px) saturate(1.1);
 }

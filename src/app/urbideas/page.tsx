@@ -77,7 +77,7 @@ export default async function UrbideasHome() {
                   </Link>
                   <Link
                     href="/urbideas/mapa"
-                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold text-hueso border border-limo rounded-[6px] hover:bg-white/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold text-[var(--color-text-primary)] border border-limo rounded-[6px] hover:bg-[var(--color-input-bg-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                   >
                     Dictaminar un ámbito
                   </Link>

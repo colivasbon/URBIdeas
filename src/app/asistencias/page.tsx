@@ -76,7 +76,7 @@ export default function AsistenciasPage() {
           <section aria-label="Enlaces relacionados" className="flex flex-wrap gap-3">
             <Link
               href="/"
-              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid' }}
+              style={{ backgroundColor: 'var(--color-card-bg)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid', borderColor: 'var(--color-primary)' }}
               className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-80 transition-opacity"
             >
               Volver a la plataforma

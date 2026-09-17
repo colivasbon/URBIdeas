@@ -78,7 +78,7 @@ export function socideasNavConfig(ctx: SocideasContext = {}): ProductNavbarConfi
         id: "explorar",
         label: "Explorar",
         items: [
-          { label: "Buscar municipio", href: "/socideas", description: "Buscador municipal" },
+          { label: "Buscador municipal", href: "/socideas/buscar", description: "Buscar por nombre o código INE" },
           ...(ine
             ? [
                 {

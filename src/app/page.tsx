@@ -44,7 +44,7 @@ export default function PlatformHome() {
                   </Link>
                   <Link
                     href="/socideas"
-                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid' }}
+                    style={{ backgroundColor: 'var(--color-card-bg)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid', borderColor: 'var(--color-primary)' }}
                     className="inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold rounded-[6px] hover:opacity-80 transition-opacity duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
                   >
                     Buscar un municipio

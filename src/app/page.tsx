@@ -37,13 +37,13 @@ export default function PlatformHome() {
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
                     href="/urbideas"
-                    className="cta-glow inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-white bg-conifera-dark rounded-[6px] hover:bg-conifera-active transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    className="inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-white bg-musgo rounded-[6px] hover:bg-musgo-hover transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                   >
                     Acceder a URBideas
                   </Link>
                   <Link
                     href="/socideas"
-                    className="inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-[var(--color-text-primary)] border border-limo rounded-[6px] hover:bg-[var(--color-input-bg-hover)] transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    className="inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-[6px] hover:bg-[var(--color-input-bg-hover)] transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]"
                   >
                     Buscar un municipio
                   </Link>

@@ -62,7 +62,7 @@ export default function SocideasHub() {
               <div className="border-t-2 border-t-musgo pt-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--moss-ink)]">Demografía</p>
                 <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">Población municipal, evolución anual y estructura por edad y sexo. Instituto Nacional de Estadística.</p>
-                <p className="mt-3 inline-flex rounded-[6px] bg-conifera-dark px-2 py-0.5 text-xs font-semibold text-white">Disponible</p>
+                <p className="mt-3 inline-flex rounded-[6px] bg-musgo px-2 py-0.5 text-xs font-semibold text-white">Disponible</p>
               </div>
               <div className="border-t-2 border-t-conifera pt-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--moss-ink)]">Economía</p>
@@ -83,13 +83,13 @@ export default function SocideasHub() {
           <section aria-label="Enlaces relacionados" className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/"
-              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-card-bg)] border border-limo rounded-[6px] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-[6px] hover:bg-[var(--color-input-bg-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]"
             >
               Volver a la plataforma
             </Link>
             <Link
               href="/urbideas"
-              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-hueso bg-musgo rounded-[6px] hover:bg-musgo-hover transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-white bg-musgo rounded-[6px] hover:bg-musgo-hover transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
             >
               Acceder a URBideas
             </Link>

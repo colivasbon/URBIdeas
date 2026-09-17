@@ -12,16 +12,16 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary: [
-    'bg-musgo text-hueso',
+    'bg-musgo text-white',
     'hover:bg-musgo-hover',
     'active:bg-musgo-active',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]',
   ].join(' '),
   secondary: [
-    'bg-conifera-dark text-white',
-    'hover:bg-conifera-active',
-    'active:bg-conifera-active',
-    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]',
+    'bg-transparent text-[var(--color-text-primary)] border border-[var(--color-border)]',
+    'hover:bg-[var(--color-input-bg-hover)]',
+    'active:bg-[var(--color-border-subtle)]',
+    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]',
   ].join(' '),
   accent: [
     'bg-retama text-carbon',
@@ -30,13 +30,13 @@ const variantStyles: Record<ButtonVariant, string> = {
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]',
   ].join(' '),
   danger: [
-    'bg-rupestre text-hueso',
+    'bg-rupestre text-white',
     'hover:bg-rupestre-hover',
     'active:bg-rupestre-hover',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]',
   ].join(' '),
   ghost: [
-    'bg-transparent text-[var(--color-text-secondary)] border border-limo',
+    'bg-transparent text-[var(--color-text-secondary)]',
     'hover:bg-[var(--color-input-bg-hover)] hover:text-[var(--color-text-primary)]',
     'active:bg-[var(--color-border-subtle)]',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]',

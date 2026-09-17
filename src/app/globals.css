@@ -1683,11 +1683,9 @@ a:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Overlay de carga: translúcido con blur */
+/* Overlay de carga: opaco, nada visible detrás */
 .loading-overlay {
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: var(--color-dark-bg);
 }
 
 /* Header glass: casi opaco para legibilidad del texto */

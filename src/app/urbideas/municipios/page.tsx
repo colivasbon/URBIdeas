@@ -80,7 +80,7 @@ function getEstadoBadge(estado: string) {
   switch (estado.toLowerCase()) {
     case "aprobado":
     case "vigente":
-      return `${base} bg-conifera-dark text-white border-[var(--conifera-active)]`
+      return `${base} bg-musgo text-white border-musgo`
     case "en tramite":
     case "en trámite":
     case "pendiente":
@@ -567,7 +567,7 @@ export default function MunicipiosPage() {
                                         <div className="flex items-center gap-3 mt-2">
                                           <span className={`inline-flex items-center text-xs font-semibold px-1.5 py-0.5 rounded-[6px] border ${
                                             norm.estado_vigencia === "vigente"
-                                              ? "bg-conifera-dark text-white border-[var(--conifera-active)]"
+                                              ? "bg-musgo text-white border-musgo"
                                               : norm.estado_vigencia === "derogada"
                                                 ? "bg-rupestre text-hueso border-rupestre"
                                                 : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border-[var(--color-border)]"

@@ -13,7 +13,7 @@ const variantStyles: Record<BadgeVariant, string> = {
   secondary: 'bg-crisopa text-carbon border border-conifera',
   accent: 'bg-retama text-carbon border border-retama',
   danger: 'bg-rupestre text-hueso border border-rupestre',
-  success: 'bg-conifera-dark text-white border border-[var(--conifera-active)]',
+  success: 'bg-musgo text-white border border-musgo',
   muted: 'bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)]',
   crisopa: 'bg-crisopa/16 text-[var(--color-text-primary)] border border-crisopa',
 }

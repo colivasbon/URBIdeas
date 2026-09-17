@@ -250,7 +250,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                   <span
                     aria-hidden="true"
                     className={[
-                      "flex shrink-0 items-center justify-center rounded-[6px] bg-conifera font-bold text-carbon transition-all duration-300",
+                      "flex shrink-0 items-center justify-center rounded-[6px] bg-musgo font-bold text-white transition-all duration-300",
                       compact ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm",
                     ].join(" ")}
                   >

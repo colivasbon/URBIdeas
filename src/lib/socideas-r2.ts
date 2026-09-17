@@ -162,6 +162,9 @@ export function sourceSlugForTable(tableId: string): string | null {
   if (tableId === '53688' || /^ADRH/i.test(tableId)) return 'ine_adrh'
   if (/^EDM\d{4}$/.test(tableId)) return 'aeat_edm'
   if (/^CA20/i.test(tableId)) return 'ine_censo_agrario'
+  if (tableId === 'NGMEP') return 'ign_infogeo'
+  if (/^sepe_/.test(tableId)) return 'sepe'
+  if (/^tgss_/.test(tableId)) return 'tgss'
   return null
 }
 

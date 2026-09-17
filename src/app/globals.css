@@ -1583,6 +1583,7 @@ a:hover {
   --conifera: #86B73D;
   --conifera-hover: #769F34;
   --conifera-active: #6F9A2E;
+  --conifera-dark: #4E7A22;
   --retama: #FBE122;
   --carbon: #3C403E;
   --carbon-deep: #2B2E2C;
@@ -1645,6 +1646,7 @@ a:hover {
   --color-conifera: #86B73D;
   --color-conifera-hover: #769F34;
   --color-conifera-active: #6F9A2E;
+  --color-conifera-dark: #4E7A22;
   --color-retama: #FBE122;
   --color-carbon: #3C403E;
   --color-carbon-deep: #2B2E2C;

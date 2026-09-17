@@ -37,7 +37,7 @@ export default function PlatformHome() {
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
                     href="/urbideas"
-                    className="cta-glow inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-white bg-conifera rounded-[6px] hover:bg-conifera-hover transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    className="cta-glow inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-white bg-conifera-dark rounded-[6px] hover:bg-conifera-active transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                   >
                     Acceder a URBideas
                   </Link>

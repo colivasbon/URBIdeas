@@ -62,7 +62,7 @@ export default function SocideasHub() {
               <div className="border-t-2 border-t-musgo pt-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--moss-ink)]">Demografía</p>
                 <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">Población municipal, evolución anual y estructura por edad y sexo. Instituto Nacional de Estadística.</p>
-                <p className="mt-3 inline-flex rounded-[6px] bg-conifera px-2 py-0.5 text-xs font-semibold text-white">Disponible</p>
+                <p className="mt-3 inline-flex rounded-[6px] bg-conifera-dark px-2 py-0.5 text-xs font-semibold text-white">Disponible</p>
               </div>
               <div className="border-t-2 border-t-conifera pt-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--moss-ink)]">Economía</p>

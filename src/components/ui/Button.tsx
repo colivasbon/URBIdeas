@@ -18,8 +18,8 @@ const variantStyles: Record<ButtonVariant, string> = {
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]',
   ].join(' '),
   secondary: [
-    'bg-conifera text-white',
-    'hover:bg-conifera-hover',
+    'bg-conifera-dark text-white',
+    'hover:bg-conifera-active',
     'active:bg-conifera-active',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]',
   ].join(' '),

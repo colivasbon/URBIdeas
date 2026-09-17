@@ -184,15 +184,15 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
 
   const linkClasses = (active: boolean) =>
     [
-      "relative px-3 py-2 text-sm font-medium rounded-[6px] transition-colors duration-200 ease-out",
-      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]",
+      "relative px-3 py-2 text-sm font-semibold rounded-[6px] transition-all duration-150",
+      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
       active
-        ? "text-hueso bg-musgo-active"
-        : "text-hueso hover:bg-white/10",
+        ? "bg-white/20"
+        : "hover:bg-white/10",
     ].join(" ");
 
   const backLinkClasses =
-    "inline-flex items-center gap-1.5 rounded-[6px] text-xs font-semibold text-hueso hover:underline hover:underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]";
+    "inline-flex items-center gap-1.5 rounded-[6px] text-xs font-semibold hover:underline hover:underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
   const mobileMenuLabel = mobileOpen
     ? `Cerrar menú${isPlatform ? "" : ` de ${config.productLabel}`}`
@@ -201,7 +201,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
   return (
     <header ref={rootRef} className="sticky top-0 z-50 w-full">
       <div aria-hidden="true" className={`h-1 w-full ${TONE_BAR[tone]}`} />
-      <div className="header-glass text-hueso">
+      <div style={{ backgroundColor: 'var(--brand-bg)', color: '#FFFFFF' }}>
       
         <div
           className={[
@@ -228,13 +228,13 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
             {isPlatform ? (
               <Link
                 href="/"
-                className="min-w-0 leading-tight rounded-[6px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                className="min-w-0 leading-tight rounded-[6px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                <span className="block truncate text-sm font-semibold text-hueso">
+                <span className="block truncate text-sm font-semibold" style={{ color: '#FFFFFF' }}>
                   IDEAS Sostenibilidad
                 </span>
                 {!compact && (
-                  <span className="block truncate text-[10px] font-medium uppercase tracking-widest text-hueso">
+                  <span className="block truncate text-[10px] font-medium uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.7)' }}>
                     Área de Sostenibilidad de Ideas Medioambientales
                   </span>
                 )}
@@ -248,25 +248,26 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                   className="flex min-w-0 items-center gap-2 rounded-[6px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                 >
                   <span
-                    aria-hidden="true"
                     className={[
-                      "flex shrink-0 items-center justify-center rounded-[6px] bg-musgo font-bold text-white transition-all duration-300",
+                      "flex shrink-0 items-center justify-center rounded-[6px] bg-white font-bold transition-all duration-300",
                       compact ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm",
                     ].join(" ")}
+                    style={{ color: 'var(--color-primary)' }}
                   >
                     {config.productMark}
                   </span>
                   <span className="min-w-0 leading-tight">
                     <span
                       className={[
-                        "block truncate font-bold tracking-tight text-hueso transition-all duration-300",
+                        "block truncate font-bold tracking-tight transition-all duration-300",
                         compact ? "text-base" : "text-lg",
                       ].join(" ")}
+                      style={{ color: '#FFFFFF' }}
                     >
                       {config.productLabel}
                     </span>
                     {!compact && config.productDescription && (
-                      <span className="block truncate text-[10px] font-medium text-hueso">
+                      <span className="block truncate text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>
                         {config.productDescription}
                       </span>
                     )}
@@ -287,10 +288,11 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                     href={item.href ?? "/"}
                     aria-current={active ? "page" : undefined}
                     className={linkClasses(active)}
+                    style={{ color: '#FFFFFF' }}
                   >
                     {item.label}
                     {active && (
-                      <span className="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full bg-retama" />
+                      <span className="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full" style={{ backgroundColor: '#FBE122' }} />
                     )}
                   </Link>
                 );
@@ -308,6 +310,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                     aria-controls={panelId}
                     onClick={() => toggleMenu(item.id)}
                     className={`${linkClasses(active)} inline-flex items-center gap-1`}
+                    style={{ color: '#FFFFFF' }}
                   >
                     {item.label}
                     <svg
@@ -329,7 +332,8 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                       id={panelId}
                       role="menu"
                       aria-label={item.label}
-                      className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-[6px] border border-limo bg-[var(--color-card-bg)] shadow-lg animate-slide-in-down"
+                      className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-[6px] border border-white/20 shadow-xl animate-slide-in-down"
+                      style={{ backgroundColor: 'var(--brand-bg)' }}
                     >
                       <ul className="p-1.5">
                         {item.items.map((sub) => {
@@ -405,7 +409,8 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                 href={config.corporateUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-1 rounded-[6px] px-3 py-2 text-sm font-medium text-hueso transition-colors duration-200 hover:bg-white/10"
+                className="ml-1 rounded-[6px] px-3 py-2 text-sm font-medium transition-colors duration-150 hover:bg-white/10"
+                style={{ color: '#FFFFFF' }}
               >
                 Ideas Medioambientales
               </a>
@@ -423,7 +428,8 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
               onClick={() => setMobileOpen((v) => !v)}
               aria-label={mobileMenuLabel}
               aria-expanded={mobileOpen}
-              className="flex h-11 w-11 items-center justify-center rounded-[6px] text-hueso transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+              className="flex h-11 w-11 items-center justify-center rounded-[6px] transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              style={{ color: '#FFFFFF' }}
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
                 {mobileOpen ? (
@@ -446,7 +452,8 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
             aria-hidden="true"
           />
           <nav
-            className="absolute inset-x-0 top-full z-50 border-b border-[var(--musgo-active)] bg-[var(--brand-bg)] text-hueso shadow-lg animate-slide-in-down md:hidden"
+            className="absolute inset-x-0 top-full z-50 border-b border-white/20 shadow-lg animate-slide-in-down md:hidden"
+            style={{ backgroundColor: 'var(--brand-bg)', color: '#FFFFFF' }}
             aria-label={isPlatform ? "Navegación de la plataforma" : `Navegación del módulo ${config.productLabel}`}
           >
             <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
@@ -454,7 +461,8 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                 <Link
                   href="/"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-semibold text-hueso hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                  className="flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-semibold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                  style={{ color: '#FFFFFF' }}
                 >
                   IDEAS Sostenibilidad
                 </Link>
@@ -469,14 +477,15 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                       onClick={() => setMobileOpen(false)}
                       aria-current={active ? "page" : undefined}
                       className={[
-                        "flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-medium transition-colors duration-200",
-                        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]",
+                        "flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-semibold transition-all duration-150",
+                        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
                         active
-                          ? "bg-musgo-active text-hueso"
-                          : "text-hueso hover:bg-white/10",
+                          ? "bg-white/20"
+                          : "hover:bg-white/10",
                       ].join(" ")}
+                      style={{ color: '#FFFFFF' }}
                     >
-                      {active && <span className="h-5 w-1 shrink-0 rounded-full bg-retama" />}
+                      {active && <span className="h-5 w-1 shrink-0 rounded-full" style={{ backgroundColor: '#FBE122' }} />}
                       {item.label}
                     </Link>
                   );
@@ -491,14 +500,15 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                       aria-controls={sectionId}
                       onClick={() => setMobileExpanded((cur) => (cur === item.id ? null : item.id))}
                       className={[
-                        "flex w-full items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-medium transition-colors duration-200",
-                        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]",
+                        "flex w-full items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-semibold transition-all duration-150",
+                        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
                         active
-                          ? "bg-musgo-active text-hueso"
-                          : "text-hueso hover:bg-white/10",
+                          ? "bg-white/20"
+                          : "hover:bg-white/10",
                       ].join(" ")}
+                      style={{ color: '#FFFFFF' }}
                     >
-                      {active && <span className="h-5 w-1 shrink-0 rounded-full bg-retama" />}
+                      {active && <span className="h-5 w-1 shrink-0 rounded-full" style={{ backgroundColor: '#FBE122' }} />}
                       <span className="flex-1 text-left">{item.label}</span>
                       <svg
                         className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
@@ -533,12 +543,13 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                                   onClick={() => setMobileOpen(false)}
                                   aria-current={subActive ? "page" : undefined}
                                   className={[
-                                    "flex items-center justify-between gap-2 rounded-[6px] px-4 py-2.5 text-sm transition-colors",
-                                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]",
+                                    "flex items-center justify-between gap-2 rounded-[6px] px-4 py-2.5 text-sm transition-all duration-150",
+                                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
                                     subActive
-                                      ? "bg-musgo-active text-hueso"
-                                      : "text-hueso hover:bg-white/10",
+                                      ? "bg-white/20"
+                                      : "hover:bg-white/10",
                                   ].join(" ")}
+                                  style={{ color: '#FFFFFF' }}
                                 >
                                   {sub.label}
                                   {sub.badge && (
@@ -561,7 +572,8 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                   href={config.corporateUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-medium text-hueso hover:bg-white/10"
+                  className="flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-semibold hover:bg-white/10"
+                  style={{ color: '#FFFFFF' }}
                 >
                   Ideas Medioambientales
                 </a>

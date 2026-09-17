@@ -11,19 +11,19 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
-  primary: { backgroundColor: '#3E665C', color: '#FFFFFF' },
-  secondary: { backgroundColor: 'transparent', color: '#2B2E2C', borderWidth: '2px', borderStyle: 'solid', borderColor: '#7E8A7E' },
-  accent: { backgroundColor: '#FBE122', color: '#3C403E' },
-  danger: { backgroundColor: '#643335', color: '#FFFFFF' },
-  ghost: { backgroundColor: 'transparent', color: '#505250' },
+  primary: { backgroundColor: 'var(--color-primary)', color: '#FFFFFF' },
+  secondary: { backgroundColor: 'transparent', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid', borderColor: 'var(--color-border)' },
+  accent: { backgroundColor: 'var(--color-accent)', color: 'var(--color-carbon)' },
+  danger: { backgroundColor: 'var(--color-error)', color: '#FFFFFF' },
+  ghost: { backgroundColor: 'transparent', color: 'var(--color-text-secondary)' },
 }
 
 const variantHover: Record<ButtonVariant, string> = {
   primary: 'hover:opacity-90',
-  secondary: 'hover:bg-[#E8EBE4]',
+  secondary: 'hover:opacity-80',
   accent: 'hover:brightness-95',
   danger: 'hover:opacity-90',
-  ghost: 'hover:bg-[#E8EBE4] hover:text-[#2B2E2C]',
+  ghost: 'hover:opacity-80',
 }
 
 const sizeStyles: Record<ButtonSize, string> = {

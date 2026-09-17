@@ -71,15 +71,15 @@ export default async function UrbideasHome() {
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
                     href="/urbideas/municipios"
-                    style={{ backgroundColor: '#3E665C', color: '#FFFFFF' }}
+                    style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
                     className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold rounded-[6px] hover:opacity-90 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                   >
                     Buscar municipio
                   </Link>
                   <Link
                     href="/urbideas/mapa"
-                    style={{ borderColor: '#7E8A7E', color: '#2B2E2C', borderWidth: '2px', borderStyle: 'solid' }}
-                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold rounded-[6px] hover:bg-[#E8EBE4] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]"
+                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid' }}
+                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold rounded-[6px] hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
                   >
                     Dictaminar un ámbito
                   </Link>
@@ -191,14 +191,14 @@ export default async function UrbideasHome() {
               <div className="flex flex-wrap items-center gap-3">
                 <Link
                   href="/"
-                  style={{ borderColor: '#7E8A7E', color: '#2B2E2C', borderWidth: '2px', borderStyle: 'solid' }}
-                  className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:bg-[#E8EBE4] transition-colors"
+                  style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid' }}
+                  className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-80 transition-opacity"
                 >
                   Volver a la plataforma
                 </Link>
                 <Link
                   href="/urbideas/api-docs"
-                  style={{ backgroundColor: '#3E665C', color: '#FFFFFF' }}
+                  style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
                   className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-90 transition-opacity"
                 >
                   Documentación API

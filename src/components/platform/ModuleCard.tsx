@@ -24,7 +24,7 @@ export default function ModuleCard({ kicker, title, description, href, cta, badg
       <p className="mt-2 flex-1 text-sm leading-relaxed text-[var(--color-text-secondary)]">{description}</p>
       <Link
         href={href}
-        style={{ backgroundColor: '#3E665C', color: '#FFFFFF' }}
+        style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
         className="mt-5 inline-flex min-h-[44px] w-fit items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-90 transition-opacity duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
       >
         {cta}

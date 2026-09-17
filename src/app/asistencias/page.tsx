@@ -76,14 +76,14 @@ export default function AsistenciasPage() {
           <section aria-label="Enlaces relacionados" className="flex flex-wrap gap-3">
             <Link
               href="/"
-              style={{ borderColor: '#7E8A7E', color: '#2B2E2C', borderWidth: '2px', borderStyle: 'solid' }}
-              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:bg-[#E8EBE4] transition-colors"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid' }}
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-80 transition-opacity"
             >
               Volver a la plataforma
             </Link>
             <Link
               href="/urbideas"
-              style={{ backgroundColor: '#3E665C', color: '#FFFFFF' }}
+              style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
               className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-90 transition-opacity"
             >
               Acceder a URBideas

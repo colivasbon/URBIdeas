@@ -76,23 +76,23 @@ const estadoBadgeVariant: Record<string, "success" | "primary" | "accent" | "dan
 }
 
 function getEstadoBadge(estado: string) {
-  const base = "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+  const base = "inline-flex items-center px-2 py-0.5 rounded-[6px] text-xs font-semibold border"
   switch (estado.toLowerCase()) {
     case "aprobado":
     case "vigente":
-      return `${base} bg-emerald-500/15 text-emerald-400 border border-emerald-500/25`
+      return `${base} bg-[var(--conifera)] text-[var(--carbon-deep)] border-[var(--conifera-active)]`
     case "en tramite":
     case "en trámite":
     case "pendiente":
-      return `${base} bg-amber-500/15 text-amber-400 border border-amber-500/25`
+      return `${base} bg-[var(--crisopa)] text-[var(--carbon)] border-[var(--conifera)]`
     case "borrador":
     case "avance":
-      return `${base} bg-blue-500/15 text-blue-400 border border-blue-500/25`
+      return `${base} bg-[var(--musgo)] text-[var(--hueso)] border-[var(--musgo-active)]`
     case "derogado":
     case "caducado":
-      return `${base} bg-red-500/15 text-red-400 border border-red-500/25`
+      return `${base} bg-[var(--rupestre)] text-[var(--hueso)] border-[var(--rupestre)]`
     default:
-      return `${base} bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)]`
+      return `${base} bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border-[var(--color-border)]`
   }
 }
 
@@ -350,17 +350,17 @@ export default function MunicipiosPage() {
 
       <main className="flex-1">
         <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-          <section className="mb-8">
+          <section className="mb-8 border-b-2 border-[var(--musgo)] pb-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="h-px w-8 bg-[var(--color-secondary)]" />
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Exploración
+              <div className="h-0.5 w-8 bg-[var(--conifera)]" />
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--moss-ink)]">
+                Exploración · URBideas
               </p>
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
               Municipios
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
+            <p className="mt-3 max-w-2xl text-base leading-relaxed text-[var(--color-text-secondary)]">
               Busca, filtra y compara el planeamiento urbanístico de municipios de toda España.
             </p>
           </section>
@@ -417,7 +417,7 @@ export default function MunicipiosPage() {
                   </div>
 
                   {/* Map */}
-                  <div className="rounded-xl overflow-hidden mb-8">
+                  <div className="rounded-[6px] overflow-hidden mb-8">
                     <MunicipioMapa
                       lat={nominatimCoords?.lat ?? selectedMunicipio.lat ?? null}
                       lng={nominatimCoords?.lng ?? selectedMunicipio.lng ?? null}
@@ -445,7 +445,7 @@ export default function MunicipiosPage() {
                           {instrumentos.map((inst) => (
                             <div
                               key={inst.id}
-                              className="flex items-start justify-between gap-4 p-4 bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-xl"
+                              className="flex items-start justify-between gap-4 p-4 bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[6px]"
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 mb-1">
@@ -522,7 +522,7 @@ export default function MunicipiosPage() {
                             return (
                               <div
                                 key={ambito}
-                                className="bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden"
+                                className="bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[6px] overflow-hidden"
                               >
                                 <button
                                   type="button"
@@ -565,12 +565,12 @@ export default function MunicipiosPage() {
                                           </p>
                                         )}
                                         <div className="flex items-center gap-3 mt-2">
-                                          <span className={`inline-flex items-center text-xs px-1.5 py-0.5 rounded-full ${
+                                          <span className={`inline-flex items-center text-xs font-semibold px-1.5 py-0.5 rounded-[6px] border ${
                                             norm.estado_vigencia === "vigente"
-                                              ? "bg-emerald-500/15 text-emerald-400"
+                                              ? "bg-[var(--conifera)] text-[var(--carbon-deep)] border-[var(--conifera-active)]"
                                               : norm.estado_vigencia === "derogada"
-                                                ? "bg-red-500/15 text-red-400"
-                                                : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)]"
+                                                ? "bg-[var(--rupestre)] text-[var(--hueso)] border-[var(--rupestre)]"
+                                                : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border-[var(--color-border)]"
                                           }`}>
                                             {norm.estado_vigencia}
                                           </span>
@@ -615,7 +615,7 @@ export default function MunicipiosPage() {
                             return (
                               <div
                                 key={categoria}
-                                className="bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden"
+                                className="bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[6px] overflow-hidden"
                               >
                                 <button
                                   type="button"
@@ -656,7 +656,7 @@ export default function MunicipiosPage() {
                                           href={`/urbideas/mapa?layers=${capa.id}&center=${selectedMunicipio?.lng || 0},${selectedMunicipio?.lat || 0}&zoom=12`}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="shrink-0 ml-3 inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-light)] transition-colors active:scale-[0.97]"
+                                          className="shrink-0 ml-3 inline-flex min-h-[36px] items-center gap-1 text-xs font-semibold px-2.5 py-1 bg-[var(--musgo)] text-[var(--hueso)] rounded-[6px] hover:bg-[var(--musgo-hover)] transition-colors"
                                         >
                                           Ver en mapa
                                         </a>
@@ -684,7 +684,7 @@ export default function MunicipiosPage() {
               {/* Comparison Table */}
               {comparando && (
                 <div ref={comparisonRef} className="mt-6 animate-fade-in">
-                  <div className="bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden">
+                  <div className="bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[6px] overflow-hidden">
                     <div className="px-6 py-4 border-b border-[var(--color-border-subtle)]">
                       <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Comparativa de municipios</h3>
                     </div>
@@ -698,14 +698,14 @@ export default function MunicipiosPage() {
                       </div>
                     ) : errorComparacion ? (
                       <div className="py-8 text-center px-6">
-                        <p className="text-sm text-red-400 mb-3">{errorComparacion}</p>
+                        <p className="text-sm font-semibold text-[var(--danger-ink)] mb-3" role="alert">{errorComparacion}</p>
                         <button
                           onClick={() => {
                             setComparando(false)
                             setMunicipiosComparados([])
                             setErrorComparacion(null)
                           }}
-                          className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] rounded-lg transition-colors hover:bg-[var(--color-input-bg)]"
+                          className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] rounded-[6px] transition-colors hover:bg-[var(--color-input-bg)]"
                         >
                           Cerrar
                         </button>
@@ -716,7 +716,7 @@ export default function MunicipiosPage() {
                       </p>
                     ) : (
                       <>
-                        <div className="m-6 rounded-xl overflow-hidden">
+                        <div className="m-6 rounded-[6px] overflow-hidden">
                           <MunicipioMapa
                             municipios={municipiosComparados
                               .filter((m) => m.lat != null && m.lng != null)

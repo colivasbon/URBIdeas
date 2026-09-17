@@ -7,14 +7,14 @@ type Theme = "dark" | "light"
 const ThemeContext = createContext<{
   theme: Theme
   toggle: () => void
-}>({ theme: "dark", toggle: () => {} })
+}>({ theme: "light", toggle: () => {} })
 
 export function useTheme() {
   return useContext(ThemeContext)
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark")
+  const [theme, setTheme] = useState<Theme>("light")
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -24,11 +24,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setTheme(saved)
       document.documentElement.setAttribute("data-theme", saved)
     } else {
-      const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches
-      if (prefersLight) {
-        setTheme("light")
-        document.documentElement.setAttribute("data-theme", "light")
-      }
+      // Corporativo: Hueso como base por defecto, salvo preferencia oscura explícita
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+      const initial: Theme = prefersDark ? "dark" : "light"
+      setTheme(initial)
+      document.documentElement.setAttribute("data-theme", initial)
     }
   }, [])
 

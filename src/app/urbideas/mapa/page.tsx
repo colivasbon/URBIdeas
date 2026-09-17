@@ -40,17 +40,17 @@ const PERFILES: { id: PerfilId; label: string }[] = [
 ]
 
 const BADGE_RESULTADO: Record<string, { label: string; bg: string; fg: string }> = {
-  solapa: { label: 'Solapa', bg: '#e74c3c22', fg: '#e74c3c' },
-  borde: { label: 'Borde (<10 m, criterio interno)', bg: '#e67e2222', fg: '#e67e22' },
-  proximo: { label: 'Próximo', bg: '#f1c40f33', fg: '#9a7d0a' },
-  limpio: { label: 'Sin intersección', bg: '#2ecc7122', fg: '#27ae60' },
-  sin_datos: { label: 'Sin datos', bg: '#95a5a622', fg: '#7f8c8d' },
+  solapa: { label: 'Solapa', bg: '#643335', fg: '#F1F1F1' },
+  borde: { label: 'Borde (<10 m, criterio interno)', bg: '#C2E189', fg: '#3C403E' },
+  proximo: { label: 'Próximo', bg: '#3E665C', fg: '#F1F1F1' },
+  limpio: { label: 'Sin intersección', bg: '#86B73D', fg: '#2B2E2C' },
+  sin_datos: { label: 'Sin datos', bg: '#B0BDB0', fg: '#3C403E' },
 }
 
 function ResultadoBadge({ resultado }: { resultado: string }) {
   const b = BADGE_RESULTADO[resultado] || BADGE_RESULTADO.sin_datos
   return (
-    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full" style={{ background: b.bg, color: b.fg }}>
+    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded-[6px] border border-current" style={{ background: b.bg, color: b.fg }}>
       {b.label}
     </span>
   )
@@ -58,13 +58,13 @@ function ResultadoBadge({ resultado }: { resultado: string }) {
 
 function SemaforoBadge({ estado, pendiente }: { estado: 'compatible' | 'condicionado' | 'incompatible'; pendiente: boolean }) {
   const cfg = estado === 'compatible'
-    ? { label: etiquetaEstado(estado), bg: '#2ecc7122', fg: '#27ae60' }
+    ? { label: etiquetaEstado(estado), bg: '#86B73D', fg: '#2B2E2C' }
     : estado === 'condicionado'
-      ? { label: etiquetaEstado(estado), bg: '#f1c40f33', fg: '#9a7d0a' }
-      : { label: etiquetaEstado(estado), bg: '#e74c3c22', fg: '#e74c3c' }
+      ? { label: etiquetaEstado(estado), bg: '#C2E189', fg: '#3C403E' }
+      : { label: etiquetaEstado(estado), bg: '#643335', fg: '#F1F1F1' }
   return (
     <span className="inline-flex flex-col gap-0.5">
-      <span className="inline-block px-2.5 py-1 text-xs font-bold rounded-full" style={{ background: cfg.bg, color: cfg.fg }}>
+      <span className="inline-block px-2.5 py-1 text-xs font-bold rounded-[6px] border border-current" style={{ background: cfg.bg, color: cfg.fg }}>
         {cfg.label}
       </span>
       {pendiente && (

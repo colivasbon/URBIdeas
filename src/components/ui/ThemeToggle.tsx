@@ -8,9 +8,12 @@ export default function ThemeToggle() {
 
   return (
     <button
+      type="button"
       onClick={toggle}
       aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-      className="inline-flex items-center justify-center rounded-[var(--border-radius)] p-2 text-[var(--color-text-secondary)] transition-colors duration-200 hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)]"
+      aria-pressed={isDark}
+      title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+      className="inline-flex h-11 w-11 items-center justify-center rounded-[6px] text-[var(--hueso)] transition-colors duration-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
     >
       {isDark ? (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

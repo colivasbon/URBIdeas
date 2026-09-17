@@ -695,7 +695,7 @@ a:hover {
   --radius-lg: 6px;
   --radius-pill: 999px;
 
-  --font-display: Georgia, "Times New Roman", serif;
+  --font-display: 'Poppins', system-ui, -apple-system, sans-serif;
   --font-ui: 'Poppins', system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --shadow-premium-sm: 0 1px 2px rgba(16, 32, 28, 0.06);
@@ -1566,4 +1566,197 @@ a:hover {
   .socideas-btn {
     transition: none;
   }
+}
+
+/* ============================================================
+   Reskin corporativo light-first (aditivo sobre el rebranding).
+   Puente de tokens con los valores corporativos + superficies de
+   marca por tema + fondo territorial claro sobre Musgo + base
+   tipográfica tabular. No modifica nada anterior: solo añade y,
+   donde el diseño lo exige, redefine por orden de cascada.
+   ============================================================ */
+
+:root {
+  --musgo: #3E665C;
+  --musgo-hover: #33544B;
+  --musgo-active: #2E4F47;
+  --conifera: #86B73D;
+  --conifera-hover: #769F34;
+  --conifera-active: #6F9A2E;
+  --retama: #FBE122;
+  --carbon: #3C403E;
+  --carbon-deep: #2B2E2C;
+  --hueso: #F1F1F1;
+  --rupestre: #643335;
+  --limo: #B0BDB0;
+  --crisopa: #C2E189;
+
+  /* Marca: verde tirando a musgo en ambos modos (claro #44705F con
+     texto Hueso a 4.99:1; oscuro #22332E). Footer Carbón constante. */
+  --brand-bg: #44705F;
+  /* Tinta de error sobre fondo de página: Rupestre en claro, rosado en oscuro */
+  --danger-ink: var(--rupestre);
+  /* Tinta de acento sobre fondo de página: Musgo en claro, Crisopa en oscuro */
+  --moss-ink: var(--musgo);
+}
+
+[data-theme="dark"] {
+  /* Oscuro verde-carbón: cero grises neutros, todo de la familia del musgo */
+  --color-dark-bg: #1F2824;
+  --color-dark-bg-elevated: #26302B;
+  --color-dark-surface: #2E3A33;
+  --color-card-bg: #2B352F;
+  --color-card-bg-solid: #2B352F;
+  --color-input-bg: #313D36;
+  --color-input-bg-hover: #3A4840;
+  --color-border: #43544A;
+  --color-border-subtle: #35443B;
+  --color-border-light: #4A5C51;
+  --color-text-primary: var(--hueso);
+  --color-text-secondary: #D2DCD6;
+  --color-text-muted: #A3B8AD;
+  --background: #1F2824;
+  --foreground: var(--hueso);
+  --color-overlay: rgba(20, 28, 24, 0.6);
+  --brand-bg: #22332E;
+  --moss-ink: var(--crisopa);
+  --danger-ink: #E3A6A8;
+}
+
+/* Enlaces de contenido: tokens de bajo nivel en @layer base para que las
+   utilidades de los componentes siempre ganen (Tailwind v4). */
+@layer base {
+  main a {
+    color: var(--musgo);
+    text-decoration: none;
+  }
+
+  main a:hover {
+    color: var(--musgo-active);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  [data-theme="dark"] main a {
+    color: var(--crisopa);
+  }
+  [data-theme="dark"] main a:hover {
+    color: var(--retama);
+  }
+}
+
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--musgo);
+    outline-offset: 2px;
+  }
+  [data-theme="dark"] :focus-visible {
+    outline-color: var(--retama);
+  }
+}
+
+::selection {
+  background: var(--musgo);
+  color: var(--hueso);
+}
+
+/* Eyebrows sobre fondo de página con la tinta de acento del tema */
+.ideas-eyebrow > span {
+  color: var(--moss-ink);
+}
+
+.ideas-eyebrow::before {
+  background: var(--conifera);
+}
+
+.editorial-eyebrow {
+  color: var(--moss-ink);
+}
+
+.hero-musgo .editorial-eyebrow {
+  color: var(--hueso);
+}
+
+[data-theme="dark"] .hero-musgo .editorial-eyebrow {
+  color: var(--retama);
+}
+
+[data-theme="dark"] .hero-musgo .editorial-eyebrow::before {
+  background: var(--retama);
+}
+
+/* Skeletons planos (diseño plano corporativo, sin shimmer) */
+@keyframes premium-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.premium-skeleton {
+  background: var(--color-input-bg-hover);
+  background-size: auto;
+  animation: premium-pulse 1.6s ease-in-out infinite;
+}
+
+/* Línea de acento sólida (sin degradado) */
+.accent-line::after {
+  background: var(--conifera);
+  opacity: 1;
+}
+
+/* Cifras tabulares */
+.tnum, .tnum * {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Hero Musgo: retícula y curvas en Hueso sobre fondo oscuro --- */
+.hero-musgo .territorial-grid {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(241, 241, 241, 0.14) 0 1px,
+      transparent 1px 120px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(241, 241, 241, 0.14) 0 1px,
+      transparent 1px 120px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(241, 241, 241, 0.07) 0 1px,
+      transparent 1px 24px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(241, 241, 241, 0.07) 0 1px,
+      transparent 1px 24px
+    );
+}
+
+.hero-musgo .territorial-grid--index {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(241, 241, 241, 0.08) 0 1px,
+      transparent 1px 160px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(241, 241, 241, 0.08) 0 1px,
+      transparent 1px 160px
+    );
+}
+
+.hero-musgo .topographic-contours {
+  color: var(--hueso);
+  opacity: 0.85;
+}
+
+/* Atmósfera del fondo territorial según tema: presencia plena en claro,
+   un punto más recogida en oscuro para dar profundidad sin ruido. */
+[data-theme="dark"] .hero-musgo .territorial-grid {
+  opacity: 0.7;
+}
+
+[data-theme="dark"] .hero-musgo .topographic-contours {
+  opacity: 0.6;
 }

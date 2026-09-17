@@ -126,7 +126,7 @@ export default function DescargasBloque({
             onClick={handleXlsxDownload}
             disabled={xlsxDownloading}
             title={xlsxDownloading ? "Generando Excel…" : "Libro XLSX combinado del municipio (resumen con trazabilidad, demografía y economía)"}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-[6px] hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-[6px] hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {xlsxDownloading ? "Generando Excel…" : "Descargar libro XLSX combinado"}
           </button>
@@ -134,7 +134,7 @@ export default function DescargasBloque({
             type="button"
             onClick={descargarTodo}
             disabled={tablas.length === 0}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
           >
             Descargar todas las tablas (CSV)
           </button>
@@ -142,7 +142,7 @@ export default function DescargasBloque({
             type="button"
             onClick={imprimir}
             disabled={tablas.length === 0}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
           >
             Descargar informe imprimible
           </button>

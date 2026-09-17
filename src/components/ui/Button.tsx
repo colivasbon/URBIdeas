@@ -12,49 +12,50 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary: [
-    'bg-[var(--color-primary)] text-white',
-    'hover:bg-[var(--color-primary-light)]',
-    'active:bg-[var(--color-primary-dark)]',
-    'focus-visible:ring-[var(--color-primary)]',
+    'bg-[var(--musgo)] text-[var(--hueso)]',
+    'hover:bg-[var(--musgo-hover)]',
+    'active:bg-[var(--musgo-active)]',
+    'focus-visible:ring-[var(--musgo)]',
   ].join(' '),
   secondary: [
-    'bg-[var(--color-secondary)] text-white',
-    'hover:bg-[var(--color-secondary-light)]',
-    'active:bg-[var(--color-secondary-dark)]',
-    'focus-visible:ring-[var(--color-secondary)]',
+    'bg-[var(--conifera)] text-[var(--carbon-deep)]',
+    'hover:bg-[var(--conifera-hover)]',
+    'active:bg-[var(--conifera-active)]',
+    'focus-visible:ring-[var(--conifera-active)]',
   ].join(' '),
   accent: [
-    'bg-[var(--color-accent)] text-[var(--color-dark-bg)]',
-    'hover:bg-[var(--color-accent-light)]',
-    'active:bg-[var(--color-accent-dark)]',
-    'focus-visible:ring-[var(--color-accent)]',
+    // Retama: solo sobre fondos oscuros
+    'bg-[var(--retama)] text-[var(--carbon)]',
+    'hover:brightness-95',
+    'active:brightness-90',
+    'focus-visible:ring-[var(--retama)]',
   ].join(' '),
   danger: [
-    'bg-[var(--color-error)] text-white',
-    'hover:bg-[var(--color-error-light)]',
-    'active:bg-[var(--color-error)]',
-    'focus-visible:ring-[var(--color-error)]',
+    'bg-[var(--rupestre)] text-[var(--hueso)]',
+    'hover:bg-[var(--rupestre-hover)]',
+    'active:bg-[var(--rupestre-hover)]',
+    'focus-visible:ring-[var(--rupestre)]',
   ].join(' '),
   ghost: [
-    'bg-transparent text-[var(--color-text-secondary)]',
-    'hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)]',
+    'bg-transparent text-[var(--color-text-secondary)] border border-[var(--color-border)]',
+    'hover:bg-[var(--color-input-bg-hover)] hover:text-[var(--color-text-primary)]',
     'active:bg-[var(--color-border-subtle)]',
-    'focus-visible:ring-[var(--color-text-muted)]',
+    'focus-visible:ring-[var(--musgo)]',
   ].join(' '),
 }
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-xs gap-1.5 min-h-[32px]',
-  md: 'px-4 py-2 text-sm gap-2 min-h-[38px]',
-  lg: 'px-5 py-2.5 text-sm gap-2.5 min-h-[44px]',
+  sm: 'px-3 py-1.5 text-xs gap-1.5 min-h-[36px]',
+  md: 'px-4 py-2 text-sm gap-2 min-h-[44px]',
+  lg: 'px-5 py-2.5 text-sm gap-2.5 min-h-[48px]',
 }
 
 export function Button({ variant = 'primary', size = 'md', loading, className = '', children, disabled, ...props }: ButtonProps) {
   return (
     <button
       className={[
-        'inline-flex items-center justify-center font-semibold rounded-lg',
-        'transition-all duration-200 ease-out',
+        'inline-flex items-center justify-center font-semibold rounded-[6px]',
+        'transition-colors duration-200 ease-out',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-card-bg-solid)]',
         'disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',
         'select-none cursor-pointer',

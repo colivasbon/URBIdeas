@@ -22,7 +22,7 @@ export default function IndicatorAvailabilityPanel({
         {resumen}. La ausencia de dato nunca equivale a cero.
       </p>
       <details className="premium-card mt-3 p-5" open={entries.length <= 3}>
-        <summary className="cursor-pointer text-sm font-semibold text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]">
+        <summary className="cursor-pointer text-sm font-semibold text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]">
           Ver detalle de cobertura ({entries.length})
         </summary>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">

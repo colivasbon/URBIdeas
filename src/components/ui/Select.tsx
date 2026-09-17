@@ -24,7 +24,7 @@ export function Select({ options, placeholder, label, className = '', ...props }
         <select
           className={[
             'w-full appearance-none bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)]',
-            'rounded-lg px-3 py-2 pr-8 text-sm',
+            'rounded-[6px] px-3 py-2 pr-8 text-sm',
             'text-[var(--color-text-primary)]',
             'transition-all duration-200 ease-out',
             'hover:border-[var(--color-border)] hover:bg-[var(--color-input-bg-hover)]',

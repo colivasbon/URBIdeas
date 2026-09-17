@@ -98,7 +98,7 @@ export default function ActualizacionMenu({
   };
 
   const itemCls =
-    "flex w-full flex-col gap-0.5 rounded-[6px] px-3 py-2 text-left text-xs hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-50";
+    "flex w-full flex-col gap-0.5 rounded-[6px] px-3 py-2 text-left text-xs hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:opacity-50";
 
   const municipio = capasPreview?.municipalityName ?? codigoINE;
 
@@ -111,7 +111,7 @@ export default function ActualizacionMenu({
         aria-expanded={abierto}
         onClick={() => { setAbierto((v) => !v); setMsg(null); setConfirmandoCapas(false); }}
         title="Acciones internas de actualización (dry-run, sin escrituras)"
-        className="inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--color-border)] bg-[var(--color-card-bg)] px-4 py-2 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+        className="inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--color-border)] bg-[var(--color-card-bg)] px-4 py-2 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
       >
         Actualizar datos
         <span aria-hidden="true" className={`transition-transform ${abierto ? "rotate-180" : ""}`}>▾</span>

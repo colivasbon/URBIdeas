@@ -91,7 +91,7 @@ export function Metodologia({
 }) {
   return (
     <details className="premium-card p-5">
-      <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]">
+      <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]">
         Ver definición y fuente: {nombre}
       </summary>
       <dl className="mt-3 space-y-1.5 text-sm text-[var(--color-text-secondary)]">
@@ -116,7 +116,7 @@ export function FuenteOficial({ url, etiqueta = "Consultar fuente oficial", clas
       href={url}
       target="_blank"
       rel="noreferrer"
-      className={className ?? "inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"}
+      className={className ?? "inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"}
     >
       {etiqueta} <span aria-hidden="true">↗</span>
     </a>
@@ -165,7 +165,7 @@ export function FiltroTabla({
             value={q}
             onChange={(e) => onQ(e.target.value)}
             placeholder={placeholder}
-            className="w-full rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+            className="w-full rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
           />
         </div>
         {anios && anios.length > 1 && (
@@ -175,7 +175,7 @@ export function FiltroTabla({
               id={`${inputId}-anio`}
               value={anio ?? ""}
               onChange={(e) => onAnio(e.target.value)}
-              className="rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+              className="rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
             >
               <option value="">Todos</option>
               {anios.map((a) => (<option key={a} value={a}>{a}</option>))}
@@ -185,7 +185,7 @@ export function FiltroTabla({
         <button
           type="button"
           onClick={reset}
-          className="px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-md hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+          className="px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-md hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
         >
           Restablecer filtros
         </button>

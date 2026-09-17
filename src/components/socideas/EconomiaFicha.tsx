@@ -298,7 +298,7 @@ export default function EconomiaFicha({
         <div className="mt-3">
           <Link
             href={`/socideas/${codigoINE}/descargas/economia`}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-secondary)] border border-[var(--color-border)] rounded-[6px] hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-secondary)] border border-[var(--color-border)] rounded-[6px] hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
           >
             Descargar tablas de Economía →
           </Link>
@@ -342,7 +342,7 @@ export default function EconomiaFicha({
                       id={`renta-desde-${codigoINE}`}
                       value={rentaDesde ?? ""}
                       onChange={(e) => { setRentaHint(null); setRentaDesde(e.target.value ? parseInt(e.target.value, 10) : null); }}
-                      className="rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+                      className="rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
                     >
                       <option value="">Inicio</option>
                       {allRentaPeriods.map((a) => (<option key={a} value={a}>{a}</option>))}
@@ -354,7 +354,7 @@ export default function EconomiaFicha({
                       id={`renta-hasta-${codigoINE}`}
                       value={rentaHasta ?? ""}
                       onChange={(e) => { setRentaHint(null); setRentaHasta(e.target.value ? parseInt(e.target.value, 10) : null); }}
-                      className="rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+                      className="rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
                     >
                       <option value="">Fin</option>
                       {allRentaPeriods.map((a) => (<option key={a} value={a}>{a}</option>))}
@@ -365,7 +365,7 @@ export default function EconomiaFicha({
               <button
                 type="button"
                 onClick={resetRenta}
-                className="px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-md hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+                className="px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-md hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
               >
                 Restablecer
               </button>

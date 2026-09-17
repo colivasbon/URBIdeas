@@ -50,7 +50,7 @@ export default function TemporaryDataNotice({
         type="button"
         onClick={() => setAbierto((v) => !v)}
         aria-expanded={abierto}
-        className="mt-2 text-xs font-semibold text-[var(--color-secondary)] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+        className="mt-2 text-xs font-semibold text-[var(--color-secondary)] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
       >
         {abierto ? "Ocultar actualización temporal" : "Ver actualización temporal"}
       </button>

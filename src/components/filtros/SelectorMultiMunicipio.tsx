@@ -115,9 +115,9 @@ export default function SelectorMultiMunicipio({ onCompare, provinciaId }: Selec
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selected.map(mun => (
-            <span key={mun.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--color-primary)]/20 text-[var(--color-primary-light)] border border-[var(--color-primary)]/30 rounded-full">
+            <span key={mun.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-[var(--crisopa)] text-[var(--carbon)] border border-[var(--conifera)] rounded-[6px]">
               {mun.nombre}
-              <button onClick={() => remove(mun.id)} className="p-0.5 rounded-full hover:bg-[var(--color-primary)]/30 transition-colors" aria-label={`Eliminar ${mun.nombre}`}>
+              <button onClick={() => remove(mun.id)} className="rounded-[6px] p-0.5 hover:bg-[var(--conifera)]/40 transition-colors" aria-label={`Eliminar ${mun.nombre}`}>
                 <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>

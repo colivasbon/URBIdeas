@@ -5,64 +5,73 @@ import { CORPORATE_URL } from "./PlatformHeader";
 export default function PlatformFooter() {
   const year = new Date().getFullYear();
   return (
-    <footer className="border-t border-[var(--color-border-subtle)] bg-[var(--color-dark-bg)]">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-8 sm:flex-row sm:justify-between sm:items-start">
-          <div className="flex items-start gap-3">
-            <Image
-              src="/logo/Logo_Principal_-_color_-_Ideas_Medioambientales.png"
-              alt="Ideas Medioambientales"
-              width={28}
-              height={28}
-              className="h-7 w-auto opacity-80"
-            />
-            <div>
-              <p className="text-sm font-semibold text-[var(--color-text-primary)]">IDEAS Sostenibilidad</p>
-              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                Área de Sostenibilidad de Ideas Medioambientales
-              </p>
+    <footer className="bg-[var(--carbon)] text-[var(--hueso)]">
+      <div className="h-1 w-full bg-[var(--conifera)]" aria-hidden="true" />
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-10 lg:flex-row lg:justify-between lg:items-start">
+          <div className="max-w-sm">
+            <div className="flex items-start gap-3">
+              <span className="rounded-[6px] bg-white px-1.5 py-1">
+                <Image
+                  src="/logo/Logo_Principal_-_color_-_Ideas_Medioambientales.png"
+                  alt="Ideas Medioambientales"
+                  width={28}
+                  height={28}
+                  className="h-7 w-auto"
+                />
+              </span>
+              <div>
+                <p className="text-base font-bold">IDEAS Sostenibilidad</p>
+                <p className="text-xs text-[var(--hueso)]/70 mt-0.5">
+                  Área de Sostenibilidad de Ideas Medioambientales · Albacete
+                </p>
+              </div>
             </div>
+            <p className="mt-4 text-sm leading-relaxed text-[var(--hueso)]/75">
+              Conocimiento territorial para decisiones sostenibles. Análisis, diagnóstico municipal y apoyo técnico a proyectos.
+            </p>
           </div>
 
-          <nav className="flex flex-col gap-4 sm:flex-row sm:gap-10" aria-label="Navegación de pie de página">
+          <nav className="grid grid-cols-2 gap-8 sm:grid-cols-3" aria-label="Navegación de pie de página">
             <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Módulos</p>
-              <div className="flex flex-col gap-1">
-                <Link href="/" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">Inicio</Link>
-                <Link href="/urbideas" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">URBideas · análisis territorial</Link>
-                <Link href="/socideas" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">SOCideas · diagnóstico municipal</Link>
-                <Link href="/socideas/como-funciona" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">Cómo funciona SOCideas</Link>
-                <Link href="/asistencias" className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">Asistencias</Link>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--retama)]">Módulos</p>
+              <div className="flex flex-col gap-2">
+                <Link href="/" className="text-sm text-[var(--hueso)]/80 hover:text-[var(--hueso)] transition-colors">Inicio</Link>
+                <Link href="/urbideas" className="text-sm text-[var(--hueso)]/80 hover:text-[var(--hueso)] transition-colors">URBideas</Link>
+                <Link href="/socideas" className="text-sm text-[var(--hueso)]/80 hover:text-[var(--hueso)] transition-colors">SOCideas</Link>
+                <Link href="/asistencias" className="text-sm text-[var(--hueso)]/80 hover:text-[var(--hueso)] transition-colors">Asistencias</Link>
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Fuentes</p>
-              <div className="flex flex-col gap-1">
-                <p className="text-xs text-[var(--color-text-secondary)]">INE · AEAT · SEPE · DIRCE</p>
-                <p className="text-xs text-[var(--color-text-muted)]">Trazabilidad por indicador y año</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--retama)]">Recursos</p>
+              <div className="flex flex-col gap-2">
+                <Link href="/urbideas/municipios" className="text-sm text-[var(--hueso)]/80 hover:text-[var(--hueso)] transition-colors">Municipios</Link>
+                <Link href="/urbideas/mapa" className="text-sm text-[var(--hueso)]/80 hover:text-[var(--hueso)] transition-colors">Mapa y dictamen</Link>
+                <Link href="/urbideas/legislacion" className="text-sm text-[var(--hueso)]/80 hover:text-[var(--hueso)] transition-colors">Legislación</Link>
+                <Link href="/socideas/como-funciona" className="text-sm text-[var(--hueso)]/80 hover:text-[var(--hueso)] transition-colors">Metodología</Link>
               </div>
             </div>
-            <div className="max-w-xs">
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5">Aviso</p>
-              <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                La información mostrada procede de fuentes oficiales. Su consulta es orientativa;
-                para validez jurídica, acuda al texto publicado en la correspondiente sede electrónica.
+            <div className="max-w-xs col-span-2 sm:col-span-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--retama)] mb-1.5">Fuentes y aviso</p>
+              <p className="text-sm text-[var(--hueso)]/80">INE · AEAT · SEPE · DIRCE</p>
+              <p className="mt-2 text-xs leading-relaxed text-[var(--hueso)]/60">
+                Información orientativa procedente de fuentes oficiales. Para validez jurídica, acuda al texto publicado en sede electrónica.
               </p>
             </div>
           </nav>
         </div>
 
-        <div className="mt-8 pt-5 border-t border-[var(--color-border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-[var(--color-text-muted)]">
+        <div className="mt-10 pt-5 border-t border-white/15 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p className="text-xs text-[var(--hueso)]/60">
             &copy; {year} IDEAS Sostenibilidad · Ideas Medioambientales
           </p>
           <a
             href={CORPORATE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+            className="text-xs font-semibold text-[var(--hueso)]/80 hover:text-[var(--retama)] transition-colors"
           >
-            ideasmedioambientales.com <span aria-hidden="true">↗</span>
+            ideasmedioambientales.com
           </a>
         </div>
       </div>

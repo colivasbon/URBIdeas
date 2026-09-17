@@ -18,7 +18,7 @@ interface Opcion {
 }
 
 const selectClasses =
-  "w-full rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-50";
+  "w-full rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:opacity-50";
 
 export default function SocideasSearch() {
   const router = useRouter();
@@ -213,12 +213,12 @@ export default function SocideasSearch() {
           }
           autoComplete="off"
           disabled={!!abriendo}
-          className="flex-1 rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] disabled:opacity-50"
+          className="flex-1 rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:opacity-50"
         />
         <button
           type="submit"
           disabled={!!abriendo || buscando || q.trim().length < 2}
-          className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-[6px] hover:bg-[var(--color-primary-light)] transition-all disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+          className="inline-flex min-h-[44px] items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-[6px] hover:bg-[var(--color-primary-light)] transition-all disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
         >
           {buscando ? "Buscando…" : "Buscar"}
         </button>
@@ -244,7 +244,7 @@ export default function SocideasSearch() {
                     href={`/socideas/${m.codigo_ine}`}
                     onClick={() => onResultadoClick(m)}
                     aria-disabled={!!abriendo}
-                    className={`flex items-center justify-between gap-4 px-5 py-4 hover:bg-[var(--color-input-bg)]/50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] rounded-[var(--border-radius-lg)] ${abriendo ? "pointer-events-none opacity-60" : ""}`}
+                    className={`flex items-center justify-between gap-4 px-5 py-4 hover:bg-[var(--color-input-bg)]/50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] rounded-[var(--border-radius-lg)] ${abriendo ? "pointer-events-none opacity-60" : ""}`}
                   >
                     <span>
                       <span className="block text-sm font-semibold text-[var(--color-text-primary)]">

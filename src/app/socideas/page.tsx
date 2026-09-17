@@ -5,7 +5,6 @@ import PlatformFooter from "@/components/platform/PlatformFooter";
 import SocideasSearch from "@/components/socideas/SocideasSearch";
 import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
 import TerritorialBackground from "@/components/ui/TerritorialBackground";
-import PageShell from "@/components/ui/PageShell";
 import SectionHeading from "@/components/ui/SectionHeading";
 import SourcePill from "@/components/ui/SourcePill";
 
@@ -20,20 +19,25 @@ export default function SocideasHub() {
     <div className="flex min-h-screen flex-col">
       <SocideasHeader />
 
-      <main className="flex-1">
-        <EditorialParallaxHero decor={<TerritorialBackground variant="grid" />}>
+      <main className="flex-1 bg-[var(--color-dark-bg)]">
+        <EditorialParallaxHero decor={<TerritorialBackground variant="grid" />} className="hero-musgo bg-[var(--brand-bg)] text-[var(--hueso)]">
+        <section className="relative">
           <div className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 sm:pt-14 lg:px-8 pb-10">
-            <PageShell
-              eyebrow="SOCideas · Beta interna · Módulo de IDEAS Sostenibilidad"
-              title="Diagnóstico municipal con fuentes oficiales"
-              lede="Diagnóstico demográfico y económico de cualquier municipio español a partir de fuentes oficiales trazables. El buscador es el punto de partida: escriba, filtre y abra la ficha."
-              meta={
-                <SourcePill title="Demografía disponible con trazabilidad INE">
-                  Demografía disponible · INE
-                </SourcePill>
-              }
-            />
-            <section aria-label="Buscador municipal" className="premium-card relative mt-8 p-5 sm:p-7">
+            <p className="editorial-eyebrow">
+              <span>SOCideas · Beta interna · IDEAS Sostenibilidad</span>
+            </p>
+            <h1 className="mt-4 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl" style={{ lineHeight: 1.12 }}>
+              Diagnóstico municipal con fuentes oficiales
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--hueso)] sm:text-lg">
+              Diagnóstico demográfico y económico de cualquier municipio español a partir de fuentes oficiales trazables. El buscador es el punto de partida.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <SourcePill title="Demografía disponible con trazabilidad INE">
+                Demografía disponible · INE
+              </SourcePill>
+            </div>
+            <section aria-label="Buscador municipal" className="mt-8 rounded-[6px] bg-[var(--color-card-bg)] p-5 text-[var(--color-text-primary)] sm:p-7">
               <SectionHeading
                 title="Buscador municipal"
                 lede="Escriba el nombre del municipio o de su provincia para abrir su ficha de caracterización."
@@ -43,47 +47,49 @@ export default function SocideasHub() {
               </div>
             </section>
           </div>
+        </section>
         </EditorialParallaxHero>
 
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-          <section aria-label="Fuentes y cobertura" className="premium-card p-5 sm:p-6">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+          <section aria-label="Fuentes y cobertura">
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-base font-bold text-[var(--color-text-primary)]">Fuentes y cobertura (Fase 2B)</h2>
+              <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Fuentes y cobertura</h2>
               <SourcePill title="Economía en desarrollo por subbloques con año declarado">
                 Economía en desarrollo · AEAT · ADRH · DIRCE
               </SourcePill>
             </div>
-            <ul className="mt-3 list-disc pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-              <li>
-                <strong>Demografía (disponible):</strong> Instituto Nacional de Estadística (API
-                Tempus3): población municipal, evolución anual y estructura por edad y sexo.
-              </li>
-              <li>
-                <strong>Economía (en desarrollo):</strong> AEAT (renta por declaración), INE-ADRH
-                (renta y desigualdad), DIRCE (empresas) y Censo Agrario 2020 (superficie y
-                ganadería). Cada subbloque declara su cobertura y su año.
-              </li>
-              <li>
-                <strong>Secciones censales (en preparación):</strong> geometría oficial del INE bajo
-                demanda; los indicadores por sección solo llegarán con fuente oficial a ese nivel.
-              </li>
-              <li>
-                Los datos se sincronizan de forma controlada y se almacenan con
-                trazabilidad; no se consulta a las fuentes oficiales en cada visita.
-              </li>
-            </ul>
+            <div className="mt-6 grid gap-x-8 gap-y-6 md:grid-cols-3">
+              <div className="border-t-2 border-t-[var(--musgo)] pt-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--moss-ink)]">Demografía</p>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">Población municipal, evolución anual y estructura por edad y sexo. Instituto Nacional de Estadística.</p>
+                <p className="mt-3 inline-flex rounded-[6px] bg-[var(--conifera)] px-2 py-0.5 text-xs font-semibold text-[var(--carbon-deep)]">Disponible</p>
+              </div>
+              <div className="border-t-2 border-t-[var(--conifera)] pt-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--moss-ink)]">Economía</p>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">Renta por declaración, renta y desigualdad, empresas y sector agrario. Cada subbloque declara cobertura y año.</p>
+                <p className="mt-3 inline-flex rounded-[6px] bg-[var(--crisopa)] px-2 py-0.5 text-xs font-semibold text-[var(--carbon)]">En desarrollo</p>
+              </div>
+              <div className="border-t-2 border-dashed border-t-[var(--limo)] pt-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Secciones censales</p>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">Geometría oficial del INE bajo demanda. Indicadores por sección solo con fuente oficial a ese nivel.</p>
+                <p className="mt-3 inline-flex rounded-[6px] border border-[var(--color-border)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-secondary)]">En preparación</p>
+              </div>
+            </div>
+            <p className="mt-6 border-t border-[var(--color-border-subtle)] pt-4 text-xs leading-relaxed text-[var(--color-text-muted)]">
+              Los datos se sincronizan de forma controlada y se almacenan con trazabilidad; no se consulta a las fuentes oficiales en cada visita.
+            </p>
           </section>
 
-          <section aria-label="Enlaces relacionados" className="mt-8 flex flex-wrap gap-4">
+          <section aria-label="Enlaces relacionados" className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]"
             >
               Volver a la plataforma
             </Link>
             <Link
               href="/urbideas"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--hueso)] bg-[var(--musgo)] rounded-[6px] hover:bg-[var(--musgo-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]"
             >
               Acceder a URBideas
             </Link>

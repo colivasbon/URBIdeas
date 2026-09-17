@@ -36,7 +36,7 @@ export default function CategoryTabs({
             role="tab"
             aria-selected={selected}
             title={t.descripcion}
-            className="ideas-tab focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+            className="ideas-tab focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
             data-active={selected}
           >
             {t.etiqueta}
@@ -46,7 +46,7 @@ export default function CategoryTabs({
       <Link
         href={`/socideas/${codigoINE}/secciones-censales`}
         title="Geometría de secciones censales del municipio"
-        className="ideas-tab ideas-tab--link focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+        className="ideas-tab ideas-tab--link focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
       >
         Secciones censales
       </Link>

@@ -89,7 +89,7 @@ export default function ComoFuncionaSocideas() {
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 href="/socideas"
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--hueso)] bg-[var(--musgo)] rounded-[6px] hover:bg-[var(--musgo-hover)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
               >
                 Ir al buscador municipal
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
@@ -111,7 +111,7 @@ export default function ComoFuncionaSocideas() {
                     <li key={s.id} className="shrink-0 lg:shrink">
                       <a
                         href={`#${s.id}`}
-                        className="block whitespace-nowrap rounded-lg px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)] lg:whitespace-normal"
+                        className="block whitespace-nowrap rounded-[6px] px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] lg:whitespace-normal"
                       >
                         <span aria-hidden="true" className="mr-2 text-xs font-bold tabular-nums text-[var(--color-secondary)]/70">
                           {String(i + 1).padStart(2, "0")}
@@ -215,7 +215,7 @@ export default function ComoFuncionaSocideas() {
                       "Fuentes oficiales: descarga, validación y normalización previas a la publicación",
                     ].map((paso, i, arr) => (
                       <li key={paso}>
-                        <span className="flex items-center gap-3 rounded-lg bg-[var(--color-input-bg)] px-3 py-2.5">
+                        <span className="flex items-center gap-3 rounded-[6px] bg-[var(--color-input-bg)] px-3 py-2.5">
                           <span aria-hidden="true" className="text-xs font-bold tabular-nums text-[var(--color-secondary)]">
                             {String(i + 1).padStart(2, "0")}
                           </span>
@@ -254,7 +254,7 @@ export default function ComoFuncionaSocideas() {
                   el estado a fecha de redacción: lo disponible, lo que está en preparación técnica y lo
                   que permanece pendiente o sin cobertura.
                 </P>
-                <div className="mt-5 overflow-x-auto rounded-xl border border-[var(--color-border-subtle)]">
+                <div className="mt-5 overflow-x-auto rounded-[6px] border border-[var(--color-border-subtle)]">
                   <table className="ideas-table min-w-[880px] bg-[var(--color-card-bg)] p-4">
                     <caption className="sr-only">Fuentes oficiales de SOCideas con cobertura, periodo y estado</caption>
                     <thead>
@@ -574,7 +574,7 @@ export default function ComoFuncionaSocideas() {
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
                     href="/socideas"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--hueso)] bg-[var(--musgo)] rounded-[6px] hover:bg-[var(--musgo-hover)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
                   >
                     Ir al buscador municipal
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
@@ -583,7 +583,7 @@ export default function ComoFuncionaSocideas() {
                   </Link>
                   <Link
                     href="/"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-secondary)]"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
                   >
                     Volver a la plataforma
                   </Link>

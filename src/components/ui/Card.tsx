@@ -13,12 +13,11 @@ export function Card({ children, className = '', padding = true, hover = false }
       className={[
         'bg-[var(--color-card-bg)]',
         'border border-[var(--color-border-subtle)]',
-        'rounded-xl',
+        'rounded-[6px]',
         padding ? 'p-5 sm:p-6' : '',
         hover ? [
-          'transition-all duration-200 ease-out',
-          'hover:border-[var(--color-border)]',
-          'hover:-translate-y-0.5',
+          'transition-colors duration-200 ease-out',
+          'hover:border-[var(--conifera)]',
         ].join(' ') : '',
         className,
       ].join(' ')}

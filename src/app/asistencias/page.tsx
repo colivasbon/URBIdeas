@@ -4,7 +4,6 @@ import AsistenciasHeader from "@/components/platform/AsistenciasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
 import TerritorialGrid from "@/components/ui/TerritorialGrid";
-import PageShell from "@/components/ui/PageShell";
 
 export const metadata: Metadata = {
   title: "Asistencias de sostenibilidad",
@@ -25,7 +24,7 @@ export default function AsistenciasPage() {
     <div className="flex min-h-screen flex-col">
       <AsistenciasHeader />
 
-      <main className="flex-1">
+      <main className="flex-1 bg-[var(--color-dark-bg)]">
         <EditorialParallaxHero
           decor={
             <div
@@ -37,25 +36,32 @@ export default function AsistenciasPage() {
               <TerritorialGrid depth={0} className="territorial-grid--index" />
             </div>
           }
+          className="hero-musgo bg-[var(--brand-bg)] text-[var(--hueso)]"
         >
-          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-            <PageShell
-              eyebrow="Área de Sostenibilidad · Ideas Medioambientales"
-              title="Asistencias de sostenibilidad"
-              lede="Espacio destinado a herramientas y procesos de apoyo técnico del Área de Sostenibilidad de Ideas Medioambientales."
-            />
+        <section className="relative">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+            <p className="editorial-eyebrow">
+              <span>Área de Sostenibilidad · Ideas Medioambientales</span>
+            </p>
+            <h1 className="mt-4 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl" style={{ lineHeight: 1.12 }}>
+              Asistencias de sostenibilidad
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--hueso)] sm:text-lg">
+              Herramientas y procesos de apoyo técnico del Área de Sostenibilidad.
+            </p>
           </div>
+        </section>
         </EditorialParallaxHero>
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
 
-          <section aria-label="Líneas de trabajo previstas" className="mb-8">
-            <div className="divide-y divide-[var(--color-border-subtle)] border-y border-[var(--color-border-subtle)]">
+          <section aria-label="Líneas de trabajo previstas" className="mb-8 max-w-3xl">
+            <div className="border-t-2 border-[var(--musgo)]">
               {lineas.map((linea, i) => (
-                <div key={linea} className="flex items-baseline gap-5 px-1 py-4 sm:px-2">
-                  <span aria-hidden="true" className="text-sm font-bold tabular-nums text-[var(--color-secondary)]/70">
+                <div key={linea} className="flex items-baseline gap-5 border-b border-[var(--color-border-subtle)] py-5">
+                  <span aria-hidden="true" className="tnum text-sm font-bold text-[var(--moss-ink)]">
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  <p className="flex-1 text-base font-semibold text-[var(--color-text-primary)]">{linea}</p>
+                  <p className="flex-1 text-base font-semibold text-[var(--color-text-primary)] sm:text-lg">{linea}</p>
                   <span className="shrink-0 text-xs font-medium text-[var(--color-text-muted)]">
                     Próximamente
                   </span>
@@ -67,22 +73,22 @@ export default function AsistenciasPage() {
             </p>
           </section>
 
-          <section aria-label="Enlaces relacionados" className="flex flex-wrap gap-4">
+          <section aria-label="Enlaces relacionados" className="flex flex-wrap gap-3">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)] transition-all duration-300"
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] transition-colors"
             >
               Volver a la plataforma
             </Link>
             <Link
               href="/urbideas"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-xl hover:bg-[var(--color-primary-light)] transition-all duration-300"
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--hueso)] bg-[var(--musgo)] rounded-[6px] hover:bg-[var(--musgo-hover)] transition-colors"
             >
               Acceder a URBideas
             </Link>
             <Link
               href="/socideas"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--moss-ink)] hover:underline hover:underline-offset-4"
             >
               Conocer SOCideas
             </Link>

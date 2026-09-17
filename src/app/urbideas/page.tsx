@@ -71,13 +71,13 @@ export default async function UrbideasHome() {
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
                     href="/urbideas/municipios"
-                    className="cta-glow inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold text-carbon-deep bg-conifera rounded-[6px] hover:bg-conifera-hover transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    className="cta-glow inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold text-white bg-conifera rounded-[6px] hover:bg-conifera-hover transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                   >
                     Buscar municipio
                   </Link>
                   <Link
                     href="/urbideas/mapa"
-                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold text-hueso border border-hueso/40 rounded-[6px] hover:bg-white/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold text-hueso border border-limo rounded-[6px] hover:bg-white/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                   >
                     Dictaminar un ámbito
                   </Link>
@@ -189,7 +189,7 @@ export default async function UrbideasHome() {
               <div className="flex flex-wrap items-center gap-3">
                 <Link
                   href="/"
-                  className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] transition-colors"
+                  className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-card-bg)] border border-limo rounded-[6px] hover:text-[var(--color-text-primary)] transition-colors"
                 >
                   Volver a la plataforma
                 </Link>

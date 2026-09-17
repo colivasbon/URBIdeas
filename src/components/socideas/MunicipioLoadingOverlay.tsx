@@ -29,7 +29,7 @@ export default function MunicipioLoadingOverlay({ nombre, provincia, comunidad }
 
   return (
     <div
-      className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--color-dark-bg)]/60 p-4 backdrop-blur-[3px]"
+      className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
       role="status"
       aria-label={`Abriendo ficha municipal de ${nombre}`}
     >

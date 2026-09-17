@@ -18,7 +18,7 @@ const variantStyles: Record<ButtonVariant, string> = {
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]',
   ].join(' '),
   secondary: [
-    'bg-conifera text-carbon-deep',
+    'bg-conifera text-white',
     'hover:bg-conifera-hover',
     'active:bg-conifera-active',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]',
@@ -36,7 +36,7 @@ const variantStyles: Record<ButtonVariant, string> = {
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]',
   ].join(' '),
   ghost: [
-    'bg-transparent text-[var(--color-text-secondary)] border border-[var(--color-border)]',
+    'bg-transparent text-[var(--color-text-secondary)] border border-limo',
     'hover:bg-[var(--color-input-bg-hover)] hover:text-[var(--color-text-primary)]',
     'active:bg-[var(--color-border-subtle)]',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]',

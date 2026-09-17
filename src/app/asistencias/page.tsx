@@ -76,7 +76,7 @@ export default function AsistenciasPage() {
           <section aria-label="Enlaces relacionados" className="flex flex-wrap gap-3">
             <Link
               href="/"
-              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] transition-colors"
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-card-bg)] border border-limo rounded-[6px] hover:text-[var(--color-text-primary)] transition-colors"
             >
               Volver a la plataforma
             </Link>

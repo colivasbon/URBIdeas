@@ -4,7 +4,6 @@ import PlatformHeader, { CORPORATE_URL } from "@/components/platform/PlatformHea
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import ModuleCard from "@/components/platform/ModuleCard";
 import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
-import TerritorialBackground from "@/components/ui/TerritorialBackground";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
 import SectionHeading from "@/components/ui/SectionHeading";
 
@@ -20,7 +19,7 @@ export default function PlatformHome() {
       <PlatformHeader />
 
       <main className="flex-1 bg-[var(--color-dark-bg)]">
-        <EditorialParallaxHero decor={<TerritorialBackground variant="transition" />} className="hero-musgo bg-[var(--brand-bg)] text-hueso">
+        <EditorialParallaxHero className="hero-musgo bg-[var(--brand-bg)] text-hueso">
         <section className="relative">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="py-14 sm:py-18 lg:py-24">
@@ -38,13 +37,13 @@ export default function PlatformHome() {
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
                     href="/urbideas"
-                    className="cta-glow inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-carbon-deep bg-conifera rounded-[6px] hover:bg-conifera-hover transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    className="cta-glow inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-white bg-conifera rounded-[6px] hover:bg-conifera-hover transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                   >
                     Acceder a URBideas
                   </Link>
                   <Link
                     href="/socideas"
-                    className="inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-hueso border border-hueso/30 rounded-[6px] hover:bg-white/10 transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    className="inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-hueso border border-limo rounded-[6px] hover:bg-white/10 transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                   >
                     Buscar un municipio
                   </Link>

@@ -939,27 +939,27 @@ a:hover {
 /* --- Grid cartográfico: menor 24px + mayor 120px, solo CSS ---
    La menor es submúltiplo exacto de la mayor (120 = 5 × 24): cada línea
    mayor coincide con una menor y no aparecen líneas dobles ni moaré.
-   Opacidades efectivas: menor ~0.07, mayor ~0.12 (decor ya no reduce). */
+   Opacidades reducidas para sutilidad decorativa. */
 .territorial-grid {
   background-image:
     repeating-linear-gradient(
       0deg,
-      color-mix(in srgb, var(--mineral) 12%, transparent) 0 1px,
+      color-mix(in srgb, var(--mineral) 6%, transparent) 0 1px,
       transparent 1px 120px
     ),
     repeating-linear-gradient(
       90deg,
-      color-mix(in srgb, var(--mineral) 12%, transparent) 0 1px,
+      color-mix(in srgb, var(--mineral) 6%, transparent) 0 1px,
       transparent 1px 120px
     ),
     repeating-linear-gradient(
       0deg,
-      color-mix(in srgb, var(--mineral) 7%, transparent) 0 1px,
+      color-mix(in srgb, var(--mineral) 3.5%, transparent) 0 1px,
       transparent 1px 24px
     ),
     repeating-linear-gradient(
       90deg,
-      color-mix(in srgb, var(--mineral) 7%, transparent) 0 1px,
+      color-mix(in srgb, var(--mineral) 3.5%, transparent) 0 1px,
       transparent 1px 24px
     );
 }
@@ -1036,18 +1036,18 @@ a:hover {
   }
 }
 
-/* --- SOCideas: grid full-screen recto + quiet zone (residual ~62%) --- */
+/* --- SOCideas: grid full-screen recto + quiet zone (más sutil) --- */
 .territorial-background--grid .territorial-grid {
   -webkit-mask-image: radial-gradient(
     ellipse 72% 68% at 50% 40%,
-    rgba(0, 0, 0, 0.62) 0%,
-    rgba(0, 0, 0, 0.85) 55%,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.6) 55%,
     #000 100%
   );
   mask-image: radial-gradient(
     ellipse 72% 68% at 50% 40%,
-    rgba(0, 0, 0, 0.62) 0%,
-    rgba(0, 0, 0, 0.85) 55%,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.6) 55%,
     #000 100%
   );
 }
@@ -1059,7 +1059,7 @@ a:hover {
 
 /* --- Asistencias: retícula índice sobria, sin quiet zone radial --- */
 .territorial-background--index {
-  opacity: 0.55;
+  opacity: 0.4;
 }
 
 /* --- Tablet: intensidad -20% aprox. --- */
@@ -1829,27 +1829,27 @@ a:hover {
   }
 }
 
-/* --- Hero Musgo: retícula y curvas en Hueso sobre fondo oscuro --- */
+/* --- Hero Musgo: retícula y curvas en Hueso sobre fondo oscuro (sutil) --- */
 .hero-musgo .territorial-grid {
   background-image:
     repeating-linear-gradient(
       0deg,
-      rgba(241, 241, 241, 0.14) 0 1px,
+      rgba(241, 241, 241, 0.08) 0 1px,
       transparent 1px 120px
     ),
     repeating-linear-gradient(
       90deg,
-      rgba(241, 241, 241, 0.14) 0 1px,
+      rgba(241, 241, 241, 0.08) 0 1px,
       transparent 1px 120px
     ),
     repeating-linear-gradient(
       0deg,
-      rgba(241, 241, 241, 0.07) 0 1px,
+      rgba(241, 241, 241, 0.04) 0 1px,
       transparent 1px 24px
     ),
     repeating-linear-gradient(
       90deg,
-      rgba(241, 241, 241, 0.07) 0 1px,
+      rgba(241, 241, 241, 0.04) 0 1px,
       transparent 1px 24px
     );
 }
@@ -1858,27 +1858,27 @@ a:hover {
   background-image:
     repeating-linear-gradient(
       0deg,
-      rgba(241, 241, 241, 0.08) 0 1px,
+      rgba(241, 241, 241, 0.05) 0 1px,
       transparent 1px 160px
     ),
     repeating-linear-gradient(
       90deg,
-      rgba(241, 241, 241, 0.08) 0 1px,
+      rgba(241, 241, 241, 0.05) 0 1px,
       transparent 1px 160px
     );
 }
 
 .hero-musgo .topographic-contours {
   color: var(--hueso);
-  opacity: 0.85;
+  opacity: 0.5;
 }
 
 /* Atmósfera del fondo territorial según tema: presencia plena en claro,
    un punto más recogida en oscuro para dar profundidad sin ruido. */
 [data-theme="dark"] .hero-musgo .territorial-grid {
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 [data-theme="dark"] .hero-musgo .topographic-contours {
-  opacity: 0.6;
+  opacity: 0.4;
 }

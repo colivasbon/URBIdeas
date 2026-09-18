@@ -34,7 +34,7 @@ yarn-error.log*
 .env*
 !.env.example
 
-# scraper output
+# Scraper output
 /data/
 
 # vercel
@@ -51,3 +51,7 @@ tmp/
 .wrangler/
 .vercel
 .env*
+
+# Agent skills (instaladas via npx skills add, no versionar)
+.agents/skills/
+.opencode/skills/

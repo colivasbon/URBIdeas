@@ -11,11 +11,11 @@ interface ModuleCardProps {
 
 export default function ModuleCard({ kicker, title, description, href, cta, badge }: ModuleCardProps) {
   return (
-    <article className="group relative flex flex-col rounded-[6px] border border-[var(--color-border-subtle)] border-t-4 border-t-[var(--musgo)] bg-[var(--color-card-bg)] p-6 transition-colors duration-200 hover:border-[var(--conifera)] sm:p-7">
+    <article className="group relative flex flex-col rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-6 transition-all duration-200 ease-out hover:border-conifera hover:shadow-[var(--shadow-premium-sm)] sm:p-7">
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--moss-ink)]">{kicker}</p>
         {badge && (
-          <span className="inline-flex items-center rounded-[6px] border border-[var(--conifera)] bg-[var(--crisopa)] px-2 py-0.5 text-[11px] font-semibold text-[var(--carbon)]">
+          <span className="inline-flex items-center rounded-[6px] border border-conifera bg-crisopa px-2 py-0.5 text-[11px] font-semibold text-carbon">
             {badge}
           </span>
         )}
@@ -24,7 +24,8 @@ export default function ModuleCard({ kicker, title, description, href, cta, badg
       <p className="mt-2 flex-1 text-sm leading-relaxed text-[var(--color-text-secondary)]">{description}</p>
       <Link
         href={href}
-        className="mt-5 inline-flex min-h-[44px] w-fit items-center px-5 py-2.5 text-sm font-semibold text-[var(--carbon-deep)] bg-[var(--conifera)] rounded-[6px] hover:bg-[var(--conifera-hover)] transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]"
+        style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
+        className="mt-5 inline-flex min-h-[44px] w-fit items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-90 transition-opacity duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
       >
         {cta}
       </Link>

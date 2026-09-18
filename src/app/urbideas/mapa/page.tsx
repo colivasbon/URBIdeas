@@ -828,13 +828,20 @@ export default function MapaPage() {
               </p>
             )}
             {ambito && (cruceCorriendo || dictamenCargando) && (
-              <div className="mt-2">
+              <div className="mt-2" role="status" aria-live="polite">
                 <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                   {cruceCorriendo
                     ? `Cruzando ${progresoCruce.hechas}/${progresoCruce.total}${progresoCruce.capaActual ? ` · ${progresoCruce.capaActual}` : ''}…`
                     : 'Redactando dictamen…'}
                 </p>
-                <div className="mt-1 h-1.5 rounded-full bg-[var(--color-input-bg)] overflow-hidden">
+                <div
+                  className="mt-1 h-1.5 rounded-full bg-[var(--color-input-bg)] overflow-hidden"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={progresoCruce.total || 1}
+                  aria-valuenow={cruceCorriendo ? progresoCruce.hechas : undefined}
+                  aria-label={cruceCorriendo ? "Progreso del cruce de capas" : "Redactando dictamen"}
+                >
                   <div className="h-full bg-[var(--color-secondary)] transition-all"
                     style={{ width: progresoCruce.total ? `${Math.round((progresoCruce.hechas / progresoCruce.total) * 100)}%` : '0%' }} />
                 </div>

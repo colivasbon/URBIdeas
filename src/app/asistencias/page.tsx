@@ -36,7 +36,7 @@ export default function AsistenciasPage() {
               <TerritorialGrid depth={0} className="territorial-grid--index" />
             </div>
           }
-          className="hero-musgo bg-[var(--brand-bg)] text-[var(--hueso)]"
+          className="hero-musgo bg-[var(--brand-bg)] text-hueso"
         >
         <section className="relative">
           <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
@@ -46,7 +46,7 @@ export default function AsistenciasPage() {
             <h1 className="mt-4 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl" style={{ lineHeight: 1.12 }}>
               Asistencias de sostenibilidad
             </h1>
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--hueso)] sm:text-lg">
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-hueso sm:text-lg">
               Herramientas y procesos de apoyo técnico del Área de Sostenibilidad.
             </p>
           </div>
@@ -55,7 +55,7 @@ export default function AsistenciasPage() {
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
 
           <section aria-label="Líneas de trabajo previstas" className="mb-8 max-w-3xl">
-            <div className="border-t-2 border-[var(--musgo)]">
+            <div className="border-t-2 border-musgo">
               {lineas.map((linea, i) => (
                 <div key={linea} className="flex items-baseline gap-5 border-b border-[var(--color-border-subtle)] py-5">
                   <span aria-hidden="true" className="tnum text-sm font-bold text-[var(--moss-ink)]">
@@ -76,13 +76,15 @@ export default function AsistenciasPage() {
           <section aria-label="Enlaces relacionados" className="flex flex-wrap gap-3">
             <Link
               href="/"
-              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-card-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] transition-colors"
+              style={{ backgroundColor: 'var(--color-card-bg)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid', borderColor: 'var(--color-primary)' }}
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-80 transition-opacity"
             >
               Volver a la plataforma
             </Link>
             <Link
               href="/urbideas"
-              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--hueso)] bg-[var(--musgo)] rounded-[6px] hover:bg-[var(--musgo-hover)] transition-colors"
+              style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-90 transition-opacity"
             >
               Acceder a URBideas
             </Link>

@@ -13,7 +13,8 @@ export default function ThemeToggle() {
       aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
       aria-pressed={isDark}
       title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-      className="inline-flex h-11 w-11 items-center justify-center rounded-[6px] text-[var(--hueso)] transition-colors duration-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-[6px] transition-colors duration-150 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      style={{ color: '#FFFFFF' }}
     >
       {isDark ? (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

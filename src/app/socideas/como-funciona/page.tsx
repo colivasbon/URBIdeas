@@ -89,7 +89,7 @@ export default function ComoFuncionaSocideas() {
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 href="/socideas"
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--hueso)] bg-[var(--musgo)] rounded-[6px] hover:bg-[var(--musgo-hover)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-hueso bg-musgo rounded-[6px] hover:bg-musgo-hover transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
               >
                 Ir al buscador municipal
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
@@ -574,7 +574,7 @@ export default function ComoFuncionaSocideas() {
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
                     href="/socideas"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--hueso)] bg-[var(--musgo)] rounded-[6px] hover:bg-[var(--musgo-hover)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-hueso bg-musgo rounded-[6px] hover:bg-musgo-hover transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
                   >
                     Ir al buscador municipal
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
@@ -583,7 +583,8 @@ export default function ComoFuncionaSocideas() {
                   </Link>
                   <Link
                     href="/"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+                    style={{ backgroundColor: 'var(--color-card-bg)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid', borderColor: 'var(--color-primary)' }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-80 transition-opacity duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
                   >
                     Volver a la plataforma
                   </Link>

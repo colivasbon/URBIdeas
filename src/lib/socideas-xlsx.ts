@@ -108,7 +108,7 @@ export interface MunicipioWorkbookInput {
 }
 
 // ============================================================================
-// Utilidades de pintado — sin mergeCells, bandas terminadas en nCols
+// Utilidades de pintado — con mergeCells para títulos, bandas terminadas en nCols
 // ============================================================================
 
 /** Rellena SOLO las celdas 1..nCols: jamás filas enteras ni celdas vacías. */
@@ -118,23 +118,27 @@ function band(row: ExcelJS.Row, nCols: number, fill: string): void {
   }
 }
 
-/** Banda de título (header de sección): fondo Musgo, texto Hueso. */
+/** Banda de título (header de sección): fondo Musgo, texto Hueso, fusionado en todas las columnas. */
 function paintTitle(ws: ExcelJS.Worksheet, rowN: number, nCols: number, text: string, size = 12): void {
   const row = ws.getRow(rowN)
-  row.height = 24
-  for (let i = 1; i <= nCols; i += 1) {
-    const c = row.getCell(i)
-    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUSGO } }
-    c.border = { bottom: { style: 'thin', color: { argb: CONIFERA } } }
-    if (i === 1) {
-      c.value = text
-      c.font = { name: FONT_NAME, size, bold: true, color: { argb: HUESO } }
-      c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
-    } else {
-      // Extensión de banda sin texto: fuente explícita para que TODA celda
-      // pintada sea Poppins (nunca la Calibri por defecto del formato).
-      c.font = { name: FONT_NAME, size: 11, color: { argb: HUESO } }
-    }
+  row.height = 28
+  // Fusionar celdas A1:X1 (todas las columnas de la tabla) para que el fondo Musgo
+  // y el texto queden contenidos en el rango fusionado.
+  if (nCols > 1) {
+    ws.mergeCells(rowN, 1, rowN, nCols)
+  }
+  const c = row.getCell(1)
+  c.value = text
+  c.font = { name: FONT_NAME, size, bold: true, color: { argb: HUESO } }
+  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+  c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUSGO } }
+  c.border = { bottom: { style: 'thin', color: { argb: CONIFERA } } }
+  // Extender formato a celdas fusionadas (ExcelJS requiere aplicar a cada celda)
+  for (let i = 2; i <= nCols; i += 1) {
+    const cc = row.getCell(i)
+    cc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUSGO } }
+    cc.border = { bottom: { style: 'thin', color: { argb: CONIFERA } } }
+    cc.font = { name: FONT_NAME, size: 11, color: { argb: HUESO } }
   }
 }
 
@@ -148,13 +152,18 @@ function paintSourceLine(
   source: SourceReference | null | undefined,
   fuente: string,
   periodo: string,
+  globalColAWidth: number,
 ): void {
   const row = ws.getRow(rowN)
   row.height = 16
   const c = row.getCell(1)
   c.value = visibleSourceLabel(source, fuente, periodo)
   c.font = { name: FONT_NAME, size: 10, color: { argb: CARBON } }
-  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: false }
+
+  // Asegurar que la columna A tenga al menos el ancho global
+  const colA = ws.getColumn(1)
+  colA.width = Math.max(colA.width ?? 0, globalColAWidth)
 
   const url = source?.publicUrl
   if (nCols < 2 || !url || !isAllowedSourceUrl(url)) return
@@ -169,6 +178,10 @@ function paintSourceLine(
   link.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HUESO } }
   link.border = thinLimoBorders()
   link.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false, shrinkToFit: false }
+  // Asegurar que la columna del hipervínculo tenga ancho mínimo
+  const linkCol = ws.getColumn(nCols)
+  const minLinkWidth = 22 // "Ver ficha oficial ↗" cabe en ~22
+  linkCol.width = Math.max(linkCol.width ?? 0, minLinkWidth)
 }
 
 function numFmtFor(header: string): string | null {
@@ -227,6 +240,7 @@ function applyTableWidths(
   tableId: string | undefined,
   columnas: string[],
   filas: { text: string; numeric: number | null }[][],
+  globalColAWidth: number,
 ): void {
   columnas.forEach((col, ci) => {
     const [min, max] = columnLimitsFor(col, ci === 0, tableId)
@@ -239,6 +253,11 @@ function applyTableWidths(
     }
     let w = Math.min(max, Math.max(min, longest + 2))
     if (w === 9) w = 10
+    // Columna A (ci === 0): aplicar ancho global unificado SOLO para etiquetas/labels,
+    // NO para la columna "Año" que debe permanecer en 10.
+    if (ci === 0 && col !== 'Año') {
+      w = Math.max(w, globalColAWidth)
+    }
     const prev = ws.getColumn(ci + 1).width ?? 0
     ws.getColumn(ci + 1).width = Math.max(prev, w)
   })
@@ -248,7 +267,12 @@ function applyTableWidths(
 // Bloque: tabla de datos reales (con o sin fuente)
 // ============================================================================
 
-function writeDataBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable): {
+function writeDataBlock(
+  ws: ExcelJS.Worksheet,
+  startRow: number,
+  t: ExportTable,
+  globalColAWidth: number,
+): {
   headerRow: number; endRow: number; nCols: number
 } {
   const columnas = t.columnas
@@ -256,7 +280,7 @@ function writeDataBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable)
   if (nCols === 0) return { headerRow: startRow, endRow: startRow, nCols: 0 }
 
   paintTitle(ws, startRow, nCols, t.titulo)
-  paintSourceLine(ws, startRow + 1, nCols, t.source, t.fuente, t.periodo)
+  paintSourceLine(ws, startRow + 1, nCols, t.source, t.fuente, t.periodo, globalColAWidth)
   const headerRowN = startRow + 2
   const header = ws.getRow(headerRowN)
   columnas.forEach((col, i) => {
@@ -286,11 +310,20 @@ function writeDataBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable)
       c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: badge ? CRISOPA : HUESO } }
       c.border = { ...thinLimoBorders() }
       c.font = { name: FONT_NAME, size: 11, bold: badge, color: { argb: CARBON } }
+      // wrapText SOLO para notas metodológicas (ci === 0 Y contenido largo), NO para etiquetas normales
+      // Las etiquetas de columna A usan el ancho global unificado; no envolvemos.
+      const needsWrap = ci === 0 && cell.text.length > globalColAWidth * 0.8
       c.alignment = {
         vertical: 'middle',
         horizontal: cellAlign(colName, ci === 0),
-        wrapText: ci === 0,
+        wrapText: needsWrap,
         indent: ci === 0 ? 1 : undefined,
+      }
+      // Si wrapText, calcular altura de fila aproximada
+      if (needsWrap) {
+        const colWidthChars = ws.getColumn(ci + 1).width ?? globalColAWidth
+        const lines = Math.ceil(cell.text.length / Math.max(colWidthChars, 10))
+        row.height = Math.max(row.height, 18 * lines)
       }
     })
   })
@@ -298,11 +331,14 @@ function writeDataBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable)
   if (t.note && r >= headerRowN) {
     r += 1
     const noteRow = ws.getRow(r)
-    noteRow.height = 28
     const nc = noteRow.getCell(1)
     nc.value = t.note
     nc.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
     nc.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
+    // Calcular altura para nota multilínea
+    const noteColWidth = ws.getColumn(1).width ?? globalColAWidth
+    const noteLines = Math.ceil((t.note?.length ?? 0) / Math.max(noteColWidth, 20))
+    noteRow.height = Math.max(28, 16 * noteLines)
     band(noteRow, nCols, HUESO)
     // Bucle explícito 1..nCols: eachCell(includeEmpty:false) salta las celdas
     // con solo estilo y quedarían con la Calibri por defecto del formato.
@@ -320,6 +356,7 @@ function writeDataBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable)
     t.id,
     columnas,
     t.filas.map((f) => f.map((c) => ({ text: c.text, numeric: c.numeric }))),
+    globalColAWidth,
   )
   return { headerRow: headerRowN, endRow: r, nCols }
 }
@@ -333,23 +370,26 @@ function writeDataBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable)
  * una nota breve. El missing es badge Crisopa/Carbón (nunca Rupestre: un ND
  * no es una alerta).
  */
-function writeNoteBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable): {
+function writeNoteBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable, globalColAWidth: number): {
   endRow: number; nCols: number
 } {
   const nCols = 1
   paintTitle(ws, startRow, nCols, t.titulo)
-  paintSourceLine(ws, startRow + 1, nCols, t.source, t.fuente, t.periodo)
+  paintSourceLine(ws, startRow + 1, nCols, t.source, t.fuente, t.periodo, globalColAWidth)
   const r = startRow + 2
   const row = ws.getRow(r)
-  row.height = 36
   const cell = row.getCell(1)
   cell.value = t.note ?? t.estado
   cell.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
   cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
+  // Calcular altura para nota multilínea
+  const noteText = t.note ?? t.estado ?? ''
+  const noteLines = Math.ceil(noteText.length / Math.max(globalColAWidth, 20))
+  row.height = Math.max(36, 16 * noteLines)
   band(row, nCols, CRISOPA)
   row.getCell(1).border = { ...thinLimoBorders() }
   // Nota metodológica: ancho máximo 24 (regla contractual), con wrap.
-  const minW = 24
+  const minW = Math.max(24, globalColAWidth)
   const prev = ws.getColumn(1).width ?? 0
   if (prev < minW) ws.getColumn(1).width = minW
   return { endRow: r, nCols }
@@ -364,6 +404,7 @@ function writeScopeLine(
   rowN: number,
   nCols: number,
   input: Pick<MunicipioWorkbookInput, 'municipio' | 'codigoINE' | 'provincia' | 'comunidadAutonoma'>,
+  globalColAWidth: number,
 ): void {
   const row = ws.getRow(rowN)
   const c = row.getCell(1)
@@ -372,13 +413,16 @@ function writeScopeLine(
     `Provincia: ${input.provincia} · ` +
     `Comunidad autónoma: ${input.comunidadAutonoma}`
   c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
-  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: false }
   if (nCols > 1) {
     const rest = row.getCell(2)
     rest.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HUESO } }
     rest.border = { bottom: { style: 'thin', color: { argb: LIMO } } }
     rest.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
   }
+  // Asegurar que la columna A tenga al menos el ancho global
+  const colA = ws.getColumn(1)
+  colA.width = Math.max(colA.width ?? 0, globalColAWidth)
 }
 
 // ============================================================================
@@ -390,7 +434,12 @@ interface ProjectBlock {
   value: string
 }
 
-function writeProyecto(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput, hojas: ComparativeSheetInput[]): void {
+function writeProyecto(
+  wb: ExcelJS.Workbook,
+  input: MunicipioWorkbookInput,
+  hojas: ComparativeSheetInput[],
+  globalColAWidth: number,
+): void {
   const ws = wb.addWorksheet('00_PROYECTO', { properties: { tabColor: { argb: MUSGO } } })
   const nCols = 2
   paintTitle(ws, 1, nCols, XLSX_BRAND, 14)
@@ -413,7 +462,7 @@ function writeProyecto(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput, hoja
     const lbl = row.getCell(1)
     lbl.value = label
     lbl.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
-    lbl.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+    lbl.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: false }
     const val = row.getCell(2)
     val.value = value
     val.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
@@ -430,34 +479,42 @@ function writeProyecto(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput, hoja
   paintTitle(ws, r, nCols, 'Hojas del libro', 12)
   r += 2
   for (const hoja of hojas) {
+    // Fila 1: ID de la hoja (negrita) en col A, título en col B
     const row = ws.getRow(r)
-    row.height = 18
+    row.height = 20
     const lbl = row.getCell(1)
     lbl.value = hoja.id
     lbl.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
-    lbl.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+    lbl.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: false }
     const val = row.getCell(2)
     val.value = hoja.titulo
     val.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    val.alignment = { vertical: 'middle' }
+    val.alignment = { vertical: 'middle', wrapText: true }
     band(row, nCols, HUESO)
     for (let i = 1; i <= nCols; i += 1) {
       row.getCell(i).border = { ...thinLimoBorders() }
     }
+    r += 1
+
+    // Fila 2 (si hay subtítulo): subtítulo en cursiva en col A, "X bloques" en col B
+    // Separado en fila distinta para evitar solapamiento visual
     if (hoja.subtitulo) {
-      r += 1
       const sub = ws.getRow(r)
+      sub.height = 18
       const subVal = sub.getCell(1)
       subVal.value = hoja.subtitulo
       subVal.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
-      subVal.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+      subVal.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true }
       const subVal2 = sub.getCell(2)
       subVal2.value = hoja.bloques.length + ' bloques'
       subVal2.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
-      subVal2.alignment = { vertical: 'middle', horizontal: 'right' }
+      subVal2.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false }
       band(sub, nCols, HUESO)
+      for (let i = 1; i <= nCols; i += 1) {
+        sub.getCell(i).border = { ...thinLimoBorders() }
+      }
+      r += 1
     }
-    r += 1
   }
 
   r += 1
@@ -465,10 +522,13 @@ function writeProyecto(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput, hoja
   paintTitle(ws, r, nCols, 'Criterio metodológico', 12)
   r += 2
   const nota = ws.getRow(r)
-  nota.height = 36
+  const notaText = 'Solo se muestran comparativas cuando las fuentes, períodos y definiciones son homogéneos entre ámbitos.'
+  // Calcular altura para nota multilínea
+  const notaColWidth = Math.max(ws.getColumn(1).width ?? globalColAWidth, globalColAWidth)
+  const notaLines = Math.ceil(notaText.length / Math.max(notaColWidth, 20))
+  nota.height = Math.max(36, 16 * notaLines)
   const notaCell = nota.getCell(1)
-  notaCell.value =
-    'Solo se muestran comparativas cuando las fuentes, períodos y definiciones son homogéneos entre ámbitos.'
+  notaCell.value = notaText
   notaCell.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
   notaCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
   band(nota, nCols, HUESO)
@@ -479,19 +539,25 @@ function writeProyecto(wb: ExcelJS.Workbook, input: MunicipioWorkbookInput, hoja
       c.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
     }
   }
-  ws.getColumn(1).width = Math.min(24, Math.max(20, 22))
-  ws.getColumn(2).width = Math.min(24, Math.max(20, 24))
+  // Ancho de columnas: col A usa el ancho global unificado, col B se ajusta a su contenido
+  ws.getColumn(1).width = Math.max(globalColAWidth, 22)
+  ws.getColumn(2).width = Math.max(ws.getColumn(2).width ?? 0, 24)
 }
 
 // ============================================================================
 // Hoja temática: apila bloques (data o nota breve)
 // ============================================================================
 
-function writeSheet(wb: ExcelJS.Workbook, input: ComparativeSheetInput, ctx: MunicipioWorkbookInput): void {
+function writeSheet(
+  wb: ExcelJS.Workbook,
+  input: ComparativeSheetInput,
+  ctx: MunicipioWorkbookInput,
+  globalColAWidth: number,
+): void {
   const ws = wb.addWorksheet(input.id, { properties: { tabColor: { argb: MUSGO } } })
   const maxCols = Math.max(1, ...input.bloques.map((b) => b.columnas.length || 1))
   paintTitle(ws, 1, maxCols, input.titulo, 14)
-  writeScopeLine(ws, 2, maxCols, ctx)
+  writeScopeLine(ws, 2, maxCols, ctx, globalColAWidth)
   ws.getRow(3).height = 20
   let cursor = 4
   for (const bloque of input.bloques) {
@@ -501,8 +567,8 @@ function writeSheet(wb: ExcelJS.Workbook, input: ComparativeSheetInput, ctx: Mun
         bloque.availability === 'not_available' ||
         bloque.filas.length === 0
       const endRow = isNote
-        ? writeNoteBlock(ws, cursor, bloque).endRow
-        : writeDataBlock(ws, cursor, bloque).endRow
+        ? writeNoteBlock(ws, cursor, bloque, globalColAWidth).endRow
+        : writeDataBlock(ws, cursor, bloque, globalColAWidth).endRow
       // Aire vertical entre bloques: dos filas en blanco, la primera alta.
       ws.getRow(endRow + 1).height = 20
       cursor = endRow + 3
@@ -516,12 +582,13 @@ function writeSheet(wb: ExcelJS.Workbook, input: ComparativeSheetInput, ctx: Mun
       }))
     }
   }
-  // Año compacto si la hoja contiene series anuales.
+  // Post-proceso: si alguna tabla de la hoja tiene "Año" como primera columna,
+  // forzar ancho de columna 1 a 10 (requisito contractual).
   const hayAnyo = input.bloques.some(
     (b) => b.filas.length > 0 && b.columnas[0] === 'Año',
   )
   if (hayAnyo) {
-    ws.getColumn(1).width = Math.min(ws.getColumn(1).width ?? 10, 10)
+    ws.getColumn(1).width = 10
   }
 }
 
@@ -544,16 +611,20 @@ const CRITERIOS_LECTURA = [
   'Los datos provisionales, cuando existen, deben identificarse expresamente.',
 ]
 
-function writeCriteriosFuentes(wb: ExcelJS.Workbook, input: CriteriosFuentesInput): void {
+function writeCriteriosFuentes(
+  wb: ExcelJS.Workbook,
+  input: CriteriosFuentesInput,
+  globalColAWidth: number,
+): void {
   const ws = wb.addWorksheet('08_CRITERIOS_Y_FUENTES', { properties: { tabColor: { argb: MUSGO } } })
-  const nCols = 2
+  const nCols = 4
   paintTitle(ws, 1, nCols, XLSX_BRAND, 14)
   writeScopeLine(ws, 2, nCols, {
     municipio: 'Criterios y fuentes',
     codigoINE: '—',
     provincia: '—',
     comunidadAutonoma: '—',
-  })
+  }, globalColAWidth)
 
   paintTitle(ws, 4, nCols, 'Criterios de lectura', 12)
   ws.getRow(5).height = 20
@@ -635,8 +706,10 @@ function writeCriteriosFuentes(wb: ExcelJS.Workbook, input: CriteriosFuentesInpu
       { text: f.operacion, numeric: null },
       { text: f.periodo, numeric: null },
     ]),
+    globalColAWidth,
   )
-  ws.getColumn(1).width = Math.min(22, Math.max(18, ws.getColumn(1).width ?? 0))
+  // Columna A respeta el ancho global unificado
+  ws.getColumn(1).width = Math.max(globalColAWidth, ws.getColumn(1).width ?? 0)
   ws.getColumn(2).width = Math.min(22, Math.max(18, ws.getColumn(2).width ?? 0))
   ws.getColumn(3).width = Math.min(22, Math.max(20, ws.getColumn(3).width ?? 0))
   ws.getColumn(4).width = 12
@@ -865,6 +938,57 @@ function buildSheetCatalog(input: MunicipioWorkbookInput): {
 }
 
 // ============================================================================
+// Cálculo de ancho global unificado para columna A
+// ============================================================================
+
+/** Recopila todo el texto de columna A de todas las tablas de todas las hojas. */
+function collectAllColATexts(hojas: ComparativeSheetInput[]): string[] {
+  const texts: string[] = []
+  for (const hoja of hojas) {
+    for (const bloque of hoja.bloques) {
+      // Título de sección
+      texts.push(bloque.titulo)
+      // Encabezados de columna
+      if (bloque.columnas.length > 0) {
+        texts.push(bloque.columnas[0])
+      }
+      // Contenido de filas (primera columna)
+      for (const fila of bloque.filas) {
+        if (fila.length > 0) {
+          texts.push(fila[0].text)
+        }
+      }
+      // Nota metodológica
+      if (bloque.note) {
+        texts.push(bloque.note)
+      }
+    }
+  }
+  // Textos de la hoja 00_PROYECTO
+  texts.push('Municipio', 'Código INE', 'Provincia', 'Comunidad autónoma', 'Fecha de generación', 'Cobertura territorial comparativa')
+  texts.push(...hojas.map((h) => h.id))
+  texts.push(...hojas.map((h) => h.titulo))
+  texts.push(...hojas.filter((h) => h.subtitulo).map((h) => h.subtitulo ?? ''))
+  texts.push('Solo se muestran comparativas cuando las fuentes, períodos y definiciones son homogéneos entre ámbitos.')
+  // Textos de la hoja 08_CRITERIOS_Y_FUENTES
+  texts.push('Criterios de lectura', 'Fuentes oficiales utilizadas')
+  texts.push(...CRITERIOS_LECTURA.map((c) => `• ${c}`))
+  return texts
+}
+
+/** Calcula el ancho óptimo para la columna A unificada (en caracteres Excel). */
+function calculateGlobalColAWidth(texts: string[]): number {
+  let maxLen = 0
+  for (const t of texts) {
+    const len = t.length
+    if (len > maxLen) maxLen = len
+  }
+  // Añadir margen de 3 caracteres + padding, PERO limitar a 24 (restricción contractual)
+  const width = Math.min(24, Math.max(22, maxLen + 3))
+  return width
+}
+
+// ============================================================================
 // Punto de entrada
 // ============================================================================
 
@@ -875,10 +999,15 @@ export async function buildMunicipioWorkbook(input: MunicipioWorkbookInput): Pro
   wb.modified = new Date()
 
   const { hojas, fuentes } = buildSheetCatalog(input)
-  writeProyecto(wb, input, hojas)
+
+  // Calcular ancho global unificado para columna A ANTES de escribir hojas
+  const allColATexts = collectAllColATexts(hojas)
+  const globalColAWidth = calculateGlobalColAWidth(allColATexts)
+
+  writeProyecto(wb, input, hojas, globalColAWidth)
   for (const hoja of hojas) {
     try {
-      writeSheet(wb, hoja, input)
+      writeSheet(wb, hoja, input, globalColAWidth)
     } catch (sheetErr) {
       console.error(JSON.stringify({
         tag: 'SOCIDEAS_XLSX_SHEET_SKIP',
@@ -887,7 +1016,7 @@ export async function buildMunicipioWorkbook(input: MunicipioWorkbookInput): Pro
       }))
     }
   }
-  writeCriteriosFuentes(wb, { bloques: [], fuentes })
+  writeCriteriosFuentes(wb, { bloques: [], fuentes }, globalColAWidth)
 
   const buffer = await wb.xlsx.writeBuffer()
   return Buffer.from(buffer)

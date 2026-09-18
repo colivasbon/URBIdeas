@@ -17,7 +17,7 @@ export function Card({ children, className = '', padding = true, hover = false }
         padding ? 'p-5 sm:p-6' : '',
         hover ? [
           'transition-colors duration-200 ease-out',
-          'hover:border-[var(--conifera)]',
+          'hover:border-conifera',
         ].join(' ') : '',
         className,
       ].join(' ')}

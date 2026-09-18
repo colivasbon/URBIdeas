@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import PlatformHeader, { CORPORATE_URL } from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import ModuleCard from "@/components/platform/ModuleCard";
 import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
-import TerritorialBackground from "@/components/ui/TerritorialBackground";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
 import SectionHeading from "@/components/ui/SectionHeading";
 
@@ -19,10 +19,10 @@ export default function PlatformHome() {
       <PlatformHeader />
 
       <main className="flex-1 bg-[var(--color-dark-bg)]">
-        <EditorialParallaxHero decor={<TerritorialBackground variant="transition" />} className="hero-musgo bg-[var(--brand-bg)] text-[var(--hueso)]">
+        <EditorialParallaxHero className="hero-musgo bg-[var(--brand-bg)] text-hueso">
         <section className="relative">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="py-12 sm:py-16 lg:py-20">
+            <div className="py-14 sm:py-18 lg:py-24">
               <div className="max-w-3xl">
                 <p className="editorial-eyebrow">
                   <span>IDEAS Sostenibilidad · Ideas Medioambientales</span>
@@ -30,33 +30,35 @@ export default function PlatformHome() {
                 <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl" style={{ lineHeight: 1.08 }}>
                   Conocimiento territorial para decisiones sostenibles
                 </h1>
-                <p className="mt-6 max-w-2xl text-base leading-relaxed text-[var(--hueso)] sm:text-lg">
+                <p className="mt-6 max-w-2xl text-base leading-relaxed text-hueso sm:text-lg">
                   Análisis territorial, diagnóstico municipal con fuentes oficiales y apoyo técnico a
                   proyectos, en una sola plataforma.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
-                  <a
+                  <Link
                     href="/urbideas"
-                    className="inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-[var(--carbon-deep)] bg-[var(--conifera)] rounded-[6px] hover:bg-[var(--conifera-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
+                    className="inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold rounded-[6px] hover:opacity-90 transition-opacity duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                   >
                     Acceder a URBideas
-                  </a>
-                  <a
+                  </Link>
+                  <Link
                     href="/socideas"
-                    className="inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold text-[var(--hueso)] border border-[var(--hueso)]/40 rounded-[6px] hover:bg-white/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                    style={{ backgroundColor: 'var(--color-card-bg)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid', borderColor: 'var(--color-primary)' }}
+                    className="inline-flex min-h-[48px] items-center px-6 py-3 text-sm font-semibold rounded-[6px] hover:opacity-80 transition-opacity duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
                   >
                     Buscar un municipio
-                  </a>
+                  </Link>
                 </div>
-                <dl className="tnum mt-10 grid grid-cols-1 gap-x-8 gap-y-4 border-t border-white/25 pt-6 sm:grid-cols-3">
+                <dl className="tnum mt-12 grid grid-cols-1 gap-x-8 gap-y-4 border-t border-white/20 pt-6 sm:grid-cols-3">
                   {[
                     { v: "8.130", l: "Municipios con ficha territorial" },
                     { v: "INE · AEAT · SEPE", l: "Fuentes oficiales trazables" },
                     { v: "2 + 1", l: "Módulos activos y área en preparación" },
                   ].map((d) => (
-                    <div key={d.l} className="sm:border-l sm:border-white/25 sm:pl-6 sm:first:border-l-0 sm:first:pl-0">
+                    <div key={d.l} className="sm:border-l sm:border-white/20 sm:pl-6 sm:first:border-l-0 sm:first:pl-0">
                       <dd className="text-2xl font-bold tracking-tight">{d.v}</dd>
-                      <dt className="mt-1 text-xs leading-relaxed text-[var(--hueso)]">{d.l}</dt>
+                      <dt className="mt-1 text-xs leading-relaxed text-hueso/70">{d.l}</dt>
                     </div>
                   ))}
                 </dl>
@@ -67,8 +69,8 @@ export default function PlatformHome() {
         </EditorialParallaxHero>
 
         <section aria-label="Módulos de la plataforma">
-          <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-            <div className="mb-8">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8">
+            <div className="mb-10">
               <SectionEyebrow>Módulos</SectionEyebrow>
               <div className="mt-3">
                 <SectionHeading
@@ -106,7 +108,7 @@ export default function PlatformHome() {
         </section>
 
         <section className="border-t border-[var(--color-border-subtle)] bg-[var(--color-dark-bg-elevated)]">
-          <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8">
             <div className="grid gap-8 lg:grid-cols-[1fr_320px] lg:items-start">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--moss-ink)]">
@@ -122,12 +124,12 @@ export default function PlatformHome() {
                   href={CORPORATE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-6 inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-[var(--hueso)] bg-[var(--musgo)] rounded-[6px] hover:bg-[var(--musgo-hover)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--musgo)]"
+                  className="mt-6 inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold text-hueso bg-musgo rounded-[6px] hover:bg-musgo-hover transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
                 >
                   Visitar Ideas Medioambientales
                 </a>
               </div>
-              <div className="border-t-2 border-[var(--musgo)] pt-5 lg:max-w-xs lg:justify-self-end lg:w-full">
+              <div className="border-t-2 border-musgo pt-5 lg:max-w-xs lg:justify-self-end lg:w-full">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--moss-ink)]">Cobertura</p>
                 <dl className="tnum mt-4 space-y-0">
                   <div className="flex items-baseline justify-between gap-4 py-3">

@@ -11,10 +11,8 @@ import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
 import { ArraigoBlock, NacimientoBlock, NacionalidadBlock } from "./DemographicBlocks";
 import { DensityBlock } from "./DensityBlocks";
 import { ANIO_SUPERFICIE, calcDensity, densityPendingReason } from "@/lib/socideas-density";
-import { BloqueElectoral } from "./ElectoralBlocks";
-import { buildElectoralPresentation } from "@/lib/socideas-elections";
 import { FlujosMigratoriosBlock } from "./MigrationBlocks";
-import { EducacionBlock, MigracionBlock } from "./IneLayersBlocks";
+import { MigracionBlock } from "./IneLayersBlocks";
 import TemporaryDataNotice from "./TemporaryDataNotice";
 import type { DemographicPresentationData } from "@/lib/socideas-demographic-summary";
 import type { MigrationPresentationData } from "@/lib/socideas-migration-summary";
@@ -152,13 +150,6 @@ export default function FichaFiltros({
   // Derivación local sin R2 ni fetch: reutiliza initial.valores ya entregados por el Server Component.
   // Memoizado para evitar recalcular tablas y gráficos en cada render.
   const perfil = useMemo(() => derivarPerfil(initial, filtros), [initial, filtros]);
-
-  // Bloque electoral (Fase 2B, SUBAGENTE 3): deriva de los valores del envelope
-  // ya presente, sin lecturas nuevas. Sin cobertura → estado "missing" (ND, nunca 0).
-  const electoral = useMemo(
-    () => buildElectoralPresentation(perfil.valores, perfil.municipio.nombre),
-    [perfil],
-  );
 
   const rangoInvalido =
     filtros.evoDesde !== null && filtros.evoHasta !== null && filtros.evoDesde > filtros.evoHasta;
@@ -635,12 +626,9 @@ export default function FichaFiltros({
       {demografiaExtra?.birthResidenceRelation && <ArraigoBlock data={demografiaExtra.birthResidenceRelation} />}
       {migracion && <FlujosMigratoriosBlock data={migracion} />}
 
-      <BloqueElectoral data={electoral} />
-
       {temporaryData && <TemporaryDataNotice data={temporaryData} />}
 
       {ineLayers?.layers.migration && <MigracionBlock data={ineLayers.layers.migration} />}
-      {ineLayers?.layers.education && <EducacionBlock data={ineLayers.layers.education} />}
 
       <IndicatorAvailabilityPanel entries={coberturaDemografia} />
 

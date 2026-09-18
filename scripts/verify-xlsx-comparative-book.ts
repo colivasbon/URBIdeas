@@ -1,17 +1,23 @@
 // Validación programática del libro XLSX municipal comparativo SOCideas.
-// Nivel librería (sin servidor, sin red). Construye el libro para los cuatro
-// municipios de prueba (02003 Albacete, 07010 Bunyola, 02069 La Roda y 28143
-// municipio con cobertura parcial) y lo relee con ExcelJS.
+// Nivel librería (sin servidor, sin red). Construye el libro para los municipios
+// de prueba (02003 Albacete, 07010 Bunyola, 02069 La Roda, 28079 Madrid,
+// 31193 Cendea de Olza / Olza Zendea, uno con nombre muy largo y 28143 parcial)
+// y lo relee con ExcelJS.
+//
+// CAMBIO DE CONTRATO (v2 de maquetación): "sin celdas fusionadas" y "columnas
+// ≤24 / Año = 10" quedan SUPERSEDIDOS por el autoajuste que no trunca. Ahora se
+// EXIGE que haya fusiones de títulos/fuente/notas (para que no se corten) y que
+// ninguna columna supere el tope de autoajuste (38), verificando además que
+// ningún texto quede recortado (scripts/xlsx-layout-assert.ts).
 //
 // Falla (exit 1) si:
 //  - no hay exactamente nueve hojas en el orden contractual;
-//  - existe alguna hoja oculta, merge, freeze, autofilter, split o columna
-//    fijada;
+//  - existe alguna hoja oculta, freeze, autofilter, split o columna fijada;
 //  - existe cualquier URL fuera del allowlist oficial (R2, Supabase, Vercel,
 //    GitHub, localhost, CSV masivo, etc.);
 //  - una banda verde sobrepasa la última columna real de un bloque o se pinta
 //    una celda verde vacía posterior a la última columna;
-//  - alguna columna temática supera ancho 24 (Año debe ser 10);
+//  - alguna columna supera ancho 38 o algún texto/altura queda truncado;
 //  - aparece un suprimido serializado como 0 (salvo conteos de pirámide);
 //  - la hoja de asociaciones contiene teléfonos, emails, direcciones o nombres
 //    de contacto;
@@ -31,9 +37,11 @@ import { buildDemographicDimensionTables } from '../src/lib/socideas-demographic
 import {
   buildMunicipioWorkbook,
   SOURCE_LINK_LABEL,
+  XLSX_BRAND,
   type ComparativeSheetInput,
 } from '../src/lib/socideas-xlsx'
 import { SOCIDEAS_SHEET_IDS } from '../src/lib/socideas-export'
+import { findLayoutProblems, MAX_ALLOWED_COLUMN_WIDTH } from './xlsx-layout-assert'
 import {
   AEAT_EDM_IRPF,
   SOCIDEAS_SOURCE_REGISTRY,
@@ -420,6 +428,100 @@ function scenarios(): Scenario[] {
       ineLayers: makeIneLayers('02069', 'La Roda', '2021'),
     },
     {
+      ine: '28079', nombre: 'Madrid',
+      demo: demoProfile({
+        ine: '28079', nombre: 'Madrid', anio: 2024, total: 3332035, male: 1576000, female: 1756035,
+        evo: [3300000, 3310000, 3320000, 3325000, 3332035],
+        prov: [6800000, 6850000, 6900000, 6950000, 7000000],
+        ccaa: [6700000, 6750000, 6800000],
+        espana: [48000000, 48100000, 48200000],
+        pir: [{ tramo: '0-4', hombres: 120000, mujeres: 115000 }, { tramo: '65-69', hombres: 90000, mujeres: 105000 }],
+        cambios: { c5: 0.9, c10: 1.4, env: 120.5, dep: 48.2 },
+        dpop: '2855', adrh: '37683',
+      }),
+      eco: ecoProfile({ ine: '28079', nombre: 'Madrid', renta: true, gini: true, empresas: true, agrario: true, adrh: '37683' }),
+      dims: makeDims({
+        period: '2025', status: 'observed', spanish: 2800000, foreign: 532035, spain: 2850000,
+        countries: [
+          { label: 'Venezuela', value: 48000 },
+          { label: 'Colombia', value: 42000 },
+          { label: 'Perú', value: 30000 },
+          { label: 'República Popular China', value: 21000 },
+        ],
+        arraigo: [
+          { label: ARRAIGO_LABELS[0], value: 1500000 },
+          { label: ARRAIGO_LABELS[1], value: 350000 },
+          { label: ARRAIGO_LABELS[2], value: 420000 },
+          { label: ARRAIGO_LABELS[3], value: 700000 },
+          { label: ARRAIGO_LABELS[4], value: 362035 },
+        ],
+      }),
+      ineLayers: makeIneLayers('28079', 'Madrid', '2021'),
+    },
+    {
+      ine: '31193', nombre: 'Cendea de Olza / Olza Zendea',
+      demo: demoProfile({
+        ine: '31193', nombre: 'Cendea de Olza / Olza Zendea', anio: 2024, total: 1900, male: 980, female: 920,
+        evo: [1800, 1820, 1850, 1880, 1900],
+        prov: [650000, 651000, 652000, 653000, 654000],
+        ccaa: [660000, 661000, 662000],
+        espana: [48000000, 48100000, 48200000],
+        pir: [{ tramo: '0-4', hombres: 80, mujeres: 75 }, { tramo: '65-69', hombres: 55, mujeres: 60 }],
+        cambios: { c5: 3.1, c10: 5.2, env: 95.4, dep: 51.8 },
+        dpop: '2855', adrh: '37683',
+      }),
+      eco: ecoProfile({ ine: '31193', nombre: 'Cendea de Olza / Olza Zendea', renta: true, gini: true, empresas: true, agrario: true, adrh: '37683' }),
+      dims: makeDims({
+        period: '2025', status: 'observed', spanish: 1650, foreign: 250, spain: 1700,
+        countries: [{ label: 'Rumanía', value: 60 }, { label: 'Marruecos', value: 45 }],
+        arraigo: [
+          { label: ARRAIGO_LABELS[0], value: 800 },
+          { label: ARRAIGO_LABELS[1], value: 300 },
+          { label: ARRAIGO_LABELS[2], value: 200 },
+          { label: ARRAIGO_LABELS[3], value: 350 },
+          { label: ARRAIGO_LABELS[4], value: 250 },
+        ],
+      }),
+      ineLayers: makeIneLayers('31193', 'Cendea de Olza / Olza Zendea', '2021'),
+    },
+    {
+      ine: '99998',
+      nombre: 'San Sebastián de los Ballesteros y Anexos de la Vega del Guadalquivir',
+      demo: demoProfile({
+        ine: '99998',
+        nombre: 'San Sebastián de los Ballesteros y Anexos de la Vega del Guadalquivir',
+        anio: 2024, total: 6400, male: 3200, female: 3200,
+        evo: [6100, 6200, 6300, 6350, 6400],
+        prov: [390000, 391000, 392000, 393000, 394000],
+        ccaa: [2040000, 2045000, 2050000],
+        espana: [48000000, 48100000, 48200000],
+        pir: [{ tramo: '0-4', hombres: 200, mujeres: 190 }, { tramo: '65-69', hombres: 150, mujeres: 170 }],
+        cambios: { c5: 2.0, c10: 3.5, env: 102.3, dep: 53.4 },
+        dpop: '2855', adrh: '37683',
+      }),
+      eco: ecoProfile({
+        ine: '99998',
+        nombre: 'San Sebastián de los Ballesteros y Anexos de la Vega del Guadalquivir',
+        renta: true, gini: true, empresas: true, agrario: true, adrh: '37683',
+      }),
+      dims: makeDims({
+        period: '2025', status: 'observed', spanish: 5700, foreign: 700, spain: 5800,
+        countries: [{ label: 'Marruecos', value: 180 }, { label: 'Rumanía', value: 120 }],
+        arraigo: [
+          { label: ARRAIGO_LABELS[0], value: 3200 },
+          { label: ARRAIGO_LABELS[1], value: 1200 },
+          { label: ARRAIGO_LABELS[2], value: 700 },
+          { label: ARRAIGO_LABELS[3], value: 900 },
+          { label: ARRAIGO_LABELS[4], value: 400 },
+        ],
+      }),
+      ineLayers: makeIneLayers(
+        '99998',
+        'San Sebastián de los Ballesteros y Anexos de la Vega del Guadalquivir',
+        '2021',
+      ),
+    },
+    {
       ine: '28143', nombre: 'Municipio Pequeño',
       demo: demoProfile({
         ine: '28143', nombre: 'Municipio Pequeño', anio: 2024, total: 420, male: null, female: null,
@@ -564,13 +666,15 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
 
     for (let ci = 1; ci <= ws.columnCount; ci += 1) {
       const w = ws.getColumn(ci).width ?? 0
-      if (w > 24) widthProblems.push(`${ws.name} C${ci}=${w}`)
+      if (w > MAX_ALLOWED_COLUMN_WIDTH) widthProblems.push(`${ws.name} C${ci}=${w}`)
     }
+    // La columna A es unificada; "Año" ya no se fuerza a 10 (convive con
+    // etiquetas largas), pero nunca debe quedar por debajo del mínimo legible.
     ws.eachRow((row) => {
       row.eachCell((cell, cn) => {
         if (cellText(cell) === 'Año') {
           const w = ws.getColumn(cn).width ?? 0
-          if (w !== 10) widthProblems.push(`${ws.name} Año C${cn}=${w} (esperado 10)`)
+          if (w < 10) widthProblems.push(`${ws.name} Año C${cn}=${w} (mínimo 10)`)
           yearHeaderWidths.push({ sheet: ws.name, col: cn, width: w })
         }
       })
@@ -621,13 +725,67 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
   const macroEntries = Object.keys(zip.files).filter((f) => /vbaProject|activeX|macrosheet/i.test(f))
   const hasVba = Object.keys(zip.files).some((f) => f.toLowerCase().endsWith('.bin'))
 
+  // Maquetación: relectura con el comprobador compartido. Exige fusiones
+  // (títulos/fuente/notas) y que NINGÚN texto quede truncado.
+  const { problems: layoutProblems, stats: layoutStats } = findLayoutProblems(wb)
+
   check('sin freeze panes', !frozen)
   check('sin autofilter', !filtered)
   check('sin enlaces internos', internalLinks === 0, `${internalLinks}`)
-  check('sin celdas fusionadas', mergedCells === 0, `${mergedCells}`)
+  check(
+    'fusiones presentes para títulos/fuente/notas (contrato v2)',
+    mergedCells > 0,
+    `${mergedCells} celdas fusionadas`,
+  )
   check('sin macros/ActiveX/VBA', macroEntries.length === 0 && !hasVba, macroEntries.join(','))
   check('sin barra verde fuera de tabla', greenOutside === 0, `${greenOutside}`)
-  check('sin columna >24 ni Año≠10', widthProblems.length === 0, widthProblems.slice(0, 3).join(' | '))
+  check(
+    `sin columna >${MAX_ALLOWED_COLUMN_WIDTH} (autoajuste)`,
+    widthProblems.length === 0,
+    widthProblems.slice(0, 3).join(' | '),
+  )
+  check(
+    'sin texto truncado (ni cabeceras ni etiquetas de columna A)',
+    layoutProblems.length === 0,
+    layoutProblems.slice(0, 4).map((p) => `${p.sheet} R${p.row}C${p.col} [${p.kind}] ${p.detail}`).join(' | ') +
+      ` (${layoutStats.cellsChecked} celdas, ${layoutStats.wrappedCells} con wrap, ${layoutStats.notesChecked} notas)`,
+  )
+
+  // Título de sección acortado por hoja: la marca completa solo vive en 00.
+  const brandLeaks: string[] = []
+  for (const ws of wb.worksheets) {
+    const title = cellText(ws.getRow(1).getCell(1))
+    if (ws.name === '00_PROYECTO' || ws.name === '08_CRITERIOS_Y_FUENTES') {
+      if (!title.includes(XLSX_BRAND)) brandLeaks.push(`${ws.name}: portada sin marca`)
+    } else if (title.includes(XLSX_BRAND) || title.length > 40) {
+      brandLeaks.push(`${ws.name}: título no acortado "${title}"`)
+    }
+  }
+  check('título por hoja acortado (marca solo en 00/08)', brandLeaks.length === 0, brandLeaks.slice(0, 2).join(' | '))
+
+  // 00: nombre (ID) y descripción (subtítulo) en filas separadas, sin solape.
+  const summary = wb.getWorksheet('00_PROYECTO')
+  const sheetIds = SOCIDEAS_SHEET_IDS.filter((id) => id !== '00_PROYECTO' && id !== '08_CRITERIOS_Y_FUENTES')
+  let listed = 0
+  const overlapProblems: string[] = []
+  summary?.eachRow((row) => {
+    const a = cellText(row.getCell(1))
+    if (!(sheetIds as readonly string[]).includes(a)) return
+    listed += 1
+    const b = cellText(row.getCell(2))
+    if (b.length === 0) overlapProblems.push(`${a}: sin título en la misma fila`)
+    const next = summary.getRow(row.number + 1)
+    const na = cellText(next.getCell(1))
+    const nb = cellText(next.getCell(2))
+    if (na.length === 0 || na === a || !/bloques$/.test(nb)) {
+      overlapProblems.push(`${a}: descripción no separada (siguiente A="${na.slice(0, 24)}", B="${nb}")`)
+    }
+  })
+  check(
+    '00: nombre y descripción de cada hoja en filas separadas',
+    listed === sheetIds.length && overlapProblems.length === 0,
+    `listadas ${listed}/${sheetIds.length} ${overlapProblems.slice(0, 2).join(' | ')}`,
+  )
   check('sin enlaces prohibidos', linkProblems.length === 0, linkProblems.slice(0, 3).join(' | '))
   check('sin URL técnica visible (#VALUE!, ERROR, etc.)', forbiddenFound.length === 0, forbiddenFound.slice(0, 3).join(' | '))
   check('suprimidos nunca como 0', zeroProblems.length === 0, zeroProblems.slice(0, 3).join(' | '))

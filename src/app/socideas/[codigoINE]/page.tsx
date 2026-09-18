@@ -7,7 +7,15 @@ import { getPerfilEconomico } from "@/lib/socideas-economia";
 import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import FichaFiltros from "@/components/socideas/FichaFiltros";
-import CategoryTabs from "@/components/socideas/CategoryTabs";
+import SheetTabs from "@/components/socideas/SheetTabs";
+import { SheetHeader, SheetPlaceholder } from "@/components/socideas/SheetShell";
+import {
+  ContextoPoliticoSheet,
+  CriteriosFuentesSheet,
+  ProyectoSheet,
+  SocioculturalSheet,
+} from "@/components/socideas/SheetSections";
+import { fichaSheetByKey, resolveFichaSheet } from "@/components/socideas/ficha-sheets";
 import FichaToolbar from "@/components/socideas/FichaToolbar";
 import ActualizacionMenu from "@/components/socideas/ActualizacionMenu";
 import EconomiaFicha from "@/components/socideas/EconomiaFicha";
@@ -21,7 +29,7 @@ import type { TemporaryMunicipalData } from "@/lib/socideas-temporary-data";
 import EmptyState from "@/components/ui/EmptyState";
 import SourcePill from "@/components/ui/SourcePill";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
-import type { AmbitoTerritorial, CategoriaFicha, PerfilDemografico, PerfilEconomico } from "@/lib/socideas";
+import type { AmbitoTerritorial, PerfilDemografico, PerfilEconomico } from "@/lib/socideas";
 import { AMBITOS } from "@/lib/socideas";
 
 export const dynamic = "force-dynamic";
@@ -143,7 +151,12 @@ export default async function SocideasFicha({
 }) {
   const { codigoINE } = await params;
   const sp = (await searchParams) ?? {};
-  const categoria: CategoriaFicha = sp.categoria === "economia" ? "economia" : "demografia";
+  const primero = (v: string | string[] | undefined): string | undefined =>
+    Array.isArray(v) ? v[0] : v;
+  // Hoja activa del libro: `?hoja=` manda; `?categoria=economia` (histórico) se
+  // sigue aceptando y mapea a la hoja 03.
+  const hojaActiva = resolveFichaSheet(primero(sp.hoja), primero(sp.categoria));
+  const hojaMeta = fichaSheetByKey(hojaActiva);
   const { perfil } = await filtrosIniciales(codigoINE, sp);
   // La barra operativa necesita el resumen de AMBOS bloques. La lectura R2 del
   // envelope está deduplicada por React.cache en el mismo request (ver
@@ -178,12 +191,15 @@ export default async function SocideasFicha({
       ? `/urbideas/mapa?lat=${municipio.centroide_lat.toFixed(4)}&lng=${municipio.centroide_lng.toFixed(4)}&zoom=12`
       : "/urbideas";
 
-  // Lectura lateral R2 (solo en Demografía): nunca rompe
-  // la ficha; ante ausencia o error se omite sin estado visible.
+  // Lectura lateral R2 (solo en la hoja de Demografía): nunca rompe
+  // la ficha; ante ausencia o error se omite sin estado visible. Las capas INE
+  // y los datos provisionales se leen siempre porque alimentan la vista previa
+  // de actualización y la hoja sociocultural.
+  const esHojaDemografia = hojaActiva === "demografia";
   const [demografiaExtra, ineLayers, migracion, temporaryData] = await Promise.all([
-    categoria === "economia" ? Promise.resolve(null) : readDemographicPresentation(codigoINE).catch(() => null),
+    esHojaDemografia ? readDemographicPresentation(codigoINE).catch(() => null) : Promise.resolve(null),
     readMunicipalIneLayers(codigoINE).catch(() => null) as Promise<MunicipalIneLayersV1 | null>,
-    categoria === "economia" ? Promise.resolve(null) : readMigrationPresentation(codigoINE).catch(() => null),
+    esHojaDemografia ? readMigrationPresentation(codigoINE).catch(() => null) : Promise.resolve(null),
     readTemporaryMunicipalData(codigoINE).catch(() => null) as Promise<TemporaryMunicipalData | null>,
   ]);
   // Vista previa de actualización (sin I/O extra): qué capas hay y su período.
@@ -248,55 +264,100 @@ export default async function SocideasFicha({
                 Abrir en URBideas →
               </Link>
             </div>
-            <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <CategoryTabs codigoINE={municipio.codigo_ine} activa={categoria} searchParams={spObj} />
-              <FichaToolbar
-                codigoINE={municipio.codigo_ine}
-                demoCount={buildDemografiaTables(perfil).length}
-                ecoCount={economia ? buildEconomiaTables(economia).length : 0}
-                demoPeriodo={periodoDe(buildDemografiaTables(perfil).map((t) => t.periodo))}
-                ecoPeriodo={economia ? periodoDe(buildEconomiaTables(economia).map((t) => t.periodo)) : null}
-              >
-                <ActualizacionMenu
-                  codigoINE={municipio.codigo_ine}
-                  ultimaDemografia={perfil.ultima_sincronizacion}
-                  ultimaEconomia={economia?.ultima_sincronizacion}
-                  capasPreview={capasPreview}
-                />
-              </FichaToolbar>
-            </div>
           </section>
 
-          {categoria === "economia" ? (
-            economia ? (
-              <EconomiaFicha codigoINE={municipio.codigo_ine} initial={economia} />
-            ) : (
-              <EmptyState
-                title="Bloque económico no disponible"
-                description="No se pudo cargar el bloque económico de este municipio. La sincronización la realiza el equipo técnico desde el servidor con fuentes oficiales."
-              />
-            )
-          ) : !perfil.sincronizado ? (
-            <EmptyState
-              title="Preparando datos oficiales"
-              description="Este municipio aún no tiene su perfil demográfico sincronizado. La sincronización la realiza el equipo técnico desde el servidor con fuentes oficiales; ningún dato se muestra sin trazabilidad."
-              action={
-                <Link href="/socideas" className="text-sm font-semibold text-[var(--color-secondary)]">
-                  Volver al buscador
-                </Link>
-              }
-            />
-          ) : (
-            <FichaFiltros
+          {/* Cabecera operativa: recuento de tablas + descarga XLSX en banda propia. */}
+          <FichaToolbar
+            codigoINE={municipio.codigo_ine}
+            demoCount={buildDemografiaTables(perfil).length}
+            ecoCount={economia ? buildEconomiaTables(economia).length : 0}
+            demoPeriodo={periodoDe(buildDemografiaTables(perfil).map((t) => t.periodo))}
+            ecoPeriodo={economia ? periodoDe(buildEconomiaTables(economia).map((t) => t.periodo)) : null}
+          >
+            <ActualizacionMenu
               codigoINE={municipio.codigo_ine}
-              initial={perfil}
-              searchParams={spObj}
-              demografiaExtra={demografiaExtra}
-              ineLayers={ineLayers}
-              migracion={migracion}
-              temporaryData={temporaryData}
+              ultimaDemografia={perfil.ultima_sincronizacion}
+              ultimaEconomia={economia?.ultima_sincronizacion}
+              capasPreview={capasPreview}
             />
-          )}
+          </FichaToolbar>
+
+          {/* Navegación por hojas del libro XLSX. */}
+          <div className="mt-6">
+            <SheetTabs codigoINE={municipio.codigo_ine} activa={hojaActiva} searchParams={spObj} />
+          </div>
+
+          {/* Apartado activo: cada hoja del libro tiene su propio encabezado. */}
+          <div className="mt-8">
+            <SheetHeader sheet={hojaMeta} />
+
+            {hojaActiva === "proyecto" && <ProyectoSheet codigoINE={municipio.codigo_ine} />}
+
+            {hojaActiva === "demografia" &&
+              (!perfil.sincronizado ? (
+                <EmptyState
+                  title="Preparando datos oficiales"
+                  description="Este municipio aún no tiene su perfil demográfico sincronizado. La sincronización la realiza el equipo técnico desde el servidor con fuentes oficiales; ningún dato se muestra sin trazabilidad."
+                  action={
+                    <Link href="/socideas" className="text-sm font-semibold text-[var(--color-secondary)]">
+                      Volver al buscador
+                    </Link>
+                  }
+                />
+              ) : (
+                <FichaFiltros
+                  codigoINE={municipio.codigo_ine}
+                  initial={perfil}
+                  searchParams={spObj}
+                  demografiaExtra={demografiaExtra}
+                  ineLayers={ineLayers}
+                  migracion={migracion}
+                  temporaryData={temporaryData}
+                />
+              ))}
+
+            {hojaActiva === "politico" && (
+              <ContextoPoliticoSheet valores={perfil.valores} municipio={municipio.nombre} />
+            )}
+
+            {hojaActiva === "economia" &&
+              (economia ? (
+                <EconomiaFicha codigoINE={municipio.codigo_ine} initial={economia} />
+              ) : (
+                <EmptyState
+                  title="Bloque económico no disponible"
+                  description="No se pudo cargar el bloque económico de este municipio. La sincronización la realiza el equipo técnico desde el servidor con fuentes oficiales."
+                />
+              ))}
+
+            {hojaActiva === "sociocultural" && <SocioculturalSheet ineLayers={ineLayers} />}
+
+            {hojaActiva === "patrimonio" && (
+              <SheetPlaceholder
+                title="Patrimonio y turismo"
+                description="Pendiente de integración desde inventarios culturales y registros turísticos oficiales con cobertura territorial y licencia verificadas. Nada se rellena con valores provisionales."
+                source="Fuente prevista: inventarios culturales y registros turísticos oficiales."
+              />
+            )}
+
+            {hojaActiva === "infraestructura" && (
+              <SheetPlaceholder
+                title="Infraestructura, transporte, conectividad y transición energética"
+                description="Pendiente de integración desde fuentes geográficas y administrativas oficiales. La ausencia de dato no se representa como cero."
+                source="Fuente prevista: fuentes geográficas y administrativas oficiales con cobertura municipal."
+              />
+            )}
+
+            {hojaActiva === "asociaciones" && (
+              <SheetPlaceholder
+                title="Directorio asociativo"
+                description="Pendiente de integración desde registros oficiales con licencias verificadas y política de privacidad aplicable."
+                source="Fuente prevista: registros oficiales de asociaciones."
+              />
+            )}
+
+            {hojaActiva === "fuentes" && <CriteriosFuentesSheet />}
+          </div>
         </div>
       </main>
       <PlatformFooter />

@@ -3,11 +3,11 @@
 import { useCallback, useState } from "react";
 
 /**
- * Barra operativa de la ficha municipal: vive EN LA MISMA FILA que las categorías
- * (Demografía · Economía · Secciones censales) en desktop y debajo de ellas en
- * mobile, siempre con `flex-wrap` (nunca `nowrap`): sin overflow horizontal.
- * El menú interno llega por `children` (ActualizacionMenu); sin él, la barra
- * muestra solo resumen + XLSX. No genera archivos: el XLSX lo sirve el API route.
+ * Cabecera operativa de la ficha municipal: banda destacada y propia (no
+ * comparte fila con la navegación de hojas), con el recuento de tablas
+ * disponibles y el botón principal de descarga del libro XLSX. El menú interno
+ * llega por `children` (ActualizacionMenu); sin él, la banda muestra solo
+ * resumen + XLSX. No genera archivos: el XLSX lo sirve el API route.
  *
  * Descarga via fetch + blob para manejar errores HTTP y mostrar feedback.
  */
@@ -73,37 +73,49 @@ export default function FichaToolbar({
   }, [codigoINE, downloading]);
 
   return (
-    <div
-      className="min-w-0"
-      aria-label="Acciones de la ficha municipal"
-    >
-      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
-        <span
-          role="status"
-          title={detalle}
-          className="inline-flex max-w-full items-center gap-1.5 truncate rounded-[6px] bg-[var(--color-input-bg)] px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)]"
-        >
-          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-success)]" />
-          <span className="truncate">
-            {total} tabla{total === 1 ? "" : "s"} disponible{total === 1 ? "" : "s"} · Demo {demoCount} · Eco {ecoCount}
+    <div className="min-w-0" aria-label="Acciones de la ficha municipal">
+      <div className="flex flex-col gap-4 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-4 shadow-[var(--shadow-sm)] sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-center gap-4" role="status" title={detalle}>
+          <span
+            aria-hidden="true"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[6px] bg-[var(--color-input-bg)] text-xl font-bold tabular-nums text-[var(--color-primary)]"
+          >
+            {total}
           </span>
-        </span>
-        <button
-          type="button"
-          onClick={handleDownload}
-          disabled={downloading}
-          title={downloading ? "Generando Excel…" : `Descargar libro XLSX combinado de este municipio. ${detalle}.`}
-          className="inline-flex shrink-0 items-center gap-2 rounded-[6px] bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-          {downloading ? "Generando Excel…" : "Descargar XLSX"}
-        </button>
-        {children}
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-[var(--color-text-primary)]">
+              {total} tabla{total === 1 ? "" : "s"} disponible{total === 1 ? "" : "s"} en el libro
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+              Demografía: {demoCount} tabla{demoCount === 1 ? "" : "s"}
+              {demoPeriodo ? ` (${demoPeriodo})` : ""} · Economía: {ecoCount} tabla
+              {ecoCount === 1 ? "" : "s"}
+              {ecoPeriodo ? ` (${ecoPeriodo})` : ""}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {children}
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={downloading}
+            title={
+              downloading
+                ? "Generando Excel…"
+                : `Descargar libro XLSX combinado de este municipio. ${detalle}.`
+            }
+            className="inline-flex shrink-0 items-center gap-2 rounded-[6px] bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            {downloading ? "Generando Excel…" : "Descargar libro XLSX"}
+          </button>
+        </div>
       </div>
       {error && (
-        <div role="alert" className="mt-2 w-full text-xs socideas-error-text break-words">
+        <div role="alert" className="mt-2 w-full socideas-error-text break-words text-xs">
           <span>{error}</span>
           {error.includes("XLSX-") && (
             <button

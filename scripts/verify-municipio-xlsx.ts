@@ -1,8 +1,15 @@
 // Verificación del generador XLSX municipal comparativo a nivel de librería.
 // Tres escenarios sintéticos (rico / solo-eco / parcial) con casos null/secreto.
 // Afirma: nueve hojas en orden contractual, sin detalle, sin freeze, sin
-// autofilter, sin enlaces internos, colores Ideas, anchos (Año 10, resto ≤24),
-// alineación, ND sin ceros indebidos y nota metodológica en 00.
+// autofilter, sin enlaces internos, colores Ideas, anchos (autoajuste Poppins,
+// tope 38; la columna A es unificada y ya NO se fuerza "Año = 10"), alineación,
+// ND sin ceros indebidos y nota metodológica en 00.
+//
+// CAMBIO DE CONTRATO (v2 de maquetación): "sin celdas fusionadas" y "Año = 10"
+// quedan SUPERSEDIDOS. Los títulos de sección, la línea de fuente y las notas
+// se fusionan a lo ancho real de su tabla para que NUNCA se corten, y la
+// columna A adopta el ancho máximo necesario entre todas las tablas (antes se
+// forzaba a 10 y truncaba etiquetas como "Población total").
 // Uso: npx tsx scripts/verify-municipio-xlsx.ts
 // Archivos solo en tmp/ (ignorado por git).
 import ExcelJS from 'exceljs'
@@ -13,6 +20,7 @@ import {
   SOCIDEAS_SHEET_IDS,
 } from '../src/lib/socideas-export'
 import { buildMunicipioWorkbook, type ComparativeSheetInput } from '../src/lib/socideas-xlsx'
+import { findLayoutProblems } from './xlsx-layout-assert'
 import type { IndicatorValue } from '../src/lib/socideas'
 
 let failures = 0
@@ -162,7 +170,7 @@ async function scenario(s: Scenario): Promise<void> {
   check('acento #86B73D presente', accent)
   check('sin #1E4D3F', !oldGreen)
 
-  // Cabeceras exactas, anchos (Año 10, resto ≤24) y alineación por rol.
+  // Cabeceras exactas, anchos (autoajuste, tope 38) y alineación por rol.
   const headerBad: string[] = []
   const widthBad: string[] = []
   const alignBad: string[] = []
@@ -195,20 +203,30 @@ async function scenario(s: Scenario): Promise<void> {
     })
     for (let ci = 1; ci <= ws.columnCount; ci += 1) {
       const w = ws.getColumn(ci).width ?? 0
-      if (w > 24) widthBad.push(`${ws.name} C${ci}=${w}`)
+      if (w > 38) widthBad.push(`${ws.name} C${ci}=${w}`)
     }
+    // La columna A es unificada; la columna "Año" conserva al menos el mínimo
+    // legible (ya no se fuerza a 10: debe poder convivir con etiquetas largas).
     ws.eachRow((row) => {
       row.eachCell((cell, cn) => {
         if (txt(cell.value) === 'Año') {
           const w = ws.getColumn(cn).width ?? 0
-          if (w !== 10) widthBad.push(`${ws.name} Año C${cn}=${w} (esperado 10)`)
+          if (w < 10) widthBad.push(`${ws.name} Año C${cn}=${w} (mínimo 10)`)
         }
       })
     })
   }
   check('cabeceras exactas', headerBad.length === 0, headerBad.slice(0, 3).join(' | '))
-  check('anchos ≤24 y Año=10', widthBad.length === 0, widthBad.slice(0, 4).join(' | '))
+  check('anchos ≤38 (autoajuste sin truncado)', widthBad.length === 0, widthBad.slice(0, 4).join(' | '))
   check('alineación por rol', alignBad.length === 0, alignBad.slice(0, 3).join(' | '))
+
+  // Relectura completa: ningún texto cortado, títulos que caben, notas fusionadas.
+  const { problems: layoutProblems } = findLayoutProblems(wb)
+  check(
+    'sin texto truncado (cabeceras/etiquetas/títulos/notas)',
+    layoutProblems.length === 0,
+    layoutProblems.slice(0, 4).map((p) => `${p.sheet} R${p.row}C${p.col} [${p.kind}] ${p.detail}`).join(' | '),
+  )
 
   // Ceros: prohibidos salvo bloque pirámide (recuentos reales).
   const badZeros: string[] = []

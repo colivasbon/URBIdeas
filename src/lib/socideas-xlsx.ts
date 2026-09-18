@@ -4,8 +4,26 @@
 //
 // Libro municipal comparativo: EXACTAMENTE nueve hojas en orden contractual,
 // bloques apilados verticalmente, sin hojas detalladas, sin enlaces internos,
-// sin autofilter, sin freeze panes, sin mergeCells (fusionar desde A1 anula el
-// ancho de la columna 1 en ExcelJS: verificado empíricamente).
+// sin autofilter, sin freeze panes.
+//
+// MAQUETACIÓN (v2, sin truncado):
+//  - Autoajuste consciente de Poppins: el ancho de cada columna se calcula con el
+//    contenido real más largo (cabecera + todas las celdas de TODAS las tablas de
+//    la hoja), con un factor que sobreestima ligeramente (Poppins ocupa más que
+//    Calibri) y tope de 38 caracteres. Nunca se impone un ancho menor al necesario.
+//  - Columna A unificada en todo el libro: ancho = máximo necesario entre todas
+//    las etiquetas de todas las tablas. Sustituye el antiguo forzado "Año = 10",
+//    que truncaba las etiquetas de otras tablas de la misma hoja (la columna es
+//    física y compartida). El encabezado "Año" puede por tanto ser más ancho.
+//  - Títulos de sección y de bloque fusionados a lo ancho real de su tabla, con
+//    altura calculada: nunca se cortan.
+//  - Línea de fuente fusionada a todo el ancho del bloque (menos la celda del
+//    enlace), con wrap y altura calculados.
+//  - Notas metodológicas y criterios fusionados a lo ancho de la tabla, con
+//    altura calculada. Ninguna celda de texto largo comparte fila visual con otra
+//    celda sin fusión explícita.
+//  - wrapText SOLO donde de verdad hace falta (texto que no cabe al ancho final);
+//    las etiquetas cortas se ensanchan en su lugar.
 // Tipografía: Poppins en todas las celdas (título 14 > header sección 12 >
 // cabecera 11 bold > dato 11). NOTA: si el lector no tiene Poppins instalada,
 // Excel/LibreOffice la sustituye por la fuente del sistema (limitación del formato).
@@ -13,6 +31,7 @@ import ExcelJS from 'exceljs'
 import {
   SOCIDEAS_SHEET_IDS,
   type ComparisonMode,
+  type ExportCell,
   type ExportTable,
   type SocideasSheetId,
 } from './socideas-export'
@@ -68,6 +87,67 @@ export const XLSX_PALETTE = {
 } as const
 const FONT_NAME = 'Poppins'
 
+// ============================================================================
+// Métricas de texto y anchos (autoajuste consciente de Poppins)
+// ============================================================================
+
+/** Tope de ancho por columna: cotas razonables sin truncar (el texto que no
+ *  quepa se envuelve, nunca se recorta). */
+const MAX_COL_WIDTH = 38
+/** Ancho mínimo de una columna de datos. */
+const MIN_COL_WIDTH = 10
+/** Ancho mínimo de la columna A unificada (etiquetas legibles aunque el libro
+ *  solo tenga etiquetas cortas). */
+const MIN_COL_A_WIDTH = 22
+/** Poppins es más ancha que Calibri (unidad de ancho de Excel ≈ carácter de la
+ *  fuente por defecto). Este factor SOBREESTIMA a propósito: preferimos columnas
+ *  un poco anchas antes que texto cortado. */
+const POPPINS_CHAR_FACTOR = 1.2
+/** Colchón en caracteres de ancho por columna. */
+const CELL_WIDTH_PADDING = 2
+/** Altura de línea (puntos) por tamaño: 14 = título de hoja, 12 = título de
+ *  sección, 11 = dato/cabecera, 10 = fuente/nota. */
+const LINE_HEIGHT_BODY = 16
+const LINE_HEIGHT_SMALL = 14
+const LINE_HEIGHT_TITLE = 18
+const LINE_HEIGHT_SECTION = 16
+
+/** Ancho natural (en unidades Excel) que necesita un texto con Poppins. */
+function naturalTextWidth(text: string): number {
+  const longest = text.split('\n').reduce((max, line) => Math.max(max, line.length), 0)
+  return longest * POPPINS_CHAR_FACTOR + CELL_WIDTH_PADDING
+}
+
+/** Caracteres que caben en una línea de ancho `width` (mínimo 1). */
+function charsPerLine(width: number): number {
+  return Math.max(1, (width - CELL_WIDTH_PADDING) / POPPINS_CHAR_FACTOR)
+}
+
+/** Número de líneas que ocupa `text` envuelto en una columna de ancho `width`. */
+function wrappedLines(text: string, width: number): number {
+  if (text.length === 0) return 1
+  const per = charsPerLine(width)
+  return text
+    .split('\n')
+    .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / per)), 0)
+}
+
+/** Ancho final de columna a partir de su contenido natural (con tope). */
+function clampWidth(needed: number): number {
+  return Math.round(Math.min(MAX_COL_WIDTH, Math.max(MIN_COL_WIDTH, needed)))
+}
+
+/** Suma de anchos de un tramo de columnas [from, to) (0-based, exclusivo). */
+function sumWidths(widths: number[], from: number, to: number): number {
+  let total = 0
+  for (let i = from; i < to; i += 1) total += widths[i] ?? MIN_COL_WIDTH
+  return total
+}
+
+// ============================================================================
+// Utilidades de pintado
+// ============================================================================
+
 /** Borde fino Limo (único borde permitido en datos y cabeceras). */
 function thinLimoBorders() {
   const side = { style: 'thin' as const, color: { argb: LIMO } }
@@ -78,6 +158,361 @@ function thinLimoBorders() {
  *  Rupestre queda reservado a alertas reales (este libro no genera ninguna). */
 function isBadgeText(text: string, numeric: number | null): boolean {
   return numeric === null && text === 'ND'
+}
+
+/** Rellena SOLO las celdas 1..nCols: jamás filas enteras ni celdas vacías. */
+function band(row: ExcelJS.Row, nCols: number, fill: string): void {
+  for (let i = 1; i <= nCols; i += 1) {
+    row.getCell(i).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }
+  }
+}
+
+/** Fusiona si hay más de una columna (ExcelJS rechaza/ no aporta con rango 1x1). */
+function mergeRow(ws: ExcelJS.Worksheet, rowN: number, nCols: number): void {
+  if (nCols > 1) ws.mergeCells(rowN, 1, rowN, nCols)
+}
+
+/** Banda de título (header de sección): fondo Musgo, texto Hueso, fusionado a lo
+ *  ancho real y con altura calculada para que NUNCA se corte. */
+function paintTitle(
+  ws: ExcelJS.Worksheet,
+  rowN: number,
+  widths: number[],
+  nCols: number,
+  text: string,
+  size = 12,
+): void {
+  const row = ws.getRow(rowN)
+  const mergedWidth = sumWidths(widths, 0, nCols)
+  const lines = wrappedLines(text, mergedWidth)
+  const lineHeight = size >= 14 ? LINE_HEIGHT_TITLE : LINE_HEIGHT_SECTION
+  row.height = Math.max(size >= 14 ? 28 : 24, lines * lineHeight)
+  mergeRow(ws, rowN, nCols)
+  const c = row.getCell(1)
+  c.value = text
+  c.font = { name: FONT_NAME, size, bold: true, color: { argb: HUESO } }
+  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: lines > 1 }
+  c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUSGO } }
+  c.border = { bottom: { style: 'thin', color: { argb: CONIFERA } } }
+  // Extender formato a celdas fusionadas (ExcelJS requiere aplicar a cada celda)
+  for (let i = 2; i <= nCols; i += 1) {
+    const cc = row.getCell(i)
+    cc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUSGO } }
+    cc.border = { bottom: { style: 'thin', color: { argb: CONIFERA } } }
+    cc.font = { name: FONT_NAME, size: 11, color: { argb: HUESO } }
+  }
+}
+
+/** Línea de procedencia: texto gris pequeño fusionado a todo el ancho del bloque
+ *  (menos la última columna) y, si existe fuente pública atribuible, un enlace
+ *  discreto en la última columna. Altura calculada: nunca se corta ni invade. */
+function paintSourceLine(
+  ws: ExcelJS.Worksheet,
+  rowN: number,
+  widths: number[],
+  nCols: number,
+  source: SourceReference | null | undefined,
+  fuente: string,
+  periodo: string,
+): void {
+  const row = ws.getRow(rowN)
+  const text = visibleSourceLabel(source, fuente, periodo)
+  const textCols = Math.max(1, nCols - 1)
+  const textWidth = sumWidths(widths, 0, textCols)
+  const lines = wrappedLines(text, textWidth)
+  row.height = Math.max(16, lines * LINE_HEIGHT_SMALL)
+
+  if (textCols > 1) mergeRow(ws, rowN, textCols)
+  const c = row.getCell(1)
+  c.value = text
+  c.font = { name: FONT_NAME, size: 10, color: { argb: CARBON } }
+  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: lines > 1 }
+  for (let i = 1; i <= textCols; i += 1) {
+    row.getCell(i).border = { bottom: { style: 'thin', color: { argb: LIMO } } }
+  }
+
+  const url = source?.publicUrl
+  if (nCols < 2 || !url || !isAllowedSourceUrl(url)) return
+
+  const link = row.getCell(nCols)
+  link.value = {
+    text: SOURCE_LINK_LABEL,
+    hyperlink: url,
+    tooltip: `Abrir fuente oficial: ${source?.shortLabel ?? ''}`,
+  }
+  link.font = { name: FONT_NAME, size: 10, bold: true, underline: true, color: { argb: CONIFERA } }
+  link.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HUESO } }
+  link.border = thinLimoBorders()
+  link.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false, shrinkToFit: false }
+}
+
+function numFmtFor(header: string): string | null {
+  if (header === 'Año') return '0'
+  if (header.includes('€')) return '#,##0 "€"'
+  if (header.includes('%')) return '0.0" %"'
+  if (header === 'hab./km²' || header.includes('hab./km²')) return '#,##0.0" hab./km²"'
+  return '#,##0'
+}
+
+/** Texto izquierda, año centro, números derecha. Encabezado igual que celdas. */
+export function cellAlign(header: string, isFirst: boolean): 'left' | 'center' | 'right' {
+  if (header === 'Año') return 'center'
+  if (isFirst) return 'left'
+  return 'right'
+}
+
+/** Cabecera de columna: fondo Crisopa, texto Carbón, bordes finos Limo. Altura
+ *  calculada por si alguna cabecera necesita envolverse. */
+function paintHeaderRow(
+  row: ExcelJS.Row,
+  widths: number[],
+  nCols: number,
+  headers: string[],
+): void {
+  let maxLines = 1
+  const borders = thinLimoBorders()
+  for (let i = 1; i <= nCols; i += 1) {
+    const c = row.getCell(i)
+    c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CRISOPA } }
+    c.border = { ...borders }
+    const header = headers[i - 1] ?? ''
+    const lines = wrappedLines(header, widths[i - 1] ?? MAX_COL_WIDTH)
+    if (lines > maxLines) maxLines = lines
+    c.alignment = { vertical: 'middle', horizontal: cellAlign(header, i === 1), wrapText: lines > 1 }
+  }
+  row.height = Math.max(20, maxLines * LINE_HEIGHT_BODY)
+}
+
+// ============================================================================
+// Planificación de anchos
+// ============================================================================
+
+/** Anchos naturales (sin tope) que necesita una tabla: cabecera + todas sus celdas. */
+function tableColumnNeeds(t: ExportTable): number[] {
+  const needs = t.columnas.map((col) => naturalTextWidth(col))
+  for (const fila of t.filas) {
+    fila.forEach((cell: ExportCell, ci: number) => {
+      if (ci >= needs.length) return
+      const need = naturalTextWidth(cell.text)
+      if (need > needs[ci]) needs[ci] = need
+    })
+  }
+  return needs
+}
+
+/** Anchos finales de una hoja temática: máximo por columna física entre TODAS
+ *  sus tablas, con tope, columna A unificada y hueco garantizado para el enlace. */
+function computeSheetWidths(bloques: ExportTable[], globalColAWidth: number): number[] {
+  const needs: number[] = []
+  for (const bloque of bloques) {
+    const tableNeeds = tableColumnNeeds(bloque)
+    tableNeeds.forEach((need, ci) => {
+      needs[ci] = Math.max(needs[ci] ?? MIN_COL_WIDTH, need)
+    })
+  }
+  const widths = needs.map(clampWidth)
+  if (widths.length === 0) widths.push(globalColAWidth)
+  // Columna A unificada en todo el libro (las etiquetas de otras tablas no deben
+  // verse truncadas por el ancho de una tabla concreta).
+  widths[0] = globalColAWidth
+  // El texto del enlace de procedencia debe caber en la última columna del bloque.
+  const linkNeed = Math.round(naturalTextWidth(SOURCE_LINK_LABEL))
+  for (const bloque of bloques) {
+    const n = bloque.columnas.length
+    if (n >= 2 && bloque.source?.publicUrl) {
+      widths[n - 1] = Math.max(widths[n - 1] ?? MIN_COL_WIDTH, linkNeed)
+    }
+  }
+  return widths
+}
+
+/** Textos de columna A de TODO el libro (etiquetas y cabeceras de primera columna). */
+function collectAllColATexts(hojas: ComparativeSheetInput[]): string[] {
+  const texts: string[] = []
+  for (const hoja of hojas) {
+    for (const bloque of hoja.bloques) {
+      if (bloque.columnas.length > 0) texts.push(bloque.columnas[0])
+      for (const fila of bloque.filas) {
+        if (fila.length > 0) texts.push(fila[0].text)
+      }
+    }
+  }
+  // Hoja 00_PROYECTO (columna A) y 08_CRITERIOS_Y_FUENTES (columna A).
+  texts.push(
+    'Municipio',
+    'Código INE',
+    'Provincia',
+    'Comunidad autónoma',
+    'Fecha de generación',
+    'Cobertura territorial comparativa',
+  )
+  texts.push(...hojas.map((h) => h.id))
+  texts.push('Área')
+  return texts
+}
+
+/** Ancho óptimo de la columna A unificada: máximo real, con cotas razonables. */
+function calculateGlobalColAWidth(texts: string[]): number {
+  let needed = MIN_COL_A_WIDTH
+  for (const t of texts) {
+    const w = naturalTextWidth(t)
+    if (w > needed) needed = w
+  }
+  return Math.round(Math.min(MAX_COL_WIDTH, Math.max(MIN_COL_A_WIDTH, needed)))
+}
+
+// ============================================================================
+// Bloque: tabla de datos reales (con o sin fuente)
+// ============================================================================
+
+function writeDataBlock(
+  ws: ExcelJS.Worksheet,
+  startRow: number,
+  t: ExportTable,
+  widths: number[],
+): {
+  headerRow: number; endRow: number; nCols: number
+} {
+  const columnas = t.columnas
+  const nCols = columnas.length
+  if (nCols === 0) return { headerRow: startRow, endRow: startRow, nCols: 0 }
+
+  paintTitle(ws, startRow, widths, nCols, t.titulo)
+  paintSourceLine(ws, startRow + 1, widths, nCols, t.source, t.fuente, t.periodo)
+  const headerRowN = startRow + 2
+  const header = ws.getRow(headerRowN)
+  columnas.forEach((col, i) => {
+    const c = header.getCell(i + 1)
+    c.value = col
+  })
+  paintHeaderRow(header, widths, nCols, columnas)
+
+  let r = headerRowN
+  t.filas.forEach((fila) => {
+    r += 1
+    const row = ws.getRow(r)
+    let maxLines = 1
+    fila.forEach((cell, ci) => {
+      const c = row.getCell(ci + 1)
+      const colName = columnas[ci] ?? ''
+      if (cell.numeric !== null && Number.isFinite(cell.numeric)) {
+        c.value = cell.numeric
+        const fmt = numFmtFor(colName)
+        if (fmt) c.numFmt = fmt
+      } else {
+        c.value = cell.text
+        c.numFmt = '@'
+      }
+      const badge = isBadgeText(cell.text, cell.numeric)
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: badge ? CRISOPA : HUESO } }
+      c.border = { ...thinLimoBorders() }
+      c.font = { name: FONT_NAME, size: 11, bold: badge, color: { argb: CARBON } }
+      const lines = wrappedLines(cell.text, widths[ci] ?? MIN_COL_WIDTH)
+      if (lines > maxLines) maxLines = lines
+      c.alignment = {
+        vertical: 'middle',
+        horizontal: cellAlign(colName, ci === 0),
+        wrapText: lines > 1,
+        indent: ci === 0 ? 1 : undefined,
+      }
+    })
+    row.height = Math.max(18, maxLines * LINE_HEIGHT_BODY)
+  })
+
+  if (t.note && r >= headerRowN) {
+    r += 1
+    const noteRow = ws.getRow(r)
+    const mergedWidth = sumWidths(widths, 0, nCols)
+    const lines = wrappedLines(t.note, mergedWidth)
+    noteRow.height = Math.max(24, lines * LINE_HEIGHT_SMALL)
+    mergeRow(ws, r, nCols)
+    const nc = noteRow.getCell(1)
+    nc.value = t.note
+    nc.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
+    nc.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
+    band(noteRow, nCols, HUESO)
+    // Bucle explícito 1..nCols: eachCell(includeEmpty:false) salta las celdas
+    // con solo estilo y quedarían con la Calibri por defecto del formato.
+    for (let i = 1; i <= nCols; i += 1) {
+      const c = noteRow.getCell(i)
+      c.border = { ...thinLimoBorders() }
+      if (c.value === null || c.value === undefined) {
+        c.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
+      }
+    }
+  }
+
+  return { headerRow: headerRowN, endRow: r, nCols }
+}
+
+// ============================================================================
+// Bloque: nota breve (sin tabla, sin columnas vacías)
+// ============================================================================
+
+/**
+ * Bloque "pendiente" o "no disponible": pinta solo título, línea de fuente y
+ * una nota breve. El missing es badge Crisopa/Carbón (nunca Rupestre: un ND
+ * no es una alerta).
+ */
+function writeNoteBlock(
+  ws: ExcelJS.Worksheet,
+  startRow: number,
+  t: ExportTable,
+  widths: number[],
+  spanCols: number,
+): { endRow: number; nCols: number } {
+  // Un bloque sin tabla ocupa todo el ancho de la hoja: título, fuente y nota
+  // se fusionan para no quedar comprimidos en la columna A.
+  const nCols = Math.max(1, spanCols)
+  paintTitle(ws, startRow, widths, nCols, t.titulo)
+  paintSourceLine(ws, startRow + 1, widths, nCols, t.source, t.fuente, t.periodo)
+  const r = startRow + 2
+  const row = ws.getRow(r)
+  const noteText = t.note ?? t.estado ?? ''
+  const mergedWidth = sumWidths(widths, 0, nCols)
+  const lines = wrappedLines(noteText, mergedWidth)
+  row.height = Math.max(36, lines * LINE_HEIGHT_BODY)
+  mergeRow(ws, r, nCols)
+  const cell = row.getCell(1)
+  cell.value = noteText
+  cell.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
+  cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
+  band(row, nCols, CRISOPA)
+  for (let i = 1; i <= nCols; i += 1) {
+    row.getCell(i).border = { ...thinLimoBorders() }
+  }
+  return { endRow: r, nCols }
+}
+
+// ============================================================================
+// Línea de ámbito por hoja
+// ============================================================================
+
+function writeScopeLine(
+  ws: ExcelJS.Worksheet,
+  rowN: number,
+  widths: number[],
+  nCols: number,
+  input: Pick<MunicipioWorkbookInput, 'municipio' | 'codigoINE' | 'provincia' | 'comunidadAutonoma'>,
+): void {
+  const row = ws.getRow(rowN)
+  const text =
+    `Municipio: ${input.municipio} (${input.codigoINE}) · ` +
+    `Provincia: ${input.provincia} · ` +
+    `Comunidad autónoma: ${input.comunidadAutonoma}`
+  const mergedWidth = sumWidths(widths, 0, nCols)
+  const lines = wrappedLines(text, mergedWidth)
+  row.height = Math.max(18, lines * LINE_HEIGHT_BODY)
+  mergeRow(ws, rowN, nCols)
+  const c = row.getCell(1)
+  c.value = text
+  c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
+  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: lines > 1 }
+  band(row, nCols, HUESO)
+  for (let i = 1; i <= nCols; i += 1) {
+    row.getCell(i).border = { bottom: { style: 'thin', color: { argb: LIMO } } }
+  }
 }
 
 // ============================================================================
@@ -108,330 +543,38 @@ export interface MunicipioWorkbookInput {
 }
 
 // ============================================================================
-// Utilidades de pintado — con mergeCells para títulos, bandas terminadas en nCols
-// ============================================================================
-
-/** Rellena SOLO las celdas 1..nCols: jamás filas enteras ni celdas vacías. */
-function band(row: ExcelJS.Row, nCols: number, fill: string): void {
-  for (let i = 1; i <= nCols; i += 1) {
-    row.getCell(i).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }
-  }
-}
-
-/** Banda de título (header de sección): fondo Musgo, texto Hueso, fusionado en todas las columnas. */
-function paintTitle(ws: ExcelJS.Worksheet, rowN: number, nCols: number, text: string, size = 12): void {
-  const row = ws.getRow(rowN)
-  row.height = 28
-  // Fusionar celdas A1:X1 (todas las columnas de la tabla) para que el fondo Musgo
-  // y el texto queden contenidos en el rango fusionado.
-  if (nCols > 1) {
-    ws.mergeCells(rowN, 1, rowN, nCols)
-  }
-  const c = row.getCell(1)
-  c.value = text
-  c.font = { name: FONT_NAME, size, bold: true, color: { argb: HUESO } }
-  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
-  c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUSGO } }
-  c.border = { bottom: { style: 'thin', color: { argb: CONIFERA } } }
-  // Extender formato a celdas fusionadas (ExcelJS requiere aplicar a cada celda)
-  for (let i = 2; i <= nCols; i += 1) {
-    const cc = row.getCell(i)
-    cc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUSGO } }
-    cc.border = { bottom: { style: 'thin', color: { argb: CONIFERA } } }
-    cc.font = { name: FONT_NAME, size: 11, color: { argb: HUESO } }
-  }
-}
-
-/** Línea de procedencia: texto gris pequeño en la columna A y, si existe una
- *  fuente pública atribuible, un enlace discreto de botón-editorial en la misma
- *  fila y en la ÚLTIMA columna real del bloque. */
-function paintSourceLine(
-  ws: ExcelJS.Worksheet,
-  rowN: number,
-  nCols: number,
-  source: SourceReference | null | undefined,
-  fuente: string,
-  periodo: string,
-  globalColAWidth: number,
-): void {
-  const row = ws.getRow(rowN)
-  row.height = 16
-  const c = row.getCell(1)
-  c.value = visibleSourceLabel(source, fuente, periodo)
-  c.font = { name: FONT_NAME, size: 10, color: { argb: CARBON } }
-  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: false }
-
-  // Asegurar que la columna A tenga al menos el ancho global
-  const colA = ws.getColumn(1)
-  colA.width = Math.max(colA.width ?? 0, globalColAWidth)
-
-  const url = source?.publicUrl
-  if (nCols < 2 || !url || !isAllowedSourceUrl(url)) return
-
-  const link = row.getCell(nCols)
-  link.value = {
-    text: SOURCE_LINK_LABEL,
-    hyperlink: url,
-    tooltip: `Abrir fuente oficial: ${source?.shortLabel ?? ''}`,
-  }
-  link.font = { name: FONT_NAME, size: 10, bold: true, underline: true, color: { argb: CONIFERA } }
-  link.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HUESO } }
-  link.border = thinLimoBorders()
-  link.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false, shrinkToFit: false }
-  // Asegurar que la columna del hipervínculo tenga ancho mínimo
-  const linkCol = ws.getColumn(nCols)
-  const minLinkWidth = 22 // "Ver ficha oficial ↗" cabe en ~22
-  linkCol.width = Math.max(linkCol.width ?? 0, minLinkWidth)
-}
-
-function numFmtFor(header: string): string | null {
-  if (header === 'Año') return '0'
-  if (header.includes('€')) return '#,##0 "€"'
-  if (header.includes('%')) return '0.0" %"'
-  if (header === 'hab./km²' || header.includes('hab./km²')) return '#,##0.0" hab./km²"'
-  return '#,##0'
-}
-
-/** Límites estrictos por rol. Ninguna columna temática supera 24. */
-export function columnLimitsFor(header: string, isFirst: boolean, tableId?: string): [number, number] {
-  if (header === 'Año') return [10, 10]
-  if (header.includes('€')) return [15, 17]
-  if (header.includes('%')) return [13, 13]
-  if (header === 'hab./km²' || header.includes('hab./km²')) return [13, 15]
-  if (tableId === 'gini' || tableId === 'p80_p20') return [12, 14]
-  if (header === 'Grupo de edad') return [12, 15]
-  if (header === 'Concepto' || header === 'Especie' || header === 'Indicador') return [16, 22]
-  if (header === 'Nivel educativo' || header === 'Arraigo territorial' || header === 'Nacionalidad') return [18, 22]
-  if (header === 'Categoría de país publicada' || header === 'País de nacimiento') return [18, 22]
-  if (isFirst) return [18, 22]
-  if (['España', 'CCAA', 'Provincia', 'Municipio'].includes(header)) return [12, 15]
-  return [11, 12]
-}
-
-function cellTextLength(text: string, numeric: number | null, header: string): number {
-  if (numeric !== null && Number.isFinite(numeric)) {
-    return String(numeric).length + (header.includes('€') || header.includes('%') || header.includes('hab./km²') ? 2 : 0)
-  }
-  return text.length
-}
-
-/** Texto izquierda, año centro, números derecha. Encabezado igual que celdas. */
-export function cellAlign(header: string, isFirst: boolean): 'left' | 'center' | 'right' {
-  if (header === 'Año') return 'center'
-  if (isFirst) return 'left'
-  return 'right'
-}
-
-/** Cabecera de columna: fondo Crisopa, texto Carbón, bordes finos Limo. */
-function paintHeaderRow(row: ExcelJS.Row, nCols: number): void {
-  row.height = 20
-  const borders = thinLimoBorders()
-  for (let i = 1; i <= nCols; i += 1) {
-    const c = row.getCell(i)
-    c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
-    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CRISOPA } }
-    c.border = { ...borders }
-  }
-}
-
-/** Ancho por rol desde el contenido real de LA tabla (nunca de otras tablas). */
-function applyTableWidths(
-  ws: ExcelJS.Worksheet,
-  tableId: string | undefined,
-  columnas: string[],
-  filas: { text: string; numeric: number | null }[][],
-  globalColAWidth: number,
-): void {
-  columnas.forEach((col, ci) => {
-    const [min, max] = columnLimitsFor(col, ci === 0, tableId)
-    let longest = col.length
-    for (const fila of filas) {
-      const cell = fila[ci]
-      if (!cell) continue
-      const len = cellTextLength(cell.text, cell.numeric, col)
-      if (len > longest) longest = len
-    }
-    let w = Math.min(max, Math.max(min, longest + 2))
-    if (w === 9) w = 10
-    // Columna A (ci === 0): aplicar ancho global unificado SOLO para etiquetas/labels,
-    // NO para la columna "Año" que debe permanecer en 10.
-    if (ci === 0 && col !== 'Año') {
-      w = Math.max(w, globalColAWidth)
-    }
-    const prev = ws.getColumn(ci + 1).width ?? 0
-    ws.getColumn(ci + 1).width = Math.max(prev, w)
-  })
-}
-
-// ============================================================================
-// Bloque: tabla de datos reales (con o sin fuente)
-// ============================================================================
-
-function writeDataBlock(
-  ws: ExcelJS.Worksheet,
-  startRow: number,
-  t: ExportTable,
-  globalColAWidth: number,
-): {
-  headerRow: number; endRow: number; nCols: number
-} {
-  const columnas = t.columnas
-  const nCols = columnas.length
-  if (nCols === 0) return { headerRow: startRow, endRow: startRow, nCols: 0 }
-
-  paintTitle(ws, startRow, nCols, t.titulo)
-  paintSourceLine(ws, startRow + 1, nCols, t.source, t.fuente, t.periodo, globalColAWidth)
-  const headerRowN = startRow + 2
-  const header = ws.getRow(headerRowN)
-  columnas.forEach((col, i) => {
-    const c = header.getCell(i + 1)
-    c.value = col
-    c.alignment = { vertical: 'middle', horizontal: cellAlign(col, i === 0) }
-  })
-  paintHeaderRow(header, nCols)
-
-  let r = headerRowN
-  t.filas.forEach((fila) => {
-    r += 1
-    const row = ws.getRow(r)
-    row.height = 18
-    fila.forEach((cell, ci) => {
-      const c = row.getCell(ci + 1)
-      const colName = columnas[ci] ?? ''
-      if (cell.numeric !== null && Number.isFinite(cell.numeric)) {
-        c.value = cell.numeric
-        const fmt = numFmtFor(colName)
-        if (fmt) c.numFmt = fmt
-      } else {
-        c.value = cell.text
-        c.numFmt = '@'
-      }
-      const badge = isBadgeText(cell.text, cell.numeric)
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: badge ? CRISOPA : HUESO } }
-      c.border = { ...thinLimoBorders() }
-      c.font = { name: FONT_NAME, size: 11, bold: badge, color: { argb: CARBON } }
-      // wrapText SOLO para notas metodológicas (ci === 0 Y contenido largo), NO para etiquetas normales
-      // Las etiquetas de columna A usan el ancho global unificado; no envolvemos.
-      const needsWrap = ci === 0 && cell.text.length > globalColAWidth * 0.8
-      c.alignment = {
-        vertical: 'middle',
-        horizontal: cellAlign(colName, ci === 0),
-        wrapText: needsWrap,
-        indent: ci === 0 ? 1 : undefined,
-      }
-      // Si wrapText, calcular altura de fila aproximada
-      if (needsWrap) {
-        const colWidthChars = ws.getColumn(ci + 1).width ?? globalColAWidth
-        const lines = Math.ceil(cell.text.length / Math.max(colWidthChars, 10))
-        row.height = Math.max(row.height, 18 * lines)
-      }
-    })
-  })
-
-  if (t.note && r >= headerRowN) {
-    r += 1
-    const noteRow = ws.getRow(r)
-    const nc = noteRow.getCell(1)
-    nc.value = t.note
-    nc.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
-    nc.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
-    // Calcular altura para nota multilínea
-    const noteColWidth = ws.getColumn(1).width ?? globalColAWidth
-    const noteLines = Math.ceil((t.note?.length ?? 0) / Math.max(noteColWidth, 20))
-    noteRow.height = Math.max(28, 16 * noteLines)
-    band(noteRow, nCols, HUESO)
-    // Bucle explícito 1..nCols: eachCell(includeEmpty:false) salta las celdas
-    // con solo estilo y quedarían con la Calibri por defecto del formato.
-    for (let i = 1; i <= nCols; i += 1) {
-      const c = noteRow.getCell(i)
-      c.border = { ...thinLimoBorders() }
-      if (c.value === null || c.value === undefined) {
-        c.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
-      }
-    }
-  }
-
-  applyTableWidths(
-    ws,
-    t.id,
-    columnas,
-    t.filas.map((f) => f.map((c) => ({ text: c.text, numeric: c.numeric }))),
-    globalColAWidth,
-  )
-  return { headerRow: headerRowN, endRow: r, nCols }
-}
-
-// ============================================================================
-// Bloque: nota breve (sin tabla, sin columnas vacías)
-// ============================================================================
-
-/**
- * Bloque "pendiente" o "no disponible": pinta solo título, línea de fuente y
- * una nota breve. El missing es badge Crisopa/Carbón (nunca Rupestre: un ND
- * no es una alerta).
- */
-function writeNoteBlock(ws: ExcelJS.Worksheet, startRow: number, t: ExportTable, globalColAWidth: number): {
-  endRow: number; nCols: number
-} {
-  const nCols = 1
-  paintTitle(ws, startRow, nCols, t.titulo)
-  paintSourceLine(ws, startRow + 1, nCols, t.source, t.fuente, t.periodo, globalColAWidth)
-  const r = startRow + 2
-  const row = ws.getRow(r)
-  const cell = row.getCell(1)
-  cell.value = t.note ?? t.estado
-  cell.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
-  cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
-  // Calcular altura para nota multilínea
-  const noteText = t.note ?? t.estado ?? ''
-  const noteLines = Math.ceil(noteText.length / Math.max(globalColAWidth, 20))
-  row.height = Math.max(36, 16 * noteLines)
-  band(row, nCols, CRISOPA)
-  row.getCell(1).border = { ...thinLimoBorders() }
-  // Nota metodológica: ancho máximo 24 (regla contractual), con wrap.
-  const minW = Math.max(24, globalColAWidth)
-  const prev = ws.getColumn(1).width ?? 0
-  if (prev < minW) ws.getColumn(1).width = minW
-  return { endRow: r, nCols }
-}
-
-// ============================================================================
-// Línea de ámbito por hoja
-// ============================================================================
-
-function writeScopeLine(
-  ws: ExcelJS.Worksheet,
-  rowN: number,
-  nCols: number,
-  input: Pick<MunicipioWorkbookInput, 'municipio' | 'codigoINE' | 'provincia' | 'comunidadAutonoma'>,
-  globalColAWidth: number,
-): void {
-  const row = ws.getRow(rowN)
-  const c = row.getCell(1)
-  c.value =
-    `Municipio: ${input.municipio} (${input.codigoINE}) · ` +
-    `Provincia: ${input.provincia} · ` +
-    `Comunidad autónoma: ${input.comunidadAutonoma}`
-  c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
-  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: false }
-  if (nCols > 1) {
-    const rest = row.getCell(2)
-    rest.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HUESO } }
-    rest.border = { bottom: { style: 'thin', color: { argb: LIMO } } }
-    rest.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-  }
-  // Asegurar que la columna A tenga al menos el ancho global
-  const colA = ws.getColumn(1)
-  colA.width = Math.max(colA.width ?? 0, globalColAWidth)
-}
-
-// ============================================================================
 // Hoja 00_PROYECTO
 // ============================================================================
 
 interface ProjectBlock {
   label: string
   value: string
+}
+
+/** Anchos de la hoja 00 a partir de su contenido real (columna A unificada). */
+function computeProjectWidths(
+  input: MunicipioWorkbookInput,
+  hojas: ComparativeSheetInput[],
+  globalColAWidth: number,
+): number[] {
+  const metaValues = [
+    input.municipio,
+    input.codigoINE,
+    input.provincia,
+    input.comunidadAutonoma,
+    input.fechaGeneracion,
+    'España · Comunidad autónoma · Provincia · Municipio',
+  ]
+  const notaText = 'Solo se muestran comparativas cuando las fuentes, períodos y definiciones son homogéneos entre ámbitos.'
+  const colBNeeds = [
+    ...metaValues,
+    ...hojas.map((h) => h.titulo),
+    ...hojas.map((h) => `${h.bloques.length} bloques`),
+    notaText,
+  ]
+  let colB = MIN_COL_WIDTH
+  for (const v of colBNeeds) colB = Math.max(colB, naturalTextWidth(v))
+  return [globalColAWidth, clampWidth(colB)]
 }
 
 function writeProyecto(
@@ -441,8 +584,9 @@ function writeProyecto(
   globalColAWidth: number,
 ): void {
   const ws = wb.addWorksheet('00_PROYECTO', { properties: { tabColor: { argb: MUSGO } } })
+  const widths = computeProjectWidths(input, hojas, globalColAWidth)
   const nCols = 2
-  paintTitle(ws, 1, nCols, XLSX_BRAND, 14)
+  paintTitle(ws, 1, widths, nCols, XLSX_BRAND, 14)
 
   const meta: ProjectBlock[] = [
     { label: 'Municipio', value: input.municipio },
@@ -458,15 +602,19 @@ function writeProyecto(
   let r = 3
   for (const { label, value } of meta) {
     const row = ws.getRow(r)
-    row.height = 18
+    const lines = Math.max(
+      wrappedLines(label, widths[0]),
+      wrappedLines(value, widths[1]),
+    )
+    row.height = Math.max(18, lines * LINE_HEIGHT_BODY)
     const lbl = row.getCell(1)
     lbl.value = label
     lbl.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
-    lbl.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: false }
+    lbl.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: wrappedLines(label, widths[0]) > 1 }
     const val = row.getCell(2)
     val.value = value
     val.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    val.alignment = { vertical: 'middle', wrapText: true }
+    val.alignment = { vertical: 'middle', wrapText: wrappedLines(value, widths[1]) > 1 }
     band(row, nCols, HUESO)
     for (let i = 1; i <= nCols; i += 1) {
       row.getCell(i).border = { ...thinLimoBorders() }
@@ -476,12 +624,12 @@ function writeProyecto(
 
   r += 1
   ws.getRow(r - 1).height = 20
-  paintTitle(ws, r, nCols, 'Hojas del libro', 12)
+  paintTitle(ws, r, widths, nCols, 'Hojas del libro', 12)
   r += 2
   for (const hoja of hojas) {
-    // Fila 1: ID de la hoja (negrita) en col A, título en col B
+    // Fila 1: ID de la hoja (negrita) en col A, título en col B.
     const row = ws.getRow(r)
-    row.height = 20
+    row.height = Math.max(20, wrappedLines(hoja.titulo, widths[1]) * LINE_HEIGHT_BODY)
     const lbl = row.getCell(1)
     lbl.value = hoja.id
     lbl.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
@@ -489,24 +637,28 @@ function writeProyecto(
     const val = row.getCell(2)
     val.value = hoja.titulo
     val.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    val.alignment = { vertical: 'middle', wrapText: true }
+    val.alignment = { vertical: 'middle', wrapText: wrappedLines(hoja.titulo, widths[1]) > 1 }
     band(row, nCols, HUESO)
     for (let i = 1; i <= nCols; i += 1) {
       row.getCell(i).border = { ...thinLimoBorders() }
     }
     r += 1
 
-    // Fila 2 (si hay subtítulo): subtítulo en cursiva en col A, "X bloques" en col B
-    // Separado en fila distinta para evitar solapamiento visual
+    // Fila 2 (si hay subtítulo): descripción en cursiva en col A, "X bloques"
+    // en col B. Separado en fila distinta para evitar solapamiento visual.
     if (hoja.subtitulo) {
       const sub = ws.getRow(r)
-      sub.height = 18
+      const subLines = Math.max(
+        wrappedLines(hoja.subtitulo, widths[0]),
+        wrappedLines(`${hoja.bloques.length} bloques`, widths[1]),
+      )
+      sub.height = Math.max(18, subLines * LINE_HEIGHT_BODY)
       const subVal = sub.getCell(1)
       subVal.value = hoja.subtitulo
       subVal.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
-      subVal.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true }
+      subVal.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: subLines > 1 }
       const subVal2 = sub.getCell(2)
-      subVal2.value = hoja.bloques.length + ' bloques'
+      subVal2.value = `${hoja.bloques.length} bloques`
       subVal2.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
       subVal2.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false }
       band(sub, nCols, HUESO)
@@ -519,14 +671,13 @@ function writeProyecto(
 
   r += 1
   ws.getRow(r - 1).height = 20
-  paintTitle(ws, r, nCols, 'Criterio metodológico', 12)
+  paintTitle(ws, r, widths, nCols, 'Criterio metodológico', 12)
   r += 2
   const nota = ws.getRow(r)
   const notaText = 'Solo se muestran comparativas cuando las fuentes, períodos y definiciones son homogéneos entre ámbitos.'
-  // Calcular altura para nota multilínea
-  const notaColWidth = Math.max(ws.getColumn(1).width ?? globalColAWidth, globalColAWidth)
-  const notaLines = Math.ceil(notaText.length / Math.max(notaColWidth, 20))
-  nota.height = Math.max(36, 16 * notaLines)
+  const notaLines = wrappedLines(notaText, sumWidths(widths, 0, nCols))
+  nota.height = Math.max(36, notaLines * LINE_HEIGHT_BODY)
+  mergeRow(ws, r, nCols)
   const notaCell = nota.getCell(1)
   notaCell.value = notaText
   notaCell.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
@@ -539,9 +690,10 @@ function writeProyecto(
       c.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
     }
   }
-  // Ancho de columnas: col A usa el ancho global unificado, col B se ajusta a su contenido
-  ws.getColumn(1).width = Math.max(globalColAWidth, 22)
-  ws.getColumn(2).width = Math.max(ws.getColumn(2).width ?? 0, 24)
+  // Aplicar anchos al final (tras los merges) para que se respeten.
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w
+  })
 }
 
 // ============================================================================
@@ -556,8 +708,10 @@ function writeSheet(
 ): void {
   const ws = wb.addWorksheet(input.id, { properties: { tabColor: { argb: MUSGO } } })
   const maxCols = Math.max(1, ...input.bloques.map((b) => b.columnas.length || 1))
-  paintTitle(ws, 1, maxCols, input.titulo, 14)
-  writeScopeLine(ws, 2, maxCols, ctx, globalColAWidth)
+  const widths = computeSheetWidths(input.bloques, globalColAWidth)
+  while (widths.length < maxCols) widths.push(MIN_COL_WIDTH)
+  paintTitle(ws, 1, widths, maxCols, input.titulo, 14)
+  writeScopeLine(ws, 2, widths, maxCols, ctx)
   ws.getRow(3).height = 20
   let cursor = 4
   for (const bloque of input.bloques) {
@@ -567,8 +721,8 @@ function writeSheet(
         bloque.availability === 'not_available' ||
         bloque.filas.length === 0
       const endRow = isNote
-        ? writeNoteBlock(ws, cursor, bloque, globalColAWidth).endRow
-        : writeDataBlock(ws, cursor, bloque, globalColAWidth).endRow
+        ? writeNoteBlock(ws, cursor, bloque, widths, maxCols).endRow
+        : writeDataBlock(ws, cursor, bloque, widths).endRow
       // Aire vertical entre bloques: dos filas en blanco, la primera alta.
       ws.getRow(endRow + 1).height = 20
       cursor = endRow + 3
@@ -582,23 +736,27 @@ function writeSheet(
       }))
     }
   }
-  // Post-proceso: si alguna tabla de la hoja tiene "Año" como primera columna,
-  // forzar ancho de columna 1 a 10 (requisito contractual).
-  const hayAnyo = input.bloques.some(
-    (b) => b.filas.length > 0 && b.columnas[0] === 'Año',
-  )
-  if (hayAnyo) {
-    ws.getColumn(1).width = 10
-  }
+  // Aplicar anchos al final (tras todos los merges) para que se respeten.
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w
+  })
 }
 
 // ============================================================================
 // Hoja 08_CRITERIOS_Y_FUENTES
 // ============================================================================
 
+interface FuenteRow {
+  area: string
+  fuente: string
+  operacion: string
+  periodo: string
+  url?: string | null
+}
+
 interface CriteriosFuentesInput {
   bloques: ExportTable[]
-  fuentes: { area: string; fuente: string; operacion: string; periodo: string; url?: string | null }[]
+  fuentes: FuenteRow[]
 }
 
 const CRITERIOS_LECTURA = [
@@ -611,6 +769,23 @@ const CRITERIOS_LECTURA = [
   'Los datos provisionales, cuando existen, deben identificarse expresamente.',
 ]
 
+const FUENTES_COLS = ['Área', 'Fuente principal', 'Operación / tabla', 'Último período']
+
+/** Anchos de la hoja 08 a partir de su contenido real (columna A unificada). */
+function computeCriteriosWidths(fuentes: FuenteRow[], globalColAWidth: number): number[] {
+  const cols: (keyof FuenteRow)[][] = [['area'], ['fuente'], ['operacion'], ['periodo']]
+  const widths = FUENTES_COLS.map((header, ci) => {
+    let needed = naturalTextWidth(header)
+    for (const f of fuentes) {
+      const value = String(f[cols[ci][0]] ?? '')
+      needed = Math.max(needed, naturalTextWidth(value))
+    }
+    return clampWidth(needed)
+  })
+  widths[0] = globalColAWidth
+  return widths
+}
+
 function writeCriteriosFuentes(
   wb: ExcelJS.Workbook,
   input: CriteriosFuentesInput,
@@ -618,24 +793,28 @@ function writeCriteriosFuentes(
 ): void {
   const ws = wb.addWorksheet('08_CRITERIOS_Y_FUENTES', { properties: { tabColor: { argb: MUSGO } } })
   const nCols = 4
-  paintTitle(ws, 1, nCols, XLSX_BRAND, 14)
-  writeScopeLine(ws, 2, nCols, {
+  const widths = computeCriteriosWidths(input.fuentes, globalColAWidth)
+  paintTitle(ws, 1, widths, nCols, XLSX_BRAND, 14)
+  writeScopeLine(ws, 2, widths, nCols, {
     municipio: 'Criterios y fuentes',
     codigoINE: '—',
     provincia: '—',
     comunidadAutonoma: '—',
-  }, globalColAWidth)
+  })
 
-  paintTitle(ws, 4, nCols, 'Criterios de lectura', 12)
+  paintTitle(ws, 4, widths, nCols, 'Criterios de lectura', 12)
   ws.getRow(5).height = 20
   let r = 6
   for (const c of CRITERIOS_LECTURA) {
     const row = ws.getRow(r)
-    row.height = 18
+    const text = `• ${c}`
+    const lines = wrappedLines(text, sumWidths(widths, 0, nCols))
+    row.height = Math.max(18, lines * LINE_HEIGHT_BODY)
+    mergeRow(ws, r, nCols)
     const cell = row.getCell(1)
-    cell.value = `• ${c}`
+    cell.value = text
     cell.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
+    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: lines > 1, indent: 1 }
     band(row, nCols, HUESO)
     for (let i = 1; i <= nCols; i += 1) {
       const cc = row.getCell(i)
@@ -649,35 +828,25 @@ function writeCriteriosFuentes(
   r += 1
   ws.getRow(r - 1).height = 20
 
-  paintTitle(ws, r, nCols, 'Fuentes oficiales utilizadas', 12)
+  paintTitle(ws, r, widths, nCols, 'Fuentes oficiales utilizadas', 12)
   r += 2
   const headerRowN = r
   const header = ws.getRow(headerRowN)
-  const fuentesCols = ['Área', 'Fuente principal', 'Operación / tabla', 'Último período']
-  fuentesCols.forEach((col, i) => {
-    const c = header.getCell(i + 1)
-    c.value = col
-    c.alignment = { vertical: 'middle', horizontal: cellAlign(col, i === 0) }
+  FUENTES_COLS.forEach((col, i) => {
+    header.getCell(i + 1).value = col
   })
-  paintHeaderRow(header, fuentesCols.length)
+  paintHeaderRow(header, widths, nCols, FUENTES_COLS)
   let fr = headerRowN
   for (const f of input.fuentes) {
     fr += 1
     const row = ws.getRow(fr)
-    row.height = 18
     row.getCell(1).value = f.area
     row.getCell(3).value = f.operacion
     row.getCell(4).value = f.periodo
     const fuenteCell = row.getCell(2)
     if (f.url && isAllowedSourceUrl(f.url)) {
       fuenteCell.value = { text: f.fuente, hyperlink: f.url, tooltip: 'Abrir ficha oficial' }
-      fuenteCell.font = {
-        name: FONT_NAME,
-        size: 11,
-        color: { argb: CONIFERA },
-        underline: true,
-        bold: true,
-      }
+      fuenteCell.font = { name: FONT_NAME, size: 11, color: { argb: CONIFERA }, underline: true, bold: true }
     } else {
       fuenteCell.value = f.fuente
       fuenteCell.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
@@ -685,34 +854,26 @@ function writeCriteriosFuentes(
     row.getCell(1).font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
     row.getCell(3).font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
     row.getCell(4).font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    for (let i = 1; i <= 4; i += 1) {
+    let maxLines = 1
+    for (let i = 1; i <= nCols; i += 1) {
+      const text = i === 2 ? f.fuente : i === 1 ? f.area : i === 3 ? f.operacion : f.periodo
+      const lines = wrappedLines(text, widths[i - 1] ?? MIN_COL_WIDTH)
+      if (lines > maxLines) maxLines = lines
       row.getCell(i).alignment = {
         vertical: 'middle',
-        horizontal: cellAlign(fuentesCols[i - 1] ?? '', i === 1),
-        wrapText: i === 1,
+        horizontal: cellAlign(FUENTES_COLS[i - 1] ?? '', i === 1),
+        wrapText: lines > 1,
         indent: i === 1 ? 1 : undefined,
       }
       row.getCell(i).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HUESO } }
       row.getCell(i).border = { ...thinLimoBorders() }
     }
+    row.height = Math.max(18, maxLines * LINE_HEIGHT_BODY)
   }
-  applyTableWidths(
-    ws,
-    'criterios-fuentes',
-    fuentesCols,
-    input.fuentes.map((f) => [
-      { text: f.area, numeric: null },
-      { text: f.fuente, numeric: null },
-      { text: f.operacion, numeric: null },
-      { text: f.periodo, numeric: null },
-    ]),
-    globalColAWidth,
-  )
-  // Columna A respeta el ancho global unificado
-  ws.getColumn(1).width = Math.max(globalColAWidth, ws.getColumn(1).width ?? 0)
-  ws.getColumn(2).width = Math.min(22, Math.max(18, ws.getColumn(2).width ?? 0))
-  ws.getColumn(3).width = Math.min(22, Math.max(20, ws.getColumn(3).width ?? 0))
-  ws.getColumn(4).width = 12
+  // Aplicar anchos al final (tras los merges) para que se respeten.
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w
+  })
 }
 
 // ============================================================================
@@ -793,7 +954,7 @@ function bloqueAsociaciones(): ExportTable {
 
 function buildSheetCatalog(input: MunicipioWorkbookInput): {
   hojas: ComparativeSheetInput[]
-  fuentes: { area: string; fuente: string; operacion: string; periodo: string; url?: string | null }[]
+  fuentes: FuenteRow[]
 } {
   const sheetsById = new Map<SocideasSheetId, ExportTable[]>()
   for (const id of SOCIDEAS_SHEET_IDS) sheetsById.set(id, [])
@@ -893,14 +1054,16 @@ function buildSheetCatalog(input: MunicipioWorkbookInput): {
     const info = titulos[id]
     hojas.push({
       id,
-      titulo: `${XLSX_BRAND} — ${info.titulo}`,
+      // La marca completa se reserva a 00_PROYECTO: en las hojas temáticas el
+      // título visible debe caber sin cortarse.
+      titulo: info.titulo,
       subtitulo: info.subtitulo,
       bloques: sheetsById.get(id) ?? [],
     })
   }
 
   // Fuentes centralizadas
-  const fuentes: { area: string; fuente: string; operacion: string; periodo: string; url?: string | null }[] = []
+  const fuentes: FuenteRow[] = []
   const seen = new Set<string>()
   const pushFuente = (
     area: string,
@@ -938,57 +1101,6 @@ function buildSheetCatalog(input: MunicipioWorkbookInput): {
 }
 
 // ============================================================================
-// Cálculo de ancho global unificado para columna A
-// ============================================================================
-
-/** Recopila todo el texto de columna A de todas las tablas de todas las hojas. */
-function collectAllColATexts(hojas: ComparativeSheetInput[]): string[] {
-  const texts: string[] = []
-  for (const hoja of hojas) {
-    for (const bloque of hoja.bloques) {
-      // Título de sección
-      texts.push(bloque.titulo)
-      // Encabezados de columna
-      if (bloque.columnas.length > 0) {
-        texts.push(bloque.columnas[0])
-      }
-      // Contenido de filas (primera columna)
-      for (const fila of bloque.filas) {
-        if (fila.length > 0) {
-          texts.push(fila[0].text)
-        }
-      }
-      // Nota metodológica
-      if (bloque.note) {
-        texts.push(bloque.note)
-      }
-    }
-  }
-  // Textos de la hoja 00_PROYECTO
-  texts.push('Municipio', 'Código INE', 'Provincia', 'Comunidad autónoma', 'Fecha de generación', 'Cobertura territorial comparativa')
-  texts.push(...hojas.map((h) => h.id))
-  texts.push(...hojas.map((h) => h.titulo))
-  texts.push(...hojas.filter((h) => h.subtitulo).map((h) => h.subtitulo ?? ''))
-  texts.push('Solo se muestran comparativas cuando las fuentes, períodos y definiciones son homogéneos entre ámbitos.')
-  // Textos de la hoja 08_CRITERIOS_Y_FUENTES
-  texts.push('Criterios de lectura', 'Fuentes oficiales utilizadas')
-  texts.push(...CRITERIOS_LECTURA.map((c) => `• ${c}`))
-  return texts
-}
-
-/** Calcula el ancho óptimo para la columna A unificada (en caracteres Excel). */
-function calculateGlobalColAWidth(texts: string[]): number {
-  let maxLen = 0
-  for (const t of texts) {
-    const len = t.length
-    if (len > maxLen) maxLen = len
-  }
-  // Añadir margen de 3 caracteres + padding, PERO limitar a 24 (restricción contractual)
-  const width = Math.min(24, Math.max(22, maxLen + 3))
-  return width
-}
-
-// ============================================================================
 // Punto de entrada
 // ============================================================================
 
@@ -1000,9 +1112,8 @@ export async function buildMunicipioWorkbook(input: MunicipioWorkbookInput): Pro
 
   const { hojas, fuentes } = buildSheetCatalog(input)
 
-  // Calcular ancho global unificado para columna A ANTES de escribir hojas
-  const allColATexts = collectAllColATexts(hojas)
-  const globalColAWidth = calculateGlobalColAWidth(allColATexts)
+  // Ancho de la columna A unificada en TODO el libro ANTES de escribir hojas.
+  const globalColAWidth = calculateGlobalColAWidth(collectAllColATexts(hojas))
 
   writeProyecto(wb, input, hojas, globalColAWidth)
   for (const hoja of hojas) {

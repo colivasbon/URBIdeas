@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FICHA_SHEETS, type FichaSheetKey } from "./ficha-sheets";
+import TabPendingIndicator from "./TabPendingIndicator";
 
 /**
  * Navegación por hojas del libro. Sustituye a la antigua cápsula
@@ -54,6 +55,7 @@ export default function SheetTabs({
               {s.code}
             </span>
             <span>{s.label}</span>
+            <TabPendingIndicator />
             {s.estado === "pendiente" && (
               <span
                 className={`rounded-[4px] px-1.5 py-0.5 text-[10px] font-semibold ${
@@ -75,6 +77,7 @@ export default function SheetTabs({
           SC
         </span>
         Secciones censales
+        <TabPendingIndicator />
       </Link>
     </nav>
   );

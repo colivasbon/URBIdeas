@@ -67,6 +67,50 @@ interface MergeRange {
   right: number
 }
 
+/** Letra de columna A1 → índice 1-based (A=1, Z=26, AA=27…). */
+function colFromLetters(letters: string): number {
+  let n = 0
+  for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64)
+  return n
+}
+
+/** Convierte "A1:B1" en un rango; null si no es un rango válido. */
+function parseMergeRef(ref: string): MergeRange | null {
+  const m = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(ref)
+  if (!m) return null
+  return {
+    left: colFromLetters(m[1]),
+    top: parseInt(m[2], 10),
+    right: colFromLetters(m[3]),
+    bottom: parseInt(m[4], 10),
+  }
+}
+
+/** ExcelJS devuelve `model.merges` como cadenas A1:B1 (según versión puede ser
+ *  un objeto de rango). Se normalizan ambos casos: si no, las celdas fusionadas
+ *  se omitían y el truncado en títulos/notas pasaba desapercibido. */
+function readMerges(ws: ExcelJS.Worksheet): MergeRange[] {
+  const raw = (ws.model.merges ?? []) as unknown[]
+  const out: MergeRange[] = []
+  for (const r of raw) {
+    if (typeof r === 'string') {
+      const parsed = parseMergeRef(r)
+      if (parsed) out.push(parsed)
+    } else if (r && typeof r === 'object') {
+      const o = r as Partial<MergeRange>
+      if (
+        typeof o.top === 'number' &&
+        typeof o.left === 'number' &&
+        typeof o.bottom === 'number' &&
+        typeof o.right === 'number'
+      ) {
+        out.push({ top: o.top, left: o.left, bottom: o.bottom, right: o.right })
+      }
+    }
+  }
+  return out
+}
+
 export function findLayoutProblems(wb: ExcelJS.Workbook): {
   problems: LayoutProblem[]
   stats: LayoutStats
@@ -89,7 +133,7 @@ export function findLayoutProblems(wb: ExcelJS.Workbook): {
       }
     }
 
-    const merges = (ws.model.merges ?? []) as unknown as MergeRange[]
+    const merges = readMerges(ws)
     const masterByTopLeft = new Map<string, MergeRange>()
     for (const m of merges) masterByTopLeft.set(`${m.top}:${m.left}`, m)
 

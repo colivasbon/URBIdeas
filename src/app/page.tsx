@@ -95,14 +95,15 @@ export default function PlatformHome() {
                 cta="Buscar un municipio"
                 badge="Demografía disponible"
               />
-              <ModuleCard
+              {/* TODO: RE-HABILITAR ASISTENCIAS — tarjeta deshabilitada temporalmente */}
+              {/* <ModuleCard
                 kicker="Área de trabajo"
                 title="Asistencias de sostenibilidad"
                 description="Apoyo técnico para caracterización territorial, comunicación, participación, responsabilidad social y seguimiento de proyectos."
                 href="/asistencias"
                 cta="Ver asistencias"
                 badge="Próximamente"
-              />
+              /> */}
             </div>
           </div>
         </section>

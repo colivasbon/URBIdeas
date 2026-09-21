@@ -16,7 +16,8 @@ export function platformNavConfig(): ProductNavbarConfig {
       { id: "inicio", label: "Inicio", href: "/", exact: true },
       { id: "urbideas", label: "URBideas", href: "/urbideas" },
       { id: "socideas", label: "SOCideas", href: "/socideas" },
-      { id: "asistencias", label: "Asistencias", href: "/asistencias" },
+      // TODO: RE-HABILITAR ASISTENCIAS — nav item deshabilitado temporalmente
+      // { id: "asistencias", label: "Asistencias", href: "/asistencias" },
     ],
   };
 }
@@ -122,33 +123,34 @@ export function socideasNavConfig(ctx: SocideasContext = {}): ProductNavbarConfi
   };
 }
 
-export function asistenciasNavConfig(): ProductNavbarConfig {
-  const planned = (label: string) => ({
-    label,
-    badge: "Próximamente" as const,
-    disabled: true,
-  });
-  return {
-    product: "asistencias",
-    productLabel: "Asistencias",
-    productMark: "A",
-    productHref: "/asistencias",
-    productDescription: "Apoyo técnico · IDEAS Sostenibilidad",
-    tone: "assistance",
-    mobileMenuLabel: "Abrir menú de Asistencias",
-    navigation: [
-      { id: "inicio", label: "Inicio", href: "/asistencias", exact: true },
-      {
-        id: "areas",
-        label: "Áreas",
-        items: [
-          planned("Caracterización territorial"),
-          planned("Diagnóstico socioeconómico"),
-          planned("Comunicación y participación"),
-          planned("Responsabilidad social"),
-          planned("Seguimiento de medidas e indicadores"),
-        ],
-      },
-    ],
-  };
-}
+// TODO: RE-HABILITAR ASISTENCIAS — función deshabilitada temporalmente
+// export function asistenciasNavConfig(): ProductNavbarConfig {
+//   const planned = (label: string) => ({
+//     label,
+//     badge: "Próximamente" as const,
+//     disabled: true,
+//   });
+//   return {
+//     product: "asistencias",
+//     productLabel: "Asistencias",
+//     productMark: "A",
+//     productHref: "/asistencias",
+//     productDescription: "Apoyo técnico · IDEAS Sostenibilidad",
+//     tone: "assistance",
+//     mobileMenuLabel: "Abrir menú de Asistencias",
+//     navigation: [
+//       { id: "inicio", label: "Inicio", href: "/asistencias", exact: true },
+//       {
+//         id: "areas",
+//         label: "Áreas",
+//         items: [
+//           planned("Caracterización territorial"),
+//           planned("Diagnóstico socioeconómico"),
+//           planned("Comunicación y participación"),
+//           planned("Responsabilidad social"),
+//           planned("Seguimiento de medidas e indicadores"),
+//         ],
+//       },
+//     ],
+//   };
+// }

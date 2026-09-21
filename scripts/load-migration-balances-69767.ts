@@ -378,39 +378,47 @@ async function main() {
   let written = 0
   let skipped = 0
   const errors: string[] = []
-  for (const [code, layer] of layers) {
-    const key = `${R2_PREFIX}/${code}.json`
-    try {
-      const ex = await getExisting(r2, key)
-      if (onlyNew && ex.found) {
-        const lb = (ex.data as { layers?: { migrationBalance?: { period?: string } } })?.layers?.migrationBalance
-        if (lb && lb.period === period) { skipped++; continue }
-      }
-      const existing: Record<string, unknown> = ex.found
-        ? (ex.data as Record<string, unknown>)
-        : {
-            schemaVersion: 'municipal-ine-layers-v1',
-            ineCode: code,
-            municipalityName: names.get(code) ?? code,
-            generatedAt: new Date().toISOString(),
-            layers: {},
-            quality: { territoryMatch: 'exact', sourceChecksums: {}, validationStatus: 'partial' },
+  const force = args.includes('--force')
+  const CONCURRENCY = 25
+  const entries = [...layers.entries()]
+  let idx = 0
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCY, entries.length) }, async () => {
+      while (idx < entries.length) {
+        const [code, layer] = entries[idx++]
+        const key = `${R2_PREFIX}/${code}.json`
+        try {
+          const ex = await getExisting(r2, key)
+          if (onlyNew && !force && ex.found) {
+            const lb = (ex.data as { layers?: { migrationBalance?: { period?: string } } })?.layers?.migrationBalance
+            if (lb && lb.period === period) { skipped++; continue }
           }
-      const layersObj = (existing.layers ?? {}) as Record<string, unknown>
-      layersObj.migrationBalance = layer
-      existing.layers = layersObj
-      existing.ineCode = code
-      existing.generatedAt = new Date().toISOString()
+          const existing: Record<string, unknown> = ex.found ? (ex.data as Record<string, unknown>) : {}
+          const layersObj = (existing.layers ?? {}) as Record<string, unknown>
+          layersObj.migrationBalance = layer
+          // Envelope municipal-ine-layers-v1 COMPLETO (obligatorio para el lector).
+          existing.schemaVersion = 'municipal-ine-layers-v1'
+          existing.ineCode = code
+          existing.municipalityName = (existing.municipalityName as string) || names.get(code) || code
+          existing.generatedAt = new Date().toISOString()
+          existing.layers = layersObj
+          existing.quality =
+            (existing.quality as object) ??
+            { territoryMatch: 'exact', sourceChecksums: {}, validationStatus: 'partial' }
 
-      await putWithRetry(r2, key, JSON.stringify(existing), { runid: runId, inecode: code, schema: 'municipal-ine-layers-v1', layer: 'migrationBalance' })
-      written++
-      if (written % 500 === 0) console.log(`  Escritos: ${written}/${layers.size}`)
-    } catch (err) {
-      errors.push(`${code}: ${err}`)
-      if (errors.length > 10) { console.error('Demasiados errores. Abortando.'); break }
-    }
-  }
-  console.log(`  Objetos escritos: ${written}/${layers.size} · saltados (ya presentes): ${skipped} · errores: ${errors.length}`)
+          await putWithRetry(r2, key, JSON.stringify(existing), {
+            runid: runId, inecode: code, schema: 'municipal-ine-layers-v1', layer: 'migrationBalance',
+          })
+          written++
+          if (written % 500 === 0) console.log(`  Escritos: ${written}/${entries.length}`)
+        } catch (err) {
+          errors.push(`${code}: ${err}`)
+        }
+      }
+    }),
+  )
+  console.log(`  Objetos escritos: ${written}/${entries.length} · saltados: ${skipped} · errores: ${errors.length}`)
+  if (errors.length > 0) console.error('  Primeros errores:', errors.slice(0, 5).join(' | '))
 
   // Read-back (cache-buster)
   console.log('--- Read-back ---')
@@ -421,8 +429,9 @@ async function main() {
       const body = await resp.Body!.transformToString()
       const data = JSON.parse(body)
       const hasBal = !!data.layers?.migrationBalance
-      const keepMig = !!data.layers?.migration
-      console.log(`  ${code}: ${Buffer.byteLength(body)} B | migrationBalance=${hasBal} | preserva migration=${keepMig}`)
+      const keepMig = !!(data.migration || data.layers?.migration)
+      const valid = data.schemaVersion === 'municipal-ine-layers-v1' && !!data.quality
+      console.log(`  ${code}: ${Buffer.byteLength(body)} B | migrationBalance=${hasBal} | preserva migration=${keepMig} | envelope-valid=${valid}`)
     } catch { console.log(`  ${code}: NO ENCONTRADO`) }
   }
 

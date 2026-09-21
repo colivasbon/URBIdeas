@@ -228,8 +228,9 @@ export default function FichaFiltros({
     ...(perfil.densidad.valor !== null
       ? []
       : [{ titulo: "Densidad de población", estado: "pending", detalle: "Pendiente de integración de fuente de superficie. Nada se estima." } as CoverageEntry]),
-    { titulo: "Saldo migratorio agregado", estado: "without_coverage", detalle: "La capa antigua de saldo agregado (INE, tabla 69767) sigue sin cobertura municipal verificada. Los flujos migratorios (tablas 69711, 69743 y 69746) sí tienen cobertura y se muestran en su bloque." },
-    { titulo: "Natalidad, mortalidad y educación", estado: "without_coverage", detalle: "Sin cobertura municipal verificada en esta ficha; solo se incorporarían con fuente oficial y periodo homogéneo." },
+    { titulo: "Saldos migratorios municipales", estado: "pending", detalle: "Los saldos migratorios municipales (INE, tabla 69767: saldo total, exterior e interior) tienen COBERTURA MUNICIPAL NACIONAL verificada y son una serie complementaria a los flujos 69711/69743/69746. Pendiente de activación del bloque ya verificado." },
+    { titulo: "Natalidad y mortalidad", estado: "without_coverage", detalle: "Las tablas del INE (31934/31917) solo cubren capitales y municipios principales; sin cobertura nacional no se incorporan." },
+    { titulo: "Nivel educativo (Censo 2021)", estado: "pending", detalle: "Fuente municipal verificada (INE, tabla PC-Axis 55249). Pendiente de activación del bloque." },
     { titulo: "Fuente provisional", estado: "provisional", detalle: "No hay fuente provisional configurada para demografía. Se conserva el último dato consolidado." },
   ];
   if (perfil.piramide.anio !== null && refAnio !== null && perfil.piramide.anio !== refAnio) {
@@ -757,7 +758,7 @@ function derivarPerfil(base: PerfilDemografico, filtros: FiltrosUI): PerfilDemog
 
 const pendientesFijas = [
   "Densidad: pendiente de integración de fuente de superficie.",
-  "Saldo migratorio agregado (capa antigua, INE tabla 69767): sin cobertura municipal verificada; sigue pendiente.",
+  "Saldos migratorios municipales (INE tabla 69767, saldo total/exterior/interior): cobertura municipal nacional verificada; complementarios a los flujos 69711/69743/69746. Pendiente de activación del bloque ya verificado.",
   "Flujos migratorios (INE tablas 69711, 69743 y 69746): con cobertura municipal desde esta fase; se muestran en su bloque.",
 ];
 

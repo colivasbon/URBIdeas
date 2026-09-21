@@ -47,7 +47,8 @@ import {
   buildCentrosEducativosTable,
   buildDemographicDerivedLayerTable,
   buildDensidadTable,
-  buildMovilidadMigratoriaTable,
+    buildMovilidadMigratoriaTable,
+    buildSaldosMigratoriosTables,
   buildNivelEducativoTable,
 } from './socideas-ine-layers-export'
 import type { MunicipalIneLayersV1 } from './socideas-ine-layers'
@@ -1001,6 +1002,13 @@ function buildSheetCatalog(input: MunicipioWorkbookInput): {
     if (movilidad && movilidad.length > 0) hoja01.push(...movilidad)
   } catch (e) {
     console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'movilidad', error: e instanceof Error ? e.message : String(e) }))
+  }
+  // Saldos migratorios netos (INE 69767): total, exterior e interior.
+  try {
+    const saldos = buildSaldosMigratoriosTables(input.ineLayers)
+    if (saldos && saldos.length > 0) hoja01.push(...saldos)
+  } catch (e) {
+    console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'saldos_migratorios', error: e instanceof Error ? e.message : String(e) }))
   }
   sheetsById.set('01_PERFIL_DEMOGRÁFICO', hoja01)
 

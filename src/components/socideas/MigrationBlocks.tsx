@@ -13,6 +13,7 @@ import type {
   MigrationFlowGroup,
   MigrationPresentationData,
 } from "@/lib/socideas-migration-summary";
+import type { MigrationBalancePresentation } from "@/lib/socideas-migration-balances";
 
 function fmt(n: number | null): string {
   return n === null ? "ND" : n.toLocaleString("es-ES");
@@ -197,6 +198,89 @@ export function FlujosMigratoriosBlock({ data }: { data: MigrationPresentationDa
       <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
         La ausencia de dato se muestra como ND; nunca como 0. Las barras comparan hombres y mujeres
         dentro de cada flujo, no flujos entre sí.
+      </p>
+    </section>
+  );
+}
+
+// ── Saldo migratorio neto (INE 69767) — complementario a los flujos ──
+
+function fmtSigned(n: number | null): string {
+  return n === null ? "ND" : `${n > 0 ? "+" : ""}${n.toLocaleString("es-ES")}`;
+}
+
+function BalanceCard({
+  label,
+  value,
+  period,
+  tableId,
+}: {
+  label: string;
+  value: number | null;
+  period: string;
+  tableId: string;
+}) {
+  return (
+    <article className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-4 shadow-[var(--shadow-premium-sm)]">
+      <h3 className="text-sm font-bold text-[var(--color-text-primary)]">{label}</h3>
+      <p className="data-card__value mt-2 leading-none">{fmtSigned(value)}</p>
+      <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+        Personas (neto)
+      </p>
+      <Trace label="Instituto Nacional de Estadística" tableId={tableId} period={period} />
+    </article>
+  );
+}
+
+/**
+ * Bloque "Saldo migratorio neto": saldo total / exterior / interior (69767) y
+ * desglose por sexo. Separado explícitamente de "Flujos migratorios": el saldo
+ * es la diferencia neta, no el número de movimientos. ND nunca es 0.
+ */
+export function SaldosMigratoriosBlock({ data }: { data: MigrationBalancePresentation }) {
+  const hasData =
+    data.total.value !== null || data.interior.value !== null || data.exterior.value !== null;
+  return (
+    <section aria-label="Saldo migratorio neto" className="mb-10">
+      <h2 className="ideas-h2">Saldo migratorio neto</h2>
+      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+        Diferencia neta entre entradas y salidas · INE · {data.period}
+      </p>
+      {!hasData ? (
+        <div className="mt-4">
+          <EstadoLinea estado={data.status} />
+        </div>
+      ) : (
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <BalanceCard label="Saldo total" value={data.total.value} period={data.period} tableId={data.tableId} />
+          <BalanceCard label="Saldo exterior" value={data.exterior.value} period={data.period} tableId={data.tableId} />
+          <BalanceCard label="Saldo interior" value={data.interior.value} period={data.period} tableId={data.tableId} />
+        </div>
+      )}
+      {data.bySex && (
+        <div className="mt-4 max-w-sm">
+          <article className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-4">
+            <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Saldo total por sexo</h3>
+            <dl className="mt-2 space-y-1 text-sm">
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-[var(--color-text-muted)]">Hombres</dt>
+                <dd className="font-semibold tabular-nums text-[var(--color-text-primary)]">
+                  {fmtSigned(data.bySex.male.total.value)}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-[var(--color-text-muted)]">Mujeres</dt>
+                <dd className="font-semibold tabular-nums text-[var(--color-text-primary)]">
+                  {fmtSigned(data.bySex.female.total.value)}
+                </dd>
+              </div>
+            </dl>
+          </article>
+        </div>
+      )}
+      <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+        El saldo es la diferencia neta entre entradas y salidas; no es el número total de movimientos.
+        Los flujos migratorios se muestran en el bloque anterior.
       </p>
     </section>
   );

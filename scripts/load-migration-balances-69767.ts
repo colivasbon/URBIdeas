@@ -36,7 +36,6 @@ const INE_API_BASE = 'https://servicios.ine.es/wstempus/js/ES'
 const TABLE_ID = '69767'
 const OP_NAME = 'INE · Estadística de Migraciones y Cambios de Residencia · Tabla 69767'
 const R2_PREFIX = 'socideas/ine-layers/v1/municipal'
-const R2_MANIFESTS_PREFIX = 'socideas/ine-layers/v1/manifests'
 const MAX_OBJECT_BYTES = 150 * 1024
 const RETRY_ATTEMPTS = 3
 const RETRY_BASE_MS = 500

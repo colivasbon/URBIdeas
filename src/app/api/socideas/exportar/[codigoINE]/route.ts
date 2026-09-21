@@ -9,6 +9,7 @@ import { readMunicipalIneLayers } from '@/lib/socideas-ine-layers'
 import { buildDemographicDimensionTables } from '@/lib/socideas-demographic-export'
 import { buildElectoralTables } from '@/lib/socideas-electoral-export'
 import { buildMigrationFlowTables } from '@/lib/socideas-migration-export'
+import { buildSaldosMigratoriosTables } from '@/lib/socideas-ine-layers-export'
 import {
   buildDemografiaTables,
   buildEconomiaTables,
@@ -206,6 +207,7 @@ export async function GET(
         ...(perfilDemo ? buildDemografiaTables(perfilDemo) : []),
         ...buildDemographicDimensionTables(demoExtra),
         ...buildMigrationFlowTables(migracion),
+        ...(buildSaldosMigratoriosTables(ineLayers) ?? []),
       ]
     } catch (e) {
       logError(requestId, stage, ineCode, e)

@@ -29,12 +29,9 @@ import type { TemporaryMunicipalData } from "@/lib/socideas-temporary-data";
 import EmptyState from "@/components/ui/EmptyState";
 import SourcePill from "@/components/ui/SourcePill";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
-import type { AmbitoTerritorial, PerfilDemografico, PerfilEconomico } from "@/lib/socideas";
-import { AMBITOS } from "@/lib/socideas";
+import type { PerfilDemografico, PerfilEconomico } from "@/lib/socideas";
 
 export const dynamic = "force-dynamic";
-
-const AMBITOS_DEFECTO: AmbitoTerritorial[] = ["municipio"];
 
 // Sin self-fetch HTTP: la ficha llama a la lógica de perfil directamente.
 // Un fetch a uno mismo puede fallar a nivel de red en serverless y tumbar
@@ -69,12 +66,6 @@ async function getEconomia(codigoIne: string): Promise<PerfilEconomico | null> {
   }
 }
 
-function parseAnio(v: string | undefined, lista: number[]): number | null {
-  if (!v || !/^\d{4}$/.test(v)) return null;
-  const n = parseInt(v, 10);
-  return lista.includes(n) ? n : null;
-}
-
 /** Rango compacto de periodos para la píldora de resumen (solo lectura de strings). */
 function periodoDe(periodos: string[]): string | null {
   const anios = periodos.flatMap((p) => (p.match(/\b(19|20)\d{2}\b/g) ?? []).map(Number));
@@ -82,38 +73,6 @@ function periodoDe(periodos: string[]): string | null {
   const min = Math.min(...anios);
   const max = Math.max(...anios);
   return min === max ? String(min) : `${min}–${max}`;
-}
-
-/** Filtros iniciales validados para la primera pintura en servidor. */
-async function filtrosIniciales(
-  codigoIne: string,
-  sp: Record<string, string | string[] | undefined>,
-): Promise<{ filtros: FiltrosPerfil; perfil: PerfilDemografico | null }> {
-  const primero = (v: string | string[] | undefined): string | undefined =>
-    Array.isArray(v) ? v[0] : v;
-  // Carga base sin filtros para conocer los años disponibles.
-  const base = await getPerfil(codigoIne, {}, false);
-  const d = base?.disponibles;
-  const filtros: FiltrosPerfil = { ambitos: [...AMBITOS_DEFECTO] };
-  if (d) {
-    const anio = parseAnio(primero(sp.anio), d.anios_municipio);
-    const desde = parseAnio(primero(sp.evo_desde), d.anios_evolucion);
-    const hasta = parseAnio(primero(sp.evo_hasta), d.anios_evolucion);
-    const pirAnio = parseAnio(primero(sp.pir_anio), d.piramide_anios);
-    if (anio !== null) filtros.anio = anio;
-    if (desde !== null && hasta !== null && desde <= hasta) {
-      filtros.desde = desde;
-      filtros.hasta = hasta;
-    }
-    if (pirAnio !== null) filtros.pirAnio = pirAnio;
-    const comparar = (primero(sp.comparar) ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s): s is AmbitoTerritorial => (AMBITOS as string[]).includes(s));
-    if (comparar.length > 0) filtros.ambitos = comparar;
-  }
-  const perfil = await getPerfil(codigoIne, filtros, true);
-  return { filtros, perfil };
 }
 
 export async function generateMetadata({
@@ -157,7 +116,11 @@ export default async function SocideasFicha({
   // sigue aceptando y mapea a la hoja 03.
   const hojaActiva = resolveFichaSheet(primero(sp.hoja), primero(sp.categoria));
   const hojaMeta = fichaSheetByKey(hojaActiva);
-  const { perfil } = await filtrosIniciales(codigoINE, sp);
+  // UNA sola lectura del perfil (antes se hacían dos: base + filtrada; la
+  // validación de filtros la repite el cliente sobre `disponibles`). La
+  // comprobación de frescura contra el INE solo se lanza en la hoja de
+  // demografía: al cambiar de pestaña no debe añadir latencia.
+  const perfil = await getPerfil(codigoINE, {}, hojaActiva === "demografia");
   // La barra operativa necesita el resumen de AMBOS bloques. La lectura R2 del
   // envelope está deduplicada por React.cache en el mismo request (ver
   // socideas-r2:getMunicipioEnvelopeForRequest): no añade lecturas nuevas.

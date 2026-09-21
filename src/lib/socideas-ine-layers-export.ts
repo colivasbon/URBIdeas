@@ -8,6 +8,7 @@ import type { ExportCell, ExportTable } from './socideas-export'
 import type {
   IneEducationDistribution,
   IneMigrationYear,
+  IneValue,
   MunicipalIneLayersV1,
 } from './socideas-ine-layers'
 import { ineTableSource, registrySource } from './socideas-source-registry'
@@ -175,6 +176,50 @@ export function buildDemographicDerivedLayerTable(
     availability: 'available',
     note: 'Los indicadores derivados se identifican como cálculo SOCideas cuando la capa INE los marca como derived.',
   }
+}
+
+/**
+ * Tablas XLSX del SALDO migratorio neto (INE 69767): total, exterior e interior,
+ * cada una por sexo. Separadas de los FLUJOS (69711/69743/69746). ND nunca 0.
+ */
+export function buildSaldosMigratoriosTables(
+  layers: MunicipalIneLayersV1 | null | undefined,
+): ExportTable[] | null {
+  const mb = layers?.layers?.migrationBalance
+  if (!mb) return null
+  const cell = (v: number | null): ExportCell =>
+    v === null ? { text: 'ND', numeric: null } : { text: v.toLocaleString('es-ES'), numeric: v }
+  const row = (label: string, v: IneValue | undefined): ExportCell[] => [
+    { text: label, numeric: null },
+    cell(v?.value ?? null),
+  ]
+  const source = ineTableSource(mb.tableId ?? '69767', 'Estadística de Migraciones y Cambios de Residencia') ?? undefined
+
+  const tables: ExportTable[] = []
+  const mk = (id: string, titulo: string, sel: 'total' | 'interior' | 'exterior'): void => {
+    const t = mb[sel]
+    const m = mb.bySex?.male?.[sel]
+    const f = mb.bySex?.female?.[sel]
+    tables.push({
+      id,
+      titulo,
+      hoja: '01_PERFIL_DEMOGRÁFICO',
+      columnas: ['Sexo', 'Saldo (personas)'],
+      filas: [row('Total', t), row('Hombres', m), row('Mujeres', f)],
+      fuente: `Instituto Nacional de Estadística · Saldo migratorio (${mb.period})`,
+      periodo: mb.period,
+      cobertura: layers?.municipalityName ? `Municipio ${layers.municipalityName}` : 'Municipio',
+      estado: mb.status === 'observed' ? 'Consolidado' : 'Cobertura parcial; revisar período y fuente',
+      source,
+      comparisonMode: 'municipal_only',
+      availability: mb.status === 'observed' ? 'available' : 'pending_integration',
+      note: 'Saldo = diferencia neta entre entradas y salidas; no es el número total de movimientos. Complementa a los flujos migratorios.',
+    })
+  }
+  mk('saldo-migratorio-total', 'Saldo migratorio total', 'total')
+  mk('saldo-migratorio-exterior', 'Saldo migratorio exterior', 'exterior')
+  mk('saldo-migratorio-interior', 'Saldo migratorio interior', 'interior')
+  return tables
 }
 
 /**

@@ -891,7 +891,7 @@ export function demografiaExcluidas(hasDensidad = false): Exclusion[] {
     ...(hasDensidad
       ? []
       : [{ titulo: "Densidad de población", motivo: "Pendiente de integración de fuente de superficie." }]),
-    { titulo: "Saldo migratorio agregado (capa antigua, INE tabla 69767)", motivo: "Sin cobertura municipal verificada; sigue pendiente. Los flujos migratorios (tablas 69711, 69743 y 69746) sí tienen cobertura y se incluyen en su bloque." },
+    { titulo: "Saldos migratorios municipales (INE tabla 69767)", motivo: "Cobertura municipal nacional verificada (saldo total, exterior e interior). Serie complementaria a los flujos 69711/69743/69746; pendiente de activación del bloque ya verificado." },
     { titulo: "Indicadores por sección censal", motivo: "Sin tabla cargada; la geometría se carga solo bajo demanda." },
   ];
 }

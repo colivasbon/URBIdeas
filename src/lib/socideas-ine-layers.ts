@@ -106,6 +106,25 @@ export interface IneAgriculturalTraining {
   universityAgricultural?: IneValue
 }
 
+export interface IneBalanceSexBlock {
+  total: IneValue
+  interior: IneValue
+  exterior: IneValue
+}
+
+/** Saldo migratorio neto municipal (INE 69767). Complementa — NO sustituye —
+ *  a los flujos 69711/69743/69746. Nunca se suman saldos con flujos. */
+export interface IneMigrationBalance {
+  period: string
+  tableId: string
+  source: string
+  total: IneValue
+  interior: IneValue
+  exterior: IneValue
+  bySex?: { male: IneBalanceSexBlock; female: IneBalanceSexBlock }
+  status: LayerStatus
+}
+
 export interface MunicipalIneLayersV1 {
   schemaVersion: typeof INE_LAYERS_V1_SCHEMA
   ineCode: string
@@ -128,6 +147,7 @@ export interface MunicipalIneLayersV1 {
       latest?: IneMigrationYear
       status: LayerStatus
     }
+    migrationBalance?: IneMigrationBalance
     nationalityDetail?: {
       period: string
       topNationalities: IneCategory[]

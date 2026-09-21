@@ -39,7 +39,8 @@ export default function PlatformFooter() {
                 <Link href="/" className="text-sm text-hueso/70 hover:text-hueso transition-colors duration-150">Inicio</Link>
                 <Link href="/urbideas" className="text-sm text-hueso/70 hover:text-hueso transition-colors duration-150">URBideas</Link>
                 <Link href="/socideas" className="text-sm text-hueso/70 hover:text-hueso transition-colors duration-150">SOCideas</Link>
-                <Link href="/asistencias" className="text-sm text-hueso/70 hover:text-hueso transition-colors duration-150">Asistencias</Link>
+                {/* TODO: RE-HABILITAR ASISTENCIAS — enlace deshabilitado temporalmente */}
+                {/* <Link href="/asistencias" className="text-sm text-hueso/70 hover:text-hueso transition-colors duration-150">Asistencias</Link> */}
               </div>
             </div>
             <div className="flex flex-col gap-1.5">

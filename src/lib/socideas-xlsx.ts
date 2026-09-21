@@ -47,7 +47,8 @@ import {
   buildCentrosEducativosTable,
   buildDemographicDerivedLayerTable,
   buildDensidadTable,
-  buildMovilidadMigratoriaTable,
+    buildMovilidadMigratoriaTable,
+    buildSaldosMigratoriosTables,
   buildNivelEducativoTable,
 } from './socideas-ine-layers-export'
 import type { MunicipalIneLayersV1 } from './socideas-ine-layers'
@@ -99,6 +100,13 @@ const MIN_COL_WIDTH = 10
 /** Ancho mínimo de la columna A unificada (etiquetas legibles aunque el libro
  *  solo tenga etiquetas cortas). */
 const MIN_COL_A_WIDTH = 22
+/** Hojas sin tabla de datos (bloques pendientes): número de columnas sobre el
+ *  que se despliegan título, fuente y nota. Evita que el texto quede comprimido
+ *  en una única columna estrecha (el defecto visual detectado). */
+const NOTE_SPAN_COLS = 4
+/** Ancho de las columnas de relleno en hojas sin tabla (dan aire al texto
+ *  fusionado de los bloques pendientes). */
+const NOTE_SPAN_COL_WIDTH = 26
 /** Poppins es más ancha que Calibri (unidad de ancho de Excel ≈ carácter de la
  *  fuente por defecto). Este factor SOBREESTIMA a propósito: preferimos columnas
  *  un poco anchas antes que texto cortado. */
@@ -217,7 +225,11 @@ function paintSourceLine(
 ): void {
   const row = ws.getRow(rowN)
   const text = visibleSourceLabel(source, fuente, periodo)
-  const textCols = Math.max(1, nCols - 1)
+  const url = source?.publicUrl
+  const hasLink = nCols >= 2 && typeof url === 'string' && isAllowedSourceUrl(url)
+  // Con enlace, el texto deja la última columna para el enlace; sin enlace, el
+  // texto ocupa TODO el ancho del bloque (antes quedaba un hueco sin borde).
+  const textCols = hasLink ? Math.max(1, nCols - 1) : nCols
   const textWidth = sumWidths(widths, 0, textCols)
   const lines = wrappedLines(text, textWidth)
   row.height = Math.max(16, lines * LINE_HEIGHT_SMALL)
@@ -227,12 +239,11 @@ function paintSourceLine(
   c.value = text
   c.font = { name: FONT_NAME, size: 10, color: { argb: CARBON } }
   c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: lines > 1 }
-  for (let i = 1; i <= textCols; i += 1) {
+  for (let i = 1; i <= nCols; i += 1) {
     row.getCell(i).border = { bottom: { style: 'thin', color: { argb: LIMO } } }
   }
 
-  const url = source?.publicUrl
-  if (nCols < 2 || !url || !isAllowedSourceUrl(url)) return
+  if (!hasLink) return
 
   const link = row.getCell(nCols)
   link.value = {
@@ -707,9 +718,13 @@ function writeSheet(
   globalColAWidth: number,
 ): void {
   const ws = wb.addWorksheet(input.id, { properties: { tabColor: { argb: MUSGO } } })
-  const maxCols = Math.max(1, ...input.bloques.map((b) => b.columnas.length || 1))
+  // Columnas de datos reales de la hoja. Si no hay tabla (hoja de bloques
+  // pendientes) se despliega sobre NOTE_SPAN_COLS columnas para que título,
+  // fuente y nota no queden comprimidos en una columna estrecha.
+  const dataCols = input.bloques.reduce((max, b) => Math.max(max, b.columnas.length), 0)
+  const maxCols = dataCols >= 2 ? dataCols : NOTE_SPAN_COLS
   const widths = computeSheetWidths(input.bloques, globalColAWidth)
-  while (widths.length < maxCols) widths.push(MIN_COL_WIDTH)
+  while (widths.length < maxCols) widths.push(NOTE_SPAN_COL_WIDTH)
   paintTitle(ws, 1, widths, maxCols, input.titulo, 14)
   writeScopeLine(ws, 2, widths, maxCols, ctx)
   ws.getRow(3).height = 20
@@ -987,6 +1002,13 @@ function buildSheetCatalog(input: MunicipioWorkbookInput): {
     if (movilidad && movilidad.length > 0) hoja01.push(...movilidad)
   } catch (e) {
     console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'movilidad', error: e instanceof Error ? e.message : String(e) }))
+  }
+  // Saldos migratorios netos (INE 69767): total, exterior e interior.
+  try {
+    const saldos = buildSaldosMigratoriosTables(input.ineLayers)
+    if (saldos && saldos.length > 0) hoja01.push(...saldos)
+  } catch (e) {
+    console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'saldos_migratorios', error: e instanceof Error ? e.message : String(e) }))
   }
   sheetsById.set('01_PERFIL_DEMOGRÁFICO', hoja01)
 

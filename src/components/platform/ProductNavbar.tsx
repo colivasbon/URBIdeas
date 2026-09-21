@@ -39,7 +39,7 @@ export type ProductNavItem = {
 export type ProductTone = "platform" | "urban" | "social" | "assistance";
 
 export type ProductNavbarConfig = {
-  product: "platform" | "urbideas" | "socideas" | "asistencias";
+  product: "platform" | "urbideas" | "socideas"; // TODO: RE-HABILITAR ASISTENCIAS — añadir "asistencias" al reactivar
   productLabel: string;
   /** Inicial del distintivo del módulo (p. ej. "U", "S", "A"). */
   productMark: string;

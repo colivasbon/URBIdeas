@@ -280,7 +280,7 @@ export function catalogCoverageEntries(
     if (territorial && slugs.some((s) => s.startsWith('irpf_'))) {
       out.push({
         titulo: 'IRPF municipal AEAT en este territorio',
-        estado: esTerritorioForal(opts.codigoINE) ? 'missing_by_design' : 'pending',
+        estado: 'missing_by_design',
         detalle: territorial,
         fuente: 'Agencia Estatal de Administración Tributaria',
         periodo: '2023',
@@ -299,6 +299,11 @@ export const COVERAGE_STATUS_GLOSSARY: ReadonlyArray<{ estado: string; texto: st
   {
     estado: 'missing_by_design',
     texto: `Sin dato por diseño de la fuente: ${AEAT_FORAL_NOTICE}`,
+  },
+  {
+    estado: 'Sin puente AEAT ↔ INE-5',
+    texto:
+      'Ceuta y Melilla: la AEAT estatal publica estos territorios con código propio (55001/56001) sin correspondencia oficial validada frente al INE-5 municipal (51001/52001). El dato no se une por nombre ni por equivalencia no documentada; no se estima ni se sustituye.',
   },
   {
     estado: 'blocked_source',

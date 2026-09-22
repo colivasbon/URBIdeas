@@ -11,6 +11,7 @@ import TableWorkspace from "./TableWorkspace";
 import { ecoCapabilities } from "@/lib/socideas-indicator-capabilities";
 import AvailabilitySummary, { AvailableIndicators } from "./AvailabilitySummary";
 import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
+import type { MunicipalIneLayersV1 } from "@/lib/socideas-ine-layers";
 import {
   ComparadorPeriodos,
   FiltroTabla,
@@ -68,11 +69,15 @@ const GAN_SLUGS = ["gan_bovino_exp", "gan_bovino_cab", "gan_ovino_caprino_exp", 
 export default function EconomiaFicha({
   codigoINE,
   initial,
+  ineLayers = null,
 }: {
   codigoINE: string;
   initial: PerfilEconomico;
+  ineLayers?: MunicipalIneLayersV1 | null;
 }) {
   const { valores, municipio } = initial;
+  // Sector agrario real desde la capa INE lateral (Censo Agrario 2020, PC-Axis).
+  const agLayer = ineLayers?.layers.agriculture ?? null;
 
   const hasData = (slugs: string[]): boolean => slugs.some((s) => filasPorSlug(valores, s).length > 0);  const countData = (slugs: string[]): number => slugs.filter((s) => filasPorSlug(valores, s).length > 0).length;
   const lastYear = (slugs: string[]): number | null => {
@@ -261,8 +266,8 @@ export default function EconomiaFicha({
   if (!rentaOk) cobertura.push({ titulo: "Renta y capacidad económica", estado: "pending", detalle: "Pendiente de incorporación: requiere AEAT EDM (fichero del ejercicio) o ADRH municipal. No se rellena con valores." });
   if (!desigOk) cobertura.push({ titulo: "Desigualdad (Gini, P80/P20)", estado: "pending", detalle: "Pendiente de incorporación vía ADRH. En municipios de menos de 100 residentes no se difunde por secreto estadístico." });
   if (!empOk) cobertura.push({ titulo: "Tejido empresarial", estado: "pending", detalle: "Pendiente de incorporación vía DIRCE." });
-  if (!agrOk) cobertura.push({ titulo: "Estructura agraria", estado: "pending", detalle: "Pendiente de incorporación vía Censo Agrario. Indicador estructural, no anual." });
-  if (!ganOk) cobertura.push({ titulo: "Ganadería", estado: "pending", detalle: "Sin cobertura verificable en este municipio (Censo Agrario 2020 con secreto estadístico)." });
+  if (!agrOk && !agLayer) cobertura.push({ titulo: "Estructura agraria", estado: "pending", detalle: "Pendiente de incorporación vía Censo Agrario. Indicador estructural, no anual." });
+  if (!ganOk && !agLayer) cobertura.push({ titulo: "Ganadería", estado: "pending", detalle: "Sin cobertura verificable en este municipio (Censo Agrario 2020 con secreto estadístico)." });
   if (!paro) cobertura.push({ titulo: "Empleo y desempleo (paro registrado)", estado: "pending", detalle: "Pendiente de conector SEPE en batch 1 (dry-run). No se muestra como cero." });
   if (!afiliacion) cobertura.push({ titulo: "Afiliación a la Seguridad Social", estado: "pending", detalle: "Pendiente de conector TGSS en batch 1 (dry-run). Valores “<5” se tratarán como ausencia con bandera, nunca como cero." });
   const laborPeriodo = paro?.periodo ?? afiliacion?.periodo ?? null;
@@ -468,7 +473,47 @@ export default function EconomiaFicha({
       )}
 
       {/* Agrario */}
-      {agrOk && (
+      {agLayer && (
+      <section aria-label="Sector agrario" className="ideas-section">
+        <h2 className="ideas-h2">
+          Sector agrario <span className="ideas-tag">Censo Agrario 2020 · estructural</span>
+        </h2>
+        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+          Instituto Nacional de Estadística · Censo Agrario 2020 · año {agLayer.censusYear} (decenal, no anual)
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {(
+            [
+              ["SAU total (ha)", agLayer.landUse?.utilizedAgriculturalAreaHa],
+              ["Tierra arable (ha)", agLayer.landUse?.arableSurfaceHa],
+              ["Explotaciones de arable", agLayer.landUse?.arableHoldings],
+              ["Bovinos · explotaciones", agLayer.livestock?.bovineHoldings],
+              ["Responsables (personas)", agLayer.farmHolders?.total],
+              ["Edad media de jefes (años)", agLayer.farmHolders?.meanAge],
+            ] as Array<[string, { value: number | null; tableId?: string } | undefined]>
+          ).map(([label, v]) => (
+            <article
+              key={label}
+              className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-4"
+            >
+              <p className="text-sm font-semibold text-[var(--color-text-primary)]">{label}</p>
+              <p className="data-card__value mt-2 leading-none">
+                {v && typeof v.value === "number" ? v.value.toLocaleString("es-ES") : "ND"}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+                Censo 2020 {v?.tableId ? `· Tabla ${v.tableId}` : ""}
+              </p>
+            </article>
+          ))}
+        </div>
+        <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+          Unidades separadas: hectáreas ≠ explotaciones ≠ personas ≠ años. El secreto estadístico se
+          muestra como ND, nunca como 0. Censo Agrario 2020: dato estructural decenal, no comparable
+          con las series anuales del resto del bloque.
+        </p>
+      </section>
+    )}
+    {agrOk && (
         <section aria-label="Estructura agraria" className="ideas-section">
           <h2 className="ideas-h2">Estructura agraria <span className="ideas-tag">Estructural · 2020</span></h2>
           <p className="mt-2 text-sm text-[var(--color-text-secondary)]">

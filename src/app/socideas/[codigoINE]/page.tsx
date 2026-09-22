@@ -285,7 +285,7 @@ export default async function SocideasFicha({
 
             {hojaActiva === "economia" &&
               (economia ? (
-                <EconomiaFicha codigoINE={municipio.codigo_ine} initial={economia} />
+                <EconomiaFicha codigoINE={municipio.codigo_ine} initial={economia} ineLayers={ineLayers} />
               ) : (
                 <EmptyState
                   title="Bloque económico no disponible"

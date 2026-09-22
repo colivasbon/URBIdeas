@@ -169,11 +169,16 @@ async function main() {
   let ok = 0
   let partial = 0
   let fallos = 0
+  // INE-5 con escritura R2 confirmada (syncMunicipioDemografico solo devuelve
+  // summary si putMunicipioJson terminó; los throws no escriben). Se revalida
+  // en batch al final: una petición por lote, nunca una por municipio.
+  const escritos: string[] = []
   const t0 = Date.now()
   for (let i = 0; i < pendientes.length; i++) {
     const m = pendientes[i]
     try {
       const s = await syncMunicipioDemografico(supabase, m.codigo_ine)
+      escritos.push(s.municipio_codigo_ine)
       if (s.estado === 'ok') ok++
       else {
         partial++
@@ -189,6 +194,36 @@ async function main() {
   }
   const min = Math.round((Date.now() - t0) / 60000)
   console.log(`FIN: ok=${ok} partial=${partial} fallos=${fallos} en ${min} min`)
+
+  // Revalidación selectiva post-escritura (batch con dedup + reintentos en la
+  // lib). Un fallo NO revierte R2: se audita como degradación en data_sync_runs.
+  const { buildRevalidationAuditRow, revalidateMunicipios, shouldRevalidate } =
+    await import('../src/lib/socideas-revalidate')
+  if (shouldRevalidate(escritos.length)) {
+    console.log(`Revalidando tags de ${escritos.length} municipios escritos (batch)…`)
+    const reval = await revalidateMunicipios(escritos)
+    console.log(
+      `Revalidación: modo=${reval.modo} solicitadas=${reval.solicitados} revalidadas=${reval.invalidados} fallidas=${reval.errores} descartadas=${reval.descartados} degradado=${reval.degradado}`,
+    )
+    if (reval.error) console.error(`Revalidación degradada: ${reval.error}`)
+    try {
+      const auditRow = buildRevalidationAuditRow(reval, {
+        runId: `sync-all-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`,
+        writtenCount: escritos.length,
+        tipo: 'ine_demografico_revalidacion',
+        bloque: 'demografia',
+        periodo: '',
+        fuente: 'ine_tempus3',
+      })
+      const { error: auditError } = await supabase.from('data_sync_runs').insert(auditRow)
+      if (auditError) console.error(`Auditoría de revalidación no insertada: ${auditError.message}`)
+      else console.log(`Auditoría de revalidación insertada (estado=${auditRow.estado})`)
+    } catch (e) {
+      console.error(`Auditoría de revalidación fallida: ${e instanceof Error ? e.message : e}`)
+    }
+  } else {
+    console.log('Revalidación omitida (0 municipios escritos con éxito).')
+  }
 }
 
 main().catch((err) => {

@@ -36,7 +36,7 @@ const MUESTRA: Array<[string, string]> = [
   ['28079', 'Madrid'],
   ['41091', 'Sevilla'],
   ['08019', 'Barcelona'],
-  ['27044', 'Santiago de Compostela'],
+  ['15078', 'Santiago de Compostela'], // INE real; 27044 = A Pastoriza (Lugo)
   ['47186', 'Valladolid'],
   ['33044', 'Oviedo'],
   ['30016', 'Cartagena'],

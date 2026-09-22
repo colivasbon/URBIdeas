@@ -232,7 +232,6 @@ export default function FichaFiltros({
       : [{ titulo: "Densidad de población", estado: "pending", detalle: "Pendiente de integración de fuente de superficie. Nada se estima." } as CoverageEntry]),
     { titulo: "Saldos migratorios municipales", estado: "pending", detalle: "Los saldos migratorios municipales (INE, tabla 69767: saldo total, exterior e interior) tienen COBERTURA MUNICIPAL NACIONAL verificada y son una serie complementaria a los flujos 69711/69743/69746. Pendiente de activación del bloque ya verificado." },
     { titulo: "Natalidad y mortalidad", estado: "without_coverage", detalle: "Las tablas del INE (31934/31917) solo cubren capitales y municipios principales; sin cobertura nacional no se incorporan." },
-    { titulo: "Nivel educativo (Censo 2021)", estado: "pending", detalle: "Fuente municipal verificada (INE, tabla PC-Axis 55249). Pendiente de activación del bloque." },
     { titulo: "Fuente provisional", estado: "provisional", detalle: "No hay fuente provisional configurada para demografía. Se conserva el último dato consolidado." },
   ];
   if (perfil.piramide.anio !== null && refAnio !== null && perfil.piramide.anio !== refAnio) {

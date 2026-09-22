@@ -116,7 +116,14 @@ export function parseRevalidateBody(
       reason: `Demasiadas entradas (${ines.length} > ${REVALIDATE_MAX_INES}). Envíe en lotes.`,
     }
   }
-  return { ok: true, validation: validateIneList(ines) }
+  const validation = validateIneList(ines)
+  // Contrato: un payload sin NI UN INE-5 válido es inválido (400), no un 200
+  // con invalidados=0 (éxito vacío engañoso). Payloads mixtos (≥1 válido)
+  // siguen siendo 200 con descartados contabilizados.
+  if (validation.validos.length === 0) {
+    return { ok: false, reason: 'Ningún INE-5 válido en la lista (todos malformados o no numéricos).' }
+  }
+  return { ok: true, validation }
 }
 
 /** Divide una lista en lotes de tamaño fijo (para batching por petición). */
@@ -130,6 +137,24 @@ export function chunkInes(ines: readonly string[], size = REVALIDATE_BATCH_SIZE)
 /** ¿Procede revalidar? Solo si la escritura R2 fue exitosa (≥1 municipio). */
 export function shouldRevalidate(writtenCount: number): boolean {
   return Number.isFinite(writtenCount) && writtenCount > 0
+}
+
+export type RevalidateFn = (ines: readonly string[]) => Promise<RevalidationSummary>
+
+/**
+ * Capa de orquestación writer → revalidación (testeable con inyección):
+ *  - lista vacía (carga fallida o dry-run) → NO se invoca la revalidación (null);
+ *  - lista con INE escritos → delega en la función recibida (por defecto la
+ *    clienta HTTP con batching/reintentos).
+ * Los writers solo pasan los INE-5 cuya escritura R2 confirmó.
+ */
+export async function revalidateAfterWrites(
+  writtenInes: readonly string[],
+  opts: { revalidateFn?: RevalidateFn } = {},
+): Promise<RevalidationSummary | null> {
+  if (!shouldRevalidate(writtenInes.length)) return null
+  const fn: RevalidateFn = opts.revalidateFn ?? ((ines) => revalidateMunicipios(ines))
+  return fn(writtenInes)
 }
 
 /** Compara token proporcionado/esperado en tiempo constante (sin fugas por longitud en claro). */

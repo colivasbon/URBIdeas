@@ -25,6 +25,7 @@ import {
   isValidIne5,
   muniCacheTag,
   parseRevalidateBody,
+  revalidateAfterWrites,
   revalidateMunicipios,
   shouldRevalidate,
   tokenMatches,
@@ -61,6 +62,12 @@ async function unitTests(): Promise<void> {
   check('body ines no-array rechaza', parseRevalidateBody({ ines: 'x' }).ok === false)
   check('body array plano rechaza', parseRevalidateBody(['02003']).ok === false)
   check('body ines vacío rechaza', parseRevalidateBody({ ines: [] }).ok === false)
+  check(
+    'body solo INE inválidos → 400 (sin éxito vacío)',
+    parseRevalidateBody({ ines: ['abc', '12', null] }).ok === false,
+  )
+  const mixto = parseRevalidateBody({ ines: ['abc', '02003'] })
+  check('body mixto (≥1 válido) acepta con descartes', mixto.ok === true && mixto.ok && mixto.validation.validos.length === 1 && mixto.validation.descartados === 1)
   const big = Array.from({ length: REVALIDATE_MAX_INES + 1 }, (_, i) => String(i % 100000).padStart(5, '0'))
   check(
     `payload > ${REVALIDATE_MAX_INES} rechazado (tamaño/duplicados excesivos)`,
@@ -148,6 +155,28 @@ async function unitTests(): Promise<void> {
     { runId: 'test-run', writtenCount: 2 },
   )
   check('auditoría completa → estado ok', allGood.estado === 'ok')
+
+  console.log('\n=== revalidateAfterWrites (capa writer, con spy) ===')
+  const writerSpy: string[][] = []
+  const spyFn = async (ines: readonly string[]): Promise<typeof s2> => {
+    writerSpy.push([...ines])
+    return { ...s2, solicitados: ines.length, validos: ines.length }
+  }
+  // writer fallido / dry-run: lista vacía → la revalidación NO se invoca.
+  const null1 = await revalidateAfterWrites([], { revalidateFn: spyFn })
+  check('lista vacía → null y spy NO llamado', null1 === null && writerSpy.length === 0)
+  // writer exitoso: solo los INE escritos llegan a la revalidación.
+  const sum1 = await revalidateAfterWrites(['02003', '28079', '02003'], { revalidateFn: spyFn })
+  check('writer exitoso → spy recibe los INE escritos', writerSpy.length === 1 && writerSpy[0].join(',') === '02003,28079,02003')
+  // La capa propaga la lista del writer tal cual (dedup ocurre dentro del cliente).
+  check('writer exitoso → devuelve summary', sum1 !== null && sum1.solicitados === 3)
+  // fallo del endpoint: la capa propaga el summary degradado (auditable).
+  const degr = await revalidateAfterWrites(['02003'], {
+    revalidateFn: async () => ({ ...s2, degradado: true, invalidados: 0, errores: 1 }),
+  })
+  check('fallo endpoint → summary degradado propagado', degr !== null && degr.degradado === true)
+  const rowDegr = buildRevalidationAuditRow(degr!, { runId: 'w', writtenCount: 1 })
+  check('degradación → auditoría estado error (no éxito silencioso)', rowDegr.estado === 'error')
 }
 
 async function integrationTests(base: string): Promise<void> {

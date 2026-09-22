@@ -21,8 +21,10 @@ import {
 } from "./ConsultaTools";
 import { isPublishableValue, isRealValue, type CoverageEntry } from "@/lib/socideas-availability";
 import {
+  AEAT_VS_ADRH_COMPARABILITY,
   avisoCoberturaAeatTerritorio,
   catalogCoverageEntries,
+  sinPuenteAeatIne5,
 } from "@/lib/socideas-indicator-catalog";
 import SourceMethodologyNotice from "./SourceMethodologyNotice";
 import type { IndicatorValue, PerfilEconomico } from "@/lib/socideas";
@@ -293,6 +295,14 @@ export default function EconomiaFicha({
     cobertura.push({ titulo: "Periodos con rezago", estado: "partial", detalle: `Desigualdad (ADRH ${lastYear(DESIGUALDAD_SLUGS)}) y empresas (DIRCE ${lastYear(EMPRESAS_SLUGS)}) son de operaciones distintas: no deben leerse como contemporáneas.` });
   }
 
+  // Nota territorial AEAT visible FUERA de la sección de renta: Ceuta/Melilla
+  // (sin puente de código) nunca pintan esa sección y el usuario debe ver la
+  // limitación sin bajar al panel de cobertura. En forales con rentaOk la nota
+  // ya vive dentro de la sección (evita duplicarla).
+  const territorialAeat = avisoCoberturaAeatTerritorio(codigoINE);
+  const notaTerritorialArriba =
+    territorialAeat && (sinPuenteAeatIne5(codigoINE) || !rentaOk);
+
   return (
     <div>
       {/* Visión general: solo KPIs reales */}
@@ -313,6 +323,20 @@ export default function EconomiaFicha({
           Contexto económico de {municipio.nombre} a partir de fuentes oficiales. Cada indicador
           declara su año de referencia y su fuente; cada subbloque funciona de forma autónoma.
         </p>
+        {notaTerritorialArriba && territorialAeat && (
+          <p
+            className="mt-3 max-w-3xl rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-secondary)]"
+            role="note"
+          >
+            {territorialAeat}
+          </p>
+        )}
+        {!rentaOk && (
+          <SourceMethodologyNotice
+            slugs={["irpf_renta_bruta_media", "irpf_renta_disponible_media"]}
+            className="mt-3"
+          />
+        )}
         <div className="mt-3">
           <Link
             href={`/socideas/${codigoINE}/descargas/economia`}
@@ -338,9 +362,8 @@ export default function EconomiaFicha({
             role="note"
           >
             <strong>Renta de declarantes IRPF (AEAT).</strong> Mide a los <em>declarantes</em>:{" "}
-            <strong>no equivale a la renta de toda la población</strong> ni a la renta por persona o por hogar del{" "}
-            <strong>ADRH</strong>. Son operaciones distintas (por <em>declaración</em> frente a por{" "}
-            <em>persona/hogar</em>) y <strong>no se mezclan series ni comparadores</strong> entre sí. El País Vasco y
+            <strong>no equivale a la renta de toda la población</strong>.{" "}
+            {AEAT_VS_ADRH_COMPARABILITY} El País Vasco y
             Navarra tienen régimen foral: AEAT no publica sus municipios, que quedan sin dato —{" "}
             <strong>nunca se imputa</strong> un valor AEAT a esos territorios.
           </p>

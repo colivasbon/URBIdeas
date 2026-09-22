@@ -58,6 +58,8 @@ async function main() {
   let fallos = 0
   let bytesAntes = 0
   let bytesDespues = 0
+  // Solo INE con migración v1→v2 correcta (put OK): revalidación selectiva.
+  const migrados: string[] = []
   for (let i = 0; i < lista.length; i++) {
     const key = lista[i]
     const ine = key.split('/').pop()?.replace('.json', '') ?? ''
@@ -85,6 +87,7 @@ async function main() {
       const outKey = await putMunicipioJson(v1.codigo_ine, v2)
       bytesDespues += JSON.stringify(v2).length
       ok++
+      migrados.push(v1.codigo_ine)
       if ((i + 1) % 200 === 0 || i === lista.length - 1) {
         console.log(`[${i + 1}/${lista.length}] ${ine} → ${outKey}`)
       }
@@ -97,6 +100,35 @@ async function main() {
   console.log(
     `FIN: ok=${ok} fallos=${fallos} bytes ${bytesAntes} → ${bytesDespues} (${pct}% del original)`,
   )
+  // Revalidación selectiva de los objetos migrados correctamente (batch).
+  // Fallo: no revierte la migración; se audita como degradación si hay Supabase.
+  const { buildRevalidationAuditRow, revalidateAfterWrites } = await import('../src/lib/socideas-revalidate')
+  const reval = await revalidateAfterWrites(migrados)
+  if (reval) {
+    console.log(`[revalidacion] solicitadas=${reval.solicitados} revalidadas=${reval.invalidados} fallidas=${reval.errores} degradado=${reval.degradado}`)
+    if (reval.error) console.error(`[revalidacion] ${reval.error}`)
+    try {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const skey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (url && skey) {
+        const { createClient } = await import('@supabase/supabase-js')
+        const supabase = createClient(url, skey, { auth: { persistSession: false } })
+        const row = buildRevalidationAuditRow(reval, {
+          runId: `convert-v1-v2-${new Date().toISOString().slice(0, 19).replace(/[:]/g, '-')}`,
+          writtenCount: migrados.length,
+          tipo: 'convert_r2_v1_to_v2_revalidacion',
+          bloque: 'demografia',
+          periodo: '',
+          fuente: 'ine_tempus3',
+        })
+        await supabase.from('data_sync_runs').insert(row)
+      } else {
+        console.log('[revalidacion] sin Supabase: degradación solo en consola/summary.')
+      }
+    } catch (e) {
+      console.error(`[revalidacion] auditoría no insertada: ${e instanceof Error ? e.message : e}`)
+    }
+  }
 }
 
 main().catch((err) => {

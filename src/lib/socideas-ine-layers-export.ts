@@ -196,6 +196,14 @@ export function buildSaldosMigratoriosTables(
   const source = ineTableSource(mb.tableId ?? '69767', 'Estadística de Migraciones y Cambios de Residencia') ?? undefined
 
   const tables: ExportTable[] = []
+  // Rango nacional documentado de la fuente 69767 (2021–2024) + periodo real
+  // cargado para ESTE municipio (capa con un único `period`). Si el periodo del
+  // municipio cae fuera del rango nacional publicado, se muestra solo el real
+  // (nunca se inventa rango).
+  const nac69767 = '2021–2024'
+  const periodoSaldos = nac69767.includes(mb.period)
+    ? `${nac69767} (último: ${mb.period})`
+    : mb.period
   const mk = (id: string, titulo: string, sel: 'total' | 'interior' | 'exterior'): void => {
     const t = mb[sel]
     const m = mb.bySex?.male?.[sel]
@@ -207,13 +215,13 @@ export function buildSaldosMigratoriosTables(
       columnas: ['Sexo', 'Saldo (personas)'],
       filas: [row('Total', t), row('Hombres', m), row('Mujeres', f)],
       fuente: `Instituto Nacional de Estadística · Saldo migratorio (${mb.period})`,
-      periodo: mb.period,
+      periodo: periodoSaldos,
       cobertura: layers?.municipalityName ? `Municipio ${layers.municipalityName}` : 'Municipio',
       estado: mb.status === 'observed' ? 'Consolidado' : 'Cobertura parcial; revisar período y fuente',
       source,
       comparisonMode: 'municipal_only',
       availability: mb.status === 'observed' ? 'available' : 'pending_integration',
-      note: 'Saldo = diferencia neta entre entradas y salidas; no es el número total de movimientos. Complementa a los flujos migratorios.',
+      note: `Saldo = diferencia neta entre entradas y salidas; no es el número total de movimientos. Complementa a los flujos migratorios. Periodo del dato municipal: ${mb.period} (fuente nacional 69767: ${nac69767}).`,
     })
   }
   mk('saldo-migratorio-total', 'Saldo migratorio total', 'total')

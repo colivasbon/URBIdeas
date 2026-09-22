@@ -51,6 +51,7 @@ import {
   toV2Envelope,
 } from '../src/lib/socideas-r2'
 import type { R2MunicipioEnvelopeV2 } from '../src/lib/socideas-r2'
+import { buildRevalidationAuditRow, revalidateAfterWrites } from '../src/lib/socideas-revalidate'
 import {
   ANIO_SUPERFICIE,
   AREA_SLUG,
@@ -470,6 +471,8 @@ export async function main() {
   }
   const t0 = Date.now()
   let escritos = 0
+// Solo INE con put + read-back OK: candidatos a revalidación selectiva.
+const escritosInes: string[] = []
   let bytesOut = 0
   let errores = 0
   let readbackErr = 0
@@ -555,6 +558,7 @@ export async function main() {
       if (rbJson.codigo_ine !== ine || !Array.isArray(rbJson.valores)) throw new Error('Read-back inválido')
       manifest.items[ine] = { key, bytesAntes, bytesDespues, readback: 'ok', estado: nuevas.length > 0 ? 'ok' : 'pendiente', ...(createdMinimal ? { created_minimal: true } : {}) }
       escritos++
+      escritosInes.push(ine)
       bytesOut += bytesDespues
       if (nuevas.some((r) => r.slug === DENSITY_SLUG)) counts.actualizado++
       else if (nuevas.length > 0) counts.pendiente++
@@ -580,6 +584,25 @@ export async function main() {
   const mins = ((Date.now() - t0) / 60000).toFixed(1)
   console.log(`[fin] escritos=${escritos} bytes=${bytesOut} readbackErr=${readbackErr} errores=${errores} mins=${mins}`)
   console.log(`[conteos] actualizado=${counts.actualizado} pendiente=${counts.pendiente} sin_cobertura=${counts.sin_cobertura} error=${counts.error}`)
+  // Revalidación selectiva post-escritura (batch): solo INE verificados.
+  const reval = await revalidateAfterWrites(escritosInes)
+  if (reval) {
+    console.log(`[revalidacion] solicitadas=${reval.solicitados} revalidadas=${reval.invalidados} fallidas=${reval.errores} degradado=${reval.degradado}`)
+    if (reval.error) console.error(`[revalidacion] ${reval.error}`)
+    try {
+      const row = buildRevalidationAuditRow(reval, {
+        runId: `densidad-batch1-${new Date().toISOString().slice(0, 19).replace(/[:]/g, '-')}`,
+        writtenCount: escritosInes.length,
+        tipo: 'densidad_batch1_revalidacion',
+        bloque: 'demografia',
+        periodo: String(ANIO_SUPERFICIE),
+        fuente: 'ine_tempus3,ign_infogeo',
+      })
+      if (supabase) await supabase.from('data_sync_runs').insert(row)
+    } catch (e) {
+      console.error(`[revalidacion] auditoría no insertada: ${e instanceof Error ? e.message : e}`)
+    }
+  }
   if (readbackErr > 0) {
     console.error(`FAIL: ${readbackErr} errores de read-back`)
     process.exit(1)

@@ -127,14 +127,19 @@ async function fetchSeriesMeta(): Promise<Map<string, SeriesKey>> {
   return map
 }
 
-async function fetchData(): Promise<IneRecord[]> {
+async function fetchData(): Promise<{ records: IneRecord[]; sha256: string; bytes: number }> {
   const url = `${INE_API_BASE}/DATOS_TABLA/${TABLE_ID}?nult=1&tip=A`
   console.log(`  Descargando datos (${url})…`)
   const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(200_000) })
   if (!res.ok) throw new Error(`HTTP ${res.status} DATOS_TABLA/${TABLE_ID}`)
-  const data = (await res.json()) as IneRecord[]
-  console.log(`  Registros: ${data.length}`)
-  return data
+  // SHA-256 sobre el ARTEFACTO REAL (cuerpo crudo de DATOS_TABLA), no sobre
+  // un resumen derivado. bytes = tamaño del cuerpo descargado.
+  const raw = await res.text()
+  const sha256 = crypto.createHash('sha256').update(raw, 'utf8').digest('hex')
+  const bytes = Buffer.byteLength(raw, 'utf8')
+  const data = JSON.parse(raw) as IneRecord[]
+  console.log(`  Registros: ${data.length} · bytes: ${bytes} · sha256(datos): ${sha256.slice(0, 16)}…`)
+  return { records: data, sha256, bytes }
 }
 
 // ─── Construcción ────────────────────────────────────────────
@@ -265,7 +270,7 @@ async function main() {
   }
 
   const catalog = await fetchSeriesMeta()
-  const records = await fetchData()
+  const { records, sha256: dataSha256, bytes: dataBytes } = await fetchData()
 
   // Agrupar por municipio y celda (sexo|saldo); se queda con el año más reciente de cada serie.
   const byMuni = new Map<string, Map<string, { v: number | null; seco: boolean | undefined }>>()
@@ -349,7 +354,16 @@ async function main() {
     inputs: {
       seriesUrl: `${INE_API_BASE}/SERIES_TABLA/${TABLE_ID}?tip=M&nult=1`,
       dataUrl: `${INE_API_BASE}/DATOS_TABLA/${TABLE_ID}?nult=1&tip=A`,
-      sha256: crypto.createHash('sha256').update(JSON.stringify(records.length)).digest('hex'),
+      // SHA-256 del cuerpo crudo de DATOS_TABLA (el artefacto de datos real).
+      sha256: dataSha256,
+      sha256Target: 'cuerpo_crudo_DATOS_TABLA',
+      bytes: dataBytes,
+      // Historia: la v1 del manifest hasheaba JSON.stringify(records.length)
+      // (el recuento, NO los datos) — hash sin valor de integridad. Sustituido
+      // el 2026-09-22 en fase 3 cambio 6B; no se conserva el valor antiguo
+      // porque no representaba ningún artefacto descargable.
+      sha256PrevioNota:
+        'v1: sha256 de JSON.stringify(records.length) (recuento, no datos); invalido como huella del artefacto',
     },
     createdAt: new Date().toISOString(),
   }

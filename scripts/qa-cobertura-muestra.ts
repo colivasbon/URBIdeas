@@ -4,7 +4,8 @@
  *
  * Muestra:
  *  - 10 con dato AEAT (cuando existe): Albacete, Madrid, Sevilla, Barcelona,
- *    Santiago, Valladolid, Oviedo, Cartagena, Palma, Ávila.
+ *    Santiago de Compostela (INE 15078; ¡no confundir con 27044 = A Pastoriza,
+ *    Lugo!), Valladolid, Oviedo, Cartagena, Palma, Ávila.
  *  - Forales: Pamplona, Bilbao → sin valor imputado + razón foral visible.
  *  - Ceuta, Melilla → sin unión por código AEAT↔INE-5 + motivo visible.
  *  - Todos: rentas AEAT bloqueadas explicadas, nunca como 0; hoja 08 con
@@ -41,7 +42,7 @@ const MUESTRA: Muestra[] = [
   { ine: '28079', nombre: 'Madrid', kind: 'con_dato' },
   { ine: '41091', nombre: 'Sevilla', kind: 'con_dato' },
   { ine: '08019', nombre: 'Barcelona', kind: 'con_dato' },
-  { ine: '27044', nombre: 'Santiago de Compostela', kind: 'con_dato' },
+  { ine: '15078', nombre: 'Santiago de Compostela', kind: 'con_dato' },
   { ine: '47186', nombre: 'Valladolid', kind: 'con_dato' },
   { ine: '33044', nombre: 'Oviedo', kind: 'con_dato' },
   { ine: '30016', nombre: 'Cartagena', kind: 'con_dato' },

@@ -1,6 +1,11 @@
 // Jerarquía de disponibilidad SOCideas (compartida por Demografía y Economía).
 // Fuente única de verdad para ordenar "datos reales primero, límites al final".
 // Sin inventar valores: la ausencia nunca equivale a 0 y ningún estado fabrica cifras.
+//
+// Los textos contractuales AEAT viven en `socideas-indicator-catalog` y se
+// reutilizan aquí (import de valor; el catálogo solo importa tipos de este
+// módulo → sin ciclo de ejecución).
+import { AEAT_BLOCKED_NOTICE } from './socideas-indicator-catalog';
 
 export type IndicatorAvailability =
   | 'available'
@@ -34,8 +39,7 @@ export const AVAILABILITY_DESCRIPTION: Record<IndicatorAvailability, string> = {
   not_applicable: 'El indicador no aplica a este municipio (p. ej. umbral de población o ámbito fiscal).',
   missing_by_design:
     'La fuente oficial no publica esta serie para este territorio (p. ej. régimen foral): no se estima, no se imputa ni se sustituye.',
-  blocked_source:
-    'La variable no se incorpora porque la fuente oficial no ofrece una descarga nacional estructurada verificable.',
+  blocked_source: AEAT_BLOCKED_NOTICE,
   temporary_error: 'Fallo operativo puntual en la obtención del dato; se reintenta sin alterar el histórico.',
 };
 
@@ -135,11 +139,12 @@ export const COVERAGE_GROUP_ORDER: CoverageEntry['estado'][] = [
 
 export const COVERAGE_GROUP_LABEL: Record<CoverageEntry['estado'], string> = {
   without_coverage: 'Sin cobertura',
-  missing_by_design: 'Sin dato por diseño de la fuente',
-  blocked_source: 'Bloqueado por falta de fuente estructurada',
+  // Derivados de AVAILABILITY_LABEL: una sola redacción por estado.
+  missing_by_design: AVAILABILITY_LABEL.missing_by_design,
+  blocked_source: AVAILABILITY_LABEL.blocked_source,
   pending: 'Pendiente',
   provisional: 'Fuente provisional no configurada',
-  temporary_error: 'Error operativo temporal',
+  temporary_error: AVAILABILITY_LABEL.temporary_error,
   partial: 'Periodos con rezago',
   not_applicable: 'No aplicable',
 };

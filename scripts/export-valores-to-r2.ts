@@ -51,8 +51,11 @@ async function main() {
   }
 
   const { putMunicipioJson, R2_ENVELOPE_VERSION } = await import('../src/lib/socideas-r2')
+  const { buildRevalidationAuditRow, revalidateAfterWrites } = await import('../src/lib/socideas-revalidate')
   let ok = 0
   let fallos = 0
+  // Solo INE con put OK: revalidación selectiva (batch) al final.
+  const escritosInes: string[] = []
   for (let i = 0; i < lista.length; i++) {
     const ine = lista[i]
     try {
@@ -76,6 +79,7 @@ async function main() {
         valores: rows,
       })
       ok++
+      escritosInes.push(ine)
       console.log(`[${i + 1}/${lista.length}] ${ine}: ${rows.length} filas → ${key}`)
     } catch (err) {
       fallos++
@@ -83,6 +87,25 @@ async function main() {
     }
   }
   console.log(`FIN: ok=${ok} fallos=${fallos}`)
+  // Revalidación selectiva de los envelopes exportados correctamente.
+  const reval = await revalidateAfterWrites(escritosInes)
+  if (reval) {
+    console.log(`[revalidacion] solicitadas=${reval.solicitados} revalidadas=${reval.invalidados} fallidas=${reval.errores} degradado=${reval.degradado}`)
+    if (reval.error) console.error(`[revalidacion] ${reval.error}`)
+    try {
+      const row = buildRevalidationAuditRow(reval, {
+        runId: `export-valores-${new Date().toISOString().slice(0, 19).replace(/[:]/g, '-')}`,
+        writtenCount: escritosInes.length,
+        tipo: 'export_valores_revalidacion',
+        bloque: 'demografia',
+        periodo: '',
+        fuente: 'ine_tempus3',
+      })
+      await supabase.from('data_sync_runs').insert(row)
+    } catch (e) {
+      console.error(`[revalidacion] auditoría no insertada: ${e instanceof Error ? e.message : e}`)
+    }
+  }
 }
 
 main().catch((err) => {

@@ -201,6 +201,8 @@ async function main(): Promise<void> {
   }
 
   let ok = 0, errores = 0, sinCambios = 0
+  // Solo INE con put + read-back OK (modo --write): revalidación selectiva.
+  const escritosInes: string[] = []
   for (let i = 0; i < ines.length; i += CONC) {
     const batch = ines.slice(i, i + CONC)
     await Promise.all(batch.map(async (ine) => {
@@ -246,6 +248,7 @@ async function main(): Promise<void> {
           if (rbJson.codigo_ine !== ine || !Array.isArray(rbJson.valores)) throw new Error('read-back inválido')
           if ((rbJson.valores as unknown[]).some(esObjetivo)) throw new Error('read-back aún contiene la tupla')
           item.readback = 'ok'
+          escritosInes.push(ine)
           const auditRow = {
             source_id: null, tipo_sincronizacion: SYNC_TIPO, municipio_codigo_ine: ine, estado: 'ok',
             fin: new Date().toISOString(), estado_dato: 'consolidado', bloque: 'economia', periodo: '2026-07', fuente: 'tgss',
@@ -277,6 +280,35 @@ async function main(): Promise<void> {
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 1))
   console.log(`[tgss-fix] FIN modo=${args.write ? 'WRITE' : 'DRY-RUN'} ok=${ok} sinCambios=${sinCambios} errores=${errores} manifest=${manifestPath}`)
   if (!args.write) console.log('[tgss-fix] Sin --write no se toca R2 ni Supabase. Usa --write --runid para la ejecución real (tras autorización).')
+  // Revalidación selectiva post-reparación (solo --write y solo INE verificados).
+  // Fallo de revalidación: NO se revierte la reparación; queda auditado.
+  if (args.write) {
+    const { buildRevalidationAuditRow, revalidateAfterWrites } = await import('../src/lib/socideas-revalidate')
+    const reval = await revalidateAfterWrites(escritosInes)
+    if (reval) {
+      console.log(`[tgss-fix][revalidacion] solicitadas=${reval.solicitados} revalidadas=${reval.invalidados} fallidas=${reval.errores} degradado=${reval.degradado}`)
+      if (reval.error) console.error(`[tgss-fix][revalidacion] ${reval.error}`)
+      try {
+        const row = buildRevalidationAuditRow(reval, {
+          runId: args.runid ?? `tgss-fix-${new Date().toISOString().slice(0, 19).replace(/[:]/g, '-')}`,
+          writtenCount: escritosInes.length,
+          tipo: `${SYNC_TIPO}_revalidacion`,
+          bloque: 'economia',
+          periodo: '2026-07',
+          fuente: 'tgss',
+        })
+        if (supabase) await supabase.from('data_sync_runs').insert(row)
+        else {
+          const m2 = manifest as typeof manifest & { pendingAudit?: unknown[] }
+          m2.pendingAudit = m2.pendingAudit ?? []
+          m2.pendingAudit.push(row)
+          writeFileSync(manifestPath, JSON.stringify(manifest, null, 1))
+        }
+      } catch (e) {
+        console.error(`[tgss-fix][revalidacion] auditoría no insertada: ${e instanceof Error ? e.message : e}`)
+      }
+    }
+  }
 }
 
 main().catch((e) => { console.error('ERROR', (e as Error).message); process.exit(1) })

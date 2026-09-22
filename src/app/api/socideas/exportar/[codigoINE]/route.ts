@@ -9,7 +9,7 @@ import { readMunicipalIneLayers } from '@/lib/socideas-ine-layers'
 import { buildDemographicDimensionTables } from '@/lib/socideas-demographic-export'
 import { buildElectoralTables } from '@/lib/socideas-electoral-export'
 import { buildMigrationFlowTables } from '@/lib/socideas-migration-export'
-import { buildSaldosMigratoriosTables } from '@/lib/socideas-ine-layers-export'
+import { buildSaldosMigratoriosTables, buildSectorAgrarioTables } from '@/lib/socideas-ine-layers-export'
 import {
   buildDemografiaTables,
   buildEconomiaTables,
@@ -220,6 +220,19 @@ export async function GET(
     let economia: Awaited<ReturnType<typeof buildEconomiaTables>> = []
     try {
       economia = perfilEco ? buildEconomiaTables(perfilEco) : []
+    } catch (e) {
+      logError(requestId, stage, ineCode, e)
+    }
+    // Sector agrario REAL desde layers.agriculture: sustituye a los placeholders
+    // pendientes (agrario/ganadería derivados de slugs v2 no cargados).
+    try {
+      const agr = buildSectorAgrarioTables(ineLayers)
+      if (agr && agr.length > 0) {
+        economia = economia.filter(
+          (t) => !(t.availability === 'pending_integration' && (t.id === 'agrario' || t.id === 'ganaderia')),
+        )
+        economia.push(...agr)
+      }
     } catch (e) {
       logError(requestId, stage, ineCode, e)
     }

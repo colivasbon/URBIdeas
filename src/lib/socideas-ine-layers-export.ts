@@ -223,6 +223,109 @@ export function buildSaldosMigratoriosTables(
 }
 
 /**
+ * Tablas XLSX del bloque "Sector agrario · Censo Agrario 2020" desde la capa INE
+ * layers.agriculture. Unidades SIEMPRE separadas (ha ≠ explotaciones ≠ cabezas ≠
+ * personas ≠ años). Año estructural 2020, nunca anual.
+ */
+export function buildSectorAgrarioTables(
+  layers: MunicipalIneLayersV1 | null | undefined,
+): ExportTable[] | null {
+  const ag = layers?.layers?.agriculture
+  if (!ag) return null
+  const cell = (v: IneValue | undefined): ExportCell =>
+    v && typeof v.value === 'number'
+      ? { text: v.value.toLocaleString('es-ES'), numeric: v.value }
+      : { text: 'ND', numeric: null }
+  const FUE = 'Instituto Nacional de Estadística · Censo Agrario 2020'
+  const base = {
+    hoja: '03_CONTEXTO_ECONÓMICO' as const,
+    fuente: FUE,
+    periodo: '2020 (estructural, no anual)',
+    cobertura: layers?.municipalityName ? `Municipio ${layers.municipalityName}` : 'Municipio',
+    estado: 'Censo 2020: dato estructural',
+    comparisonMode: 'municipal_only' as const,
+    availability: 'available' as const,
+    note: 'Censo Agrario 2020: dato estructural decenal; no se presenta ni se compara como serie anual.',
+  }
+  const out: ExportTable[] = []
+
+  const lu = ag.landUse
+  if (lu) {
+    const rows: ExportCell[][] = [
+      [{ text: 'SAU total', numeric: null }, cell(lu.utilizedAgriculturalAreaHa), cell(undefined)],
+      [{ text: 'Tierra arable', numeric: null }, cell(lu.arableSurfaceHa), cell(lu.arableHoldings)],
+      [{ text: 'Cultivos leñosos', numeric: null }, cell(lu.woodyCropsSurfaceHa), cell(lu.woodyCropsHoldings)],
+      [{ text: 'Pastos permanentes', numeric: null }, cell(lu.permanentPastureSurfaceHa), cell(lu.permanentPastureHoldings)],
+      [{ text: 'Huertos (explotaciones)', numeric: null }, cell(undefined), cell(lu.kitchenGardens)],
+    ]
+    out.push({
+      id: 'agri-superficies',
+      titulo: 'Usos agrarios — Censo Agrario 2020',
+      columnas: ['Concepto', 'Superficie (ha)', 'Explotaciones'],
+      filas: rows,
+      source: ineTableSource('52071', 'Censo Agrario 2020') ?? undefined,
+      ...base,
+    })
+  }
+
+  const ls = ag.livestock
+  if (ls) {
+    const esp: [string, IneValue | undefined, IneValue | undefined][] = [
+      ['Bovino', ls.bovineHoldings, ls.bovineHeads],
+      ['Ovino y caprino', ls.sheepGoatHoldings, ls.sheepGoatHeads],
+      ['Porcino', ls.pigHoldings, ls.pigHeads],
+      ['Aves de corral', ls.poultryHoldings, ls.poultryHeads],
+    ]
+    out.push({
+      id: 'agri-ganaderia',
+      titulo: 'Ganadería — Censo Agrario 2020',
+      columnas: ['Especie', 'Explotaciones', 'Cabezas'],
+      filas: esp.map(([n, e, h]) => [{ text: n, numeric: null }, cell(e), cell(h)]),
+      source: ineTableSource('52076', 'Censo Agrario 2020') ?? undefined,
+      ...base,
+      note: 'Censo Agrario 2020. Explotaciones y cabezas son magnitudes distintas; no se suman.',
+    })
+  }
+
+  const fh = ag.farmHolders
+  if (fh) {
+    out.push({
+      id: 'agri-responsables',
+      titulo: 'Responsables de explotaciones — Censo Agrario 2020',
+      columnas: ['Concepto', 'Valor', 'Unidad'],
+      filas: [
+        [{ text: 'Responsables (total)', numeric: null }, cell(fh.total), { text: 'personas', numeric: null }],
+        [{ text: 'Hombres', numeric: null }, cell(fh.male), { text: 'personas', numeric: null }],
+        [{ text: 'Mujeres', numeric: null }, cell(fh.female), { text: 'personas', numeric: null }],
+        [{ text: 'Edad media', numeric: null }, cell(fh.meanAge), { text: 'años', numeric: null }],
+      ],
+      source: ineTableSource('52081', 'Censo Agrario 2020') ?? undefined,
+      ...base,
+    })
+  }
+
+  const tr = ag.agriculturalTraining
+  if (tr) {
+    const cats: [string, IneValue | undefined][] = [
+      ['Experiencia agraria exclusivamente', tr.experienceOnly],
+      ['Cursos de formación agraria', tr.courses],
+      ['Formación profesional agraria', tr.agriculturalVocational],
+      ['Estudios universitarios/superiores agrarios', tr.universityAgricultural],
+    ]
+    out.push({
+      id: 'agri-formacion',
+      titulo: 'Formación agraria del jefe/a — Censo Agrario 2020',
+      columnas: ['Formación', 'Personas'],
+      filas: cats.map(([n, v]) => [{ text: n, numeric: null }, cell(v)]),
+      source: ineTableSource('52082', 'Censo Agrario 2020') ?? undefined,
+      ...base,
+    })
+  }
+
+  return out.length > 0 ? out : null
+}
+
+/**
  * Densidad de población (Capa INE): si la capa INE publica densidad a nivel
  * municipal, este bloque reemplaza al placeholder de `buildDemografiaTables`.
  */

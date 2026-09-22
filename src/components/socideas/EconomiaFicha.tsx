@@ -21,6 +21,7 @@ import {
 } from "./ConsultaTools";
 import { isPublishableValue, isRealValue, type CoverageEntry } from "@/lib/socideas-availability";
 import {
+  AEAT_VS_ADRH_COMPARABILITY,
   avisoCoberturaAeatTerritorio,
   catalogCoverageEntries,
   sinPuenteAeatIne5,
@@ -361,9 +362,8 @@ export default function EconomiaFicha({
             role="note"
           >
             <strong>Renta de declarantes IRPF (AEAT).</strong> Mide a los <em>declarantes</em>:{" "}
-            <strong>no equivale a la renta de toda la población</strong> ni a la renta por persona o por hogar del{" "}
-            <strong>ADRH</strong>. Son operaciones distintas (por <em>declaración</em> frente a por{" "}
-            <em>persona/hogar</em>) y <strong>no se mezclan series ni comparadores</strong> entre sí. El País Vasco y
+            <strong>no equivale a la renta de toda la población</strong>.{" "}
+            {AEAT_VS_ADRH_COMPARABILITY} El País Vasco y
             Navarra tienen régimen foral: AEAT no publica sus municipios, que quedan sin dato —{" "}
             <strong>nunca se imputa</strong> un valor AEAT a esos territorios.
           </p>

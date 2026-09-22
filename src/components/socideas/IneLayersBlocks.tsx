@@ -115,6 +115,9 @@ export function EducacionBlock({ data }: { data: NonNullable<MunicipalIneLayersV
         una evolución inexistente.
       </p>
       <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+        «ND» = valor no difundido o no disponible en la fuente oficial; nunca equivale a 0.
+      </p>
+      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
         La categoría «No aplicable: menor de 15 años» se conserva en la fuente y no se suma a las
         categorías educativas.
       </p>

@@ -320,6 +320,17 @@ export default function EconomiaFicha({
       {rentaOk && (
         <section aria-label="Renta y capacidad económica" className="ideas-section">
           <h2 className="ideas-h2">Renta y capacidad económica</h2>
+          <p
+            className="mt-3 max-w-3xl rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-secondary)]"
+            role="note"
+          >
+            <strong>Renta de declarantes IRPF (AEAT).</strong> Mide a los <em>declarantes</em>:{" "}
+            <strong>no equivale a la renta de toda la población</strong> ni a la renta por persona o por hogar del{" "}
+            <strong>ADRH</strong>. Son operaciones distintas (por <em>declaración</em> frente a por{" "}
+            <em>persona/hogar</em>) y <strong>no se mezclan series ni comparadores</strong> entre sí. El País Vasco y
+            Navarra tienen régimen foral: AEAT no publica sus municipios, que quedan sin dato —{" "}
+            <strong>nunca se imputa</strong> un valor AEAT a esos territorios.
+          </p>
           {rentaCaps.length > 1 && (
             <div className="mt-3 flex flex-wrap items-end gap-x-5 gap-y-3" role="group" aria-label="Controles de renta">
               <fieldset>

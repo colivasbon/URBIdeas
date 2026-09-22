@@ -20,6 +20,11 @@ import {
   Metodologia,
 } from "./ConsultaTools";
 import { isPublishableValue, isRealValue, type CoverageEntry } from "@/lib/socideas-availability";
+import {
+  avisoCoberturaAeatTerritorio,
+  catalogCoverageEntries,
+} from "@/lib/socideas-indicator-catalog";
+import SourceMethodologyNotice from "./SourceMethodologyNotice";
 import type { IndicatorValue, PerfilEconomico } from "@/lib/socideas";
 import { ParoRegistradoBlock, AfiliacionBlock } from "./LaborBlocks";
 import {
@@ -264,6 +269,14 @@ export default function EconomiaFicha({
 
   const cobertura: CoverageEntry[] = [];
   if (!rentaOk) cobertura.push({ titulo: "Renta y capacidad económica", estado: "pending", detalle: "Pendiente de incorporación: requiere AEAT EDM (fichero del ejercicio) o ADRH municipal. No se rellena con valores." });
+  // Catálogo único: rentas AEAT bloqueadas por fuente no estructurada + aviso
+  // territorial (foral / Ceuta-Melilla) cuando aplique a este municipio.
+  cobertura.push(
+    ...catalogCoverageEntries(
+      ["irpf_renta_bruta_media", "irpf_renta_disponible_media"],
+      { codigoINE },
+    ),
+  );
   if (!desigOk) cobertura.push({ titulo: "Desigualdad (Gini, P80/P20)", estado: "pending", detalle: "Pendiente de incorporación vía ADRH. En municipios de menos de 100 residentes no se difunde por secreto estadístico." });
   if (!empOk) cobertura.push({ titulo: "Tejido empresarial", estado: "pending", detalle: "Pendiente de incorporación vía DIRCE." });
   if (!agrOk && !agLayer) cobertura.push({ titulo: "Estructura agraria", estado: "pending", detalle: "Pendiente de incorporación vía Censo Agrario. Indicador estructural, no anual." });
@@ -331,6 +344,18 @@ export default function EconomiaFicha({
             Navarra tienen régimen foral: AEAT no publica sus municipios, que quedan sin dato —{" "}
             <strong>nunca se imputa</strong> un valor AEAT a esos territorios.
           </p>
+          {(() => {
+            const territorial = avisoCoberturaAeatTerritorio(codigoINE);
+            if (!territorial) return null;
+            return (
+              <p
+                className="mt-2 max-w-3xl rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-secondary)]"
+                role="note"
+              >
+                {territorial}
+              </p>
+            );
+          })()}
           {rentaCaps.length > 1 && (
             <div className="mt-3 flex flex-wrap items-end gap-x-5 gap-y-3" role="group" aria-label="Controles de renta">
               <fieldset>
@@ -391,6 +416,10 @@ export default function EconomiaFicha({
             <p role="status" className="mt-2 text-xs text-[var(--color-text-secondary)]">{rentaHint}</p>
           )}
           <RentaCards valores={valores} />
+          <SourceMethodologyNotice
+            slugs={["irpf_renta_bruta_media", "irpf_renta_disponible_media"]}
+            className="mt-3"
+          />
           <TableWorkspace
             layout="half"
             uncapped

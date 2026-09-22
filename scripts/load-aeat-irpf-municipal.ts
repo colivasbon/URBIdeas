@@ -38,6 +38,12 @@ import * as path from 'path'
 import * as crypto from 'crypto'
 import { getMunicipioJsonRaw, putMunicipioJson } from '../src/lib/socideas-r2'
 import type { R2MunicipioEnvelopeV2 } from '../src/lib/socideas-r2'
+import {
+  buildRevalidationAuditRow,
+  revalidateMunicipios,
+  shouldRevalidate,
+} from '../src/lib/socideas-revalidate'
+import { createClient } from '@supabase/supabase-js'
 
 config({ path: '.env.local' })
 
@@ -250,6 +256,7 @@ async function main() {
   console.log('--- Escritura R2 v2 (merge por bloque) ---')
   const CONC = 25
   let written = 0, skipped = 0, missingSet = 0
+  const writtenInes: string[] = []
   const errors: string[] = []
   const list = allIne
   let idx = 0
@@ -266,12 +273,53 @@ async function main() {
         if (size > 150 * 1024) { errors.push(`${ine}: ${size} B > 150 KB`); continue }
         await putMunicipioJson(ine, env)
         written++
+        writtenInes.push(ine)
         if (written % 500 === 0) console.log(`  Escritos: ${written}/${list.length}`)
       } catch (e) { errors.push(`${ine}: ${e}`) }
     }
   }))
   console.log(`  Escritos: ${written} · sin envelope v2: ${skipped} · marcados missing: ${missingSet} · errores: ${errors.length}`)
   if (errors.length) console.error('  Primeros:', errors.slice(0, 5).join(' | '))
+
+  // 4b. Revalidación selectiva de la caché: SOLO tras escritura R2 exitosa.
+  // Si falla, no se revierten datos R2: se audita como degradación en
+  // data_sync_runs (metadata con totales, modo y error resumido).
+  if (shouldRevalidate(written)) {
+    console.log('--- Revalidación de tags socideas-muni-<ine> ---')
+    const reval = await revalidateMunicipios(writtenInes)
+    console.log(
+      `  Modo: ${reval.modo} · solicitadas: ${reval.solicitados} · revalidadas: ${reval.invalidados} · fallidas: ${reval.errores} · descartadas: ${reval.descartados} · degradado: ${reval.degradado}`,
+    )
+    if (reval.error) console.error(`  Error: ${reval.error}`)
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (supabaseUrl && supabaseKey) {
+        const supabase = createClient(supabaseUrl, supabaseKey)
+        const auditRow = buildRevalidationAuditRow(reval, {
+          runId,
+          writtenCount: written,
+          tipo: 'aeat_edm_revalidacion',
+          bloque: 'economia',
+          periodo: String(ANIO),
+          fuente: 'aeat_edm',
+        })
+        const { error: auditError } = await supabase.from('data_sync_runs').insert(auditRow)
+        if (auditError) console.error(`  Auditoría revalidación no insertada: ${auditError.message}`)
+        else console.log(`  Auditoría data_sync_runs insertada (estado=${auditRow.estado})`)
+      } else {
+        console.error('  SIN Supabase: degradación de revalidación solo registrada en consola/manifest')
+      }
+    } catch (e) {
+      console.error(`  Auditoría revalidación fallida: ${e}`)
+    }
+    fs.writeFileSync(
+      path.join(mDir, `aeat-edm-2023-revalidate-${runId}.json`),
+      JSON.stringify({ runId, written, ...reval }, null, 2),
+    )
+  } else {
+    console.log('--- Revalidación omitida (0 municipios escritos con éxito) ---')
+  }
 
   // 5. Read-back (cache-buster por relectura S3 directa)
   console.log('--- Read-back ---')

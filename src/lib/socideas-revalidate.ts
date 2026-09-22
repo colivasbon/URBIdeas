@@ -116,7 +116,14 @@ export function parseRevalidateBody(
       reason: `Demasiadas entradas (${ines.length} > ${REVALIDATE_MAX_INES}). Envíe en lotes.`,
     }
   }
-  return { ok: true, validation: validateIneList(ines) }
+  const validation = validateIneList(ines)
+  // Contrato: un payload sin NI UN INE-5 válido es inválido (400), no un 200
+  // con invalidados=0 (éxito vacío engañoso). Payloads mixtos (≥1 válido)
+  // siguen siendo 200 con descartados contabilizados.
+  if (validation.validos.length === 0) {
+    return { ok: false, reason: 'Ningún INE-5 válido en la lista (todos malformados o no numéricos).' }
+  }
+  return { ok: true, validation }
 }
 
 /** Divide una lista en lotes de tamaño fijo (para batching por petición). */

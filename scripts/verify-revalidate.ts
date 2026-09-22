@@ -62,6 +62,12 @@ async function unitTests(): Promise<void> {
   check('body ines no-array rechaza', parseRevalidateBody({ ines: 'x' }).ok === false)
   check('body array plano rechaza', parseRevalidateBody(['02003']).ok === false)
   check('body ines vacío rechaza', parseRevalidateBody({ ines: [] }).ok === false)
+  check(
+    'body solo INE inválidos → 400 (sin éxito vacío)',
+    parseRevalidateBody({ ines: ['abc', '12', null] }).ok === false,
+  )
+  const mixto = parseRevalidateBody({ ines: ['abc', '02003'] })
+  check('body mixto (≥1 válido) acepta con descartes', mixto.ok === true && mixto.ok && mixto.validation.validos.length === 1 && mixto.validation.descartados === 1)
   const big = Array.from({ length: REVALIDATE_MAX_INES + 1 }, (_, i) => String(i % 100000).padStart(5, '0'))
   check(
     `payload > ${REVALIDATE_MAX_INES} rechazado (tamaño/duplicados excesivos)`,

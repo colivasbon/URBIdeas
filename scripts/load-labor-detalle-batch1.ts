@@ -31,6 +31,7 @@ import { join } from 'node:path'
 import * as XLSX from 'xlsx'
 import { putMunicipioJson } from '../src/lib/socideas-r2'
 import type { R2MunicipioEnvelopeV2 } from '../src/lib/socideas-r2'
+import { buildRevalidationAuditRow, revalidateAfterWrites } from '../src/lib/socideas-revalidate'
 import {
   buildSepeTuples,
   buildTgssTuples,
@@ -449,6 +450,7 @@ async function main(): Promise<void> {
       }
       if (supabase) await supabase.from('data_sync_runs').insert(auditRow)
       else pendingAudit.push(auditRow)
+      escritosInes.push(ine)
     } else if (nuevas.length > 0 && muestrasEscritas < args.muestras) {
       muestrasEscritas++
       writeFileSync(join(args.out, `muestra-detalle-${ine}.json`), JSON.stringify(merged))
@@ -457,6 +459,8 @@ async function main(): Promise<void> {
   }
 
   // Pool de concurrencia simple (solo lectura R2 en parse-only).
+  // Solo INE con put + read-back OK (modo --write): revalidación selectiva.
+  const escritosInes: string[] = []
   const queue = [...universo]
   const workers: Promise<void>[] = []
   let hechos = 0
@@ -549,6 +553,26 @@ async function main(): Promise<void> {
       `${finales.length > 0 ? (finales[finales.length - 1] / 1024).toFixed(1) : '–'}] superaciones=${superan.length}`,
   )
   console.log(`Manifest en ${manifestPath} (SOLO tmp${args.doWrite ? '; escritura R2 + data_sync_runs realizadas' : ', sin escrituras R2/Supabase'}).`)
+  // Revalidación selectiva post-escritura (batch): solo INE verificados (--write).
+  const reval = await revalidateAfterWrites(escritosInes)
+  if (reval) {
+    console.log(`[revalidacion] solicitadas=${reval.solicitados} revalidadas=${reval.invalidados} fallidas=${reval.errores} degradado=${reval.degradado}`)
+    if (reval.error) console.error(`[revalidacion] ${reval.error}`)
+    try {
+      const row = buildRevalidationAuditRow(reval, {
+        runId: `labor-detalle-${new Date().toISOString().slice(0, 19).replace(/[:]/g, '-')}`,
+        writtenCount: escritosInes.length,
+        tipo: `${SYNC_TIPO}_revalidacion`,
+        bloque: 'mercado_trabajo',
+        periodo: PERIODO,
+        fuente: 'sepe,tgss',
+      })
+      if (supabase) await supabase.from('data_sync_runs').insert(row)
+      else pendingAudit.push(row)
+    } catch (e) {
+      console.error(`[revalidacion] auditoría no insertada: ${e instanceof Error ? e.message : e}`)
+    }
+  }
   if (errores.length > 0 || superan.length > 0 || contradicciones > 0 || colisiones > 0 || violaciones > 0) {
     process.exitCode = 1
   }

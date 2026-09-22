@@ -132,6 +132,24 @@ export function shouldRevalidate(writtenCount: number): boolean {
   return Number.isFinite(writtenCount) && writtenCount > 0
 }
 
+export type RevalidateFn = (ines: readonly string[]) => Promise<RevalidationSummary>
+
+/**
+ * Capa de orquestación writer → revalidación (testeable con inyección):
+ *  - lista vacía (carga fallida o dry-run) → NO se invoca la revalidación (null);
+ *  - lista con INE escritos → delega en la función recibida (por defecto la
+ *    clienta HTTP con batching/reintentos).
+ * Los writers solo pasan los INE-5 cuya escritura R2 confirmó.
+ */
+export async function revalidateAfterWrites(
+  writtenInes: readonly string[],
+  opts: { revalidateFn?: RevalidateFn } = {},
+): Promise<RevalidationSummary | null> {
+  if (!shouldRevalidate(writtenInes.length)) return null
+  const fn: RevalidateFn = opts.revalidateFn ?? ((ines) => revalidateMunicipios(ines))
+  return fn(writtenInes)
+}
+
 /** Compara token proporcionado/esperado en tiempo constante (sin fugas por longitud en claro). */
 export function tokenMatches(provided: string | null | undefined, expected: string | null | undefined): boolean {
   if (!expected || expected.length === 0) return false

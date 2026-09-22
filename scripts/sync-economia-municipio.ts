@@ -5,6 +5,7 @@
 import { config } from 'dotenv'
 import { createClient } from '@supabase/supabase-js'
 import { syncMunicipioEconomia } from '../src/lib/socideas-sync-economia'
+import { revalidateAfterWrites } from '../src/lib/socideas-revalidate'
 
 config({ path: '.env.local' })
 
@@ -30,7 +31,31 @@ async function main(): Promise<void> {
   const t0 = Date.now()
   try {
     const summary = await syncMunicipioEconomia(supabase, codigo, { adrhTableIds, conDirce })
-    console.log(JSON.stringify({ ...summary, segundos: Math.round((Date.now() - t0) / 1000) }, null, 2))
+    // Revalidación selectiva SOLO si la lib confirmó escritura R2 (r2_key).
+    // Fallo de revalidación: no se revierte R2; se refleja en la salida.
+    let revalidation: Awaited<ReturnType<typeof revalidateAfterWrites>> = null
+    if (summary.r2_key) {
+      revalidation = await revalidateAfterWrites([summary.municipio_codigo_ine ?? codigo])
+      if (revalidation?.degradado) {
+        console.error(`[revalidacion] degradada: ${revalidation.error ?? 'sin detalle'}`)
+      }
+      // Auditoría: fusiona en el run ya abierto por la lib, preservando claves.
+      try {
+        const { data: runRow } = await supabase
+          .from('data_sync_runs')
+          .select('metadata')
+          .eq('id', summary.run_id)
+          .maybeSingle()
+        const previo = (runRow as { metadata: Record<string, unknown> | null } | null)?.metadata ?? {}
+        await supabase
+          .from('data_sync_runs')
+          .update({ metadata: { ...previo, revalidation } })
+          .eq('id', summary.run_id)
+      } catch {
+        // Resumen JSON de la salida sigue reflejando la revalidación.
+      }
+    }
+    console.log(JSON.stringify({ ...summary, revalidation, segundos: Math.round((Date.now() - t0) / 1000) }, null, 2))
   } catch (err) {
     console.error('SYNC ERROR:', err instanceof Error ? err.message : err)
     process.exit(1)

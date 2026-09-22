@@ -47,6 +47,7 @@ import {
 } from "../src/lib/socideas-elections";
 import { expandV2Envelope, putMunicipioJson, readMunicipioJson, toV2Envelope } from "../src/lib/socideas-r2";
 import type { R2MunicipioEnvelopeV2 } from "../src/lib/socideas-r2";
+import { buildRevalidationAuditRow, revalidateAfterWrites } from "../src/lib/socideas-revalidate";
 
 const require = createRequire(join(process.cwd(), "package.json"));
 const XLSX = require("xlsx") as typeof import("xlsx");
@@ -323,6 +324,8 @@ export async function main(): Promise<void> {
 
   const t0 = Date.now();
   let escritos = 0;
+// Solo INE con put + read-back OK: candidatos a revalidación selectiva.
+const escritosInes: string[] = [];
   let bytesOut = 0;
   let errores = 0;
   let readbackErr = 0;
@@ -477,6 +480,7 @@ export async function main(): Promise<void> {
         ...(createdMinimal ? { created_minimal: true } : {}),
       };
       escritos += 1;
+      escritosInes.push(ine);
       bytesOut += bytesDespues;
       if (isMissing) counts.missing += 1;
       else counts.actualizado += 1;
@@ -534,6 +538,25 @@ export async function main(): Promise<void> {
   const mins = ((Date.now() - t0) / 60000).toFixed(1);
   console.log(`[fin] escritos=${escritos} bytes=${bytesOut} readbackErr=${readbackErr} errores=${errores} mins=${mins}`);
   console.log(`[conteos] actualizado=${counts.actualizado} missing=${counts.missing} error=${counts.error}`);
+  // Revalidación selectiva post-escritura (batch): solo INE verificados.
+  const reval = await revalidateAfterWrites(escritosInes);
+  if (reval) {
+    console.log(`[revalidacion] solicitadas=${reval.solicitados} revalidadas=${reval.invalidados} fallidas=${reval.errores} degradado=${reval.degradado}`);
+    if (reval.error) console.error(`[revalidacion] ${reval.error}`);
+    try {
+      const row = buildRevalidationAuditRow(reval, {
+        runId: `elections-${new Date().toISOString().slice(0, 19).replace(/[:]/g, '-')}`,
+        writtenCount: escritosInes.length,
+        tipo: `${TIPO_SYNC}_revalidacion`,
+        bloque: "politica",
+        periodo: ELECTIONS_CONVOCATORIA.fecha,
+        fuente: "mir_infoelectoral",
+      });
+      if (supabase) await supabase.from("data_sync_runs").insert(row);
+    } catch (e) {
+      console.error(`[revalidacion] auditoría no insertada: ${e instanceof Error ? e.message : e}`);
+    }
+  }
   if (readbackErr > 0) {
     console.error(`FAIL: ${readbackErr} errores de read-back`);
     process.exit(1);

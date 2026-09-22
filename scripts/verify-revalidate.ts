@@ -25,6 +25,7 @@ import {
   isValidIne5,
   muniCacheTag,
   parseRevalidateBody,
+  revalidateAfterWrites,
   revalidateMunicipios,
   shouldRevalidate,
   tokenMatches,
@@ -148,6 +149,28 @@ async function unitTests(): Promise<void> {
     { runId: 'test-run', writtenCount: 2 },
   )
   check('auditoría completa → estado ok', allGood.estado === 'ok')
+
+  console.log('\n=== revalidateAfterWrites (capa writer, con spy) ===')
+  const writerSpy: string[][] = []
+  const spyFn = async (ines: readonly string[]): Promise<typeof s2> => {
+    writerSpy.push([...ines])
+    return { ...s2, solicitados: ines.length, validos: ines.length }
+  }
+  // writer fallido / dry-run: lista vacía → la revalidación NO se invoca.
+  const null1 = await revalidateAfterWrites([], { revalidateFn: spyFn })
+  check('lista vacía → null y spy NO llamado', null1 === null && writerSpy.length === 0)
+  // writer exitoso: solo los INE escritos llegan a la revalidación.
+  const sum1 = await revalidateAfterWrites(['02003', '28079', '02003'], { revalidateFn: spyFn })
+  check('writer exitoso → spy recibe los INE escritos', writerSpy.length === 1 && writerSpy[0].join(',') === '02003,28079,02003')
+  // La capa propaga la lista del writer tal cual (dedup ocurre dentro del cliente).
+  check('writer exitoso → devuelve summary', sum1 !== null && sum1.solicitados === 3)
+  // fallo del endpoint: la capa propaga el summary degradado (auditable).
+  const degr = await revalidateAfterWrites(['02003'], {
+    revalidateFn: async () => ({ ...s2, degradado: true, invalidados: 0, errores: 1 }),
+  })
+  check('fallo endpoint → summary degradado propagado', degr !== null && degr.degradado === true)
+  const rowDegr = buildRevalidationAuditRow(degr!, { runId: 'w', writtenCount: 1 })
+  check('degradación → auditoría estado error (no éxito silencioso)', rowDegr.estado === 'error')
 }
 
 async function integrationTests(base: string): Promise<void> {

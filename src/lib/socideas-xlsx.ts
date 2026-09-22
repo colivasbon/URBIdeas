@@ -43,6 +43,7 @@ import {
   visibleSourceLabel,
   type SourceReference,
 } from './socideas-source-registry'
+import { COVERAGE_STATUS_GLOSSARY } from './socideas-indicator-catalog'
 import {
   buildCentrosEducativosTable,
   buildDemographicDerivedLayerTable,
@@ -843,6 +844,33 @@ function writeCriteriosFuentes(
   r += 1
   ws.getRow(r - 1).height = 20
 
+  // Estados de cobertura usados en la exportación (glosario del catálogo único).
+  paintTitle(ws, r, widths, nCols, 'Estados de cobertura', 12)
+  ws.getRow(r + 1).height = 20
+  r += 2
+  for (const g of COVERAGE_STATUS_GLOSSARY) {
+    const row = ws.getRow(r)
+    const text = `• ${g.estado}: ${g.texto}`
+    const lines = wrappedLines(text, sumWidths(widths, 0, nCols))
+    row.height = Math.max(18, lines * LINE_HEIGHT_BODY)
+    mergeRow(ws, r, nCols)
+    const cell = row.getCell(1)
+    cell.value = text
+    cell.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
+    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: lines > 1, indent: 1 }
+    band(row, nCols, HUESO)
+    for (let i = 1; i <= nCols; i += 1) {
+      const cc = row.getCell(i)
+      cc.border = { ...thinLimoBorders() }
+      if ((cc.value === null || cc.value === undefined) && nCols > 1) {
+        cc.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
+      }
+    }
+    r += 1
+  }
+  r += 1
+  ws.getRow(r - 1).height = 20
+
   paintTitle(ws, r, widths, nCols, 'Fuentes oficiales utilizadas', 12)
   r += 2
   const headerRowN = r
@@ -1118,6 +1146,23 @@ function buildSheetCatalog(input: MunicipioWorkbookInput): {
   pushFuente('Patrimonio y turismo', 'Pendiente', 'Inventarios culturales pendientes', '—')
   pushFuente('Infraestructura y recursos', 'Pendiente', 'Fuentes geográficas pendientes', '—')
   pushFuente('Asociaciones', 'Pendiente', 'Registros oficiales pendientes', '—')
+  // AEAT y ADRH SIEMPRE como filas separadas con su estado de cobertura
+  // (nunca en la misma columna comparativa): partial / missing_by_design /
+  // blocked_source explicados en la sección "Estados de cobertura".
+  pushFuente(
+    'Contexto económico',
+    'Agencia Estatal de Administración Tributaria',
+    'Estadística de declarantes del IRPF por municipios (EDM) · irpf_declaraciones: partial; irpf_renta_bruta_media e irpf_renta_disponible_media: blocked_source',
+    '2023',
+    AEAT_EDM_IRPF.publicUrl ?? null,
+  )
+  pushFuente(
+    'Contexto económico',
+    INE_INSTITUTION,
+    'Atlas de Distribución de Renta de los Hogares (ADRH) · renta por persona/hogar: serie separada de AEAT (sin mezcla)',
+    'ADRH (varía por tabla)',
+    'https://www.ine.es/daco/daco42/renta/adrh_municipios.htm',
+  )
 
   return { hojas, fuentes }
 }

@@ -8,7 +8,10 @@ export type IndicatorAvailability =
   | 'pending'
   | 'without_coverage'
   | 'provisional'
-  | 'not_applicable';
+  | 'not_applicable'
+  | 'missing_by_design'
+  | 'blocked_source'
+  | 'temporary_error';
 
 export const AVAILABILITY_LABEL: Record<IndicatorAvailability, string> = {
   available: 'Disponible',
@@ -17,6 +20,9 @@ export const AVAILABILITY_LABEL: Record<IndicatorAvailability, string> = {
   without_coverage: 'Sin cobertura verificable',
   provisional: 'Provisional',
   not_applicable: 'No aplicable',
+  missing_by_design: 'Sin dato por diseño de la fuente',
+  blocked_source: 'Bloqueado por falta de fuente estructurada',
+  temporary_error: 'Error operativo temporal',
 };
 
 export const AVAILABILITY_DESCRIPTION: Record<IndicatorAvailability, string> = {
@@ -26,6 +32,11 @@ export const AVAILABILITY_DESCRIPTION: Record<IndicatorAvailability, string> = {
   without_coverage: 'La fuente no publica este indicador para el municipio.',
   provisional: 'Dato sujeto a revisión; nunca sustituye al consolidado.',
   not_applicable: 'El indicador no aplica a este municipio (p. ej. umbral de población o ámbito fiscal).',
+  missing_by_design:
+    'La fuente oficial no publica esta serie para este territorio (p. ej. régimen foral): no se estima, no se imputa ni se sustituye.',
+  blocked_source:
+    'La variable no se incorpora porque la fuente oficial no ofrece una descarga nacional estructurada verificable.',
+  temporary_error: 'Fallo operativo puntual en la obtención del dato; se reintenta sin alterar el histórico.',
 };
 
 /** Un número real es number finito. null/undefined/NaN = ausencia, nunca 0. */
@@ -56,7 +67,10 @@ const RANK: Record<IndicatorAvailability, number> = {
   provisional: 2,
   pending: 3,
   without_coverage: 4,
-  not_applicable: 5,
+  missing_by_design: 5,
+  blocked_source: 6,
+  temporary_error: 7,
+  not_applicable: 8,
 };
 
 export function compareAvailability(a: IndicatorAvailability, b: IndicatorAvailability): number {
@@ -92,7 +106,17 @@ export function partitionByAvailability<T>(
 
 export interface CoverageEntry {
   titulo: string;
-  estado: Extract<IndicatorAvailability, 'pending' | 'without_coverage' | 'provisional' | 'not_applicable' | 'partial'>;
+  estado: Extract<
+    IndicatorAvailability,
+    | 'pending'
+    | 'without_coverage'
+    | 'provisional'
+    | 'not_applicable'
+    | 'partial'
+    | 'missing_by_design'
+    | 'blocked_source'
+    | 'temporary_error'
+  >;
   detalle: string;
   fuente?: string;
   periodo?: string;
@@ -100,16 +124,22 @@ export interface CoverageEntry {
 
 export const COVERAGE_GROUP_ORDER: CoverageEntry['estado'][] = [
   'without_coverage',
+  'missing_by_design',
+  'blocked_source',
   'pending',
   'provisional',
+  'temporary_error',
   'partial',
   'not_applicable',
 ];
 
 export const COVERAGE_GROUP_LABEL: Record<CoverageEntry['estado'], string> = {
   without_coverage: 'Sin cobertura',
+  missing_by_design: 'Sin dato por diseño de la fuente',
+  blocked_source: 'Bloqueado por falta de fuente estructurada',
   pending: 'Pendiente',
   provisional: 'Fuente provisional no configurada',
+  temporary_error: 'Error operativo temporal',
   partial: 'Periodos con rezago',
   not_applicable: 'No aplicable',
 };

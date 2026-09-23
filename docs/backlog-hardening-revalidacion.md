@@ -36,6 +36,17 @@
 | Plan de pruebas | Unit de la cuota; prueba de agotamiento → 429; QA de loaders con dry-run. |
 | Rollback | Desactivar la regla (env/flag) sin tocar el contrato del body. |
 
+## B4 — Acceso del conector Vercel a Runtime Errors/Logs (limitación conocida)
+
+| Campo | Valor |
+|---|---|
+| Amenaza que mitiga | Cierre de observabilidad: en la fase 3 no pudo contrastarse «0 errores runtime» de forma independiente porque el conector Vercel devolvió **403 Forbidden** al consultar errores agrupados del proyecto. El despliegue READY, SHA y comprobaciones de QA sí se corroboraron por ese canal. |
+| Estado | **Limitación de permisos del conector** (no contradice el QA entregado; queda registrado como salvedad del cierre de fase 3, 2026-09-22). |
+| Diseño propuesto | Habilitar al conector permiso de **solo lectura** de Runtime Errors/Logs del proyecto `urb-ideas` en Vercel (sin compartir tokens manualmente; vía configuración del conector/integración). |
+| Coste | Bajo (configuración de plataforma, sin código). |
+| Plan de pruebas | Tras habilitar: consultar errores desde ventana posterior a `da880ca` y confirmar 0 o listar clusters; contrastar con QA. |
+| Rollback | Revocar el permiso de lectura en el conector. |
+
 ## Criterio de apertura de este backlog
 
 Poder abrir la implementación exige una misión tipo «Fase 4 — hardening» con aporte explícito, QA completo (lint/tsc/tests/build/SSR 750/XLSX 30/cobertura 14) y decisión consciente de no regresar a purgas globales ni TTL a 0.

@@ -20,6 +20,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as JSZip from 'jszip'
+import { MUESTRA_COBERTURA, type MuestraCoberturaItem } from './qa-fixtures'
 
 const R2_PUBLIC_BASE_FALLBACK = 'https://pub-ecf1b1fd05e54263b2c664384c92c7b4.r2.dev'
 const R2_BASE = (
@@ -36,23 +37,9 @@ const argOf = (k: string): string | null => {
 const BASE = (argOf('--base') ?? process.env.QA_BASE_URL ?? 'https://urb-ideas.vercel.app').replace(/\/$/, '')
 const SKIP_XLSX = args.includes('--skip-xlsx')
 
-type Muestra = { ine: string; nombre: string; kind: 'con_dato' | 'foral' | 'sin_puente' }
-const MUESTRA: Muestra[] = [
-  { ine: '02003', nombre: 'Albacete', kind: 'con_dato' },
-  { ine: '28079', nombre: 'Madrid', kind: 'con_dato' },
-  { ine: '41091', nombre: 'Sevilla', kind: 'con_dato' },
-  { ine: '08019', nombre: 'Barcelona', kind: 'con_dato' },
-  { ine: '15078', nombre: 'Santiago de Compostela', kind: 'con_dato' },
-  { ine: '47186', nombre: 'Valladolid', kind: 'con_dato' },
-  { ine: '33044', nombre: 'Oviedo', kind: 'con_dato' },
-  { ine: '30016', nombre: 'Cartagena', kind: 'con_dato' },
-  { ine: '07040', nombre: 'Palma', kind: 'con_dato' },
-  { ine: '05019', nombre: 'Ávila', kind: 'con_dato' },
-  { ine: '31201', nombre: 'Pamplona', kind: 'foral' },
-  { ine: '48020', nombre: 'Bilbao', kind: 'foral' }, // INE real de Bilbao (48013 = Barakaldo)
-  { ine: '51001', nombre: 'Ceuta', kind: 'sin_puente' },
-  { ine: '52001', nombre: 'Melilla', kind: 'sin_puente' },
-]
+// Fixture compartido (scripts/qa-fixtures.ts): única fuente de verdad de la
+// muestra (Bilbao 48020, Santiago 15078, etc.).
+const MUESTRA: readonly MuestraCoberturaItem[] = MUESTRA_COBERTURA
 
 const FORAL_TEXT = 'La AEAT estatal no publica esta serie para País Vasco y Navarra; el dato no se estima ni se sustituye.'
 const PUENTE_TEXT = 'no coincide con INE-5'

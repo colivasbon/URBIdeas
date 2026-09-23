@@ -19,6 +19,7 @@ import { config } from 'dotenv'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as JSZip from 'jszip'
+import { MUESTRA_REVALIDACION } from './qa-fixtures'
 
 config({ path: '.env.local' })
 
@@ -31,18 +32,8 @@ const R2_BASE = (
 ).replace(/\/$/, '')
 const TOKEN = process.env.SOCIDEAS_REVALIDATE_TOKEN || process.env.SOCIDEAS_SYNC_TOKEN || ''
 
-const MUESTRA: Array<[string, string]> = [
-  ['02003', 'Albacete'],
-  ['28079', 'Madrid'],
-  ['41091', 'Sevilla'],
-  ['08019', 'Barcelona'],
-  ['15078', 'Santiago de Compostela'], // INE real; 27044 = A Pastoriza (Lugo)
-  ['47186', 'Valladolid'],
-  ['33044', 'Oviedo'],
-  ['30016', 'Cartagena'],
-  ['07040', 'Palma'],
-  ['05019', 'Ávila'],
-]
+// Fixture compartido (scripts/qa-fixtures.ts): única fuente de verdad.
+const MUESTRA: ReadonlyArray<[string, string]> = MUESTRA_REVALIDACION
 
 let failures = 0
 function check(nombre: string, ok: boolean, detalle = ''): void {

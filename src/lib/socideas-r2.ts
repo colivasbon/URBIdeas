@@ -331,7 +331,13 @@ export async function putMunicipioJson(
       Key: key,
       Body: JSON.stringify(envelope),
       ContentType: 'application/json',
-      CacheControl: 'public, max-age=86400',
+      // B1: invalidación por tag (Data Cache) + ventana corta en el borde.
+      // Con max-age=86400, tras revalidateTag un refetch al origen podía
+      // recibir una copia de borde/CDN de hasta 24 h con datos viejos;
+      // max-age=300 + must-revalidate limita esa ventana de stale y fuerza
+      // revalidación al caducar. Los read-back de scripts ya usan cache-buster
+      // `?v=`. El TTL de unstable_cache (3600) y las tags no cambian.
+      CacheControl: 'public, max-age=300, must-revalidate',
     }),
   )
   return key

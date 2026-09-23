@@ -12,7 +12,12 @@
     "scrape:boe": "npx tsx scripts/scraper/boletines.ts",
     "scrape:cataluna": "npx tsx scripts/scraper/cataluna.ts",
     "scrape:ccaa": "npx tsx scripts/scraper/ccaa-urbanismo.ts",
-    "quality:check": "npx tsx scripts/sync/quality-check.ts"
+    "quality:check": "npx tsx scripts/sync/quality-check.ts",
+    "qa:produccion": "npx tsx scripts/qa-produccion.ts",
+    "qa:cobertura": "npx tsx scripts/qa-cobertura-muestra.ts",
+    "qa:revalidacion": "npx tsx scripts/verify-revalidate-muestra.ts",
+    "verify:revalidate": "npx tsx scripts/verify-revalidate.ts",
+    "conprel:dry-run": "npx tsx scripts/load-conprel.ts --muestra"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1125.0",

@@ -267,6 +267,16 @@ export default async function SocideasFicha({
                     </Link>
                   }
                 />
+              ) : perfil.total === null && perfil.evolucion.length === 0 ? (
+                <EmptyState
+                  title="Sin serie demográfica cargada"
+                  description="Este municipio no tiene población en los envelopes R2 de la carga nacional SOCideas. La ausencia se muestra como tal: no se imputa ningún valor ni se convierte en cero."
+                  action={
+                    <Link href="/socideas" className="text-sm font-semibold text-[var(--color-secondary)]">
+                      Volver al buscador
+                    </Link>
+                  }
+                />
               ) : (
                 <FichaFiltros
                   codigoINE={municipio.codigo_ine}

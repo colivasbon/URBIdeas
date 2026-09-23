@@ -49,7 +49,7 @@ const MUESTRA: Muestra[] = [
   { ine: '07040', nombre: 'Palma', kind: 'con_dato' },
   { ine: '05019', nombre: 'Ávila', kind: 'con_dato' },
   { ine: '31201', nombre: 'Pamplona', kind: 'foral' },
-  { ine: '48013', nombre: 'Bilbao', kind: 'foral' },
+  { ine: '48020', nombre: 'Bilbao', kind: 'foral' }, // INE real de Bilbao (48013 = Barakaldo)
   { ine: '51001', nombre: 'Ceuta', kind: 'sin_puente' },
   { ine: '52001', nombre: 'Melilla', kind: 'sin_puente' },
 ]

@@ -183,6 +183,8 @@ GO exige ✅ en las nueve filas. Con criterio 6 en ❌ la serie completa **no pu
 | Liquidaciones 2024 | definitivo | 6.861 | **6.861/8.132 = 84,4 %** |
 | Liquidaciones 2025 | avance | 5.623 | 5.623/8.132 = 69,1 % |
 
+**Precisión de recuentos (2026-09-23):** el dry-run previo contaba 7.352/6.868 *filas* municipales con un predicado laxo que incluía **7 organismos dependientes `ZV/ZO` de Ceuta y Melilla**; con el predicado estricto `AA|ZZ` de la matriz: **7.345/6.861 municipios-distinto-ficha** y **0 códigos duplicados** en ambas familias (regla de duplicados y clave única: `docs/conprel-integracion-partial-diseno.md` §1).
+
 **Cobertura de presupuesto y de liquidación son independientes** (90,3 % ≠ 84,4 %): una no se hereda de la otra. Los **avances no se publican como cobertura** (deficitario por diseño de remisión).
 
 **CCAA por debajo de 100 % — Presupuestos 2025 (definitivo):** Navarra 39/272 (14,3 %) · País Vasco 170/252 (67,5 %) · Castilla-La Mancha 780/919 (84,9 %) · La Rioja 154/174 (88,5 %) · CyL 2.067/2.248 (91,9 %) · resto ≥94,9 % (Galicia/Cataluña 98,1 %). **Provincias con 0 municipios: solo Álava (0/51)** — Ceuta 1/1 y Melilla 1/1 en los cuatro ficheros salvo Melilla en avance liq 2025 (0/1, timing).
@@ -195,16 +197,16 @@ GO exige ✅ en las nueve filas. Con criterio 6 en ❌ la serie completa **no pu
 
 | Caso | Hallazgo | Diagnóstico |
 |---|---|---|
-| **Álava** | En los **definitivos** (ppto 2025 y liq 2024/2025-av) la provincia 01 solo contiene `01000DD000` (Diputación Foral) + organismos `DV/DO`: **0 municipios**. En **ppto 2026 avance ya aparecen 15 municipios `AA`** (Vitoria aún no). Diagnóstico por nombre sin hallar fila municipal con clave alternativa. | **Remisión municipal tardía/incompleta bajo régimen foral**, no exclusión permanente por diseño: el avance 2026 demuestra que los municipios alavenses pueden llegar. Vitoria-Gasteiz: **ausente en los 4 ficheros** por código y por nombre. |
-| **Navarra** | 39/272 presentes en ppto 2025 (`navarra-presentes-ppto2025.csv`): incluye Pamplona 31201, Tudela 31232 y cabeceras comarcales; **ausentes 233** (`navarra-ausentes-ppto2025.csv`), desde Abáigar hasta Milagro 31169 (municipio de ~15 mil hab.) — **el hueco no se explica por tamaño**. Estabilidad: 39 (ppto def) → 28 (ppto av) → 38 (liq def) → 22 (liq av). | **Cobertura parcial estructural** (~14 % en definitivos, estable entre ejercicios); remisión incompleta heterogénea, no una lista fija de excluidos. |
-| **Vitoria 01059** | 0 filas con prefijo `01059` y 0 coincidencias `Gasteiz|Vitoria` en los 4 ficheros. | Ausencia total de la entidad en la ventana descargada; pendiente de confirmación de si remite fuera de CONPREL. |
-| **Getxo 48044** | Presente en **ppto 2025** (`48044AA000`); **ausente** en ppto 2026-av, liq 2024 y liq 2025-av (por código y por nombre). | **Ausencia puntual inestable** (una familia/sí y otra no): no heredar cobertura entre ficheros; investigar remisión Getxo↔Hacienda autonómica. |
+| **Álava** | En los **definitivos** (ppto 2025 y liq 2024/2025-av) la provincia 01 solo contiene `01000DD000` (Diputación Foral) + organismos `DV/DO`: **0 municipios**. En **ppto 2026 avance ya aparecen 15 municipios `AA`** (Vitoria aún no). Diagnóstico por nombre sin hallar fila municipal con clave alternativa. | **Hecho medido:** 0 municipios en los definitivos; 15 en el avance ppto 2026. **Hipótesis (no demostradas):** H1 remisión tardía/incompleta (compatible con el salto del avance); H2 no remisión en ese corte. No se afirma causa. Vitoria-Gasteiz: **ausente en los 4 ficheros** por código y por nombre. |
+| **Navarra** | 39/272 presentes en ppto 2025 (`navarra-presentes-ppto2025.csv`): incluye Pamplona 31201, Tudela 31232 y cabeceras comarcales; **ausentes 233** (`navarra-ausentes-ppto2025.csv`), desde Abáigar hasta Milagro 31169 (municipio de ~15 mil hab.) — **el hueco no se explica por tamaño**. Estabilidad: 39 (ppto def) → 28 (ppto av) → 38 (liq def) → 22 (liq av). | **Hecho medido:** cobertura parcial estructural ~14 % estable en definitivos. Causa individual no demostrada. |
+| **Vitoria 01059** | 0 filas con prefijo `01059` y 0 coincidencias `Gasteiz|Vitoria` en los 4 ficheros. | Ausencia total de la entidad en la ventana descargada; causa no demostrada. |
+| **Getxo 48044** | Presente en **ppto 2025** (`48044AA000`); **ausente** en ppto 2026-av, liq 2024 y liq 2025-av (por código y por nombre). | **Ausencia puntual inestable** (una familia/sí y otra no): no heredar cobertura entre ficheros; causa no demostrada. |
 | **01018 Zigoitia** | 0 en los 4 | Parte del hueco alavense. |
 | **31169 Milagro** | 0 en los 4 | Parte del hueco navarro (pese a ser municipio mediano). |
-| **06161 Zarza-Capilla (Badajoz)** | Solo en **ppto 2025** | Remisión puntual no repetida en avances/liq: pequeño municipio con cumplimiento desigual. |
+| **06161 Zarza-Capilla (Badajoz)** | Solo en **ppto 2025** | Remisión puntual no repetida en avances/liq; causa no demostrada. |
 | **19191 Monasterio (Guadalajara)** | Solo en **ppto 2025** | Mismo patrón que 06161. |
 
-**510 municipios están ausentes en los cuatro ficheros** (`ausentes-los-4-ficheros.csv`) — candidatos a ausencia persistente en la ventana 2024–2026 (casi todos navarros y alavenses + el resto de huecos).
+**510 municipios están ausentes en los cuatro ficheros** (`ausentes-los-4-ficheros.csv`) — **ausentes en la ventana 2024–2026 analizada; no implica exclusión permanente** (corte temporal, no dictamen definitivo).
 
 ### 11.4 Diagnóstico de estabilidad (2 ejercicios por familia)
 
@@ -213,7 +215,7 @@ GO exige ✅ en las nueve filas. Con criterio 6 en ❌ la serie completa **no pu
 | Presupuestos | 2025 → 90,3 % | 2026-av → 75,5 % | −1.204 mun. | El avance **nunca** refleja cobertura final (1.340 mun. del def. aún no están en el avance; 136 llegaron después). |
 | Liquidaciones | 2024 → 84,4 % | 2025-av → 69,1 % | −1.238 mun. | Ídem. |
 
-- Álava: 0 → **15 AA en avance ppto 2026** (tardía, no permanente en ppto); 0 en liquidaciones (todavía).
+- Álava: 0 en definitivos → **15 AA en avance ppto 2026** (el salto es un **hecho**; la causa «remisión tardía» es **hipótesis H1 no demostrada**); 0 en liquidaciones (todavía).
 - Navarra: ~14 % estable en definitivos; avances aún menores.
 - Las ausencias **no son homogéneas** entre presupuesto y liquidación (Getxo, 06161, 19191): cada familia se declara por su propio fichero/ejercicio.
 - La estabilidad obliga a publicar **solo definitivos** y a congelar hash/ejercicio.

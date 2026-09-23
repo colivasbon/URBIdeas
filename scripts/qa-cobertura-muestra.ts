@@ -163,6 +163,14 @@ async function main(): Promise<void> {
       }
       if (m.kind === 'sin_puente') {
         check('SSR explica motivo código AEAT↔INE-5', ssr.text.includes(PUENTE_TEXT))
+        const ssrDemo = await fetchHtml(`${BASE}/socideas/${m.ine}`)
+        check(
+          'SSR demografía honesta (sin serie cargada o preparando)',
+          ssrDemo.status === 200 &&
+            (ssrDemo.text.includes('Sin serie demográfica cargada') ||
+              ssrDemo.text.includes('Preparando datos oficiales')),
+          `status=${ssrDemo.status}`,
+        )
       }
       check('SSR explica rentas bloqueadas (blocked_source)', ssr.text.includes(BLOCKED_TEXT))
       check('SSR sin cero falso en bloqueo (nunca "0 €" por blocked)', !/irpf_renta_bruta_media[^]{0,200}>0 €</.test(ssr.text))

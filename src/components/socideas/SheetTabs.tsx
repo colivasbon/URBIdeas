@@ -65,6 +65,15 @@ export default function SheetTabs({
                 pronto
               </span>
             )}
+            {s.estado === "parcial" && (
+              <span
+                className={`rounded-[4px] px-1.5 py-0.5 text-[10px] font-semibold ${
+                  selected ? "bg-white/15 text-white/80" : "bg-[var(--color-input-bg)] text-[var(--color-text-muted)]"
+                }`}
+              >
+                parcial
+              </span>
+            )}
           </Link>
         );
       })}

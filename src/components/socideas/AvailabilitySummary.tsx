@@ -36,7 +36,12 @@ export default function AvailabilitySummary({
       aria-label={`Disponibilidad del bloque ${bloque}`}
     >
       <span className="inline-flex items-center gap-1.5 rounded-[6px] bg-[var(--color-input-bg)] px-3 py-1 font-semibold text-[var(--color-text-secondary)]">
-        <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-[6px] bg-[var(--color-success)]" />
+        <span
+          aria-hidden="true"
+          className={`inline-block h-1.5 w-1.5 rounded-[6px] ${
+            disponibles === 0 ? "bg-[var(--color-text-muted)]" : "bg-[var(--color-success)]"
+          }`}
+        />
         {partes.join(" · ")}
         {periodo ? ` · Periodo ${periodo}` : ""}
       </span>

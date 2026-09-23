@@ -230,7 +230,16 @@ export default function FichaFiltros({
     ...(perfil.densidad.valor !== null
       ? []
       : [{ titulo: "Densidad de población", estado: "pending", detalle: "Pendiente de integración de fuente de superficie. Nada se estima." } as CoverageEntry]),
-    { titulo: "Saldos migratorios municipales", estado: "pending", detalle: "Los saldos migratorios municipales (INE, tabla 69767: saldo total, exterior e interior) tienen COBERTURA MUNICIPAL NACIONAL verificada y son una serie complementaria a los flujos 69711/69743/69746. Pendiente de activación del bloque ya verificado." },
+    ...(migracionBalance
+      ? []
+      : [
+          {
+            titulo: "Saldos migratorios municipales",
+            estado: "pending",
+            detalle:
+              "Los saldos migratorios municipales (INE, tabla 69767: saldo total, exterior e interior) tienen COBERTURA MUNICIPAL NACIONAL verificada y son una serie complementaria a los flujos 69711/69743/69746. Pendiente de activación del bloque ya verificado.",
+          } as CoverageEntry,
+        ]),
     { titulo: "Natalidad y mortalidad", estado: "without_coverage", detalle: "Las tablas del INE (31934/31917) solo cubren capitales y municipios principales; sin cobertura nacional no se incorporan." },
     { titulo: "Fuente provisional", estado: "provisional", detalle: "No hay fuente provisional configurada para demografía. Se conserva el último dato consolidado." },
   ];
@@ -635,7 +644,15 @@ export default function FichaFiltros({
 
       <IndicatorAvailabilityPanel entries={coberturaDemografia} />
 
-      <Traceability valores={perfil.valores} pendientes={perfil.densidad.valor !== null ? pendientesFijas.filter((p) => !p.startsWith("Densidad:")) : pendientesFijas} vista={vista} />
+      <Traceability
+        valores={perfil.valores}
+        pendientes={pendientesFijas.filter((p) => {
+          if (perfil.densidad.valor !== null && p.startsWith("Densidad:")) return false;
+          if (migracionBalance && p.startsWith("Saldos migratorios")) return false;
+          return true;
+        })}
+        vista={vista}
+      />
 
       <div className="mt-8 flex flex-wrap gap-3">
         <Link

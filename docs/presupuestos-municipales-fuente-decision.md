@@ -68,35 +68,44 @@ Definiciones por la clasificación económica EHA/3565/2008 + PDFs metodológico
 ## 4. Identificador y estrategia de join
 
 - **Confirmado en el Access:** `codente`/`codbdgel` = `NNNNN` (INE-5) + `TT` (tipo, 2 chars) + `SSS` — ej. `28079AA000` (Madrid), `41091AA000` (Sevilla). **No hay NIF ni DIR3** en `tb_inventario`; `idente`/`id` son IDs internos CONPREL.
-- **Hipótesis de join (reproducible, aún NO validada extremo a extremo):**
-  ```sql
-  LEFT(LEFT(codente, 5), INE-5)   -- filtro tipo = 'AA' (o 'ZZ'/'ZV'/'ZO' en Ceuta/Melilla)
-  ```
-  Excel avance: `Pr(2) || Cor(3)` = INE-5 con `Tipo = 'A00'`.
-- Evidencia de coherencia: 9–10/10 INE de prueba resuelven por esta regla (ver §5).
-- BDGEL (códigos INE + NIF) confirmado como dataset oficial en datos.gob.es, pero **solo app HTML de consulta, sin fichero masivo descargable** → no se usa como puente obligatorio hoy.
-- Filtro obligatorio de tipo de entidad (excluir `DD`, `MM`, `AO`, `AV`, …). **Nunca join por nombre.**
+- **Validado sistemáticamente el 2026-09-22** (dry-run `scripts/dry-run-conprel-100.ts`, solo lectura):
+  - **PPTO-2025:** 7.352 filas municipales → **7.352/7.352 prefijos ∈ catálogo INE-5** (0 desconocidos); nombre concuerda en **7.302 (99,3 %)**; los 50 divergentes son **variantes de la misma entidad** (cambios oficiales de nombre tipo `Candín`→`Valle de Ancares`, orden bilingüe, grafías).
+  - **LIQ-2024:** 6.868/6.868 prefijos ∈ catálogo; nombre **99,2 %** (52 variantes).
+- Regla de join aprobada en principio: `LEFT(LEFT(codente,5)) → INE-5` con filtro de tipo (`AA`; en Ceuta/Melilla sus tipos municipales). **El join va por código, nunca por nombre** (el nombre solo se usó como diagnóstico).
+- Corrección de un error previo de etiquetado (importante): **Bilbao = INE `48020`** (no 48013; `48013` = Barakaldo, `48044` = Getxo — concuerdan catálogo SOCideas y CONPREL). La presunta «ausencia de 48013 en presupuestos» era un efecto de esa etiqueta errónea: **Bilbao sí está** (`48020AA000` en ppto y liq).
+- BDGEL (INE + NIF) sigue disponible como documentación oficial de correspondencias, pero **no ha hecho falta para el join por código** y no se usa como puente obligatorio hoy.
+- Filtro obligatorio de tipo de entidad (excluir `DD`, `MM`, `AO`, `AV`, `ZO`…). **Nunca join por nombre.**
 
-## 5. Cobertura observada (muestra de 10 INE + volúmenes)
+## 5. Cobertura observada (muestra de 100 + volúmenes)
 
-Fecha medición: 2026-09-22. Muestra: Albacete 02003, Madrid 28079, Sevilla 41091, Barcelona 08019, Pamplona 31201, Bilbao 48013, Ceuta 51001, Melilla 52001, Abengibre 02001, Palma 07040.
+Fecha medición: 2026-09-22 (dry-run solo lectura; informe `tmp/conprel-dryrun-100-*.json`).
 
-| Conjunto | PPTO 2026 avance | PPTO 2025 definitivo | LIQ 2024 definitivo |
-|---|---|---|---|
-| Muestra 10 INE | **9/10** | **9/10** | **10/10** |
-| Ausencia | 48013 (Bilbao) | **48013** (Bilbao); Getxo figura como 48044 | — |
+**Muestra estratificada de 100** (códigos de capital **verificados contra el catálogo**: Burgos 09059, Cáceres 10037, Cádiz 11012, Granada 18087, Huelva 21041, Jaén 23050, Teruel 44216, Zaragoza 50297, Bilbao 48020, Toledo 45168…): 49 capitales + 10 forzosos (Santiago 15078, Cartagena, Ceuta, Melilla, Abengibre, A Pastoriza, Arrecife, Eivissa, Tudela, Getxo) + rurales `población<1000` hasta 100.
 
-Volúmenes en `tb_inventario` (unidades = **entidades locales**, no municipios INE):
+| Métrica (muestra 100) | PPTO-2025 | LIQ-2024 |
+|---|---|---|
+| Join por código (naive-hit) | **97/100** | **94/100** |
+| Presencia diagnóstico por nombre | 95/100 | 92/100 |
+| Ausentes naive | 3 (`01018`, `01059` Vitoria, `31169`) | 6 (`01018`, `01059`, `06161`, `19191`, `31169`, `48044` Getxo) |
+
+**Volúmenes** (`tb_inventario`, unidades = entidades locales; **no** comparables 1:1 con las 8.132 filas del catálogo municipal SOCideas):
 
 | Fichero | Entidades totales | Municipios tipo `AA` | Filas `tb_economica` |
 |---|---|---|---|
 | PPTO 2026 avance | 7.720 | 6.139 | ~961k |
-| PPTO 2025 definitivo | 9.269 | **7.343** | 1.130.531 |
-| LIQ 2024 definitivo | 8.986 | **6.859** | 1.190.208 |
+| PPTO 2025 definitivo | 9.269 | **7.343–7.352** | 1.130.531 |
+| LIQ 2024 definitivo | 8.986 | **6.859–6.868** | 1.190.208 |
 
-Estos conteos **no se comparan automáticamente con el catálogo SOCideas de 8.132 municipios**: unidades distintas (entidades locales AA vs municipios INE), cortes distintos (avance/definitivo) y posible desfase de suministro. La brecha observada (p. ej. 7.343 AA vs ~8.131 INE y la ausencia de 48013 en ambos presupuestos) impide declarar cobertura suficiente hoy.
+**Huecos estructurales detectados (bloquean el criterio 6):**
 
-Muestra completa estratificada de 100 municipios (plan §10) aún **no ejecutada**.
+- **Álava (provincia 01): 0 municipios `AA`** en PPTO-2025 (solo figura la Diputación Foral `01000DD000`). Provincia completa sin municipios.
+- **Navarra (31): solo 39 municipios `AA`** de ~272.
+- Ausencias puntuales en la muestra (Vitoria 01059 en ambos; Getxo 48044 en liquidaciones; Zigoitia,31169, etc.) pendientes de explicar (cumplimiento/suministro/variante).
+- Bizkaia94 `AA` y Gipuzkoa76 `AA` **sí** presentes en presupuestos (el País Vasco no es un bloque uniformemente ausente).
+
+Muestra completa y explicación de huecos: §10.
+
+**Nota metodológica de contables (cabeceras oficiales, hoja «Nacional» de `EL2025CT.xlsx`):** `Presupuesto Inicial` · `Previsión Definitiva` (presupuesto) frente a `Derechos Reconocidos Netos` · `Recaudación Líquida Ejercicio corriente/Ejercicios cerrados` (liquidación/ejecución) — presupuesto, liquidación y ejecución son **columnas distintas**; `tb_cuentasEconomica` (702 conceptos) aporta el catálogo oficial de definiciones (capítulos Ingresos/Gastos EHA).
 
 ## 6. Mapa de riesgos y exclusiones
 
@@ -151,27 +160,30 @@ Muestra completa estratificada de 100 municipios (plan §10) aún **no ejecutada
 |---|---|---|---|
 | 1 | Fuente oficial | ✅ | Ministerio de Hacienda · CONPREL SGFAL · `hacienda.gob.es` |
 | 2 | Descarga estructurada nacional/API verificable | ✅ | ZIP→`.accdb` + Excel, HTTP 200 **sin auth**; esquema inspeccionado (§2) |
-| 3 | Definición de indicadores | ✅ | PDFs metodología HTTP 200; Excel distingue derechos liquidados vs obligaciones; presupuesto vs liquidación separados |
-| 4 | Licencia / reutilización | ✅ | `https://www.hacienda.gob.es/es-ES/Paginas/Avisolegal.aspx` **HTTP 200** (2026-09-22): «Condiciones generales para la reutilización de información» — autoriza reutilización comercial/no comercial (Ley 37/2007 y RD 1495/2011) con cita «Origen de los datos: Ministerio de Hacienda», mención de fecha de actualización, conservación de metadatos y prohibición de desnaturalizar |
-| 5 | Identificador o puente de join reproducible | ⚠️ | `LEFT(codente,5)` reproducible y coherente en 9–10/10, pero **falta validación sistemática** (§10) |
-| 6 | Cobertura suficiente demostrada | ❌ | 7.343 / 6.859 / 6.139 AA vs ~8.131 INE; **48013 ausente** en presupuestos; muestra de 100 no ejecutada |
-| 7 | Tratamiento de entidades no municipales | ✅ | Tipos `DD/MM/AO/AV…` identificados en `codente`/`Tipo`; filtro definido |
+| 3 | Definición de indicadores | ✅ | Cabeceras `EL2025CT.xlsx` (Presupuesto Inicial/Previsión Definitiva vs Derechos Reconocidos/Recaudación Líquida) + `tb_cuentasEconomica` (702 conceptos) + PDFs metodología 200 |
+| 4 | Licencia / reutilización | ✅ | `Avisolegal.aspx` **HTTP 200** (2026-09-22): reutilización comercial/no comercial (Ley 37/2007) con cita «Origen de los datos: Ministerio de Hacienda», fecha y metadatos |
+| 5 | Identificador o puente de join reproducible | ✅ | `LEFT(codente,5)`: **100 % de prefijos municipales ∈ catálogo INE-5** en ambos ficheros (7.352 y 6.868); divergencias de nombre 0,7 % = variantes de la misma entidad; join por código, nunca por nombre |
+| 6 | Cobertura suficiente demostrada | ❌ | Muestra 100: hit 97/100 (ppto) y 94/100 (liq); **Álava 0 municipios AA**, **Navarra 39/272**, ausencias puntuales (Vitoria, Getxo-liq, etc.) sin explicar |
+| 7 | Tratamiento de entidades no municipales | ✅ | Tipos `DD/MM/AO/AV/ZO…` identificados; filtro definido |
 | 8 | Estrategia de auditoría | ✅ | Diseño §9 (manifest + `data_sync_runs` + revalidación) |
-| 9 | Dry-run posible | ✅ | Ejecutado a nivel de descarga/esquema/muestra 10 (§2, §5); pipeline completo pendiente de §10 |
+| 9 | Dry-run posible | ✅ | **Ejecutado**: descarga, esquema, muestra 100 y validación sistemática de join (`scripts/dry-run-conprel-100.ts`, informe en `tmp/`) |
 
-GO exige ✅ en las nueve filas. **Hoy: 6✅ + 1⚠️ + 2❌ → PENDIENTE.**
+GO exige ✅ en las nueve filas. **Hoy: 7✅ + 0⚠️ + 1❌ (criterio 6) → PENDIENTE.**
 
 ## 12. Recomendación final
 
 # PENDIENTE
 
-**Cerrado desde la versión anterior:** descarga Access/ZIP sin autenticación (verificada con tamaños y esquema), join `codente` confirmado como INE-5+tipo (hipótesis reproducible), cobertura medida sobre muestra de 10 y **licencia verificable** (aviso legal Hacienda HTTP 200 con condiciones de reutilización de la Ley 37/2007).
+**Cerrado desde versiones anteriores:** descarga Access/ZIP sin autenticación (tamaños y esquema), **join `LEFT(codente,5)` validado sistemáticamente** (100 % de prefijos ∈ INE-5 en ambos ficheros definitivos; divergencias de nombre = variantes de la misma entidad), **licencia verificable** (aviso legal HTTP 200, Ley 37/2007), definiciones contables por cabeceras oficiales y **muestra estratificada de 100 ejecutada** (97/100 y 94/100 por código).
 
-**Bloqueantes exactos para GO:**
+**Corrección de errata previa:** Bilbao es INE **48020** (48013 = Barakaldo). La «ausencia de 48013» no existía: era un efecto de etiquetado.
 
-1. **Cobertura suficiente:** ejecutar el dry-run de §10 (muestra de 100) y explicar/cerrar la **ausencia de 48013** en presupuestos y la brecha AA (~7.343) vs catálogo INE (~8.131), sin imputar.
-2. **Join validado de extremo a extremo:** validar `LEFT(codente,5)` + filtro de tipo sobre el fichero completo (no solo 10 INE) con tasa de match publicada; si se necesita BDGEL, obtener descarga o puente oficial equivalente.
+**Bloqueante único para GO — criterio 6 (cobertura suficiente):**
 
-**Prohibido hasta entonces (y así ha permanecido en fase 3):** parser productivo, slugs públicos, tablas nuevas, carga R2, publicación de datos presupuestarios.
+1. Explicar y cerrar el **hueco de Álava (0 municipios AA en presupuestos)**: ¿exclusión por suministro foral, clave alternativa o falta real de publicación?
+2. Explicar **Navarra 39/272** y las ausencias puntuales de la muestra (Vitoria 01059 en ambos, Getxo 48044 en liquidaciones, 01018/31169/06161/19191…): ¿cumplimiento incompleto (Ley 2/2011 art. 36), recorte de ámbito u otro motivo?
+3. Definir el estado de publicación SOCideas para la serie resultante (`partial` nacional con huecos documentados **o** cobertura declarada completa tras explicación) y re-ejecutar este dry-run como evidencia final.
 
-**Nota:** la deuda viva (XLSX Hacienda, HTTP 200 verificado) es producto distinto: integración propia con su definición de stock a 31/12, jamás mezclada con flujos de liquidación.
+**Prohibido hasta GO (y así ha permanecido):** parser productivo, slugs públicos, tablas nuevas, carga R2, publicación de datos presupuestarios.
+
+**Nota:** la deuda viva (XLSX Hacienda, HTTP 200) es producto distinto (stock a 31/12), jamás mezclada con flujos de liquidación.

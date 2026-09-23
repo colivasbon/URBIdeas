@@ -154,36 +154,103 @@ Muestra completa y explicación de huecos: §10.
 6. Simular merge R2 (slugs preservados, <150 KB) sin escribir.
 7. Publicar resultados en §5/§11 de este documento.
 
-## 11. Criterios de GO (nueve)
+## 11. Criterios de GO + resultado de la investigación de cobertura
+
+### 11.1 Criterios (nueve)
 
 | # | Criterio | Estado (2026-09-22) | Evidencia |
 |---|---|---|---|
 | 1 | Fuente oficial | ✅ | Ministerio de Hacienda · CONPREL SGFAL · `hacienda.gob.es` |
 | 2 | Descarga estructurada nacional/API verificable | ✅ | ZIP→`.accdb` + Excel, HTTP 200 **sin auth**; esquema inspeccionado (§2) |
-| 3 | Definición de indicadores | ✅ | Cabeceras `EL2025CT.xlsx` (Presupuesto Inicial/Previsión Definitiva vs Derechos Reconocidos/Recaudación Líquida) + `tb_cuentasEconomica` (702 conceptos) + PDFs metodología 200 |
-| 4 | Licencia / reutilización | ✅ | `Avisolegal.aspx` **HTTP 200** (2026-09-22): reutilización comercial/no comercial (Ley 37/2007) con cita «Origen de los datos: Ministerio de Hacienda», fecha y metadatos |
-| 5 | Identificador o puente de join reproducible | ✅ | `LEFT(codente,5)`: **100 % de prefijos municipales ∈ catálogo INE-5** en ambos ficheros (7.352 y 6.868); divergencias de nombre 0,7 % = variantes de la misma entidad; join por código, nunca por nombre |
-| 6 | Cobertura suficiente demostrada | ❌ | Muestra 100: hit 97/100 (ppto) y 94/100 (liq); **Álava 0 municipios AA**, **Navarra 39/272**, ausencias puntuales (Vitoria, Getxo-liq, etc.) sin explicar |
-| 7 | Tratamiento de entidades no municipales | ✅ | Tipos `DD/MM/AO/AV/ZO…` identificados; filtro definido |
+| 3 | Definición de indicadores | ✅ | Cabeceras `EL2025CT.xlsx` + `tb_cuentasEconomica` (702 conceptos) + PDFs 200 |
+| 4 | Licencia / reutilización | ✅ | `Avisolegal.aspx` HTTP 200 (Ley 37/2007; cita «Origen de los datos: Ministerio de Hacienda») |
+| 5 | Identificador o puente de join reproducible | ✅ | `LEFT(codente,5)`: 100 % de prefijos ∈ catálogo INE-5 en ambos definitivos; divergencias de nombre = variantes de la misma entidad; join por código, nunca por nombre |
+| 6 | Cobertura suficiente (serie completa) | ❌ | **Medida y caracterizada** (§11.2–11.4): nacional 90,3 % (ppto) / 84,4 % (liq); Álava 0/51; Navarra ~14 %; 510 ausentes en los 4 ficheros → **no alcanza `available`** → salida **B** |
+| 7 | Tratamiento de entidades no municipales | ✅ | Tipos contados por fichero (§11.2): `DD`50, `MM`410, `AV`367, `AO`154, `ZZ`2… filtro definido |
 | 8 | Estrategia de auditoría | ✅ | Diseño §9 (manifest + `data_sync_runs` + revalidación) |
-| 9 | Dry-run posible | ✅ | **Ejecutado**: descarga, esquema, muestra 100 y validación sistemática de join (`scripts/dry-run-conprel-100.ts`, informe en `tmp/`) |
+| 9 | Dry-run posible | ✅ | Descarga, esquema, muestra 100, join sistemático **y matriz de cobertura** ejecutados |
 
-GO exige ✅ en las nueve filas. **Hoy: 7✅ + 0⚠️ + 1❌ (criterio 6) → PENDIENTE.**
+GO exige ✅ en las nueve filas. Con criterio 6 en ❌ la serie completa **no puede ser `available`**.
+
+### 11.2 Matriz municipio × fichero (denominador explícito)
+
+**Denominador: 8.132 municipios del catálogo SOCideas** (incluye Ceuta 51001 y Melilla 52001). Municipal CONPREL = tipo `AA` (+ `ZZ` en Ceuta/Melilla). Artefactos (solo lectura) en `tmp/conprel-coverage/`: `<fichero>-presentes.csv`, `<fichero>-ausencias.csv`, `ausentes-los-4-ficheros.csv`, `navarra-*.csv`, `matrix-report-*.json` · generador: `scripts/conprel-coverage-matrix.ts`.
+
+| Fichero | Fase | Municipios (AA+ZZ) | Cobertura nacional |
+|---|---|---|---|
+| Presupuestos 2025 | definitivo | 7.345 | **7.345/8.132 = 90,3 %** |
+| Presupuestos 2026 | avance | 6.141 | 6.141/8.132 = 75,5 % (remisión incompleta aún) |
+| Liquidaciones 2024 | definitivo | 6.861 | **6.861/8.132 = 84,4 %** |
+| Liquidaciones 2025 | avance | 5.623 | 5.623/8.132 = 69,1 % |
+
+**Cobertura de presupuesto y de liquidación son independientes** (90,3 % ≠ 84,4 %): una no se hereda de la otra. Los **avances no se publican como cobertura** (deficitario por diseño de remisión).
+
+**CCAA por debajo de 100 % — Presupuestos 2025 (definitivo):** Navarra 39/272 (14,3 %) · País Vasco 170/252 (67,5 %) · Castilla-La Mancha 780/919 (84,9 %) · La Rioja 154/174 (88,5 %) · CyL 2.067/2.248 (91,9 %) · resto ≥94,9 % (Galicia/Cataluña 98,1 %). **Provincias con 0 municipios: solo Álava (0/51)** — Ceuta 1/1 y Melilla 1/1 en los cuatro ficheros salvo Melilla en avance liq 2025 (0/1, timing).
+
+**CCAA — Liquidaciones 2024 (definitivo):** Navarra 38/272 (14,0 %) · Castilla-La Mancha 590/919 (64,2 %) · País Vasco 185/252 (73,4 %) · La Rioja 130/174 (74,7 %) · resto ≥84,4 % (Canarias 96,6 %).
+
+**Tipos de entidad (Presupuestos 2025, distinción exigida):** `AA` 7.343 · `MM` 410 mancomunidades · `AE` 737 · `AV` 367 organismos autónomos · `AO` 154 · `DD` 50 diputaciones · `DO` 29 · `DV` 62 · `RR` 65 · `ZZ` 2 (Ceuta/Melilla) · resto (`GG/MO/MV/RO/RV/TO/TT/ZO/ZV/EO`) <30 c/u. Solo `AA`+`ZZ` cuentan como municipio.
+
+### 11.3 Dossier de ausencias (causa investigada, sin join por nombre)
+
+| Caso | Hallazgo | Diagnóstico |
+|---|---|---|
+| **Álava** | En los **definitivos** (ppto 2025 y liq 2024/2025-av) la provincia 01 solo contiene `01000DD000` (Diputación Foral) + organismos `DV/DO`: **0 municipios**. En **ppto 2026 avance ya aparecen 15 municipios `AA`** (Vitoria aún no). Diagnóstico por nombre sin hallar fila municipal con clave alternativa. | **Remisión municipal tardía/incompleta bajo régimen foral**, no exclusión permanente por diseño: el avance 2026 demuestra que los municipios alavenses pueden llegar. Vitoria-Gasteiz: **ausente en los 4 ficheros** por código y por nombre. |
+| **Navarra** | 39/272 presentes en ppto 2025 (`navarra-presentes-ppto2025.csv`): incluye Pamplona 31201, Tudela 31232 y cabeceras comarcales; **ausentes 233** (`navarra-ausentes-ppto2025.csv`), desde Abáigar hasta Milagro 31169 (municipio de ~15 mil hab.) — **el hueco no se explica por tamaño**. Estabilidad: 39 (ppto def) → 28 (ppto av) → 38 (liq def) → 22 (liq av). | **Cobertura parcial estructural** (~14 % en definitivos, estable entre ejercicios); remisión incompleta heterogénea, no una lista fija de excluidos. |
+| **Vitoria 01059** | 0 filas con prefijo `01059` y 0 coincidencias `Gasteiz|Vitoria` en los 4 ficheros. | Ausencia total de la entidad en la ventana descargada; pendiente de confirmación de si remite fuera de CONPREL. |
+| **Getxo 48044** | Presente en **ppto 2025** (`48044AA000`); **ausente** en ppto 2026-av, liq 2024 y liq 2025-av (por código y por nombre). | **Ausencia puntual inestable** (una familia/sí y otra no): no heredar cobertura entre ficheros; investigar remisión Getxo↔Hacienda autonómica. |
+| **01018 Zigoitia** | 0 en los 4 | Parte del hueco alavense. |
+| **31169 Milagro** | 0 en los 4 | Parte del hueco navarro (pese a ser municipio mediano). |
+| **06161 Zarza-Capilla (Badajoz)** | Solo en **ppto 2025** | Remisión puntual no repetida en avances/liq: pequeño municipio con cumplimiento desigual. |
+| **19191 Monasterio (Guadalajara)** | Solo en **ppto 2025** | Mismo patrón que 06161. |
+
+**510 municipios están ausentes en los cuatro ficheros** (`ausentes-los-4-ficheros.csv`) — candidatos a ausencia persistente en la ventana 2024–2026 (casi todos navarros y alavenses + el resto de huecos).
+
+### 11.4 Diagnóstico de estabilidad (2 ejercicios por familia)
+
+| Familia | Definitivo | Avance | Delta | Lectura |
+|---|---|---|---|---|
+| Presupuestos | 2025 → 90,3 % | 2026-av → 75,5 % | −1.204 mun. | El avance **nunca** refleja cobertura final (1.340 mun. del def. aún no están en el avance; 136 llegaron después). |
+| Liquidaciones | 2024 → 84,4 % | 2025-av → 69,1 % | −1.238 mun. | Ídem. |
+
+- Álava: 0 → **15 AA en avance ppto 2026** (tardía, no permanente en ppto); 0 en liquidaciones (todavía).
+- Navarra: ~14 % estable en definitivos; avances aún menores.
+- Las ausencias **no son homogéneas** entre presupuesto y liquidación (Getxo, 06161, 19191): cada familia se declara por su propio fichero/ejercicio.
+- La estabilidad obliga a publicar **solo definitivos** y a congelar hash/ejercicio.
+
+### 11.5 Contrato propuesto para la futura serie
+
+**Estado inicial propuesto: `partial`** (no `available`; no `missing_by_design` nacional porque la ausencia no es por diseño homogéneo; no `not_applicable` porque sí aplica a los municipios con dato).
+
+- **Texto de ficha/XLSX (propuesta):** «Serie CONPREL de presupuestos/liquidaciones de entidades locales con cobertura parcial: 90,3 % de los 8.132 municipios en presupuestos 2025 (definitivo) y 84,4 % en liquidaciones 2024 (definitivo). Los municipios sin remisión se muestran como ND; nunca como 0 ni se imputan. Cobertura propia por familia de fichero; los avances no se publican como cobertura.»
+- **Territorios excluidos/parciales a declarar:** Álava 0/51 (avance ppto 2026: 15/51), Navarra ~14 %, Vitoria-Gasteiz, los 510 ausentes persistentes (lista en `ausentes-los-4-ficheros.csv`) y las ausencias puntuales por familia (Getxo en liq, etc.).
+- **Reglas:** ND ≠ 0 · presupuesto ≠ liquidación · definitivo ≠ avance · join solo por `codente` · filtro de tipos · AEAT/ADRH siguen intactos (esta serie no toca renta).
+- **No se diseñan slugs finales ni se carga ningún valor** en esta misión.
+
+### 11.6 Salida de la investigación
+
+```text
+A. Cobertura explicada y aceptable → propuesta GO separada
+B. Cobertura estructuralmente parcial → propuesta de integración partial con exclusiones explícitas
+C. Cobertura no explicable o inestable → NO-GO
+```
+
+# SALIDA: **B**
+
+La cobertura está **explicada** (§11.2–11.4) y es **estructuralmente parcial** (Álava 0 en definitivos, Navarra ~14 %, 510 ausentes persistentes, inestabilidad entre familias). Procede una **propuesta de integración `partial` con exclusiones explícitas** en una misión posterior de diseño; no procede `available` (no es A) ni `NO-GO` (la fuente, el join y la licencia son sólidos; la ausencia es explicable, no caótica — no es C).
 
 ## 12. Recomendación final
 
-# PENDIENTE
+# PENDIENTE (GO denegado) → vía aprobada: **B — propuesta `partial`**
 
-**Cerrado desde versiones anteriores:** descarga Access/ZIP sin autenticación (tamaños y esquema), **join `LEFT(codente,5)` validado sistemáticamente** (100 % de prefijos ∈ INE-5 en ambos ficheros definitivos; divergencias de nombre = variantes de la misma entidad), **licencia verificable** (aviso legal HTTP 200, Ley 37/2007), definiciones contables por cabeceras oficiales y **muestra estratificada de 100 ejecutada** (97/100 y 94/100 por código).
+**Cerrados:** descarga sin auth; join `LEFT(codente,5)` validado sistemáticamente (100 %); licencia verificable; definiciones contables oficiales; muestra de 100; **matriz completa 4 ficheros × 8.132 municipios**; dossier de ausencias (Álava/Navarra/Vitoria/Getxo/01018/31169/06161/19191); estabilidad 2 ejercicios por familia; contrato `partial` propuesto (§11.5).
 
-**Corrección de errata previa:** Bilbao es INE **48020** (48013 = Barakaldo). La «ausencia de 48013» no existía: era un efecto de etiquetado.
+**Erratas corregidas:** Bilbao = **48020** (48013 = Barakaldo) — fixture compartido en `scripts/qa-fixtures.ts`; códigos de capital verificados en el mismo fixture.
 
-**Bloqueante único para GO — criterio 6 (cobertura suficiente):**
+**Siguiente paso (aprobado):** misión de **diseño de integración `partial`** (parser, contrato de indicadores con cobertura por fichero/ejercicio, texto final de ficha/XLSX, plan de auditoría y dry-run de escritura simulada) — **sin carga real hasta aprobación explícita**. El dictamen `GO` para serie completa queda denegado hasta que un ejercicio definitivo alcance cobertura aceptable y estable.
 
-1. Explicar y cerrar el **hueco de Álava (0 municipios AA en presupuestos)**: ¿exclusión por suministro foral, clave alternativa o falta real de publicación?
-2. Explicar **Navarra 39/272** y las ausencias puntuales de la muestra (Vitoria 01059 en ambos, Getxo 48044 en liquidaciones, 01018/31169/06161/19191…): ¿cumplimiento incompleto (Ley 2/2011 art. 36), recorte de ámbito u otro motivo?
-3. Definir el estado de publicación SOCideas para la serie resultante (`partial` nacional con huecos documentados **o** cobertura declarada completa tras explicación) y re-ejecutar este dry-run como evidencia final.
+**Prohibido (igual que antes):** parser productivo en esta misión, slugs finales, tablas nuevas, carga R2, publicación de presupuestos.
 
-**Prohibido hasta GO (y así ha permanecido):** parser productivo, slugs públicos, tablas nuevas, carga R2, publicación de datos presupuestarios.
+**Fase 4 (aislada, no ejecutada):** B1 caché R2 · B2 separación de secretos · B3 rate limit · B4 permisos de Runtime Errors/Logs del conector (`docs/backlog-hardening-revalidacion.md`).
 
-**Nota:** la deuda viva (XLSX Hacienda, HTTP 200) es producto distinto (stock a 31/12), jamás mezclada con flujos de liquidación.
+**Nota:** deuda viva = producto distinto (XLSX Hacienda verificado), nunca mezclada con liquidaciones.

@@ -27,6 +27,9 @@ import {
   sinPuenteAeatIne5,
 } from "@/lib/socideas-indicator-catalog";
 import SourceMethodologyNotice from "./SourceMethodologyNotice";
+import ConprelSeccion from "./ConprelSeccion";
+import { isConprelUiEnabled } from "@/lib/conprel-flag";
+import { buildConprelPresentacion } from "@/lib/conprel-presentation";
 import type { IndicatorValue, PerfilEconomico } from "@/lib/socideas";
 import { ParoRegistradoBlock, AfiliacionBlock } from "./LaborBlocks";
 import {
@@ -289,7 +292,20 @@ export default function EconomiaFicha({
   if (laborPeriodo && ultimoAnioGlobal !== null) {
     cobertura.push({ titulo: "Dato mensual de coyuntura", estado: "partial", detalle: `Paro registrado y afiliación (${laborPeriodo}) son mensuales; el resto de bloques son anuales: no deben leerse como contemporáneos.` });
   }
-  cobertura.push({ titulo: "Presupuesto municipal, liquidación y ayudas", estado: "without_coverage", detalle: "La fuente no publica este indicador de forma homogénea para el municipio. No se presentan presupuestos previstos como liquidación real." });
+  // Bloque CONPREL: flag OFF ⇒ se conserva el `without_coverage` genérico de
+  // siempre (sin cadenas CONPREL en la UI). Flag ON ⇒ la sección propia habla
+  // de presupuestos/liquidaciones y el panel documenta familias ausentes.
+  const conprelEnabled = isConprelUiEnabled();
+  const conprel = conprelEnabled ? buildConprelPresentacion(valores, codigoINE) : null;
+  if (!conprelEnabled) {
+    cobertura.push({ titulo: "Presupuesto municipal, liquidación y ayudas", estado: "without_coverage", detalle: "La fuente no publica este indicador de forma homogénea para el municipio. No se presentan presupuestos previstos como liquidación real." });
+  } else if (conprel && !conprel.ppto.presente) {
+    cobertura.push({ titulo: "Presupuestos 2025 (CONPREL)", estado: "partial", detalle: `${conprel.ppto.ausenciaTexto} ${conprel.ppto.coberturaTexto}`, fuente: "Ministerio de Hacienda (CONPREL)", periodo: "2025" });
+  } else if (conprel && !conprel.liq.presente) {
+    cobertura.push({ titulo: "Liquidaciones 2024 (CONPREL)", estado: "partial", detalle: `${conprel.liq.ausenciaTexto} ${conprel.liq.coberturaTexto}`, fuente: "Ministerio de Hacienda (CONPREL)", periodo: "2024" });
+  } else if (!conprel) {
+    cobertura.push({ titulo: "Presupuesto municipal, liquidación y ayudas", estado: "pending", detalle: "Bloque CONPREL preparado, no publicado: los datos de la serie aún no se han cargado." });
+  }
   cobertura.push({ titulo: "Fuente provisional", estado: "provisional", detalle: "No hay fuente provisional configurada para economía (ADRH provisional 2024 excluido). Se conserva el último dato consolidado." });
   if (lastYear(DESIGUALDAD_SLUGS) !== null && lastYear(EMPRESAS_SLUGS) !== null && lastYear(DESIGUALDAD_SLUGS) !== lastYear(EMPRESAS_SLUGS)) {
     cobertura.push({ titulo: "Periodos con rezago", estado: "partial", detalle: `Desigualdad (ADRH ${lastYear(DESIGUALDAD_SLUGS)}) y empresas (DIRCE ${lastYear(EMPRESAS_SLUGS)}) son de operaciones distintas: no deben leerse como contemporáneas.` });
@@ -643,6 +659,10 @@ export default function EconomiaFicha({
       {/* Mercado de trabajo (SEPE + TGSS): dato mensual de coyuntura, Economía */}
       {paro && <ParoRegistradoBlock data={paro} />}
       {afiliacion && <AfiliacionBlock data={afiliacion} />}
+
+      {/* CONPREL: sección propia (PPTO-2025 + LIQ-2024), solo con el flag ON.
+          Con el flag OFF no se renderiza nada (ninguna cadena CONPREL). */}
+      {conprelEnabled && <ConprelSeccion presentacion={conprel} />}
 
       <IndicatorAvailabilityPanel entries={cobertura} />
 

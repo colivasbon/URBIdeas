@@ -41,6 +41,9 @@ export const ALLOWED_SOURCE_HOSTS = [
   'sede.agenciatributaria.gob.es',
   'infoelectoral.interior.gob.es',
   'descargas.interior.gob.es',
+  // CONPREL (Ministerio de Hacienda): descarga oficial Access de presupuestos
+  // y liquidaciones de entidades locales. Solo bajo flag NEXT_PUBLIC_CONPREL_UI.
+  'serviciostelematicosext.hacienda.gob.es',
 ] as const
 
 /** Dominios prohibidos explícitamente (infraestructura interna, R2, etc.). */

@@ -7,6 +7,8 @@ import type { IndicatorValue, PerfilEconomico, SocideasMunicipio } from './socid
 import { SOCIDEAS_ECONOMY_INDICATORS } from './socideas'
 import { expandV2Envelope, getMunicipioEnvelopeForRequest } from './socideas-r2'
 import type { R2MunicipioEnvelopeV2 } from './socideas-r2'
+import { isConprelMockEnabled, isConprelUiEnabled } from './conprel-flag'
+import { conprelMockFixture, conprelMockValores } from './conprel-mock'
 
 export type PerfilEconomiaResult =
   | { status: 'ok' | 'empty'; perfil: PerfilEconomico }
@@ -14,6 +16,16 @@ export type PerfilEconomiaResult =
   | { status: 'badRequest' }
 
 const ECONOMY_SLUGS = new Set<string>(SOCIDEAS_ECONOMY_INDICATORS as readonly string[])
+
+/**
+ * Slugs CONPREL (`conprel_*`): se admiten en el perfil SOLO con el flag de
+ * publicación ON. Con el flag OFF el envelope se filtra igual que hoy
+ * (ninguna cadena CONPREL llega a ficha ni XLSX).
+ */
+function esSlugAdmitido(slug: string): boolean {
+  if (ECONOMY_SLUGS.has(slug)) return true
+  return slug.startsWith('conprel_') && isConprelUiEnabled()
+}
 
 export async function getPerfilEconomico(
   supabase: SupabaseClient,
@@ -57,12 +69,12 @@ export async function getPerfilEconomico(
 
   const slugOf = (v: IndicatorValue): string =>
     (v.indicator as unknown as { slug?: string } | undefined)?.slug ?? ''
-  const valores = valoresRaw
+  let valores = valoresRaw
     .filter((v) => {
       const st = (v as unknown as { estado_validacion?: string }).estado_validacion
       return st === undefined || st === 'validado'
     })
-    .filter((v) => ECONOMY_SLUGS.has(slugOf(v)))
+    .filter((v) => esSlugAdmitido(slugOf(v)))
     .map((v) => ({
       ...v,
       valor_numerico:
@@ -71,6 +83,26 @@ export async function getPerfilEconomico(
           : Number.isNaN(Number(v.valor_numerico)) ? null : Number(v.valor_numerico),
       dimensiones: (v.dimensiones ?? {}) as Record<string, string>,
     }))
+
+  // Envelope mock de desarrollo/QA (fixtures §6): solo con doble llave
+  // NEXT_PUBLIC_CONPREL_UI=true + SOCIDEAS_CONPREL_MOCK=true. Nunca en prod.
+  const mockFx =
+    isConprelUiEnabled() && isConprelMockEnabled() ? conprelMockFixture(codigoIne) : null
+  if (mockFx) {
+    const mockRows = conprelMockValores(codigoIne)
+    const mockKeys = new Set(
+      mockRows.map(
+        (v) =>
+          `${slugOf(v)}|${v.anio_referencia}|${JSON.stringify(v.dimensiones)}`,
+      ),
+    )
+    valores = [
+      ...valores.filter(
+        (v) => !slugOf(v).startsWith('conprel_') || !mockKeys.has(`${slugOf(v)}|${v.anio_referencia}|${JSON.stringify(v.dimensiones)}`),
+      ),
+      ...mockRows,
+    ]
+  }
 
   const { data: lastRun } = await supabase
     .from('data_sync_runs')
@@ -85,17 +117,22 @@ export async function getPerfilEconomico(
   const ultimoPorIndicador: Record<string, number | null> = {}
   for (const v of valores) {
     const s = slugOf(v)
-    if (!s || v.anio_referencia == null) continue
+    if (!s || v.anio_referencia == null || s.startsWith('conprel_')) continue
     ultimoPorIndicador[s] = Math.max(ultimoPorIndicador[s] ?? 0, v.anio_referencia)
   }
 
+  // `disponibles` no incluye CONPREL (el selector de renta/capacidades no cambia).
+  const disponibles = [
+    ...new Set(valores.map(slugOf).filter((s) => ECONOMY_SLUGS.has(s))),
+  ].sort()
+
   const perfil: PerfilEconomico = {
     municipio: socMuni,
-    sincronizado: valores.length > 0,
+    sincronizado: valores.length > 0 || mockFx !== null,
     ultima_sincronizacion: (lastRun as unknown as { fin: string } | null)?.fin ?? null,
     valores,
     ultimoPorIndicador,
-    disponibles: [...new Set(valores.map(slugOf))].sort(),
+    disponibles,
   }
-  return { status: valores.length > 0 ? 'ok' : 'empty', perfil }
+  return { status: perfil.sincronizado ? 'ok' : 'empty', perfil }
 }

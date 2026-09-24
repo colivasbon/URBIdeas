@@ -9,6 +9,19 @@
 //    comparadores cruzados.
 //  - Ausencia de dato ≠ 0. Bloqueo de fuente ≠ pendiente de cálculo.
 import type { CoverageEntry, IndicatorAvailability } from './socideas-availability'
+import { isConprelUiEnabled } from './conprel-flag'
+import { CONPREL_SLUGS } from './conprel-slugs'
+import { CONPREL_LIQ_2024, CONPREL_PPTO_2025 } from './conprel-contracts'
+import {
+  CONPREL_AUSENCIA_TEXTO,
+  CONPREL_GLOSARIO_ESTADO,
+  CONPREL_GLOSARIO_TEXTO,
+  CONPREL_NOTA_ANTI_COMPARACION,
+  CONPREL_NOTA_ND,
+} from './conprel-textos'
+
+const CONPREL_PPTO_URL = CONPREL_PPTO_2025.url
+const CONPREL_LIQ_URL = CONPREL_LIQ_2024.url
 
 export type CoverageStatus = IndicatorAvailability
 
@@ -246,10 +259,53 @@ export const INDICATOR_CATALOG: readonly IndicatorCatalogEntry[] = [
   },
 ]
 
-const BY_SLUG = new Map(INDICATOR_CATALOG.map((e) => [e.slug, e]))
+// ---------------------------------------------------------------------------
+// Entradas CONPREL (serie partial) — redactadas con el flag OFF por defecto.
+// El filtro vive en el punto de consulta (getIndicatorCatalogEntry /
+// catalogCoverageEntries): INDICATOR_CATALOG no expone CONPREL a la UI ni al
+// XLSX hasta NEXT_PUBLIC_CONPREL_UI=true (docs/conprel-producto-textos.md §8).
+// Grupo de comparabilidad propio: nunca se mezcla con AEAT ni ADRH.
+// ---------------------------------------------------------------------------
+const CONPREL_BASE: Omit<IndicatorCatalogEntry, 'slug' | 'label'> = {
+  block: 'economia',
+  sourceName: 'Ministerio de Hacienda (CONPREL)',
+  geographicScope: 'Municipio (cobertura parcial nacional por familia; join solo por código INE)',
+  coverageStatus: 'partial',
+  coverageNotes:
+    `${CONPREL_NOTA_ND} Cobertura: presupuestos 7.345/8.132 (90,3 %) · liquidaciones 6.861/8.132 (84,4 %). ` +
+    CONPREL_NOTA_ANTI_COMPARACION,
+  methodologyNotes: [CONPREL_NOTA_ND, CONPREL_NOTA_ANTI_COMPARACION],
+  missingReason: CONPREL_AUSENCIA_TEXTO,
+  comparabilityGroup: 'hacienda_conprel',
+  isOfficial: true,
+  updatedAt: '2026-09-24',
+}
+
+export const CONPREL_CATALOG_ENTRIES: readonly IndicatorCatalogEntry[] = CONPREL_SLUGS.map(
+  (def) => ({
+    ...CONPREL_BASE,
+    slug: def.slug,
+    label: def.nombre,
+    period:
+      def.familia === 'ppto'
+        ? 'Presupuestos 2025 (definitivo de publicación)'
+        : 'Liquidaciones 2024 (definitiva)',
+    sourceUrl: def.familia === 'ppto' ? CONPREL_PPTO_URL : CONPREL_LIQ_URL,
+  }),
+)
+
+function conprelEntryVisible(slug: string): boolean {
+  return slug.startsWith('conprel_') ? isConprelUiEnabled() : true
+}
+
+const BY_SLUG = new Map(
+  [...INDICATOR_CATALOG, ...CONPREL_CATALOG_ENTRIES].map((e) => [e.slug, e]),
+)
 
 export function getIndicatorCatalogEntry(slug: string): IndicatorCatalogEntry | null {
-  return BY_SLUG.get(slug) ?? null
+  const entry = BY_SLUG.get(slug) ?? null
+  if (!entry) return null
+  return conprelEntryVisible(entry.slug) ? entry : null
 }
 
 /** Entradas del catálogo que explican una ausencia/no-comparabilidad relevante. */
@@ -264,6 +320,7 @@ export function catalogCoverageEntries(
     seen.add(slug)
     const entry = BY_SLUG.get(slug)
     if (!entry) continue
+    if (!conprelEntryVisible(entry.slug)) continue
     const status = entry.coverageStatus
     if (status === 'available') continue
     out.push({
@@ -326,3 +383,16 @@ export const COVERAGE_STATUS_GLOSSARY: ReadonlyArray<{ estado: string; texto: st
     texto: 'La ausencia de dato nunca equivale a 0. AEAT y ADRH se publican como series separadas y no se mezclan.',
   },
 ]
+
+/**
+ * Glosario de estados para la hoja 08. Incluye la fila CONPREL (§4c del
+ * diseño de textos) SOLO con el flag ON: sin flag, la hoja 08 es idéntica a
+ * la actual (no-regresión byte a byte en glosario y filas AEAT/ADRH).
+ */
+export function coverageGlossaryEntries(): ReadonlyArray<{ estado: string; texto: string }> {
+  if (!isConprelUiEnabled()) return COVERAGE_STATUS_GLOSSARY
+  return [
+    ...COVERAGE_STATUS_GLOSSARY,
+    { estado: CONPREL_GLOSARIO_ESTADO, texto: CONPREL_GLOSARIO_TEXTO },
+  ]
+}

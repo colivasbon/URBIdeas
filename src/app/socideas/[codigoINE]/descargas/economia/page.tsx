@@ -54,7 +54,8 @@ export default async function DescargasEconomia({
   }
   const perfil = result.perfil;
   const tablas = buildEconomiaTables(perfil);
-  const excluidas = economiaExcluidas(tablas.some((t) => t.id === "renta"));
+  const hasConprel = tablas.some((t) => t.id.startsWith("conprel-"));
+  const excluidas = economiaExcluidas(tablas.some((t) => t.id === "renta"), hasConprel);
 
   return (
     <div className="flex min-h-screen flex-col">

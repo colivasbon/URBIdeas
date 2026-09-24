@@ -20,6 +20,7 @@ import FichaToolbar from "@/components/socideas/FichaToolbar";
 import ActualizacionMenu from "@/components/socideas/ActualizacionMenu";
 import EconomiaFicha from "@/components/socideas/EconomiaFicha";
 import { buildDemografiaTables, buildEconomiaTables } from "@/lib/socideas-export";
+import { toFichaInitial, slimIneLayersForDemografia } from "@/lib/socideas-ficha-initial";
 import { readDemographicPresentation } from "@/lib/socideas-demographic-summary";
 import { readMigrationPresentation } from "@/lib/socideas-migration-summary";
 import { buildMunicipalUpdatePreview, readMunicipalIneLayers } from "@/lib/socideas-ine-layers";
@@ -280,10 +281,10 @@ export default async function SocideasFicha({
               ) : (
                 <FichaFiltros
                   codigoINE={municipio.codigo_ine}
-                  initial={perfil}
+                  initial={toFichaInitial(perfil)}
                   searchParams={spObj}
                   demografiaExtra={demografiaExtra}
-                  ineLayers={ineLayers}
+                  ineLayers={slimIneLayersForDemografia(ineLayers)}
                   migracion={migracion}
                   temporaryData={temporaryData}
                 />

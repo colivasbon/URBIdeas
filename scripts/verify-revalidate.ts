@@ -247,10 +247,10 @@ async function unitTests(): Promise<void> {
   const denied = consumeRateRequest(rk)
   check('B3 61.ª denegada con Retry-After', !denied.ok && denied.retryAfterSec >= 1, JSON.stringify(denied))
   const rkIne = `${rk}-ines`
-  const ines1 = consumeRateInes(rkIne, 5000)
-  check('B3 5000 INEs aceptados', ines1.ok)
+  const ines1 = consumeRateInes(rkIne, 10000)
+  check('B3 10000 INEs aceptados', ines1.ok)
   const ines2 = consumeRateInes(rkIne, 1)
-  check('B3 5001.º INE denegado', !ines2.ok && ines2.limit === 'ines', JSON.stringify(ines2))
+  check('B3 10001.º INE denegado', !ines2.ok && ines2.limit === 'ines', JSON.stringify(ines2))
 }
 
 async function integrationTests(base: string): Promise<void> {

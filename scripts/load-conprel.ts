@@ -1,39 +1,39 @@
 /**
- * LOADER CONPREL �  envelopes R2 v2 (dry-run por defecto; escritura gateada).
+ * LOADER CONPREL ´┐¢  envelopes R2 v2 (dry-run por defecto; escritura gateada).
  *
- * Misión integral SOCideas · Agente B. Baseline: docs/conprel-integracion-
- * partial-diseno.md (contratos §§1-4,7) y docs/presupuestos-municipales-
- * fuente-decision.md §11. Parser de referencia: scripts/simular-conprel-
- * envelopes.ts. Patrón de loader: scripts/load-aeat-irpf-municipal.ts.
+ * Misi├│n integral SOCideas ┬À Agente B. Baseline: docs/conprel-integracion-
+ * partial-diseno.md (contratos ┬º┬º1-4,7) y docs/presupuestos-municipales-
+ * fuente-decision.md ┬º11. Parser de referencia: scripts/simular-conprel-
+ * envelopes.ts. Patr├│n de loader: scripts/load-aeat-irpf-municipal.ts.
  *
  * Ficheros de datos (temp, fuera del repo):
  *   %TEMP%/opencode/conprel/*.zip|*.accdb  (descarga oficial con reintentos)
- *   %TEMP%/opencode/conprel/csv/loader_*.csv (ACE� CSV, columnas mínimas)
+ *   %TEMP%/opencode/conprel/csv/loader_*.csv (ACE´┐¢ CSV, columnas m├¡nimas)
  *
- * FLAGS (dry-run es el defecto; selección estratificada):
- *   --dry-run              modo por defecto (implícito si no hay escritura)
+ * FLAGS (dry-run es el defecto; selecci├│n estratificada):
+ *   --dry-run              modo por defecto (impl├¡cito si no hay escritura)
  *   --familia=ppto|liq     familia a procesar (repetible; default: ambas si hay flags de alcance)
  *   --muestra              fixtures qa-fixtures MUESTRA_COBERTURA (14 INE)
  *   --all-ppto             todos los candidatos PPTO-2025 (esperados 7.345)
  *   --all-liq              todos los candidatos LIQ-2024  (esperados 6.861)
- *   --ausentes             catálogo sin fila AA/ZZ en la familia (requiere Supabase read)
+ *   --ausentes             cat├ílogo sin fila AA/ZZ en la familia (requiere Supabase read)
  *   --provincias=01,31,48,20,51,52
- *                          select por prefijo INE (Álava, Navarra, Bizkaia,
+ *                          select por prefijo INE (├ülava, Navarra, Bizkaia,
  *                          Gipuzkoa, Ceuta, Melilla)
- *   --ines=28079,02003     selección explícita de INEs (útil con restore/read-back)
+ *   --ines=28079,02003     selecci├│n expl├¡cita de INEs (├║til con restore/read-back)
  *   --lote=N --lote-total=M
- *                          carga inicial por lotes: partición determinista del
+ *                          carga inicial por lotes: partici├│n determinista del
  *                          conjunto ordenado en M tramos; procesa el tramo N
  *                          (p. ej. --lote=1 --lote-total=20). Ambos juntos.
- *   --colisiones           las ~50 divergencias de nombre: join por CÓDIGO,
+ *   --colisiones           las ~50 divergencias de nombre: join por C├ôDIGO,
  *                          verificar que el INE no cambia
- *   --size-full            medición de tamaño de población COMPLETA (R2 lectura
- *                          pública, concurrencia 15): familia única + combinado
- *   --extract              fuerza reextracción ACE aunque existan CSV
+ *   --size-full            medici├│n de tama├▒o de poblaci├│n COMPLETA (R2 lectura
+ *                          p├║blica, concurrencia 15): familia ├║nica + combinado
+ *   --extract              fuerza reextracci├│n ACE aunque existan CSV
  *   --confirm-r2-write     ACUMULAR con env SOCIDEAS_CONPREL_WRITE=autorizado
- *                          para escritura real (NO habilitado en esta misión)
+ *                          para escritura real (NO habilitado en esta misi├│n)
  *
- * Uso típico:
+ * Uso t├¡pico:
  *   npx tsx scripts/load-conprel.ts --muestra --familia=ppto
  *   npx tsx scripts/load-conprel.ts --all-ppto
  *   npx tsx scripts/load-conprel.ts --all-liq
@@ -42,24 +42,23 @@
  *   npx tsx scripts/load-conprel.ts --all-ppto --lote=1 --lote-total=20
  *
  * NUNCA escribe R2/Supabase en dry-run. El modo escritura exige ambas
- * habilitaciones y NO debe ejecutarse en esta misión.
+ * habilitaciones y NO debe ejecutarse en esta misi├│n.
  *
  * DEPENDIENTES (ZV/ZO/DD/grupos): NO se consolidan en el municipal.
- * El diseño §1 (docs/conprel-integracion-partial-diseno.md) fija que el
+ * El dise├▒o ┬º1 (docs/conprel-integracion-partial-diseno.md) fija que el
  * importe municipal usa el `idente` de la fila AA/ZZ del inventario, nunca
- * el `id` de grupo ni los identes de dependientes. Sin aprobación SA1 de
- * una regla de consolidación, el loader publica SOLO el idente municipal
- * (tests de ausencia de doble cómputo en verify-conprel-loader: valores
- * de dependientes jamás aparecen ni suman).
+ * el `id` de grupo ni los identes de dependientes. Sin aprobaci├│n SA1 de
+ * una regla de consolidaci├│n, el loader publica SOLO el idente municipal
+ * (tests de ausencia de doble c├│mputo en verify-conprel-loader: valores
+ * de dependientes jam├ís aparecen ni suman).
  */
 
 import { config } from 'dotenv'
 import * as fs from 'fs'
 import * as path from 'path'
 import { createClient } from '@supabase/supabase-js'
-import {
+import { CONPREL_MAX_ENVELOPE_BYTES,
   CONPREL_FAMILIAS,
-  CONPREL_MAX_ENVELOPE_BYTES,
   CONPREL_PARSER_VERSION,
 } from '../src/lib/conprel-contracts'
 import type { ConprelFamilia } from '../src/lib/conprel-contracts'
@@ -93,7 +92,7 @@ import {
 
 config({ path: '.env.local' })
 
-// ���� Args ��������������������������������������������������������������������������������������������������������������������������������������
+// ´┐¢´┐¢´┐¢´┐¢ Args ´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢
 
 interface Args {
   dryRun: boolean
@@ -145,7 +144,7 @@ function parseArgs(argv: string[]): Args {
     else if (raw === '--confirm-r2-write') a.confirmWrite = true
     else if (raw.startsWith('--familia=')) {
       const f = raw.slice('--familia='.length)
-      if (f !== 'ppto' && f !== 'liq') throw new Error(`--familia inválido: ${f}`)
+      if (f !== 'ppto' && f !== 'liq') throw new Error(`--familia inv├ílido: ${f}`)
       a.familias.push(f)
     } else if (raw.startsWith('--provincias=')) {
       a.provincias = raw
@@ -172,9 +171,9 @@ function parseArgs(argv: string[]): Args {
   }
   if (a.allPpto && !a.familias.includes('ppto')) a.familias.push('ppto')
   if (a.allLiq && !a.familias.includes('liq')) a.familias.push('liq')
-  // Alcance por defecto si no se indicó familia: ambas familias con datos.
+  // Alcance por defecto si no se indic├│ familia: ambas familias con datos.
   if (a.familias.length === 0) a.familias = ['ppto', 'liq']
-  // Selección de alcance por defecto: muestra (seguro).
+  // Selecci├│n de alcance por defecto: muestra (seguro).
   if (
     !a.muestra &&
     !a.allPpto &&
@@ -192,11 +191,11 @@ function parseArgs(argv: string[]): Args {
   return a
 }
 
-// ���� Catálogo (solo lectura Supabase) ������������������������������������������������������������������������������
+// ´┐¢´┐¢´┐¢´┐¢ Cat├ílogo (solo lectura Supabase) ´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢
 
 interface Catalogo {
   nombres: Map<string, string>
-  porProvincia: Map<string, string[]> // prov2 �  ines
+  porProvincia: Map<string, string[]> // prov2 ´┐¢  ines
 }
 
 async function cargarCatalogo(): Promise<Catalogo> {
@@ -226,7 +225,7 @@ async function cargarCatalogo(): Promise<Catalogo> {
   return { nombres, porProvincia }
 }
 
-// ���� R2 lectura pública ����������������������������������������������������������������������������������������������������������
+// ´┐¢´┐¢´┐¢´┐¢ R2 lectura p├║blica ´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢
 
 const R2_BASE = (
   process.env.SOCIDEAS_R2_PUBLIC_BASE ||
@@ -262,7 +261,7 @@ async function fetchEnvelopePublico(ine: string): Promise<EnvV2 | null> {
       }
       const j = (await r.json()) as EnvV2
       if (!j || j.codigo_ine !== ine || !Array.isArray(j.valores)) {
-        last = `payload-inválido codigo_ine=${String(j?.codigo_ine)}`
+        last = `payload-inv├ílido codigo_ine=${String(j?.codigo_ine)}`
         if (attempt < 4) {
           await sleep(400 * attempt)
           continue
@@ -282,7 +281,7 @@ async function fetchEnvelopePublico(ine: string): Promise<EnvV2 | null> {
   return null
 }
 
-/** Diagnóstico de envelopes no hallados (para distinguir 404 real de fallo de red). */
+/** Diagn├│stico de envelopes no hallados (para distinguir 404 real de fallo de red). */
 const fetchFallos = new Map<string, string>()
 
 async function mapConcurrencia<T>(
@@ -301,10 +300,10 @@ async function mapConcurrencia<T>(
   await Promise.all(workers)
 }
 
-/** Pausa corta entre tandas para no saturar el R2 público (r2.dev). */
+/** Pausa corta entre tandas para no saturar el R2 p├║blico (r2.dev). */
 const sleep = (ms: number) => new Promise((x) => setTimeout(x, ms))
 
-// ���� Datos por familia ������������������������������������������������������������������������������������������������������������
+// ´┐¢´┐¢´┐¢´┐¢ Datos por familia ´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢
 
 interface FamiliaDatos {
   familia: ConprelFamilia
@@ -340,13 +339,13 @@ async function cargarDatos(
     const def = CONPREL_FAMILIAS[f]
     const ext = await extraerFamilia(f, { force: extract })
     console.log(
-      `Extracción ${f}: inv=${ext.invFilas} eco=${ext.ecoFilas} cap=${ext.ecoCapitulos} ` +
+      `Extracci├│n ${f}: inv=${ext.invFilas} eco=${ext.ecoFilas} cap=${ext.ecoCapitulos} ` +
         `filtroSQL=${ext.filtroCapituloSql} (${ext.ms} ms)`,
     )
     const inv = cargarInventario(ext.invPath, def)
     const eco = cargarEconomica(ext.ecoPath, def, {})
-    // Si el SQL no pudo filtrar capítulos, se filtra aquí (mismo predicado).
-    // totalNoCapitulo ya se contó en cargarEconomica; solo recortamos filas.
+    // Si el SQL no pudo filtrar cap├¡tulos, se filtra aqu├¡ (mismo predicado).
+    // totalNoCapitulo ya se cont├│ en cargarEconomica; solo recortamos filas.
     if (!ext.filtroCapituloSql) {
       eco.filas = eco.filas.filter((r) => /^\d$/.test(r.cdcta))
     }
@@ -369,8 +368,8 @@ async function cargarDatos(
       }
     }
     console.log(
-      `  inventario: ${inv.totalFilas} filas · municipales(AA+ZZ)=${inv.municipales.length} · ` +
-        `eco cap=${ecoCap.totalCapitulos} · negativos=${ecoCap.negativos} · nulos=${ecoCap.nulos} · ceros=${ecoCap.cerosExplicitos}`,
+      `  inventario: ${inv.totalFilas} filas ┬À municipales(AA+ZZ)=${inv.municipales.length} ┬À ` +
+        `eco cap=${ecoCap.totalCapitulos} ┬À negativos=${ecoCap.negativos} ┬À nulos=${ecoCap.nulos} ┬À ceros=${ecoCap.cerosExplicitos}`,
     )
     if (inv.municipales.length === 0) throw new ConprelBloqueoError(`${f}: 0 municipios AA/ZZ`)
     // Actualizar manifiesto con recuentos por familia (duplicados siempre visibles).
@@ -395,7 +394,7 @@ async function cargarDatos(
   return out
 }
 
-// ���� Selección de candidatos ������������������������������������������������������������������������������������������������
+// ´┐¢´┐¢´┐¢´┐¢ Selecci├│n de candidatos ´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢
 
 function seleccionar(
   datos: FamiliaDatos,
@@ -414,7 +413,7 @@ function seleccionar(
     ines = mun.map((m) => m.ine).filter((i) => set.has(i))
     etiqueta = 'muestra_fixtures_14'
   } else if (args.allPpto || args.allLiq) {
-    // all-* solo amplía la familia; si además hay provincias, se recorta.
+    // all-* solo ampl├¡a la familia; si adem├ís hay provincias, se recorta.
     ines = mun.map((m) => m.ine)
     etiqueta = `all_${datos.familia}`
   } else {
@@ -426,7 +425,7 @@ function seleccionar(
     ines = ines.filter((i) => allowed.has(i.slice(0, 2)))
     etiqueta += `_prov_${args.provincias.join('-')}`
   }
-  // Lote (carga inicial por tandas): partición determinista tras los filtros.
+  // Lote (carga inicial por tandas): partici├│n determinista tras los filtros.
   if (args.lote !== null || args.loteTotal !== null) {
     const r = aplicarLote(ines, { lote: args.lote, loteTotal: args.loteTotal })
     ines = r.ines
@@ -436,7 +435,7 @@ function seleccionar(
   return { ines: [...new Set(ines)].sort(), etiqueta }
 }
 
-// ���� Dry-run por INE ����������������������������������������������������������������������������������������������������������������
+// ´┐¢´┐¢´┐¢´┐¢ Dry-run por INE ´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢
 
 interface DryRunStats {
   etiqueta: string
@@ -539,7 +538,7 @@ async function dryRunFamilia(
   })
 
   // Segunda pasada (secuencial, lenta) para los sinR2: descarta fallos de red
-  // bajo carga; solo el 404 persistente cuenta como «sin envelope en R2».
+  // bajo carga; solo el 404 persistente cuenta como ┬½sin envelope en R2┬╗.
   if (stats.sinEnvelopeR2.length > 0 && stats.sinEnvelopeR2.length < ines.length) {
     const reintentos = [...stats.sinEnvelopeR2]
     stats.sinEnvelopeR2 = []
@@ -578,7 +577,7 @@ async function dryRunFamilia(
   return { stats, tuplasPorIne: byIne }
 }
 
-// ���� size-full ����������������������������������������������������������������������������������������������������������������������������
+// ´┐¢´┐¢´┐¢´┐¢ size-full ´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢
 
 interface SizeReport {
   ts: string
@@ -676,7 +675,7 @@ async function sizeFull(
     if (bytes >= CONPREL_MAX_ENVELOPE_BYTES) esc.over.push({ ine, bytes })
   }
 
-  /** 2ª pasada secuencial sobre los sinR2 (descarta ruido de red bajo carga). */
+  /** 2┬¬ pasada secuencial sobre los sinR2 (descarta ruido de red bajo carga). */
   const reintentarSinEnvelope = async (
     esc: Acum,
     _candidatos: readonly string[],
@@ -691,27 +690,27 @@ async function sizeFull(
     console.log(`    retry size: recuperados=${pend.length - esc.sin.length} quedan=${esc.sin.length}`)
   }
 
-  console.log(`  size-full: ppto=${pptoInes.length} liq=${liqInes.length} intersección=${intersection.length} conc=${conc}`)
+  console.log(`  size-full: ppto=${pptoInes.length} liq=${liqInes.length} intersecci├│n=${intersection.length} conc=${conc}`)
   if (builders.has('ppto')) {
     await mapConcurrencia(pptoInes, conc, async (ine) => {
       await medir(ine, escenarios.solo_ppto!, ['ppto'])
     })
     await reintentarSinEnvelope(escenarios.solo_ppto!, pptoInes, ['ppto'])
-    console.log(`    solo_ppto: ${escenarios.solo_ppto!.sizes.length} envelopes · máx=${escenarios.solo_ppto!.max} sinR2=${escenarios.solo_ppto!.sin.length}`)
+    console.log(`    solo_ppto: ${escenarios.solo_ppto!.sizes.length} envelopes ┬À m├íx=${escenarios.solo_ppto!.max} sinR2=${escenarios.solo_ppto!.sin.length}`)
   }
   if (builders.has('liq')) {
     await mapConcurrencia(liqInes, conc, async (ine) => {
       await medir(ine, escenarios.solo_liq!, ['liq'])
     })
     await reintentarSinEnvelope(escenarios.solo_liq!, liqInes, ['liq'])
-    console.log(`    solo_liq: ${escenarios.solo_liq!.sizes.length} envelopes · máx=${escenarios.solo_liq!.max} sinR2=${escenarios.solo_liq!.sin.length}`)
+    console.log(`    solo_liq: ${escenarios.solo_liq!.sizes.length} envelopes ┬À m├íx=${escenarios.solo_liq!.max} sinR2=${escenarios.solo_liq!.sin.length}`)
   }
   await mapConcurrencia(intersection, conc, async (ine) => {
     await medir(ine, escenarios.combinado_ppto_liq!, ['ppto', 'liq'])
   })
   await reintentarSinEnvelope(escenarios.combinado_ppto_liq!, intersection, ['ppto', 'liq'])
   console.log(
-    `    combinado: ${escenarios.combinado_ppto_liq!.sizes.length} envelopes · máx=${escenarios.combinado_ppto_liq!.max} sinR2=${escenarios.combinado_ppto_liq!.sin.length}`,
+    `    combinado: ${escenarios.combinado_ppto_liq!.sizes.length} envelopes ┬À m├íx=${escenarios.combinado_ppto_liq!.max} sinR2=${escenarios.combinado_ppto_liq!.sin.length}`,
   )
 
   const report: SizeReport = {
@@ -741,7 +740,7 @@ async function sizeFull(
   return report
 }
 
-// ���� Colisiones de nombre y ausentes ��������������������������������������������������������������������������������
+// ´┐¢´┐¢´┐¢´┐¢ Colisiones de nombre y ausentes ´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢
 
 function auditarColisiones(
   datos: FamiliaDatos,
@@ -752,10 +751,10 @@ function auditarColisiones(
   let ineEstables = 0
   for (const m of datos.inv.municipales) {
     const ineNombre = catalogo.nombres.get(m.ine)
-    if (ineNombre === undefined) continue // fuera de catálogo �  lo cubre ausentes
+    if (ineNombre === undefined) continue // fuera de cat├ílogo ´┐¢  lo cubre ausentes
     if (normNombre(ineNombre) !== normNombre(m.nombre)) {
       colisiones++
-      ineEstables++ // el INE es el mismo por construcción (join por código)
+      ineEstables++ // el INE es el mismo por construcci├│n (join por c├│digo)
       if (muestras.length < 60) {
         muestras.push({ ine: m.ine, conprel: m.nombre.trim(), ine_: ineNombre })
       }
@@ -773,33 +772,32 @@ function auditarAusentes(
   return { ausentes: ausentes.length, ines: ausentes }
 }
 
-// ���� Escritura (SOLO futura; gate doble) ������������������������������������������������������������������������
+// ´┐¢´┐¢´┐¢´┐¢ Escritura (SOLO futura; gate doble) ´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢
 
-<<<<<<< HEAD
 async function modoEscritura(
   datosMap: Map<ConprelFamilia, FamiliaDatos>,
   runId: string,
   loteInfo: { lote: number | null; loteTotal: number | null } = { lote: null, loteTotal: null },
 ): Promise<void> {
-  // Pipeline de escritura (backup durable → merge → gate 150 KB →
-  // putMunicipioJson → read-back → revalidateAfterWrites SOLO INE escritos →
-  // audit rows data_sync_runs con éxito/fallo/cobertura/degradación).
+  // Pipeline de escritura (backup durable ÔåÆ merge ÔåÆ gate 150 KB ÔåÆ
+  // putMunicipioJson ÔåÆ read-back ÔåÆ revalidateAfterWrites SOLO INE escritos ÔåÆ
+  // audit rows data_sync_runs con ├®xito/fallo/cobertura/degradaci├│n).
   // Esta rama SOLO se alcanza con --confirm-r2-write Y
-  // SOCIDEAS_CONPREL_WRITE=autorizado. La misión NO la ejecuta.
+  // SOCIDEAS_CONPREL_WRITE=autorizado. La misi├│n NO la ejecuta.
   const { getMunicipioJsonRaw, putMunicipioJson } = await import('../src/lib/socideas-r2')
   const { backupEnvelopes, r2BackupCredsPresentes, CONPREL_BACKUP_LIMITE_DOC } = await import(
     '../src/lib/conprel-backup'
   )
 
-  // 1. BACKUP durable por run ANTES de cualquier put (misión §8).
+  // 1. BACKUP durable por run ANTES de cualquier put (misi├│n ┬º8).
   const objetivos: string[] = []
   for (const [, datos] of datosMap) {
     for (const mun of datos.inv.municipales) objetivos.push(mun.ine)
   }
   const objetivosUnicos = [...new Set(objetivos)].sort()
-  console.log(`  Backup previo: ${objetivosUnicos.length} INEs → tmp/conprel-backups/${runId}/`)
-  // Espejo R2 del backup solo con habilitación explícita del operador
-  // (no se activa solo por tener credenciales; la misión no lo ejecuta).
+  console.log(`  Backup previo: ${objetivosUnicos.length} INEs ÔåÆ tmp/conprel-backups/${runId}/`)
+  // Espejo R2 del backup solo con habilitaci├│n expl├¡cita del operador
+  // (no se activa solo por tener credenciales; la misi├│n no lo ejecuta).
   const r2Mirror = process.env.SOCIDEAS_CONPREL_R2_BACKUP === 'si' && r2BackupCredsPresentes()
   const bIndex = await backupEnvelopes({
     runId,
@@ -836,14 +834,14 @@ async function modoEscritura(
     console.error(
       `  BLOQUEO BACKUP: ${bIndex.errores} errores respaldando envelopes previos. NO se escribe R2.`,
     )
-    console.error(`  Límite: ${CONPREL_BACKUP_LIMITE_DOC}`)
+    console.error(`  L├¡mite: ${CONPREL_BACKUP_LIMITE_DOC}`)
     process.exit(5)
   }
   console.log(
     `  Backup ok=${bIndex.ok} sinEnvelope=${bIndex.ausentes} bytes=${bIndex.bytesTotales} r2=${bIndex.r2Backup}`,
   )
 
-  // 2. Escritura por familia/INE (merge → gate → put → read-back).
+  // 2. Escritura por familia/INE (merge ÔåÆ gate ÔåÆ put ÔåÆ read-back).
   const writtenInes: string[] = []
   const erroresWrite: string[] = []
   let written = 0
@@ -854,7 +852,7 @@ async function modoEscritura(
     const slugsFam = new Set(CONPREL_SLUGS.filter((s) => s.familia === fam).map((s) => s.slug))
     for (const mun of datos.inv.municipales) {
       const b = buildTuplasFamilia(fam, [mun], datos.eco, { url: def.url })
-      if (b.tuplas.length === 0) continue // municipio sin fila → ND (sin tupla)
+      if (b.tuplas.length === 0) continue // municipio sin fila ÔåÆ ND (sin tupla)
       candidatosConEco++
       try {
         const raw = await getMunicipioJsonRaw(mun.ine)
@@ -897,20 +895,20 @@ async function modoEscritura(
     }
   }
 
-  // 3. Revalidación batch SOLO con los INE escritos (read-back OK).
+  // 3. Revalidaci├│n batch SOLO con los INE escritos (read-back OK).
   let reval: Awaited<ReturnType<typeof revalidateAfterWrites>> = null
   if (shouldRevalidate(writtenInes.length)) {
     reval = await revalidateAfterWrites(writtenInes)
   }
   console.log(
-    `  Revalidación: escritos=${writtenInes.length} · ${reval ? `modo=${reval.modo} invalidados=${reval.invalidados} degradado=${reval.degradado}` : 'omitida'}`,
+    `  Revalidaci├│n: escritos=${writtenInes.length} ┬À ${reval ? `modo=${reval.modo} invalidados=${reval.invalidados} degradado=${reval.degradado}` : 'omitida'}`,
   )
   if (reval?.degradado) {
-    console.error(`  REVALIDACIÓN DEGRADADA: ${reval.error ?? 'sin detalle'}`)
+    console.error(`  REVALIDACI├ôN DEGRADADA: ${reval.error ?? 'sin detalle'}`)
   }
 
-  // 4. Auditoría data_sync_runs: fila por familia (éxito/fallo/cobertura/
-  //    degradación) + fila de revalidación si la hubo.
+  // 4. Auditor├¡a data_sync_runs: fila por familia (├®xito/fallo/cobertura/
+  //    degradaci├│n) + fila de revalidaci├│n si la hubo.
   const cobertura = objetivosUnicos.length
     ? Math.round((written / objetivosUnicos.length) * 1000) / 10
     : 0
@@ -983,10 +981,10 @@ async function modoEscritura(
     }
     if (sb) {
       const { error } = await sb.from('data_sync_runs').insert(runRow)
-      if (error) console.error(`  Auditoría run no insertada: ${error.message}`)
-      else console.log(`  Auditoría data_sync_runs insertada (${fam}, estado=${estadoRun})`)
+      if (error) console.error(`  Auditor├¡a run no insertada: ${error.message}`)
+      else console.log(`  Auditor├¡a data_sync_runs insertada (${fam}, estado=${estadoRun})`)
     } else {
-      console.error('  SIN Supabase: auditoría del run solo en consola/manifest')
+      console.error('  SIN Supabase: auditor├¡a del run solo en consola/manifest')
     }
     if (reval) {
       const row = buildRevalidationAuditRow(reval, {
@@ -998,98 +996,16 @@ async function modoEscritura(
         fuente: CONPREL_SOURCE_SLUG,
       })
       if (sb) await sb.from('data_sync_runs').insert(row)
-      else console.error('  SIN Supabase: audit de revalidación solo en consola/manifest')
+      else console.error('  SIN Supabase: audit de revalidaci├│n solo en consola/manifest')
     }
   }
   console.log(
-    `Escritura completada: written=${written} · candidatosConEco=${candidatosConEco} · ` +
-      `errores=${erroresWrite.length} (150KB=${bloqueos150}) · cobertura=${cobertura}% · runId=${runId}`,
+    `Escritura completada: written=${written} ┬À candidatosConEco=${candidatosConEco} ┬À ` +
+      `errores=${erroresWrite.length} (150KB=${bloqueos150}) ┬À cobertura=${cobertura}% ┬À runId=${runId}`,
   )
-=======
-async function modoEscritura(
-  datosMap: Map<ConprelFamilia, FamiliaDatos>,
-  runId: string,
-): Promise<void> {
-  // Implementación completa del pipeline de escritura (merge �  gate 150 KB � 
-  // putMunicipioJson �  read-back �  revalidateAfterWrites �  audit row).
-  // Esta rama SOLO se alcanza con --confirm-r2-write Y
-  // SOCIDEAS_CONPREL_WRITE=autorizado. La misión NO la ejecuta.
-  const { getMunicipioJsonRaw, putMunicipioJson } = await import('../src/lib/socideas-r2')
-  const writtenInes: string[] = []
-  let written = 0
-  for (const [fam, datos] of datosMap) {
-    const def = CONPREL_FAMILIAS[fam]
-    const slugsFam = new Set(CONPREL_SLUGS.filter((s) => s.familia === fam).map((s) => s.slug))
-    for (const mun of datos.inv.municipales) {
-      const b = buildTuplasFamilia(fam, [mun], datos.eco, { url: def.url })
-      if (b.tuplas.length === 0) continue // municipio sin fila �  ND (sin tupla)
-      const raw = await getMunicipioJsonRaw(mun.ine)
-      if (!raw || (raw as { version?: number }).version !== 2) continue
-      const env = raw as unknown as EnvV2
-      if (env.codigo_ine !== mun.ine) continue
-      // Backup local previo (diseño §7.4 — patrón fix-tgss): copia del
-      // envelope ANTES del merge para poder restaurar por run si el put
-      // o el read-back fallan a medias. Solo filesystem local.
-      const backupDir = path.join(process.cwd(), 'tmp', 'conprel-backup', runId)
-      fs.mkdirSync(backupDir, { recursive: true })
-      fs.writeFileSync(path.join(backupDir, `${mun.ine}.json`), JSON.stringify(env), 'utf8')
-      mergeConprelTuplas(env, b.tuplas, {
-        sourceSlug: CONPREL_SOURCE_SLUG,
-        organismo: CONPREL_SOURCE_ORGANISMO,
-        nombreFuente: CONPREL_SOURCE_NOMBRE,
-        slugsARemplazar: slugsFam,
-      })
-      const json = JSON.stringify(env)
-      const gate = cabeEnvelope(json)
-      if (!gate.ok) {
-        console.error(`  BLOQUEO 150KB: ${mun.ine} = ${gate.bytes} B`)
-        continue
-      }
-      await putMunicipioJson(mun.ine, env)
-      // read-back
-      const back = await getMunicipioJsonRaw(mun.ine)
-      if (!back || back.codigo_ine !== mun.ine) {
-        console.error(`  READ-BACK fallido: ${mun.ine}`)
-        continue
-      }
-      written++
-      writtenInes.push(mun.ine)
-    }
-  }
-  // Revalidación batch + audit row UNA sola vez al final de todo el run
-  // (diseño §7: escritura R2 �  read-back �  revalidateAfterWrites �  audit row).
-  if (shouldRevalidate(written)) {
-    const reval = await revalidateAfterWrites(writtenInes)
-    if (reval) {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-      if (url && key) {
-        const sb = createClient(url, key, { auth: { persistSession: false } })
-        for (const [fam] of datosMap) {
-          const def = CONPREL_FAMILIAS[fam]
-          const row = buildRevalidationAuditRow(reval, {
-            runId,
-            writtenCount: written,
-            tipo: fam === 'ppto' ? 'conprel_ppto_2025' : 'conprel_liq_2024',
-            bloque: 'economia',
-            periodo: String(def.ejercicio),
-            fuente: CONPREL_SOURCE_SLUG,
-          })
-          await sb.from('data_sync_runs').insert(row)
-        }
-      } else {
-        console.error('  SIN Supabase: degradación de revalidación solo en consola/manifest')
-      }
-      if (reval.degradado) {
-        console.error(`  REVALIDACI�N DEGRADADA: ${reval.error ?? 'sin detalle'}`)
-      }
-    }
-  }
-  console.log(`Escritura completada: ${written} municipios · runId=${runId}`)
->>>>>>> feat/qa-conprel
 }
 
-// ���� main ��������������������������������������������������������������������������������������������������������������������������������������
+// ´┐¢´┐¢´┐¢´┐¢ main ´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢´┐¢
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2))
@@ -1104,13 +1020,13 @@ async function main(): Promise<void> {
   }
   let falloDry = false
   const runId = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19) + '-' + Math.random().toString(36).slice(2, 7)
-  console.log('=== LOADER CONPREL · SOCideas ===')
+  console.log('=== LOADER CONPREL ┬À SOCideas ===')
   console.log(
-    `Modo: ${gate.mode === 'write' ? 'ESCRITURA R2 (habilitada)' : 'DRY-RUN (defecto)'} · runId=${runId} · parser=${CONPREL_PARSER_VERSION}`,
+    `Modo: ${gate.mode === 'write' ? 'ESCRITURA R2 (habilitada)' : 'DRY-RUN (defecto)'} ┬À runId=${runId} ┬À parser=${CONPREL_PARSER_VERSION}`,
   )
-  console.log(`Familias: ${args.familias.join(', ')} · flags: muestra=${args.muestra} all-ppto=${args.allPpto} all-liq=${args.allLiq} size-full=${args.sizeFull} ausentes=${args.ausentes} colisiones=${args.colisiones} provincias=${args.provincias?.join('/') ?? '-'}`)
+  console.log(`Familias: ${args.familias.join(', ')} ┬À flags: muestra=${args.muestra} all-ppto=${args.allPpto} all-liq=${args.allLiq} size-full=${args.sizeFull} ausentes=${args.ausentes} colisiones=${args.colisiones} provincias=${args.provincias?.join('/') ?? '-'}`)
 
-  // 1. Descarga + extracción + parseo estricto (bloquea ante duplicados/cabeceras).
+  // 1. Descarga + extracci├│n + parseo estricto (bloquea ante duplicados/cabeceras).
   let datosMap: Map<ConprelFamilia, FamiliaDatos>
   try {
     datosMap = await cargarDatos(args.familias, args.extract)
@@ -1127,11 +1043,11 @@ async function main(): Promise<void> {
     throw e
   }
 
-  // 2. Catálogo si hace falta (ausentes/colisiones).
+  // 2. Cat├ílogo si hace falta (ausentes/colisiones).
   let catalogo: Catalogo | null = null
   if (args.ausentes || args.colisiones) {
     catalogo = await cargarCatalogo()
-    console.log(`Catálogo INE: ${catalogo.nombres.size} municipios`)
+    console.log(`Cat├ílogo INE: ${catalogo.nombres.size} municipios`)
   }
 
   const informe: Record<string, unknown> = {
@@ -1142,8 +1058,8 @@ async function main(): Promise<void> {
     familias: {},
   }
 
-  // 3. Dry-run estratificado por familia (solo con alcance explícito o defecto;
-  //    --ausentes/--colisiones/--size-full solos no disparan fetch masivo aquí).
+  // 3. Dry-run estratificado por familia (solo con alcance expl├¡cito o defecto;
+  //    --ausentes/--colisiones/--size-full solos no disparan fetch masivo aqu├¡).
   const hayAlcanceDryRun =
     args.muestra ||
     args.allPpto ||
@@ -1157,12 +1073,12 @@ async function main(): Promise<void> {
         console.log(`[${fam}] 0 candidatos para etiqueta ${etiqueta}`)
         continue
       }
-      console.log(`\n--- Dry-run ${fam} · ${etiqueta} · ${ines.length} INE ---`)
+      console.log(`\n--- Dry-run ${fam} ┬À ${etiqueta} ┬À ${ines.length} INE ---`)
       const { stats } = await dryRunFamilia(datos, ines, etiqueta)
       console.log(
         `  inv=${stats.conInventario}/${stats.candidatos} eco=${stats.conEco} sinEco=${stats.sinEco.length} ` +
           `tuplas=${stats.tuplas} env=${stats.envelopesOk} sinR2=${stats.sinEnvelopeR2.length} ` +
-          `bytesMáx=${stats.bytesMax} (${stats.bytesMaxIne}) >150KB=${stats.sobre150kb.length} ` +
+          `bytesM├íx=${stats.bytesMax} (${stats.bytesMaxIne}) >150KB=${stats.sobre150kb.length} ` +
           `slugsPerdidos=${stats.slugsPerdidos.length} preservados=${stats.preservacionOk}/${stats.envelopesOk}`,
       )
       const fuera = identesFueraDeContrato(datos.inv, datos.eco)
@@ -1173,7 +1089,7 @@ async function main(): Promise<void> {
         ...stats,
         identesFueraDeContrato: fuera,
       }
-      if (stats.sinEco.length) console.log(`  sin eco (ND): ${stats.sinEco.slice(0, 20).join(',')}${stats.sinEco.length > 20 ? '⬦' : ''}`)
+      if (stats.sinEco.length) console.log(`  sin eco (ND): ${stats.sinEco.slice(0, 20).join(',')}${stats.sinEco.length > 20 ? 'Ô¼ª' : ''}`)
       if (stats.sinEnvelopeR2.length) {
         const motivos = stats.sinEnvelopeR2.slice(0, 8).map((i) => `${i}:${fetchFallos.get(i) ?? 'sin-detalle'}`)
         console.log(`  sinR2 muestra motivos: ${motivos.join(' | ')}`)
@@ -1203,25 +1119,25 @@ async function main(): Promise<void> {
     }
   }
 
-  // 4. Colisiones de nombre (join por código).
+  // 4. Colisiones de nombre (join por c├│digo).
   if (args.colisiones && catalogo) {
     for (const [fam, datos] of datosMap) {
       const col = auditarColisiones(datos, catalogo)
       console.log(
-        `\n[colisiones ${fam}] divergencias de nombre=${col.colisiones} · INE estables=${col.ineEstables}/${col.colisiones}`,
+        `\n[colisiones ${fam}] divergencias de nombre=${col.colisiones} ┬À INE estables=${col.ineEstables}/${col.colisiones}`,
       )
       for (const m of col.muestras.slice(0, 8)) {
-        console.log(`  ${m.ine}: CONPREL="${m.conprel}" vs INE="${m.ine_}" (join por código �  INE intacto)`)
+        console.log(`  ${m.ine}: CONPREL="${m.conprel}" vs INE="${m.ine_}" (join por c├│digo ´┐¢  INE intacto)`)
       }
       ;(informe.familias as Record<string, unknown>)[`${fam}_colisiones`] = col
     }
   }
 
-  // 5. Ausentes (catálogo �� inventario municipal).
+  // 5. Ausentes (cat├ílogo ´┐¢´┐¢ inventario municipal).
   if (args.ausentes && catalogo) {
     for (const [fam, datos] of datosMap) {
       const aus = auditarAusentes(datos, catalogo)
-      console.log(`\n[ausentes ${fam}] ${aus.ausentes} municipios de catálogo sin fila AA/ZZ (ND, nunca 0)`)
+      console.log(`\n[ausentes ${fam}] ${aus.ausentes} municipios de cat├ílogo sin fila AA/ZZ (ND, nunca 0)`)
       console.log(`  muestra: ${aus.ines.slice(0, 15).join(',')}`)
       ;(informe.familias as Record<string, unknown>)[`${fam}_ausentes`] = {
         total: aus.ausentes,
@@ -1230,18 +1146,18 @@ async function main(): Promise<void> {
     }
   }
 
-  // 6. size-full (población completa, dos escenarios).
+  // 6. size-full (poblaci├│n completa, dos escenarios).
   if (args.sizeFull) {
-    console.log('\n--- size-full (lectura R2 pública, merge en memoria) ---')
+    console.log('\n--- size-full (lectura R2 p├║blica, merge en memoria) ---')
     const report = await sizeFull(datosMap)
     const out = path.join(process.cwd(), 'tmp', `conprel-loader-size-${Date.now()}.json`)
     fs.mkdirSync(path.dirname(out), { recursive: true })
     fs.writeFileSync(out, JSON.stringify(report, null, 2))
-    console.log(`Informe tamaño: ${path.relative(process.cwd(), out)}`)
+    console.log(`Informe tama├▒o: ${path.relative(process.cwd(), out)}`)
     for (const [name, s] of Object.entries(report.escenarios)) {
       console.log(
         `  ${name}: candidatos=${s.candidatos} conEnv=${s.conEnvelope} sinR2=${s.sinEnvelopeR2.length} ` +
-          `máx=${s.bytesMax} p95=${s.bytesP95} >150KB=${s.sobre150kb.length} tuplas=${s.tuplasTotal}`,
+          `m├íx=${s.bytesMax} p95=${s.bytesP95} >150KB=${s.sobre150kb.length} tuplas=${s.tuplasTotal}`,
       )
       if (s.sobre150kb.length) {
         console.error(`    lista >150KB: ${s.sobre150kb.map((x) => `${x.ine}:${x.bytes}`).join(', ')}`)
@@ -1251,7 +1167,7 @@ async function main(): Promise<void> {
     informe.sizeFull = report
   }
 
-  // 7. Escritura (solo con gate doble; NO en esta misión).
+  // 7. Escritura (solo con gate doble; NO en esta misi├│n).
   if (gate.mode === 'write') {
     console.log('\n--- ESCRITURA R2 (habilitada por operador) ---')
     await modoEscritura(datosMap, runId, { lote: args.lote, loteTotal: args.loteTotal })

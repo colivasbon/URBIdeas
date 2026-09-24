@@ -10,15 +10,15 @@ export const CONPREL_NOTA_SERIE =
 
 /** (b) Nota ND municipal. */
 export const CONPREL_NOTA_ND =
-  'ND = no consta registro municipal en el fichero consultado. Nunca equivale a 0 y no se imputa causa ' +
-  '(p. ej. régimen foral) sin prueba caso a caso.'
+  'ND = no consta registro municipal en el fichero consultado. Nunca equivale a 0 y no se imputa ' +
+  'ninguna causa territorial sin prueba caso a caso.'
 
 /** (e) Anti-comparación. */
 export const CONPREL_NOTA_ANTI_COMPARACION =
   'Presupuesto, liquidación y avance son ficheros y ejercicios distintos: no se calcula ejecución ' +
   'cruzando familias ni se presentan avances como definitivos. ND ≠ 0.'
 
-/** Ausencia de fila: texto aprobado (NUNCA «el ayuntamiento no remitió»). */
+/** Ausencia de fila: texto aprobado (sin imputación de causa). */
 export const CONPREL_AUSENCIA_TEXTO =
   'No consta registro municipal en el fichero consultado.'
 

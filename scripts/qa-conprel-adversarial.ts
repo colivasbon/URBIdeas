@@ -1595,11 +1595,18 @@ function escenario11(): void {
     'S1 48044 solo PPTO · S2 05188 solo LIQ · S3 01059 en ninguna → ninguna familia genera tupla para el ausente',
     `S1=${s1Pp} S2=${s2Lq} S3=${s3Ninguno}`,
   )
-  // El módulo CONPREL no contiene textos de causa prohibidos
+  // El módulo CONPREL no contiene textos de causa prohibidos en strings
+  // de UI/export (se ignoran comentarios de línea/bloque que documentan la prohibición).
   const libDir = path.join(process.cwd(), 'src', 'lib')
   const conprelFiles = fs.readdirSync(libDir).filter((f) => f.startsWith('conprel-') && f.endsWith('.ts'))
+  const stripComments = (src: string): string =>
+    src
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/.*$/gm, '$1 ')
   const causas = conprelFiles.filter((f) =>
-    /foral|no remitió|no remitio|causa individual/i.test(fs.readFileSync(path.join(libDir, f), 'utf8')),
+    /foral|no remitió|no remitio|causa individual/i.test(
+      stripComments(fs.readFileSync(path.join(libDir, f), 'utf8')),
+    ),
   )
   check(
     esc,

@@ -4,7 +4,7 @@
 //
 // Reglas (§7 del mismo documento):
 //  - ND = «No consta registro municipal en el fichero consultado» — nunca
-//    «no remitió»/«incumple» ni causa foral individual sin prueba.
+//    imputa incumplimiento ni causa territorial individual sin prueba.
 //  - ND ≠ 0: un 0 publicado en fila existente se conserva como cero real.
 //  - Familias separadas (PPTO-2025 vs LIQ-2024): sin ejecución cruzada.
 //  - Coberturas congeladas: 7.345/8.132 (90,3 %) y 6.861/8.132 (84,4 %).

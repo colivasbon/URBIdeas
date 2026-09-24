@@ -9,12 +9,22 @@
  *  - token en tiempo constante (unitario)
  *  - una carga R2 fallida (0 escritos) NUNCA llama a revalidación (unitario)
  *  - un fallo de revalidación queda como degradación, no éxito silencioso
+ *  - B2: la ruta acepta SOLO SOCIDEAS_REVALIDATE_TOKEN; con valor de
+ *    SOCIDEAS_SYNC_TOKEN → 401 (handler real importado, sin red)
+ *  - B3: contador deslizante consumeRateRequest/consumeRateInes (unitario)
  *  - (--integration) el endpoint invalida tags válidas y rechaza inválidos
  *
  * Uso:
  *   npx tsx scripts/verify-revalidate.ts
  *   npx tsx scripts/verify-revalidate.ts --integration http://127.0.0.1:3111
  */
+import { NextRequest } from 'next/server'
+import {
+  GET as routeGet,
+  POST as routePost,
+  consumeRateInes,
+  consumeRateRequest,
+} from '../src/app/api/socideas/revalidate/route'
 import {
   REVALIDATE_BATCH_SIZE,
   REVALIDATE_MAX_INES,
@@ -177,11 +187,76 @@ async function unitTests(): Promise<void> {
   check('fallo endpoint → summary degradado propagado', degr !== null && degr.degradado === true)
   const rowDegr = buildRevalidationAuditRow(degr!, { runId: 'w', writtenCount: 1 })
   check('degradación → auditoría estado error (no éxito silencioso)', rowDegr.estado === 'error')
+
+  console.log('\n=== B2 · ruta revalidate sin fallback SYNC (handler real) ===')
+  const REVAL = 'b2-test-revalidate-token'
+  const SYNC = 'b2-test-sync-token'
+  const savedReval = process.env.SOCIDEAS_REVALIDATE_TOKEN
+  const savedSync = process.env.SOCIDEAS_SYNC_TOKEN
+  const mkReq = (tok?: string, body?: unknown): NextRequest =>
+    new NextRequest('http://127.0.0.1/api/socideas/revalidate', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(tok ? { [REVALIDATE_TOKEN_HEADER]: tok } : {}),
+      },
+      body: JSON.stringify(body ?? { ines: [] }),
+    })
+  try {
+    // A) Solo REVALIDATE configurado: con el dedicado pasa el auth (400 = body vacío tras auth).
+    process.env.SOCIDEAS_REVALIDATE_TOKEN = REVAL
+    delete process.env.SOCIDEAS_SYNC_TOKEN
+    const aOk = await routePost(mkReq(REVAL))
+    check('B2 solo REVALIDATE en env → token dedicado supera auth (400 body)', aOk.status === 400, String(aOk.status))
+    const aSync = await routePost(mkReq(SYNC))
+    check('B2 solo REVALIDATE en env → valor SYNC recibe 401', aSync.status === 401, String(aSync.status))
+    const aNone = await routePost(mkReq(undefined))
+    check('B2 sin cabecera → 401', aNone.status === 401, String(aNone.status))
+
+    // B) Ambos en env (prod-like): solo el dedicado vale; SYNC sigue 401.
+    process.env.SOCIDEAS_REVALIDATE_TOKEN = REVAL
+    process.env.SOCIDEAS_SYNC_TOKEN = SYNC
+    const bSync = await routePost(mkReq(SYNC))
+    check('B2 ambos en env → SYNC recibe 401 (sin fallback)', bSync.status === 401, String(bSync.status))
+    const bReval = await routePost(mkReq(REVAL))
+    check('B2 ambos en env → REVALIDATE supera auth (400 body)', bReval.status === 400, String(bReval.status))
+
+    // C) Solo SYNC en env (sin dedicado): 503 no configurada (nunca acepta SYNC).
+    delete process.env.SOCIDEAS_REVALIDATE_TOKEN
+    process.env.SOCIDEAS_SYNC_TOKEN = SYNC
+    const c = await routePost(mkReq(SYNC))
+    check('B2 sin REVALIDATE en env → 503 (nunca acepta SYNC)', c.status === 503, String(c.status))
+
+    // D) GET sigue 405.
+    const g = await routeGet()
+    check('B2 GET → 405', g.status === 405, String(g.status))
+  } finally {
+    if (savedReval === undefined) delete process.env.SOCIDEAS_REVALIDATE_TOKEN
+    else process.env.SOCIDEAS_REVALIDATE_TOKEN = savedReval
+    if (savedSync === undefined) delete process.env.SOCIDEAS_SYNC_TOKEN
+    else process.env.SOCIDEAS_SYNC_TOKEN = savedSync
+  }
+
+  console.log('\n=== B3 · contador deslizante (por clave; best-effort por instancia) ===')
+  const rk = `unit-b3-${Date.now()}`
+  let okReqs = 0
+  for (let i = 0; i < 61; i++) {
+    if (consumeRateRequest(rk).ok) okReqs++
+  }
+  check('B3 60 peticiones aceptadas', okReqs === 60, String(okReqs))
+  const denied = consumeRateRequest(rk)
+  check('B3 61.ª denegada con Retry-After', !denied.ok && denied.retryAfterSec >= 1, JSON.stringify(denied))
+  const rkIne = `${rk}-ines`
+  const ines1 = consumeRateInes(rkIne, 5000)
+  check('B3 5000 INEs aceptados', ines1.ok)
+  const ines2 = consumeRateInes(rkIne, 1)
+  check('B3 5001.º INE denegado', !ines2.ok && ines2.limit === 'ines', JSON.stringify(ines2))
 }
 
 async function integrationTests(base: string): Promise<void> {
   console.log(`\n=== Integración contra ${base}${REVALIDATE_PATH} ===`)
-  const token = process.env.SOCIDEAS_REVALIDATE_TOKEN || process.env.SOCIDEAS_SYNC_TOKEN || ''
+  // B2: SOLO SOCIDEAS_REVALIDATE_TOKEN (el SYNC ya no abre esta ruta).
+  const token = process.env.SOCIDEAS_REVALIDATE_TOKEN || ''
   const url = `${base.replace(/\/$/, '')}${REVALIDATE_PATH}`
 
   const getRes = await fetch(url)

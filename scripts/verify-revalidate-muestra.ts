@@ -30,7 +30,8 @@ const R2_BASE = (
   process.env.NEXT_PUBLIC_SOCIDEAS_R2_BASE ||
   R2_PUBLIC_BASE_FALLBACK
 ).replace(/\/$/, '')
-const TOKEN = process.env.SOCIDEAS_REVALIDATE_TOKEN || process.env.SOCIDEAS_SYNC_TOKEN || ''
+// B2: SOLO el token dedicado — la muestra no debe depender de SOCIDEAS_SYNC_TOKEN.
+const TOKEN = process.env.SOCIDEAS_REVALIDATE_TOKEN || ''
 
 // Fixture compartido (scripts/qa-fixtures.ts): única fuente de verdad.
 const MUESTRA: ReadonlyArray<[string, string]> = MUESTRA_REVALIDACION
@@ -147,10 +148,12 @@ async function main(): Promise<void> {
     r2: R2_BASE,
     endpoint: `${BASE}/api/socideas/revalidate`,
     batch: rj.data,
-    municipios: [...valores.entries()].map(([ine, valor]) => ({ ine, valor_r2: valor, ssr_ok: true, xlsx_ok: true })),
+    municipios: [...valores.entries()].map(([ine, valor_r2]) => ({ ine, valor_r2, ssr_ok: true, xlsx_ok: true })),
     failures,
   }
-  const out = path.join(process.cwd(), 'tmp', `qa-revalidate-muestra-${Date.now()}.json`)
+  const outDir = path.join(process.cwd(), 'tmp')
+  fs.mkdirSync(outDir, { recursive: true })
+  const out = path.join(outDir, `qa-revalidate-muestra-${Date.now()}.json`)
   fs.writeFileSync(out, JSON.stringify(report, null, 2))
   console.log(`\n${failures === 0 ? 'OK' : failures + ' FALLOS'} — muestra revalidación (informe: ${path.relative(process.cwd(), out)})`)
   if (failures > 0) process.exit(1)

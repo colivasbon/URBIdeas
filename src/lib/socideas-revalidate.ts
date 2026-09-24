@@ -264,7 +264,9 @@ export async function revalidateMunicipios(
   }
 
   const baseUrl = (opts.baseUrl ?? process.env.SOCIDEAS_REVALIDATE_BASE_URL ?? '').replace(/\/$/, '')
-  const token = opts.token ?? process.env.SOCIDEAS_REVALIDATE_TOKEN ?? process.env.SOCIDEAS_SYNC_TOKEN ?? ''
+  // B2: solo el token dedicado. Un SYNC filtrado ya no habilita revalidación
+  // desde los loaders (el endpoint tampoco lo acepta → 401/503 auditado).
+  const token = opts.token ?? process.env.SOCIDEAS_REVALIDATE_TOKEN ?? ''
   if (!baseUrl || !token) {
     summary.degradado = true
     summary.errores = validos.length

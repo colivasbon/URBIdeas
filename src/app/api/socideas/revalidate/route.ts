@@ -111,8 +111,9 @@ function rateLimitedResponse(decision: Extract<RateDecision, { ok: false }>): Ne
  * POST /api/socideas/revalidate — invalidación selectiva de la caché municipal.
  *
  * Protegido con `SOCIDEAS_REVALIDATE_TOKEN` (cabecera `x-revalidate-token`,
- * comparación en tiempo constante). Sin secreto configurado → 503; secreto
- * ausente/incorrecto → 401; método distinto de POST → 405.
+ * comparación en tiempo constante). B2: SIN fallback a `SOCIDEAS_SYNC_TOKEN`.
+ * Sin secreto dedicado configurado → 503; secreto ausente/incorrecto (incluido
+ * un valor de SYNC) → 401; método distinto de POST → 405.
  *
  * Orden del contrato (B3): método → 503 → 401 (auth) → rate limit 429 →
  * body inválido 400 → techo de INEs 429 → 200. El rate limit corre SIEMPRE
@@ -126,7 +127,9 @@ function rateLimitedResponse(decision: Extract<RateDecision, { ok: false }>): Ne
  * válido. NUNCA hace revalidación global. Los logs no incluyen el secreto.
  */
 export async function POST(request: NextRequest) {
-  const expected = process.env.SOCIDEAS_REVALIDATE_TOKEN || process.env.SOCIDEAS_SYNC_TOKEN
+  // B2: SOLO el token dedicado. Sin fallback a SOCIDEAS_SYNC_TOKEN
+  // (ese secreto abre /sync y /sync-economia, no la revalidación masiva).
+  const expected = process.env.SOCIDEAS_REVALIDATE_TOKEN
   if (!expected) {
     console.log(JSON.stringify({ tag: 'SOCIDEAS_REVALIDATE', outcome: 'not_configured', ts: new Date().toISOString() }))
     return NextResponse.json(

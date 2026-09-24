@@ -1596,23 +1596,25 @@ function escenario11(): void {
     `S1=${s1Pp} S2=${s2Lq} S3=${s3Ninguno}`,
   )
   // El módulo CONPREL no contiene textos de causa prohibidos en strings
-  // de UI/export (se ignoran comentarios de línea/bloque que documentan la prohibición).
+  // de UI/export (se ignoran comentarios; la negación «No se imputa causa…» es texto aprobado).
   const libDir = path.join(process.cwd(), 'src', 'lib')
   const conprelFiles = fs.readdirSync(libDir).filter((f) => f.startsWith('conprel-') && f.endsWith('.ts'))
   const stripComments = (src: string): string =>
     src
       .replace(/\/\*[\s\S]*?\*\//g, ' ')
       .replace(/(^|[^:])\/\/.*$/gm, '$1 ')
+  // Solo imputación afirmativa: no remitió / incumple / ausente|sin datos|no consta por foral.
+  // No castiga «No se imputa causa individual» (negación aprobada en ficha).
+  const causasProhibidas =
+    /no remitió|no remitio|incumple|ausente por (régimen )?foral|sin datos por foral|el ayuntamiento no remit/i
   const causas = conprelFiles.filter((f) =>
-    /foral|no remitió|no remitio|causa individual/i.test(
-      stripComments(fs.readFileSync(path.join(libDir, f), 'utf8')),
-    ),
+    causasProhibidas.test(stripComments(fs.readFileSync(path.join(libDir, f), 'utf8'))),
   )
   check(
     esc,
     'unit conprel-*.ts sin textos de causa prohibidos (foral/no remitió)',
     causas.length === 0,
-    'grep src/lib/conprel-*.ts',
+    'grep src/lib/conprel-*.ts (imputación afirmativa)',
     causas.length === 0 ? `${conprelFiles.length} ficheros limpios` : `contaminados: ${causas.join(',')}`,
     `contaminados: ${causas.join(',')}`,
   )

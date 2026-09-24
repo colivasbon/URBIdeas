@@ -10,8 +10,12 @@ import {
 export const dynamic = 'force-dynamic'
 
 // ——— B3: rate limit deslizante (en memoria, best-effort por instancia) ———
-// Límites: 60 peticiones autenticadas/min por IP y 5.000 INEs/min acumulados
-// (los loaders hacen 1 petición por lote de ≤200 INE → 25 lotes/min, holgado).
+// Límites: 60 peticiones autenticadas/min por IP y 10.000 INEs/min acumulados.
+// Los loaders hacen 1 petición por lote de ≤200 INE: un run de catálogo
+// completo (≈8.132 INE = 41 lotes) debe caber SIN ser bloqueado — con el
+// techo previo de 5.000 el lote 26 recibía 429 y la revalidación quedaba
+// degradada (caché vieja hasta TTL 1 h). 10.000 = 50 lotes/min, sigue
+// frenando bucles concentrados.
 // En serverless cada instancia mantiene su propio Map: el cómputo es
 // best-effort (no un quota distribuido); frena bucles concentrados sobre una
 // instancia, no es a prueba de multi-región. La autenticación SIEMPRE corre
@@ -19,7 +23,7 @@ export const dynamic = 'force-dynamic'
 // Los 429 no incluyen secretos ni IP en los logs.
 const RATE_WINDOW_MS = 60_000
 const RATE_MAX_REQUESTS_PER_MIN = 60
-const RATE_MAX_INES_PER_MIN = 5_000
+const RATE_MAX_INES_PER_MIN = 10_000
 
 interface RateState {
   /** Timestamps de peticiones autenticadas dentro de la ventana (orden creciente). */

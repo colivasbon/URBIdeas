@@ -59,6 +59,7 @@ import * as path from 'path'
 import { createClient } from '@supabase/supabase-js'
 import {
   CONPREL_FAMILIAS,
+  CONPREL_MAX_ENVELOPE_BYTES,
   CONPREL_PARSER_VERSION,
 } from '../src/lib/conprel-contracts'
 import type { ConprelFamilia } from '../src/lib/conprel-contracts'
@@ -672,7 +673,7 @@ async function sizeFull(
       esc.max = bytes
       esc.maxIne = ine
     }
-    if (bytes > 150 * 1024) esc.over.push({ ine, bytes })
+    if (bytes >= CONPREL_MAX_ENVELOPE_BYTES) esc.over.push({ ine, bytes })
   }
 
   /** 2ª pasada secuencial sobre los sinR2 (descarta ruido de red bajo carga). */
@@ -774,6 +775,7 @@ function auditarAusentes(
 
 // ���� Escritura (SOLO futura; gate doble) ������������������������������������������������������������������������
 
+<<<<<<< HEAD
 async function modoEscritura(
   datosMap: Map<ConprelFamilia, FamiliaDatos>,
   runId: string,
@@ -1003,6 +1005,88 @@ async function modoEscritura(
     `Escritura completada: written=${written} · candidatosConEco=${candidatosConEco} · ` +
       `errores=${erroresWrite.length} (150KB=${bloqueos150}) · cobertura=${cobertura}% · runId=${runId}`,
   )
+=======
+async function modoEscritura(
+  datosMap: Map<ConprelFamilia, FamiliaDatos>,
+  runId: string,
+): Promise<void> {
+  // Implementación completa del pipeline de escritura (merge �  gate 150 KB � 
+  // putMunicipioJson �  read-back �  revalidateAfterWrites �  audit row).
+  // Esta rama SOLO se alcanza con --confirm-r2-write Y
+  // SOCIDEAS_CONPREL_WRITE=autorizado. La misión NO la ejecuta.
+  const { getMunicipioJsonRaw, putMunicipioJson } = await import('../src/lib/socideas-r2')
+  const writtenInes: string[] = []
+  let written = 0
+  for (const [fam, datos] of datosMap) {
+    const def = CONPREL_FAMILIAS[fam]
+    const slugsFam = new Set(CONPREL_SLUGS.filter((s) => s.familia === fam).map((s) => s.slug))
+    for (const mun of datos.inv.municipales) {
+      const b = buildTuplasFamilia(fam, [mun], datos.eco, { url: def.url })
+      if (b.tuplas.length === 0) continue // municipio sin fila �  ND (sin tupla)
+      const raw = await getMunicipioJsonRaw(mun.ine)
+      if (!raw || (raw as { version?: number }).version !== 2) continue
+      const env = raw as unknown as EnvV2
+      if (env.codigo_ine !== mun.ine) continue
+      // Backup local previo (diseño §7.4 — patrón fix-tgss): copia del
+      // envelope ANTES del merge para poder restaurar por run si el put
+      // o el read-back fallan a medias. Solo filesystem local.
+      const backupDir = path.join(process.cwd(), 'tmp', 'conprel-backup', runId)
+      fs.mkdirSync(backupDir, { recursive: true })
+      fs.writeFileSync(path.join(backupDir, `${mun.ine}.json`), JSON.stringify(env), 'utf8')
+      mergeConprelTuplas(env, b.tuplas, {
+        sourceSlug: CONPREL_SOURCE_SLUG,
+        organismo: CONPREL_SOURCE_ORGANISMO,
+        nombreFuente: CONPREL_SOURCE_NOMBRE,
+        slugsARemplazar: slugsFam,
+      })
+      const json = JSON.stringify(env)
+      const gate = cabeEnvelope(json)
+      if (!gate.ok) {
+        console.error(`  BLOQUEO 150KB: ${mun.ine} = ${gate.bytes} B`)
+        continue
+      }
+      await putMunicipioJson(mun.ine, env)
+      // read-back
+      const back = await getMunicipioJsonRaw(mun.ine)
+      if (!back || back.codigo_ine !== mun.ine) {
+        console.error(`  READ-BACK fallido: ${mun.ine}`)
+        continue
+      }
+      written++
+      writtenInes.push(mun.ine)
+    }
+  }
+  // Revalidación batch + audit row UNA sola vez al final de todo el run
+  // (diseño §7: escritura R2 �  read-back �  revalidateAfterWrites �  audit row).
+  if (shouldRevalidate(written)) {
+    const reval = await revalidateAfterWrites(writtenInes)
+    if (reval) {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (url && key) {
+        const sb = createClient(url, key, { auth: { persistSession: false } })
+        for (const [fam] of datosMap) {
+          const def = CONPREL_FAMILIAS[fam]
+          const row = buildRevalidationAuditRow(reval, {
+            runId,
+            writtenCount: written,
+            tipo: fam === 'ppto' ? 'conprel_ppto_2025' : 'conprel_liq_2024',
+            bloque: 'economia',
+            periodo: String(def.ejercicio),
+            fuente: CONPREL_SOURCE_SLUG,
+          })
+          await sb.from('data_sync_runs').insert(row)
+        }
+      } else {
+        console.error('  SIN Supabase: degradación de revalidación solo en consola/manifest')
+      }
+      if (reval.degradado) {
+        console.error(`  REVALIDACI�N DEGRADADA: ${reval.error ?? 'sin detalle'}`)
+      }
+    }
+  }
+  console.log(`Escritura completada: ${written} municipios · runId=${runId}`)
+>>>>>>> feat/qa-conprel
 }
 
 // ���� main ��������������������������������������������������������������������������������������������������������������������������������������

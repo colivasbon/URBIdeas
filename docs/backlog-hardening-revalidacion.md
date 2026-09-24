@@ -53,14 +53,14 @@ Objetivo: invalidar cualquier copia del SYNC que pudiera haberse filtrado **ya n
 
 | Campo | Valor |
 |---|---|
-| Estado | **Implementado** (código en rama; producción verificada con 429 en ~petición 58 + Retry-After; tráfico normal 10×200 OK). |
+| Estado | **Implementado** (código en rama; producción verificada con 429 en ~petición 58 + Retry-After; tráfico normal 10×200 OK). Techo de INEs ampliado a **10.000/min** (Q6-A14: con 5.000 el lote 26 de un run full recibía 429 y la revalidación quedaba degradada). |
 | Amenaza que mitiga | Con token válido, bucle de petición → purga de caché masiva (disponibilidad, no confidencialidad). |
-| Implementado | `src/app/api/socideas/revalidate/route.ts`: contador deslizante 60 s **en memoria** por IP (`x-forwarded-for`): máx **60 peticiones autenticadas/min** y techo acumulado de **5.000 INEs/min**. Respuesta **429** + `Retry-After`; auth **siempre antes** del rate. **Serverless: best-effort por instancia**. |
+| Implementado | `src/app/api/socideas/revalidate/route.ts`: contador deslizante 60 s **en memoria** por IP (`x-forwarded-for`): máx **60 peticiones autenticadas/min** y techo acumulado de **10.000 INEs/min** (catálogo ≈8.132 = 41 lotes de ≤200). Respuesta **429** + `Retry-After`; auth **siempre antes** del rate. **Serverless: best-effort por instancia** (no quota distribuido). |
 | Dictamen suficiencia | **SUFICIENTE para el volumen actual y el riesgo de bucle** (amplificación multi-instancia residual documentada; impacto solo caché). Alternativas distribuidas **no** introducidas — ver `docs/analisis-b1-b3-rate-limit-suficiencia.md`. |
-| Evidencia de pruebas | `tsc` → 0. `verify-revalidate.ts` → OK (incluye unit 60/61 y 5000/5001). Producción: 429 + Retry-After; 10×200 OK. |
-| Compatibilidad | Loaders: 1 petición/lote ≤200 INE → muy por debajo de 60/min. |
+| Evidencia de pruebas | `tsc` → 0. `verify-revalidate` → OK (unit 60/61 y techo de INEs). Producción (techo 5.000): 429 + Retry-After; 10×200 OK. Unitario con techo 10.000: 41×200 INE caben. |
+| Compatibilidad | Loaders: 1 petición/lote ≤200 INE → muy por debajo de 60/min; 41 lotes caben en 10.000 INEs/min. |
 | Rollback | Quitar el bloque B3 del route (`git revert`). |
-| QA pendiente (tras despliegue) | 61 POST autenticados <60 s → 429; >5000 INEs → 429; sin token → 401 (no 429); loader → 200. |
+| QA pendiente (tras despliegue de techo 10.000) | 61 POST autenticados <60 s → 429; >10.000 INEs → 429; sin token → 401 (no 429); loader → 200. |
 
 ## B4 — Acceso del conector Vercel a Runtime Errors/Logs — PENDIENTE (humano)
 

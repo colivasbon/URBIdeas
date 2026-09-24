@@ -44,11 +44,13 @@ function parseArgs(argv: string[]): Args {
     else if (raw.startsWith('--dest=')) a.dest = raw.slice('--dest='.length)
     else if (raw.startsWith('--root=')) a.root = raw.slice('--root='.length)
     else if (raw.startsWith('--ines=')) {
+      // padStart: PowerShell puede truncar ceros iniciales al tokenizar (02003 → 2003).
       a.ines = raw
         .slice('--ines='.length)
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean)
+        .map((s) => s.padStart(5, '0'))
     } else if (raw === '--compare-r2') a.compareR2 = true
     else if (raw === '--help' || raw === '-h') {
       console.log('Uso: npx tsx scripts/conprel-restore.ts --run-id=<id> [--dest=DIR] [--ines=a,b] [--compare-r2] [--root=DIR]')

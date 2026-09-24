@@ -1,18 +1,26 @@
 // Validación de degradación segura: capas opcionales ausentes no rompen el XLSX.
 // Prueba cada tipo de fallo opcional individualmente y verifica que el XLSX
-// se genera igualmente con las hojas correctas.
+// se genera igualmente con las hojas correctas del contrato `socideas-book@2`
+// (11 hojas, freeze en todas).
+//
+// Las capas INE se convierten a tablas con los builders de capas (como hace el
+// pipeline v2) y se inyectan como bloques: el adaptador v1→v2 no materializa
+// `ineLayers` por sí mismo.
 //
 // Uso: npx tsx scripts/verify-xlsx-optional-fallback.ts
 // Archivos solo en tmp/ (ignorado por git).
 import ExcelJS from 'exceljs'
 import { writeFileSync, readFileSync } from 'node:fs'
-import { buildDemografiaTables, buildEconomiaTables, normalizarMunicipio, toAsciiFilename, SOCIDEAS_SHEET_IDS } from '../src/lib/socideas-export'
+import { buildDemografiaTables, buildEconomiaTables, normalizarMunicipio, toAsciiFilename, type ExportTable } from '../src/lib/socideas-export'
 import { buildDemographicDimensionTables } from '../src/lib/socideas-demographic-export'
-import { buildMunicipioWorkbook, type ComparativeSheetInput } from '../src/lib/socideas-xlsx'
+import { buildMunicipioWorkbook, type LegacyComparativeSheetInput } from '../src/lib/socideas-xlsx'
+import { SOCIDEAS_BOOK_SHEET_IDS } from '../src/lib/socideas-book-contract'
 import { buildMovilidadMigratoriaTable, buildNivelEducativoTable, buildDensidadTable, buildDemographicDerivedLayerTable } from '../src/lib/socideas-ine-layers-export'
 import type { IndicatorValue } from '../src/lib/socideas'
 import type { DemographicPresentationData } from '../src/lib/socideas-demographic-summary'
 import type { MunicipalIneLayersV1 } from '../src/lib/socideas-ine-layers'
+
+const SHEET_COUNT = SOCIDEAS_BOOK_SHEET_IDS.length
 
 let failures = 0
 function check(nombre: string, ok: boolean, detalle = ''): void {
@@ -68,18 +76,36 @@ function ecoProfile() {
   }
 }
 
+/** Capas INE → bloques (mismo mapeo que el pipeline v2). */
+function layerBlocks(ineLayers: MunicipalIneLayersV1 | null): {
+  demografia: ExportTable[]
+  servicios: ExportTable[]
+} {
+  const movilidad = buildMovilidadMigratoriaTable(ineLayers) ?? []
+  const densidad = buildDensidadTable(ineLayers)
+  const derivados = buildDemographicDerivedLayerTable(ineLayers)
+  const educacion = buildNivelEducativoTable(ineLayers)
+  return {
+    demografia: [...movilidad, ...(densidad ? [densidad] : []), ...(derivados ? [derivados] : [])],
+    servicios: educacion ? [educacion] : [],
+  }
+}
+
 async function buildWithLayers(
   demoExtra: DemographicPresentationData | null,
   ineLayers: MunicipalIneLayersV1 | null,
 ): Promise<Buffer> {
+  const layers = layerBlocks(ineLayers)
   const demografia = [
     ...buildDemografiaTables(demoProfile() as never),
     ...buildDemographicDimensionTables(demoExtra),
+    ...layers.demografia,
   ]
   const economia = buildEconomiaTables(ecoProfile() as never)
-  const hojas: ComparativeSheetInput[] = [
+  const hojas: LegacyComparativeSheetInput[] = [
     { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil', bloques: demografia },
     { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Economía', bloques: economia },
+    { id: '04_CONTEXTO_SOCIOCULTURAL', titulo: 'Social, educación y servicios', bloques: layers.servicios },
   ]
   return buildMunicipioWorkbook({
     municipio: 'Albacete', codigoINE: '02003',
@@ -95,8 +121,9 @@ async function testBaseCase() {
   writeFileSync('tmp/fallback-base.xlsx', buffer)
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync('tmp/fallback-base.xlsx'))
-  check('9 hojas', wb.worksheets.length === 9)
-  check('Sin freeze', !wb.worksheets.some((w) => (w.views ?? []).some((v) => v.state === 'frozen')))
+  check(`${SHEET_COUNT} hojas del contrato v2`, wb.worksheets.length === SHEET_COUNT)
+  const frozen = wb.worksheets.filter((w) => (w.views ?? []).some((v) => v.state === 'frozen' || v.ySplit)).length
+  check('freeze panes en todas las hojas (contrato v2)', frozen === SHEET_COUNT, `${frozen}/${SHEET_COUNT}`)
 }
 
 async function testWithNationality() {
@@ -113,9 +140,9 @@ async function testWithNationality() {
   writeFileSync('tmp/fallback-nationality.xlsx', buffer)
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync('tmp/fallback-nationality.xlsx'))
-  check('9 hojas con nacionalidad', wb.worksheets.length === 9)
+  check(`${SHEET_COUNT} hojas con nacionalidad`, wb.worksheets.length === SHEET_COUNT)
   // Verificar que el bloque de nacionalidad está en la hoja 01
-  const ws01 = wb.getWorksheet('01_PERFIL_DEMOGRÁFICO')
+  const ws01 = wb.getWorksheet('01_DEMOGRAFÍA')
   let hasNacionalidad = false
   ws01?.eachRow((row) => {
     const v = row.getCell(1).value
@@ -168,9 +195,9 @@ async function testWithEducation() {
   writeFileSync('tmp/fallback-education.xlsx', buffer)
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync('tmp/fallback-education.xlsx'))
-  const ws04 = wb.getWorksheet('04_CONTEXTO_SOCIOCULTURAL')
+  const ws05 = wb.getWorksheet('05_SOCIAL_EDUCACIÓN_SERVICIOS')
   let hasEdu = false
-  ws04?.eachRow((row) => {
+  ws05?.eachRow((row) => {
     const v = row.getCell(1).value
     if (typeof v === 'string' && v.includes('Nivel educativo')) hasEdu = true
   })
@@ -200,7 +227,7 @@ async function testWithMigration() {
   writeFileSync('tmp/fallback-migration.xlsx', buffer)
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync('tmp/fallback-migration.xlsx'))
-  const ws01 = wb.getWorksheet('01_PERFIL_DEMOGRÁFICO')
+  const ws01 = wb.getWorksheet('01_DEMOGRAFÍA')
   let hasMig = false
   ws01?.eachRow((row) => {
     const v = row.getCell(1).value
@@ -228,7 +255,7 @@ async function testWithDensity() {
   writeFileSync('tmp/fallback-density.xlsx', buffer)
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync('tmp/fallback-density.xlsx'))
-  const ws01 = wb.getWorksheet('01_PERFIL_DEMOGRÁFICO')
+  const ws01 = wb.getWorksheet('01_DEMOGRAFÍA')
   let hasDensity = false
   ws01?.eachRow((row) => {
     const v = row.getCell(1).value
@@ -258,7 +285,7 @@ async function testBlockThrowDoesNotBreakWorkbook() {
     ...buildDemografiaTables(demoProfile() as never),
   ]
   const economia = buildEconomiaTables(ecoProfile() as never)
-  const hojas: ComparativeSheetInput[] = [
+  const hojas: LegacyComparativeSheetInput[] = [
     { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil', bloques: demografia },
     { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Economía', bloques: economia },
   ]
@@ -270,8 +297,8 @@ async function testBlockThrowDoesNotBreakWorkbook() {
   check('XLSX válido a pesar de bloque malo', buffer.length > 0 && buffer[0] === 0x50 && buffer[1] === 0x4b)
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(buffer)
-  check('9 hojas presentes', wb.worksheets.length === 9)
-  check('Hoja 01 existe', !!wb.getWorksheet('01_PERFIL_DEMOGRÁFICO'))
+  check(`${SHEET_COUNT} hojas presentes`, wb.worksheets.length === SHEET_COUNT)
+  check('Hoja 01 existe', !!wb.getWorksheet('01_DEMOGRAFÍA'))
 }
 
 async function testSheetThrowDoesNotBreakWorkbook() {
@@ -280,7 +307,7 @@ async function testSheetThrowDoesNotBreakWorkbook() {
   // Esto no debería pasar en producción, pero verificamos la resiliencia
   const demografia = buildDemografiaTables(demoProfile() as never)
   const economia = buildEconomiaTables(ecoProfile() as never)
-  const hojas: ComparativeSheetInput[] = [
+  const hojas: LegacyComparativeSheetInput[] = [
     { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil', bloques: demografia },
     { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Economía', bloques: economia },
   ]
@@ -300,11 +327,11 @@ async function testAllLayersFailGracefully() {
   check('XLSX válido sin ninguna capa lateral', buffer.length > 0 && buffer[0] === 0x50 && buffer[1] === 0x4b)
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(buffer)
-  check('9 hojas presentes', wb.worksheets.length === 9)
-  check('Hoja 01 existe', !!wb.getWorksheet('01_PERFIL_DEMOGRÁFICO'))
-  check('Hoja 03 existe', !!wb.getWorksheet('03_CONTEXTO_ECONÓMICO'))
-  check('Hoja 04 existe', !!wb.getWorksheet('04_CONTEXTO_SOCIOCULTURAL'))
-  check('Hoja 08 existe', !!wb.getWorksheet('08_CRITERIOS_Y_FUENTES'))
+  check(`${SHEET_COUNT} hojas presentes`, wb.worksheets.length === SHEET_COUNT)
+  check('Hoja 01 existe', !!wb.getWorksheet('01_DEMOGRAFÍA'))
+  check('Hoja 03 existe', !!wb.getWorksheet('03_ECONOMÍA_Y_EMPLEO'))
+  check('Hoja 05 existe', !!wb.getWorksheet('05_SOCIAL_EDUCACIÓN_SERVICIOS'))
+  check('Hoja 10 existe', !!wb.getWorksheet('10_METODOLOGÍA_FUENTES'))
 }
 
 // ---------- Filename sanitization tests ----------

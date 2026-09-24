@@ -2,16 +2,22 @@
 // Nivel librería (sin servidor ni credenciales): construye el libro con datos
 // sintéticos para los cuatro municipios de prueba y lo relee con ExcelJS.
 //
+// Contrato `socideas-book@2` (11 hojas): freeze panes, tablas con filtro,
+// navegación interna y fusiones de título/fuente/nota son parte del contrato; el
+// tope de columna es 42 (el control "el enlace no altera anchos vs. control" del
+// contrato v1 ya no aplica porque los anchos se planifican de forma unificada).
+//
 // Falla (exit 1) si:
 //  - falta un hipervínculo en una tabla con fuente pública atribuible;
-//  - el enlace no tiene texto visible o la URL no es https;
+//  - el enlace no tiene el texto visible SOURCE_LINK_LABEL o la URL no es https;
 //  - el dominio no está en el allowlist oficial;
 //  - hay URL R2/Supabase/Vercel/Cloudflare/localhost/GitHub o CSV masivo;
 //  - el enlace cae fuera del rango real del bloque o pisa una celda fusionada;
-//  - la fuente o el enlace ensanchan columnas de datos;
-//  - hay fill verde fuera del rango real;
-//  - no se generan exactamente nueve hojas en orden contractual o hay extras;
-//  - se usan autofilter, freeze panes, macros, ActiveX o VBA;
+//  - una columna de datos supera el tope 42;
+//  - hay fill de cabecera fuera del rango real;
+//  - no se generan exactamente 11 hojas en orden contractual o hay extras;
+//  - faltan freeze, autofilter/tabla, enlaces internos o fusiones;
+//  - se usan macros, ActiveX o VBA;
 //  - un suprimido se serializa como 0 (salvo conteos reales de pirámide);
 //  - los formatos/alineaciones por rol cambian.
 //
@@ -23,11 +29,12 @@ import { writeFileSync, readFileSync } from 'node:fs'
 import {
   buildDemografiaTables,
   buildEconomiaTables,
-  SOCIDEAS_SHEET_IDS,
   type ExportTable,
 } from '../src/lib/socideas-export'
 import { buildDemographicDimensionTables } from '../src/lib/socideas-demographic-export'
-import { buildMunicipioWorkbook, SOURCE_LINK_LABEL, type ComparativeSheetInput } from '../src/lib/socideas-xlsx'
+import { buildMunicipioWorkbook, SOURCE_LINK_LABEL, type LegacyComparativeSheetInput } from '../src/lib/socideas-xlsx'
+import { SOCIDEAS_BOOK_SHEET_IDS } from '../src/lib/socideas-book-contract'
+import { MAX_ALLOWED_COLUMN_WIDTH } from './xlsx-layout-assert'
 import {
   AEAT_EDM_IRPF,
   SOCIDEAS_SOURCE_REGISTRY,
@@ -36,7 +43,7 @@ import {
 import type { IndicatorValue } from '../src/lib/socideas'
 import type { DemographicPresentationData } from '../src/lib/socideas-demographic-summary'
 
-const MAIN_SHEETS = [...SOCIDEAS_SHEET_IDS]
+const MAIN_SHEETS = [...SOCIDEAS_BOOK_SHEET_IDS]
 const EXPORT_DIR = 'tmp'
 
 let failures = 0
@@ -71,6 +78,9 @@ function cellHyperlink(cell: ExcelJS.Cell): string | null {
 
 const fillOf = (c: ExcelJS.Cell): string | undefined =>
   (c.fill as ExcelJS.FillPattern)?.fgColor?.argb
+/** Cabecera de tabla del contrato v2 (relleno Crisopa). */
+const isHeaderCell = (c: ExcelJS.Cell): boolean => fillOf(c) === 'FFC2E189'
+/** Título de bloque (relleno Musgo): marca el fin de las filas de datos. */
 const isGreen = (c: ExcelJS.Cell): boolean => fillOf(c) === 'FF3E665C'
 
 // ---------- Datos sintéticos ----------
@@ -432,17 +442,13 @@ interface Built {
   ecoTables: ExportTable[]
 }
 
-function stripSources(tables: ExportTable[]): ExportTable[] {
-  return tables.map((t) => ({ ...t, source: undefined }))
-}
-
 async function buildScenario(s: Scenario): Promise<Built> {
   const demografia = [
     ...buildDemografiaTables(s.demo as never),
     ...buildDemographicDimensionTables(s.dims),
   ]
   const economia = buildEconomiaTables(s.eco as never)
-  const hojas: ComparativeSheetInput[] = [
+  const hojas: LegacyComparativeSheetInput[] = [
     { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil demográfico', bloques: demografia },
     { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Contexto económico', bloques: economia },
   ]
@@ -458,6 +464,13 @@ async function buildScenario(s: Scenario): Promise<Built> {
   return { file: `${EXPORT_DIR}/xlsx-source-links-${s.ine}.xlsx`, buffer, tables: demografia, ecoTables: economia }
 }
 
+/** Bloques que el escritor debe enlazar: fuente allowlist y ≥2 columnas (si no,
+ *  no hay celda de enlace por diseño). */
+function expectedLinkCount(built: Built): number {
+  return [...built.tables, ...built.ecoTables]
+    .filter((t) => t.columnas.length >= 2 && t.source && isAllowedSourceUrl(t.source.publicUrl)).length
+}
+
 async function analyze(s: Scenario, built: Built): Promise<void> {
   console.log(`\n=== ${s.ine} (${s.nombre}) ===`)
   writeFileSync(built.file, built.buffer)
@@ -466,34 +479,14 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync(built.file))
   const names = wb.worksheets.map((w) => w.name)
-  check('nueve hojas en orden contractual', JSON.stringify(names) === JSON.stringify(MAIN_SHEETS), names.join(','))
+  check('11 hojas en orden contractual (socideas-book@2)', JSON.stringify(names) === JSON.stringify(MAIN_SHEETS), names.join(','))
   check('sin hojas adicionales', names.length === MAIN_SHEETS.length)
 
-  // Control sin fuentes para probar que la procedencia no altera anchos.
-  const controlBuffer = await (async () => {
-    const demografia = stripSources([...buildDemografiaTables(s.demo as never), ...buildDemographicDimensionTables(s.dims)])
-    const economia = stripSources(buildEconomiaTables(s.eco as never))
-    const hojas: ComparativeSheetInput[] = [
-      { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil demográfico', bloques: demografia },
-      { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Contexto económico', bloques: economia },
-    ]
-    return buildMunicipioWorkbook({
-      municipio: s.nombre, codigoINE: s.ine, provincia: 'Provincia Test',
-      comunidadAutonoma: 'CCAA Test', fechaGeneracion: '2026-09-11',
-      hojas,
-      ineLayers: null,
-    })
-  })()
-  const wbControl = new ExcelJS.Workbook()
-  await wbControl.xlsx.load(controlBuffer)
-
-  let frozen = false
-  let filtered = false
-  let internalLinks = 0
-  let greenOutside = 0
+  let frozenSheets = 0
+  let filterOrTableSheets = 0
+  let headerOutside = 0
   let mergedCells = 0
   let withLink = 0
-  let missingLink = 0
   const linkUrls: string[] = []
   const dimUrls = { '68535': false, '66322': false, '68540': false }
   const textProblems: string[] = []
@@ -501,14 +494,23 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
   const widthProblems: string[] = []
   const alignProblems: string[] = []
   const zeroProblems: string[] = []
-  const expectedBlocks = { '01_PERFIL_DEMOGRÁFICO': built.tables.length, '03_CONTEXTO_ECONÓMICO': built.ecoTables.length }
+  const expectedBlocks: Record<string, number> = {
+    '01_DEMOGRAFÍA': built.tables.length,
+    '03_ECONOMÍA_Y_EMPLEO': built.ecoTables.length,
+    '02_POLÍTICA': 1,
+    '04_AGRARIO': 1,
+    '05_SOCIAL_EDUCACIÓN_SERVICIOS': 1,
+    '06_VIVIENDA_Y_HOGARES': 1,
+    '07_PATRIMONIO_TURISMO': 1,
+    '08_INFRAESTRUCTURA_RECURSOS': 1,
+    '09_ASOCIACIONES_GOBERNANZA': 1,
+    '10_METODOLOGÍA_FUENTES': 1,
+  }
 
   for (const ws of wb.worksheets) {
-    for (const v of ws.views ?? []) {
-      if (v.state === 'frozen' || v.xSplit || v.ySplit) frozen = true
-    }
-    if (ws.autoFilter) filtered = true
-    if (ws.name === '00_Resumen') continue
+    if ((ws.views ?? []).some((v) => v.state === 'frozen' || v.xSplit || v.ySplit)) frozenSheets += 1
+    if (ws.autoFilter || ws.getTables().length > 0) filterOrTableSheets += 1
+    if (ws.name === '00_RESUMEN') continue
 
     let detectedBlocks = 0
     ws.eachRow((row, rn) => {
@@ -518,16 +520,16 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
         const headerRow = ws.getRow(rn + 1)
         let nCols = 0
         for (let ci = 1; ci <= ws.columnCount; ci += 1) {
-          if (isGreen(headerRow.getCell(ci))) nCols = ci
+          if (isHeaderCell(headerRow.getCell(ci))) nCols = ci
           else break
         }
-        // Fill verde fuera del rango real.
+        // Fill de cabecera fuera del rango real del bloque.
         for (let ci = nCols + 1; ci <= ws.columnCount; ci += 1) {
-          if (isGreen(headerRow.getCell(ci))) greenOutside += 1
+          if (isHeaderCell(headerRow.getCell(ci))) headerOutside += 1
         }
-        // Bloques sin cabecera tabular (notas pendientes): sin enlace por diseño.
+        // Bloques sin cabecera tabular: sin enlace por diseño.
         const isNoteBlock = nCols < 2
-        // Localiza enlace en la fila de fuente.
+        // Localiza el enlace en la fila de fuente (última columna del bloque).
         let linkCol = -1
         let linkUrl: string | null = null
         for (let ci = 1; ci <= ws.columnCount; ci += 1) {
@@ -537,16 +539,11 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
             linkUrl = l
           }
         }
-        if (!linkUrl && !isNoteBlock) {
-          missingLink += 1
-          linkProblems.push(`${ws.name} R${rn}: fuente sin enlace`)
-          return
-        }
         if (linkUrl) {
           withLink += 1
           linkUrls.push(linkUrl)
-          // Texto visible corto y sin URL.
-          const linkText = cellText(row.getCell(nCols || 1))
+          // Texto visible obligatorio del enlace de procedencia, sin URL visible.
+          const linkText = cellText(row.getCell(linkCol))
           if (linkText !== SOURCE_LINK_LABEL) {
             textProblems.push(`${ws.name} R${rn}: texto enlace "${linkText}"`)
           }
@@ -555,7 +552,7 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
           if (!linkUrl.startsWith('https://')) linkProblems.push(`${ws.name} R${rn}: no https (${linkUrl})`)
           if (!isAllowedSourceUrl(linkUrl)) linkProblems.push(`${ws.name} R${rn}: dominio no autorizado (${linkUrl})`)
           if (/\.csv(\?|$)/i.test(linkUrl)) linkProblems.push(`${ws.name} R${rn}: CSV masivo (${linkUrl})`)
-          // Enlace dentro del rango real y no en celda fusionada.
+          // Enlace dentro del rango real del bloque y fuera de celdas fusionadas.
           if (nCols < 2 || linkCol > nCols) linkProblems.push(`${ws.name} R${rn}: enlace C${linkCol} fuera de rango (nCols ${nCols})`)
           if (row.getCell(linkCol).isMerged) linkProblems.push(`${ws.name} R${rn}: enlace en celda fusionada`)
           for (const key of Object.keys(dimUrls) as (keyof typeof dimUrls)[]) {
@@ -571,9 +568,7 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
           const firstData = cellText(dr.getCell(1))
           if (firstData === '') break
           if (isGreen(dr.getCell(1))) break
-          // Detección de fila de nota: si la primera celda contiene texto largo
-          // en cursiva y no es numérica, es fila de nota metodológica y no se
-          // valida su alineación por rol.
+          // Fila de nota metodológica (fondo Hueso): no se valida su alineación.
           const isNoteRow = (() => {
             const v = dr.getCell(1).value
             if (typeof v === 'number') return false
@@ -584,7 +579,7 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
           for (let ci = 1; ci <= nCols; ci += 1) {
             const cell = dr.getCell(ci)
             const h = cellText(headerRow.getCell(ci))
-            const exp = h === 'Año' ? 'center' : ci === 1 ? 'left' : 'right'
+            const exp = h === 'Año' || h === 'Período' ? 'center' : ci === 1 ? 'left' : 'right'
             if (typeof cell.value === 'number' && cell.alignment?.horizontal !== exp) {
               alignProblems.push(`${ws.name} R${r}C${ci} ${cell.alignment?.horizontal ?? '?'}≠${exp}`)
             }
@@ -595,55 +590,47 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
         }
       }
     })
-    const expected = expectedBlocks[ws.name as keyof typeof expectedBlocks]
+    const expected = expectedBlocks[ws.name]
     if (expected !== undefined) {
       check(`${ws.name}: ${expected} bloques con procedencia`, detectedBlocks === expected, `${detectedBlocks}`)
     }
-    // Anchos: Año = 10, tope 24, y sin cambios respecto al control.
-    // Las hojas meta (00_PROYECTO y 08_CRITERIOS_Y_FUENTES) usan tablas de 2/4
-    // columnas sin series anuales; la regla de Año=10 no aplica.
-    const isMetaSheet = ws.name === '00_PROYECTO' || ws.name === '08_CRITERIOS_Y_FUENTES'
-    const ctrl = wbControl.getWorksheet(ws.name)
+    // Anchos: tope contractual 42 (el v1 imponía 24 y "Año = 10"; en v2 la
+    // columna A es unificada y el autoajuste consciente de Poppins decide).
     for (let ci = 1; ci <= ws.columnCount; ci += 1) {
       const w = ws.getColumn(ci).width ?? 0
-      const cw = ctrl?.getColumn(ci).width ?? 0
-      if (w > 24) widthProblems.push(`${ws.name} C${ci}=${w}`)
-      if (!isMetaSheet && Math.abs(w - cw) > 0.001) {
-        widthProblems.push(`${ws.name} C${ci} fuente altera ancho ${cw}→${w}`)
-      }
+      if (w > MAX_ALLOWED_COLUMN_WIDTH + 0.01) widthProblems.push(`${ws.name} C${ci}=${w}`)
     }
-    ws.eachRow((row) => {
-      row.eachCell((cell, cn) => {
-        if (cellText(cell) === 'Año') {
-          const w = ws.getColumn(cn).width ?? 0
-          if (w !== 10) widthProblems.push(`${ws.name} Año C${cn}=${w}`)
-        }
-      })
-    })
   }
 
-  // Enlaces internos y celdas fusionadas.
+  // Fusiones (contrato v2: títulos/fuente/notas fusionados).
   for (const ws of wb.worksheets) {
     ws.eachRow((row) => {
       row.eachCell((cell) => {
-        const l = cellHyperlink(cell)
-        if (l && l.startsWith('#')) internalLinks += 1
         if (cell.isMerged) mergedCells += 1
       })
     })
   }
 
-  // Macros/ActiveX/VBA en el contenedor OOXML.
+  // Macros/ActiveX/VBA y enlaces internos (solo visibles en el XML).
   const zip = await JSZip.loadAsync(built.buffer)
   const macroEntries = Object.keys(zip.files).filter((f) => /vbaProject|activeX|macrosheet/i.test(f))
   const hasVba = Object.keys(zip.files).some((f) => f.toLowerCase().endsWith('.bin'))
+  let internalLinks = 0
+  for (const file of Object.keys(zip.files).filter((f) => /^xl\/worksheets\/sheet\d+\.xml$/.test(f))) {
+    const xml = (await zip.file(file)?.async('string')) ?? ''
+    internalLinks += (xml.match(/location="/g) ?? []).length
+  }
 
-  check('sin freeze panes', !frozen)
-  check('sin autofilter', !filtered)
-  check('sin enlaces internos', internalLinks === 0, `${internalLinks}`)
-  check('sin celdas fusionadas', mergedCells === 0, `${mergedCells}`)
+  check('freeze panes en TODAS las hojas', frozenSheets === MAIN_SHEETS.length, `${frozenSheets}/${MAIN_SHEETS.length}`)
+  check('autofilter o tabla nativa en cada hoja', filterOrTableSheets === MAIN_SHEETS.length, `${filterOrTableSheets}/${MAIN_SHEETS.length}`)
+  check('enlaces internos de navegación ≥8', internalLinks >= 8, `${internalLinks}`)
+  check('fusiones de título/fuente/nota presentes', mergedCells > 0, `${mergedCells}`)
   check('sin macros/ActiveX/VBA', macroEntries.length === 0 && !hasVba, macroEntries.join(','))
-  check('toda fuente atribuible tiene enlace', missingLink === 0 && withLink > 0, `${withLink} enlaces / ${missingLink} sin`)
+  check(
+    `toda fuente atribuible tiene enlace (${expectedLinkCount(built)})`,
+    withLink === expectedLinkCount(built),
+    `${withLink} enlaces`,
+  )
   check('texto visible de enlace', textProblems.length === 0, textProblems.slice(0, 2).join(' | '))
   check('URL https y dominio permitido', linkProblems.length === 0, linkProblems.slice(0, 3).join(' | '))
   check('sin URL técnica visible', textProblems.length === 0)
@@ -653,9 +640,8 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
   check('Lugar de nacimiento → INE 66322 (si el municipio publica)', dimUrls['66322'] || built.tables.length === 0 || true)
   check('Arraigo territorial → INE 68540 (si el municipio publica)', dimUrls['68540'] || built.tables.length === 0 || true)
   check('enlaces dentro del rango real del bloque', linkProblems.length === 0)
-  check('sin barra verde sobrante', greenOutside === 0, `${greenOutside}`)
-  check('sin columnas extra', widthProblems.length === 0, widthProblems.slice(0, 3).join(' | '))
-  check('anchos intactos (Año=10, tope 24, sin efecto de fuente)', widthProblems.length === 0)
+  check('sin barra de cabecera sobrante', headerOutside === 0, `${headerOutside}`)
+  check('sin columnas >42', widthProblems.length === 0, widthProblems.slice(0, 3).join(' | '))
   check('alineación por rol intacta', alignProblems.length === 0, alignProblems.slice(0, 3).join(' | '))
   check('suprimidos nunca como 0', zeroProblems.length === 0, zeroProblems.slice(0, 3).join(' | '))
 }
@@ -668,7 +654,7 @@ async function main(): Promise<void> {
   }
   console.log(`\n${failures === 0 ? 'OK' : failures} comprobaciones ${failures === 0 ? 'superadas' : 'FALLIDAS'}`)
   if (failures > 0) process.exit(1)
-  console.log('Enlaces de fuente oficial verificados: 9 hojas, dominios autorizados y anchos intactos.')
+  console.log('Enlaces de fuente oficial verificados: 11 hojas, dominios autorizados y tope de columna 42.')
 }
 
 main().catch((e) => {

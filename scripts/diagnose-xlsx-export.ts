@@ -30,16 +30,29 @@ type Stage = {
 }
 
 const ALL_MUNICIPIOS = ['02003', '07010', '02069', '28143']
+// Hojas del contrato `socideas-book@2` (el filtro --sheet= compara contra el
+// destino v2 de cada hoja de entrada v1).
 const SHEET_FLAGS: Record<string, string[]> = {
-  project: ['00_PROYECTO'],
-  demography: ['01_PERFIL_DEMOGRÁFICO'],
-  political: ['02_CONTEXTO_POLÍTICO'],
-  economy: ['03_CONTEXTO_ECONÓMICO'],
-  sociocultural: ['04_CONTEXTO_SOCIOCULTURAL'],
-  heritage: ['05_PATRIMONIO_Y_TURISMO'],
-  infrastructure: ['06_INFRAESTRUCTURA_Y_RECURSOS'],
-  associations: ['07_ASOCIACIONES'],
-  criteria: ['08_CRITERIOS_Y_FUENTES'],
+  project: ['00_RESUMEN'],
+  demography: ['01_DEMOGRAFÍA'],
+  political: ['02_POLÍTICA'],
+  economy: ['03_ECONOMÍA_Y_EMPLEO'],
+  agrarian: ['04_AGRARIO'],
+  services: ['05_SOCIAL_EDUCACIÓN_SERVICIOS'],
+  housing: ['06_VIVIENDA_Y_HOGARES'],
+  heritage: ['07_PATRIMONIO_TURISMO'],
+  infrastructure: ['08_INFRAESTRUCTURA_RECURSOS'],
+  associations: ['09_ASOCIACIONES_GOBERNANZA'],
+  methodology: ['10_METODOLOGÍA_FUENTES'],
+}
+const V1_TO_V2: Record<string, string> = {
+  '01_PERFIL_DEMOGRÁFICO': '01_DEMOGRAFÍA',
+  '02_CONTEXTO_POLÍTICO': '02_POLÍTICA',
+  '03_CONTEXTO_ECONÓMICO': '03_ECONOMÍA_Y_EMPLEO',
+  '04_CONTEXTO_SOCIOCULTURAL': '05_SOCIAL_EDUCACIÓN_SERVICIOS',
+  '05_PATRIMONIO_Y_TURISMO': '07_PATRIMONIO_TURISMO',
+  '06_INFRAESTRUCTURA_Y_RECURSOS': '08_INFRAESTRUCTURA_RECURSOS',
+  '07_ASOCIACIONES': '09_ASOCIACIONES_GOBERNANZA',
 }
 
 function hr(): string { return '-'.repeat(70) }
@@ -179,11 +192,11 @@ async function diagnoseOne(codigoINE: string, sheetFilter?: string): Promise<voi
       { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Contexto económico', bloques: economia },
     ]
 
-    // Si hay filtro de hoja, solo incluir esas
+    // Si hay filtro de hoja, solo incluir las que mapean a la hoja v2 pedida.
     const filteredHojas = sheetFilter
       ? hojas.filter((h) => {
           const allowed = SHEET_FLAGS[sheetFilter]
-          return allowed ? allowed.includes(h.id) : true
+          return allowed ? allowed.includes(V1_TO_V2[h.id] ?? h.id) : true
         })
       : hojas
 
@@ -214,17 +227,13 @@ async function diagnoseOne(codigoINE: string, sheetFilter?: string): Promise<voi
       const names = wb.worksheets.map((w) => w.name)
       s9.detail = `${names.length} sheets: ${names.join(', ')}`
 
-      // Check for errors
-      const hasFreeze = wb.worksheets.some((w) => (w.views ?? []).some((v) => v.state === 'frozen'))
-      const hasFilter = wb.worksheets.some((w) => !!w.autoFilter)
-      const hasMerged = wb.worksheets.some((w) => {
-        let merged = false
-        w.eachRow((row) => { row.eachCell((c) => { if (c.isMerged) merged = true }) })
-        return merged
-      })
-      if (hasFreeze) s9.detail += ' [WARN: freeze panes]'
-      if (hasFilter) s9.detail += ' [WARN: autofilter]'
-      if (hasMerged) s9.detail += ' [WARN: merged cells]'
+      // Rasgos del contrato v2 (informativos, NO incidencias): freeze, filtro o
+      // tabla nativa y fusiones de título/fuente/nota son obligatorios.
+      const freezeSheets = wb.worksheets.filter((w) => (w.views ?? []).some((v) => v.state === 'frozen' || v.ySplit)).length
+      const filterSheets = wb.worksheets.filter((w) => !!w.autoFilter || w.getTables().length > 0).length
+      let merged = 0
+      for (const w of wb.worksheets) w.eachRow((row) => row.eachCell((c) => { if (c.isMerged) merged += 1 }))
+      s9.detail += ` [freeze ${freezeSheets}/${wb.worksheets.length}, filtro/tabla ${filterSheets}, fusiones ${merged}]`
 
       // Save file
       const filename = `tmp/diagnose-${codigoINE}.xlsx`

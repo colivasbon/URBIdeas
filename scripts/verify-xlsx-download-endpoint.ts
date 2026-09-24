@@ -1,7 +1,8 @@
 // Validación del endpoint de exportación XLSX municipal.
 // Nivel librería (sin servidor): genera XLSX con datos sintéticos y valida
-// que el generador produce un archivo válido, con las hojas correctas y
-// sin depender de capas laterales opcionales.
+// que el generador produce un archivo válido, con las 11 hojas del contrato
+// `socideas-book@2` (freeze, filtros/tablas y fusiones incluidos) y sin
+// depender de capas laterales opcionales.
 //
 // Uso: npx tsx scripts/verify-xlsx-download-endpoint.ts
 // Archivos solo en tmp/ (ignorado por git).
@@ -11,10 +12,10 @@ import {
   buildDemografiaTables,
   buildEconomiaTables,
   normalizarMunicipio,
-  SOCIDEAS_SHEET_IDS,
 } from '../src/lib/socideas-export'
 import { buildDemographicDimensionTables } from '../src/lib/socideas-demographic-export'
-import { buildMunicipioWorkbook, type ComparativeSheetInput } from '../src/lib/socideas-xlsx'
+import { buildMunicipioWorkbook, type LegacyComparativeSheetInput } from '../src/lib/socideas-xlsx'
+import { SOCIDEAS_BOOK_SHEET_IDS } from '../src/lib/socideas-book-contract'
 import type { IndicatorValue } from '../src/lib/socideas'
 import type { DemographicPresentationData } from '../src/lib/socideas-demographic-summary'
 
@@ -99,7 +100,7 @@ async function testFullGeneration() {
     ...buildDemographicDimensionTables(dims('2025')),
   ]
   const economia = buildEconomiaTables(ecoProfile(ine, nombre) as never)
-  const hojas: ComparativeSheetInput[] = [
+  const hojas: LegacyComparativeSheetInput[] = [
     { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil demográfico', bloques: demografia },
     { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Contexto económico', bloques: economia },
   ]
@@ -117,13 +118,17 @@ async function testFullGeneration() {
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync('tmp/download-endpoint-02003.xlsx'))
   const names = wb.worksheets.map((w) => w.name)
-  check('nueve hojas en orden contractual', JSON.stringify(names) === JSON.stringify([...SOCIDEAS_SHEET_IDS]), names.join(','))
-  check('sin freeze panes', !wb.worksheets.some((w) => (w.views ?? []).some((v) => v.state === 'frozen')))
-  check('sin autofilter', !wb.worksheets.some((w) => !!w.autoFilter))
-  check('sin celdas fusionadas', !wb.worksheets.some((w) => w.eachRow((row) => { row.eachCell((c) => { if (c.isMerged) throw new Error('merged') }) })))
+  check('11 hojas en orden contractual (socideas-book@2)', JSON.stringify(names) === JSON.stringify([...SOCIDEAS_BOOK_SHEET_IDS]), names.join(','))
+  const frozen = wb.worksheets.filter((w) => (w.views ?? []).some((v) => v.state === 'frozen' || v.ySplit)).length
+  check('freeze panes en todas las hojas', frozen === SOCIDEAS_BOOK_SHEET_IDS.length, `${frozen}/${SOCIDEAS_BOOK_SHEET_IDS.length}`)
+  const conFiltro = wb.worksheets.filter((w) => !!w.autoFilter || w.getTables().length > 0).length
+  check('autofilter o tabla nativa en cada hoja', conFiltro === SOCIDEAS_BOOK_SHEET_IDS.length, `${conFiltro}/${SOCIDEAS_BOOK_SHEET_IDS.length}`)
+  let merges = 0
+  for (const ws of wb.worksheets) ws.eachRow((row) => row.eachCell((c) => { if (c.isMerged) merges += 1 }))
+  check('fusiones de título/fuente/nota presentes', merges > 0, `${merges}`)
 
   // Verificar que el nombre del municipio aparece en la hoja 01.
-  const ws01 = wb.getWorksheet('01_PERFIL_DEMOGRÁFICO')
+  const ws01 = wb.getWorksheet('01_DEMOGRAFÍA')
   const scopeText = ws01?.getRow(2).getCell(1).value
   check('scope line contiene código INE', String(scopeText).includes('02003'), String(scopeText).slice(0, 80))
 
@@ -138,7 +143,7 @@ async function testNoDimensions() {
   console.log('\n=== Test 2: Sin capas dimensionales ===')
   const demografia = buildDemografiaTables(demoProfile('07010', 'Bunyola') as never)
   const economia = buildEconomiaTables(ecoProfile('07010', 'Bunyola') as never)
-  const hojas: ComparativeSheetInput[] = [
+  const hojas: LegacyComparativeSheetInput[] = [
     { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil', bloques: demografia },
     { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Economía', bloques: economia },
   ]
@@ -154,7 +159,7 @@ async function testNoDimensions() {
   writeFileSync('tmp/download-endpoint-07010.xlsx', buffer)
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync('tmp/download-endpoint-07010.xlsx'))
-  check('sin dimensionales: 9 hojas', wb.worksheets.length === 9)
+  check('sin dimensionales: 11 hojas', wb.worksheets.length === SOCIDEAS_BOOK_SHEET_IDS.length)
 }
 
 // ---------- Test 3: Código INE inválido ----------

@@ -1,88 +1,63 @@
-// Libro XLSX municipal SOCideas — SOLO SERVIDOR.
-// Este módulo importa `exceljs` y NUNCA debe importarse desde un Client Component
-// (ni directa ni transitivamente): la dependencia queda fuera del bundle cliente.
+// Libro XLSX municipal SOCideas v2 (`socideas-book@2`) — SOLO SERVIDOR.
+// Este módulo importa `exceljs` y NUNCA debe importarse desde un Client
+// Component: la dependencia queda fuera del bundle cliente.
 //
-// Libro municipal comparativo: EXACTAMENTE nueve hojas en orden contractual,
-// bloques apilados verticalmente, sin hojas detalladas, sin enlaces internos,
-// sin autofilter, sin freeze panes.
+// QUÉ CAMBIA RESPECTO AL LIBRO v1 (auditoría 2026-09-24)
+//   v1: 9 hojas apiladas, 0 fórmulas, 0 gráficos, 0 tablas, 0 filtros, 0
+//       paneles congelados, 124 fusiones, bloques duplicados.
+//   v2: 11 hojas del contrato, índice con hipervínculos internos y retorno,
+//       freeze panes, tablas Excel nativas con filtro, gráficos nativos
+//       (inyectados como OOXML: ExcelJS 4.4 no los soporta), fórmulas
+//       auditables con resultado cacheado, formatos por unidad, configuración
+//       de impresión con encabezados repetidos y pie con fecha/versión.
 //
-// MAQUETACIÓN (v2, sin truncado):
-//  - Autoajuste consciente de Poppins: el ancho de cada columna se calcula con el
-//    contenido real más largo (cabecera + todas las celdas de TODAS las tablas de
-//    la hoja), con un factor que sobreestima ligeramente (Poppins ocupa más que
-//    Calibri) y tope de 38 caracteres. Nunca se impone un ancho menor al necesario.
-//  - Columna A unificada en todo el libro: ancho = máximo necesario entre todas
-//    las etiquetas de todas las tablas. Sustituye el antiguo forzado "Año = 10",
-//    que truncaba las etiquetas de otras tablas de la misma hoja (la columna es
-//    física y compartida). El encabezado "Año" puede por tanto ser más ancho.
-//  - Títulos de sección y de bloque fusionados a lo ancho real de su tabla, con
-//    altura calculada: nunca se cortan.
-//  - Línea de fuente fusionada a todo el ancho del bloque (menos la celda del
-//    enlace), con wrap y altura calculados.
-//  - Notas metodológicas y criterios fusionados a lo ancho de la tabla, con
-//    altura calculada. Ninguna celda de texto largo comparte fila visual con otra
-//    celda sin fusión explícita.
-//  - wrapText SOLO donde de verdad hace falta (texto que no cabe al ancho final);
-//    las etiquetas cortas se ensanchan en su lugar.
-// Tipografía: Poppins en todas las celdas (título 14 > header sección 12 >
-// cabecera 11 bold > dato 11). NOTA: si el lector no tiene Poppins instalada,
-// Excel/LibreOffice la sustituye por la fuente del sistema (limitación del formato).
+// MAQUETACIÓN
+//   - Autoajuste consciente de Poppins (factor 1.2) con tope 42 caracteres.
+//   - Título de hoja (fila 1) y línea de ámbito (fila 2), congeladas.
+//   - Bloques apilados: título (Musgo), fuente/período/ámbito/estado (con
+//     enlace oficial solo si el host está en la allowlist), cabecera (Crisopa),
+//     datos, nota metodológica.
+//   - ND = badge Crisopa con texto "ND"; jamás un 0 sustituto.
+//
+// SINCRONÍA CON LOS DATOS
+//   El escritor no decide contenido: recibe `SocideasBookV2` ya ensamblado por
+//   `assembleSocideasBookV2` (bloques + indicadores + checks + cobertura) y solo
+//   lo maqueta. Los gráficos se resuelven desde la posición real del bloque,
+//   por lo que no pueden desincronizarse de la tabla.
+
 import ExcelJS from 'exceljs'
+import JSZip from 'jszip'
+import type { ExportCell, ExportTable } from './socideas-export'
+import type { MunicipalIneLayersV1 } from './socideas-ine-layers'
 import {
-  SOCIDEAS_SHEET_IDS,
-  type ComparisonMode,
-  type ExportCell,
-  type ExportTable,
-  type SocideasSheetId,
-} from './socideas-export'
+  SOCIDEAS_BOOK_SCHEMA,
+  SOCIDEAS_BOOK_SHEETS,
+  type BookSheetId,
+  type BookSheetV2,
+  type BookTableV2,
+} from './socideas-book-contract'
+import type { SocideasBookV2 } from './socideas-book-blocks'
+import { injectNativeCharts, type ChartSpec } from './socideas-xlsx-charts'
 import {
-  AEAT_EDM_IRPF,
   INE_INSTITUTION,
   isAllowedSourceUrl,
-  registrySource,
   visibleSourceLabel,
-  type SourceReference,
 } from './socideas-source-registry'
-import { coverageGlossaryEntries } from './socideas-indicator-catalog'
-import { isConprelUiEnabled } from './conprel-flag'
-import {
-  CONPREL_FUENTE_08_OPERACION,
-  CONPREL_FUENTE_08_PERIODO,
-} from './conprel-textos'
-import { CONPREL_PPTO_2025 } from './conprel-contracts'
-import {
-  buildCentrosEducativosTable,
-  buildDemographicDerivedLayerTable,
-  buildDensidadTable,
-    buildMovilidadMigratoriaTable,
-    buildSaldosMigratoriosTables,
-  buildNivelEducativoTable,
-} from './socideas-ine-layers-export'
-import type { MunicipalIneLayersV1 } from './socideas-ine-layers'
 
 export const XLSX_BRAND = 'Ideas Sostenibilidad - SOCideas - Libro municipal comparativo'
 
 /** Texto visible obligatorio del enlace de procedencia. */
 export const SOURCE_LINK_LABEL = 'Ver ficha oficial ↗'
+/** Texto visible del enlace de navegación interna. */
+export const BACK_TO_INDEX_LABEL = 'Volver al resumen'
 
-/** Paleta SOCideas (rebranding): SOLO estos tokens en el libro.
- *  - Musgo #3E665C: headers de sección (texto Hueso).
- *  - Conífera #86B73D: enlaces (bold + subrayado, nunca como fondo).
- *  - Retama #FBE122: SOLO sobre oscuro, NUNCA sobre claro (no se usa: no hay fondos oscuros salvo Musgo).
- *  - Carbón #3C403E: texto sobre claro.
- *  - Hueso #F1F1F1: fondo de celdas de datos.
- *  - Rupestre #643335: SOLO alertas reales con texto Hueso; un ND jamás es alerta.
- *  - Limo #B0BDB0: bordes finos.
- *  - Crisopa #C2E189: badges ND/missing (texto Carbón) y cabeceras de columna.
- *  CERO gradientes: ExcelJS solo usa `pattern: 'solid'` en este libro. */
+/** Paleta SOCideas (solo estos tokens en el libro). */
 const MUSGO = 'FF3E665C'
 const CONIFERA = 'FF86B73D'
 const HUESO = 'FFF1F1F1'
 const CARBON = 'FF3C403E'
 const LIMO = 'FFB0BDB0'
 const CRISOPA = 'FFC2E189'
-/** Tokens reservados y documentados (Retama nunca sobre claro, Rupestre solo
- *  alerta real). Se exportan para evitar usos ad hoc fuera de paleta. */
 export const XLSX_PALETTE = {
   musgo: MUSGO,
   conifera: CONIFERA,
@@ -93,52 +68,34 @@ export const XLSX_PALETTE = {
   limo: LIMO,
   crisopa: CRISOPA,
 } as const
+
 const FONT_NAME = 'Poppins'
-
-// ============================================================================
-// Métricas de texto y anchos (autoajuste consciente de Poppins)
-// ============================================================================
-
-/** Tope de ancho por columna: cotas razonables sin truncar (el texto que no
- *  quepa se envuelve, nunca se recorta). */
-const MAX_COL_WIDTH = 38
-/** Ancho mínimo de una columna de datos. */
+const MAX_COL_WIDTH = 42
 const MIN_COL_WIDTH = 10
-/** Ancho mínimo de la columna A unificada (etiquetas legibles aunque el libro
- *  solo tenga etiquetas cortas). */
-const MIN_COL_A_WIDTH = 22
-/** Hojas sin tabla de datos (bloques pendientes): número de columnas sobre el
- *  que se despliegan título, fuente y nota. Evita que el texto quede comprimido
- *  en una única columna estrecha (el defecto visual detectado). */
-const NOTE_SPAN_COLS = 4
-/** Ancho de las columnas de relleno en hojas sin tabla (dan aire al texto
- *  fusionado de los bloques pendientes). */
-const NOTE_SPAN_COL_WIDTH = 26
-/** Poppins es más ancha que Calibri (unidad de ancho de Excel ≈ carácter de la
- *  fuente por defecto). Este factor SOBREESTIMA a propósito: preferimos columnas
- *  un poco anchas antes que texto cortado. */
+const MIN_COL_A_WIDTH = 26
 const POPPINS_CHAR_FACTOR = 1.2
-/** Colchón en caracteres de ancho por columna. */
 const CELL_WIDTH_PADDING = 2
-/** Altura de línea (puntos) por tamaño: 14 = título de hoja, 12 = título de
- *  sección, 11 = dato/cabecera, 10 = fuente/nota. */
 const LINE_HEIGHT_BODY = 16
 const LINE_HEIGHT_SMALL = 14
-const LINE_HEIGHT_TITLE = 18
-const LINE_HEIGHT_SECTION = 16
+const LINE_HEIGHT_TITLE = 20
+const LINE_HEIGHT_SECTION = 18
+const CHART_COL_WIDTH = 12
+const CHART_SPAN_COLS = 9
+const MAX_CHARTS_PER_SHEET = 2
 
-/** Ancho natural (en unidades Excel) que necesita un texto con Poppins. */
+// ============================================================================
+// Métricas de texto y anchos
+// ============================================================================
+
 function naturalTextWidth(text: string): number {
   const longest = text.split('\n').reduce((max, line) => Math.max(max, line.length), 0)
   return longest * POPPINS_CHAR_FACTOR + CELL_WIDTH_PADDING
 }
 
-/** Caracteres que caben en una línea de ancho `width` (mínimo 1). */
 function charsPerLine(width: number): number {
   return Math.max(1, (width - CELL_WIDTH_PADDING) / POPPINS_CHAR_FACTOR)
 }
 
-/** Número de líneas que ocupa `text` envuelto en una columna de ancho `width`. */
 function wrappedLines(text: string, width: number): number {
   if (text.length === 0) return 1
   const per = charsPerLine(width)
@@ -147,48 +104,46 @@ function wrappedLines(text: string, width: number): number {
     .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / per)), 0)
 }
 
-/** Ancho final de columna a partir de su contenido natural (con tope). */
 function clampWidth(needed: number): number {
   return Math.round(Math.min(MAX_COL_WIDTH, Math.max(MIN_COL_WIDTH, needed)))
 }
 
-/** Suma de anchos de un tramo de columnas [from, to) (0-based, exclusivo). */
 function sumWidths(widths: number[], from: number, to: number): number {
   let total = 0
   for (let i = from; i < to; i += 1) total += widths[i] ?? MIN_COL_WIDTH
   return total
 }
 
+export function colLetter(n: number): string {
+  let s = ''
+  let x = n
+  while (x > 0) {
+    const rem = (x - 1) % 26
+    s = String.fromCharCode(65 + rem) + s
+    x = Math.floor((x - 1) / 26)
+  }
+  return s
+}
+
 // ============================================================================
-// Utilidades de pintado
+// Pintado
 // ============================================================================
 
-/** Borde fino Limo (único borde permitido en datos y cabeceras). */
 function thinLimoBorders() {
   const side = { style: 'thin' as const, color: { argb: LIMO } }
   return { top: side, left: side, bottom: side, right: side }
 }
 
-/** Un ND (texto exacto, sin numérico) es missing: badge Crisopa/Carbón.
- *  Rupestre queda reservado a alertas reales (este libro no genera ninguna). */
-function isBadgeText(text: string, numeric: number | null): boolean {
-  return numeric === null && text === 'ND'
-}
-
-/** Rellena SOLO las celdas 1..nCols: jamás filas enteras ni celdas vacías. */
 function band(row: ExcelJS.Row, nCols: number, fill: string): void {
   for (let i = 1; i <= nCols; i += 1) {
     row.getCell(i).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }
   }
 }
 
-/** Fusiona si hay más de una columna (ExcelJS rechaza/ no aporta con rango 1x1). */
 function mergeRow(ws: ExcelJS.Worksheet, rowN: number, nCols: number): void {
   if (nCols > 1) ws.mergeCells(rowN, 1, rowN, nCols)
 }
 
-/** Banda de título (header de sección): fondo Musgo, texto Hueso, fusionado a lo
- *  ancho real y con altura calculada para que NUNCA se corte. */
 function paintTitle(
   ws: ExcelJS.Worksheet,
   rowN: number,
@@ -200,8 +155,7 @@ function paintTitle(
   const row = ws.getRow(rowN)
   const mergedWidth = sumWidths(widths, 0, nCols)
   const lines = wrappedLines(text, mergedWidth)
-  const lineHeight = size >= 14 ? LINE_HEIGHT_TITLE : LINE_HEIGHT_SECTION
-  row.height = Math.max(size >= 14 ? 28 : 24, lines * lineHeight)
+  row.height = Math.max(size >= 14 ? 30 : 24, lines * (size >= 14 ? LINE_HEIGHT_TITLE : LINE_HEIGHT_SECTION))
   mergeRow(ws, rowN, nCols)
   const c = row.getCell(1)
   c.value = text
@@ -209,7 +163,6 @@ function paintTitle(
   c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: lines > 1 }
   c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUSGO } }
   c.border = { bottom: { style: 'thin', color: { argb: CONIFERA } } }
-  // Extender formato a celdas fusionadas (ExcelJS requiere aplicar a cada celda)
   for (let i = 2; i <= nCols; i += 1) {
     const cc = row.getCell(i)
     cc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUSGO } }
@@ -218,24 +171,19 @@ function paintTitle(
   }
 }
 
-/** Línea de procedencia: texto gris pequeño fusionado a todo el ancho del bloque
- *  (menos la última columna) y, si existe fuente pública atribuible, un enlace
- *  discreto en la última columna. Altura calculada: nunca se corta ni invade. */
+/** Línea de procedencia: fuente · período · ámbito · estado + enlace si procede. */
 function paintSourceLine(
   ws: ExcelJS.Worksheet,
   rowN: number,
   widths: number[],
   nCols: number,
-  source: SourceReference | null | undefined,
-  fuente: string,
-  periodo: string,
+  block: BookTableV2,
 ): void {
   const row = ws.getRow(rowN)
-  const text = visibleSourceLabel(source, fuente, periodo)
-  const url = source?.publicUrl
+  const base = visibleSourceLabel(block.source, block.fuente, block.periodo)
+  const text = `${base} · Ámbito: ${block.cobertura} · Estado: ${block.estado}`
+  const url = block.source?.publicUrl
   const hasLink = nCols >= 2 && typeof url === 'string' && isAllowedSourceUrl(url)
-  // Con enlace, el texto deja la última columna para el enlace; sin enlace, el
-  // texto ocupa TODO el ancho del bloque (antes quedaba un hueco sin borde).
   const textCols = hasLink ? Math.max(1, nCols - 1) : nCols
   const textWidth = sumWidths(widths, 0, textCols)
   const lines = wrappedLines(text, textWidth)
@@ -249,48 +197,54 @@ function paintSourceLine(
   for (let i = 1; i <= nCols; i += 1) {
     row.getCell(i).border = { bottom: { style: 'thin', color: { argb: LIMO } } }
   }
-
   if (!hasLink) return
-
   const link = row.getCell(nCols)
   link.value = {
     text: SOURCE_LINK_LABEL,
-    hyperlink: url,
-    tooltip: `Abrir fuente oficial: ${source?.shortLabel ?? ''}`,
+    hyperlink: url as string,
+    tooltip: `Abrir fuente oficial: ${block.source?.shortLabel ?? ''}`,
   }
   link.font = { name: FONT_NAME, size: 10, bold: true, underline: true, color: { argb: CONIFERA } }
   link.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HUESO } }
   link.border = thinLimoBorders()
-  link.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false, shrinkToFit: false }
+  link.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false }
 }
 
-function numFmtFor(header: string): string | null {
-  if (header === 'Año') return '0'
-  if (header.includes('€')) return '#,##0 "€"'
+/** Formato numérico por cabecera y valor (años enteros sin separador, % 1
+ *  decimal, moneda y hectáreas con separador de miles). */
+export function numFmtFor(header: string, value: number): string {
+  const dec = Number.isInteger(value) ? 0 : 1
+  // Columnas de representación de la pirámide: el signo negativo es solo para
+  // el gráfico; al lector se le muestra la magnitud absoluta.
+  if (header.toLowerCase().includes('representación')) return '0;0'
+  if (header === 'Año' || header === 'Período') return '@'
   if (header.includes('%')) return '0.0" %"'
-  if (header === 'hab./km²' || header.includes('hab./km²')) return '#,##0.0" hab./km²"'
-  return '#,##0'
+  if (header.includes('€')) return dec === 0 ? '#,##0 "€"' : '#,##0.00 "€"'
+  if (header.includes('hab./km²')) return '#,##0.0" hab./km²"'
+  if (header.includes('(ha)')) return dec === 0 ? '#,##0' : '#,##0.00'
+  if (header.includes('m²')) return dec === 0 ? '#,##0' : '#,##0.0'
+  if (header.includes('(km)')) return '#,##0.0'
+  if (header.includes('años')) return dec === 0 ? '#,##0' : '#,##0.0'
+  return dec === 0 ? '#,##0' : '#,##0.00'
 }
 
-/** Texto izquierda, año centro, números derecha. Encabezado igual que celdas. */
 export function cellAlign(header: string, isFirst: boolean): 'left' | 'center' | 'right' {
-  if (header === 'Año') return 'center'
+  if (header === 'Año' || header === 'Período') return 'center'
   if (isFirst) return 'left'
   return 'right'
 }
 
-/** Cabecera de columna: fondo Crisopa, texto Carbón, bordes finos Limo. Altura
- *  calculada por si alguna cabecera necesita envolverse. */
-function paintHeaderRow(
-  row: ExcelJS.Row,
-  widths: number[],
-  nCols: number,
-  headers: string[],
-): void {
+function isTotalLabel(text: string): boolean {
+  const t = text.toLowerCase()
+  return t.startsWith('total') || t.endsWith('(total)') || t.includes('total de') || t === 'sau total'
+}
+
+function paintHeaderRow(row: ExcelJS.Row, widths: number[], nCols: number, headers: string[]): void {
   let maxLines = 1
   const borders = thinLimoBorders()
   for (let i = 1; i <= nCols; i += 1) {
     const c = row.getCell(i)
+    c.value = headers[i - 1] ?? ''
     c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CRISOPA } }
     c.border = { ...borders }
@@ -306,127 +260,252 @@ function paintHeaderRow(
 // Planificación de anchos
 // ============================================================================
 
-/** Anchos naturales (sin tope) que necesita una tabla: cabecera + todas sus celdas. */
-function tableColumnNeeds(t: ExportTable): number[] {
-  const needs = t.columnas.map((col) => naturalTextWidth(col))
-  for (const fila of t.filas) {
-    fila.forEach((cell: ExportCell, ci: number) => {
-      if (ci >= needs.length) return
-      const need = naturalTextWidth(cell.text)
-      if (need > needs[ci]) needs[ci] = need
-    })
-  }
-  return needs
+function collectSheetTexts(bloques: BookTableV2[]): string[][] {
+  return bloques.map((b) => {
+    const texts: string[] = [...b.columnas]
+    for (const fila of b.filas) {
+      fila.forEach((cell, i) => {
+        const text = `${cell.text}${cell.formula ? '' : ''}`
+        if (i < texts.length) {
+          texts[i] = texts[i].length >= text.length ? texts[i] : text
+        }
+      })
+    }
+    return texts
+  })
 }
 
-/** Anchos finales de una hoja temática: máximo por columna física entre TODAS
- *  sus tablas, con tope, columna A unificada y hueco garantizado para el enlace. */
-function computeSheetWidths(bloques: ExportTable[], globalColAWidth: number): number[] {
+function computeSheetWidths(bloques: BookTableV2[]): number[] {
   const needs: number[] = []
-  for (const bloque of bloques) {
-    const tableNeeds = tableColumnNeeds(bloque)
-    tableNeeds.forEach((need, ci) => {
-      needs[ci] = Math.max(needs[ci] ?? MIN_COL_WIDTH, need)
+  for (const tableTexts of collectSheetTexts(bloques)) {
+    tableTexts.forEach((text, i) => {
+      const need = naturalTextWidth(text)
+      needs[i] = Math.max(needs[i] ?? MIN_COL_WIDTH, need)
     })
   }
   const widths = needs.map(clampWidth)
-  if (widths.length === 0) widths.push(globalColAWidth)
-  // Columna A unificada en todo el libro (las etiquetas de otras tablas no deben
-  // verse truncadas por el ancho de una tabla concreta).
-  widths[0] = globalColAWidth
-  // El texto del enlace de procedencia debe caber en la última columna del bloque.
+  if (widths.length === 0) widths.push(MIN_COL_A_WIDTH)
+  widths[0] = Math.max(MIN_COL_A_WIDTH, widths[0])
   const linkNeed = Math.round(naturalTextWidth(SOURCE_LINK_LABEL))
-  for (const bloque of bloques) {
-    const n = bloque.columnas.length
-    if (n >= 2 && bloque.source?.publicUrl) {
-      widths[n - 1] = Math.max(widths[n - 1] ?? MIN_COL_WIDTH, linkNeed)
-    }
+  for (const b of bloques) {
+    const n = b.columnas.length
+    if (n >= 2 && b.source?.publicUrl) widths[n - 1] = Math.max(widths[n - 1] ?? MIN_COL_WIDTH, linkNeed)
   }
   return widths
 }
 
-/** Textos de columna A de TODO el libro (etiquetas y cabeceras de primera columna). */
-function collectAllColATexts(hojas: ComparativeSheetInput[]): string[] {
-  const texts: string[] = []
-  for (const hoja of hojas) {
-    for (const bloque of hoja.bloques) {
-      if (bloque.columnas.length > 0) texts.push(bloque.columnas[0])
-      for (const fila of bloque.filas) {
-        if (fila.length > 0) texts.push(fila[0].text)
-      }
-    }
-  }
-  // Hoja 00_PROYECTO (columna A) y 08_CRITERIOS_Y_FUENTES (columna A).
-  texts.push(
-    'Municipio',
-    'Código INE',
-    'Provincia',
-    'Comunidad autónoma',
-    'Fecha de generación',
-    'Cobertura territorial comparativa',
-  )
-  texts.push(...hojas.map((h) => h.id))
-  texts.push('Área')
-  return texts
-}
-
-/** Ancho óptimo de la columna A unificada: máximo real, con cotas razonables. */
-function calculateGlobalColAWidth(texts: string[]): number {
-  let needed = MIN_COL_A_WIDTH
-  for (const t of texts) {
-    const w = naturalTextWidth(t)
-    if (w > needed) needed = w
-  }
-  return Math.round(Math.min(MAX_COL_WIDTH, Math.max(MIN_COL_A_WIDTH, needed)))
-}
-
 // ============================================================================
-// Bloque: tabla de datos reales (con o sin fuente)
+// Tablas Excel nativas y autofiltro
 // ============================================================================
 
-function writeDataBlock(
+function uniqueTableName(base: string, used: Set<string>): string {
+  let name = base.replace(/[^A-Za-z0-9_]/g, '_').slice(0, 200)
+  if (!/^[A-Za-z_]/.test(name)) name = `t_${name}`
+  let candidate = name
+  let i = 2
+  while (used.has(candidate.toLowerCase())) {
+    candidate = `${name}_${i}`
+    i += 1
+  }
+  used.add(candidate.toLowerCase())
+  return candidate
+}
+
+function uniqueHeaders(headers: string[]): string[] {
+  const seen = new Map<string, number>()
+  return headers.map((h) => {
+    const base = h.trim() || 'Columna'
+    const count = seen.get(base) ?? 0
+    seen.set(base, count + 1)
+    return count === 0 ? base : `${base} (${count + 1})`
+  })
+}
+
+function addExcelTable(
   ws: ExcelJS.Worksheet,
-  startRow: number,
-  t: ExportTable,
-  widths: number[],
-): {
-  headerRow: number; endRow: number; nCols: number
-} {
-  const columnas = t.columnas
-  const nCols = columnas.length
-  if (nCols === 0) return { headerRow: startRow, endRow: startRow, nCols: 0 }
+  block: BookTableV2,
+  headerRow: number,
+  lastDataRow: number,
+  nCols: number,
+  usedTableNames: Set<string>,
+): void {
+  if (!block.tablaExcel || lastDataRow < headerRow + 1) return
+  const ref = `A${headerRow}:${colLetter(nCols)}${lastDataRow}`
+  // ExcelJS deriva el `ref` final del número de filas declaradas: si se pasa
+  // `rows: []`, la tabla colapsa a solo la cabecera y Excel puede reparar el
+  // archivo. Por eso se pasan las filas reales (mismos valores ya escritos; el
+  // store interno reescribe el valor y conserva el estilo por celda).
+  const rows = block.filas.map((fila) =>
+    block.columnas.map((_, ci) => {
+      const cell = fila[ci]
+      if (!cell) return null
+      if (cell.numeric !== null && Number.isFinite(cell.numeric)) {
+        return cell.formula
+          ? { formula: resolveRowTokens(cell.formula, headerRow + 1, lastDataRow), result: cell.numeric }
+          : cell.numeric
+      }
+      return cell.text
+    }),
+  )
+  try {
+    ws.addTable({
+      name: uniqueTableName(block.tablaExcel, usedTableNames),
+      ref,
+      headerRow: true,
+      totalsRow: false,
+      style: { theme: 'TableStyleLight1', showRowStripes: false, showColumnStripes: false },
+      columns: uniqueHeaders(block.columnas).map((name) => ({ name, filterButton: true })),
+      rows,
+    })
+  } catch (e) {
+    console.error(JSON.stringify({
+      tag: 'SOCIDEAS_XLSX_TABLE_SKIP',
+      block: block.id,
+      ref,
+      error: e instanceof Error ? e.message : String(e),
+    }))
+  }
+}
 
-  paintTitle(ws, startRow, widths, nCols, t.titulo)
-  paintSourceLine(ws, startRow + 1, widths, nCols, t.source, t.fuente, t.periodo)
+// ============================================================================
+// Gráficos (inyección OOXML posterior a writeBuffer)
+// ============================================================================
+
+function chartSpecFromBlock(
+  block: BookTableV2,
+  sheetName: string,
+  headerRow: number,
+  lastDataRow: number,
+  maxNCols: number,
+  ordinal: number,
+): ChartSpec | null {
+  const chart = block.chart
+  if (!chart) return null
+  if (lastDataRow <= headerRow) return null
+  const categorias: string[] = []
+  for (let r = headerRow + 1; r <= lastDataRow; r += 1) {
+    categorias.push(block.filas[r - headerRow - 1]?.[chart.categoriaColumna - 1]?.text ?? String(r - headerRow))
+  }
+  const series = chart.series
+    .map((s) => {
+      const valores: (number | null)[] = []
+      for (let r = headerRow + 1; r <= lastDataRow; r += 1) {
+        valores.push(block.filas[r - headerRow - 1]?.[s.columna - 1]?.numeric ?? null)
+      }
+      return {
+        nombre: s.nombre,
+        categorias,
+        valores,
+        refs: {
+          categorias: `${colLetter(chart.categoriaColumna)}${headerRow + 1}:${colLetter(chart.categoriaColumna)}${lastDataRow}`,
+          valores: `${colLetter(s.columna)}${headerRow + 1}:${colLetter(s.columna)}${lastDataRow}`,
+        },
+      }
+    })
+    .filter((s) => s.valores.some((v) => v !== null))
+  if (series.length === 0) return null
+  const fromCol = Math.min(maxNCols + 1, 250 - CHART_SPAN_COLS)
+  const rowFrom = Math.max(0, headerRow - 1 + ordinal * 18)
+  return {
+    sheetName,
+    tipo: chart.tipo,
+    titulo: chart.titulo,
+    subtitulo: `${chart.unidad} · ${chart.periodo} · ${chart.fuente}`.slice(0, 300),
+    series,
+    refs: series.map((s) => s.refs),
+    anchor: [fromCol, rowFrom, fromCol + CHART_SPAN_COLS, rowFrom + 16],
+  }
+}
+
+// ============================================================================
+// Escritura de bloques
+// ============================================================================
+
+interface BlockWriteResult {
+  endRow: number
+  headerRow: number
+  lastDataRow: number
+  nCols: number
+  chart: ChartSpec | null
+}
+
+/**
+ * Resuelve las referencias relativas al bloque en las fórmulas:
+ *   {R1}      → primera fila de datos del bloque
+ *   {R2}      → última fila de datos del bloque
+ *   {R1+2}    → primera + 2 · {R2-1} → última − 1
+ * Los constructores de bloques no conocen la posición absoluta (los bloques se
+ * apilan dinámicamente), así que las fórmulas se declaran relativas y aquí se
+ * convierten en referencias A1 reales antes de escribir la celda.
+ */
+export function resolveRowTokens(formula: string, first: number, last: number): string {
+  return formula
+    .replace(/\{R1\+(\d+)\}/g, (_m, n: string) => String(first + Number(n)))
+    .replace(/\{R1-(\d+)\}/g, (_m, n: string) => String(first - Number(n)))
+    .replace(/\{R2\+(\d+)\}/g, (_m, n: string) => String(last + Number(n)))
+    .replace(/\{R2-(\d+)\}/g, (_m, n: string) => String(last - Number(n)))
+    .replace(/\{R1\}/g, String(first))
+    .replace(/\{R2\}/g, String(last))
+}
+
+function writeBlock(
+  ws: ExcelJS.Worksheet,
+  sheet: BookSheetV2,
+  block: BookTableV2,
+  startRow: number,
+  widths: number[],
+  maxNCols: number,
+  usedTableNames: Set<string>,
+  chartOrdinal: number,
+): BlockWriteResult {
+  const nCols = Math.max(1, block.columnas.length)
+  paintTitle(ws, startRow, widths, nCols, block.titulo)
+  paintSourceLine(ws, startRow + 1, widths, nCols, block)
+
   const headerRowN = startRow + 2
   const header = ws.getRow(headerRowN)
-  columnas.forEach((col, i) => {
-    const c = header.getCell(i + 1)
-    c.value = col
-  })
-  paintHeaderRow(header, widths, nCols, columnas)
+  paintHeaderRow(header, widths, nCols, block.columnas)
 
+  const firstDataRow = headerRowN + 1
+  const lastDataRowExpected = headerRowN + block.filas.length
   let r = headerRowN
-  t.filas.forEach((fila) => {
+  for (const fila of block.filas) {
     r += 1
     const row = ws.getRow(r)
     let maxLines = 1
-    fila.forEach((cell, ci) => {
+    for (let ci = 0; ci < nCols; ci += 1) {
+      const cell: ExportCell | undefined = fila[ci]
       const c = row.getCell(ci + 1)
-      const colName = columnas[ci] ?? ''
-      if (cell.numeric !== null && Number.isFinite(cell.numeric)) {
-        c.value = cell.numeric
-        const fmt = numFmtFor(colName)
-        if (fmt) c.numFmt = fmt
+      const colName = block.columnas[ci] ?? ''
+      if (!cell) {
+        c.value = null
+      } else if (cell.numeric !== null && Number.isFinite(cell.numeric)) {
+        if (cell.formula) {
+          c.value = {
+            formula: resolveRowTokens(cell.formula, firstDataRow, lastDataRowExpected),
+            result: cell.numeric,
+          }
+          c.numFmt = numFmtFor(colName, cell.numeric)
+        } else {
+          c.value = cell.numeric
+          c.numFmt = numFmtFor(colName, cell.numeric)
+        }
       } else {
         c.value = cell.text
         c.numFmt = '@'
       }
-      const badge = isBadgeText(cell.text, cell.numeric)
-      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: badge ? CRISOPA : HUESO } }
+      const isNd = cell !== undefined && cell.numeric === null && cell.text === 'ND'
+      const isTotal = cell !== undefined && isTotalLabel(cell.text)
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isNd ? CRISOPA : HUESO } }
       c.border = { ...thinLimoBorders() }
-      c.font = { name: FONT_NAME, size: 11, bold: badge, color: { argb: CARBON } }
-      const lines = wrappedLines(cell.text, widths[ci] ?? MIN_COL_WIDTH)
+      c.font = {
+        name: FONT_NAME,
+        size: 11,
+        bold: isNd || isTotal,
+        italic: colName === 'Estado' || colName === 'Motivo del bloqueo' || colName === 'Siguiente acción',
+        color: { argb: CARBON },
+      }
+      const lines = wrappedLines(cell?.text ?? '', widths[ci] ?? MIN_COL_WIDTH)
       if (lines > maxLines) maxLines = lines
       c.alignment = {
         vertical: 'middle',
@@ -434,117 +513,274 @@ function writeDataBlock(
         wrapText: lines > 1,
         indent: ci === 0 ? 1 : undefined,
       }
-    })
+    }
     row.height = Math.max(18, maxLines * LINE_HEIGHT_BODY)
-  })
+    if (block.plegable && r > headerRowN) row.outlineLevel = 1
+  }
+  const lastDataRow = r
 
-  if (t.note && r >= headerRowN) {
+  addExcelTable(ws, block, headerRowN, lastDataRow, nCols, usedTableNames)
+
+  if (block.note) {
     r += 1
     const noteRow = ws.getRow(r)
+    const fallos = (block.checks ?? []).filter((c) => !c.ok)
+    const noteText = fallos.length > 0
+      ? `${block.note} Reconciliación con desviación: ${fallos.map((f) => f.id).join(', ')} (ver 10_METODOLOGÍA_FUENTES).`
+      : block.note
     const mergedWidth = sumWidths(widths, 0, nCols)
-    const lines = wrappedLines(t.note, mergedWidth)
+    const lines = wrappedLines(noteText, mergedWidth)
     noteRow.height = Math.max(24, lines * LINE_HEIGHT_SMALL)
     mergeRow(ws, r, nCols)
     const nc = noteRow.getCell(1)
-    nc.value = t.note
+    nc.value = noteText
     nc.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
     nc.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
     band(noteRow, nCols, HUESO)
-    // Bucle explícito 1..nCols: eachCell(includeEmpty:false) salta las celdas
-    // con solo estilo y quedarían con la Calibri por defecto del formato.
     for (let i = 1; i <= nCols; i += 1) {
-      const c = noteRow.getCell(i)
-      c.border = { ...thinLimoBorders() }
-      if (c.value === null || c.value === undefined) {
-        c.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
+      const cc = noteRow.getCell(i)
+      cc.border = { ...thinLimoBorders() }
+      if (cc.value === null || cc.value === undefined) {
+        cc.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
       }
     }
   }
 
-  return { headerRow: headerRowN, endRow: r, nCols }
+  const chart = chartSpecFromBlock(block, sheet.id, headerRowN, lastDataRow, maxNCols, chartOrdinal)
+  return { endRow: r, headerRow: headerRowN, lastDataRow, nCols, chart }
 }
 
-// ============================================================================
-// Bloque: nota breve (sin tabla, sin columnas vacías)
-// ============================================================================
-
-/**
- * Bloque "pendiente" o "no disponible": pinta solo título, línea de fuente y
- * una nota breve. El missing es badge Crisopa/Carbón (nunca Rupestre: un ND
- * no es una alerta).
- */
-function writeNoteBlock(
+function writeSheetHeader(
   ws: ExcelJS.Worksheet,
-  startRow: number,
-  t: ExportTable,
+  sheet: BookSheetV2,
+  book: SocideasBookV2,
   widths: number[],
-  spanCols: number,
-): { endRow: number; nCols: number } {
-  // Un bloque sin tabla ocupa todo el ancho de la hoja: título, fuente y nota
-  // se fusionan para no quedar comprimidos en la columna A.
-  const nCols = Math.max(1, spanCols)
-  paintTitle(ws, startRow, widths, nCols, t.titulo)
-  paintSourceLine(ws, startRow + 1, widths, nCols, t.source, t.fuente, t.periodo)
-  const r = startRow + 2
-  const row = ws.getRow(r)
-  const noteText = t.note ?? t.estado ?? ''
-  const mergedWidth = sumWidths(widths, 0, nCols)
-  const lines = wrappedLines(noteText, mergedWidth)
-  row.height = Math.max(36, lines * LINE_HEIGHT_BODY)
-  mergeRow(ws, r, nCols)
-  const cell = row.getCell(1)
-  cell.value = noteText
-  cell.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
-  cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
-  band(row, nCols, CRISOPA)
-  for (let i = 1; i <= nCols; i += 1) {
-    row.getCell(i).border = { ...thinLimoBorders() }
-  }
-  return { endRow: r, nCols }
-}
-
-// ============================================================================
-// Línea de ámbito por hoja
-// ============================================================================
-
-function writeScopeLine(
-  ws: ExcelJS.Worksheet,
-  rowN: number,
-  widths: number[],
-  nCols: number,
-  input: Pick<MunicipioWorkbookInput, 'municipio' | 'codigoINE' | 'provincia' | 'comunidadAutonoma'>,
+  maxCols: number,
 ): void {
-  const row = ws.getRow(rowN)
-  const text =
-    `Municipio: ${input.municipio} (${input.codigoINE}) · ` +
-    `Provincia: ${input.provincia} · ` +
-    `Comunidad autónoma: ${input.comunidadAutonoma}`
-  const mergedWidth = sumWidths(widths, 0, nCols)
-  const lines = wrappedLines(text, mergedWidth)
+  paintTitle(ws, 1, widths, maxCols, `SOCideas · ${sheet.titulo}`, 14)
+  const row = ws.getRow(2)
+  const scope =
+    `Municipio: ${book.municipio} (${book.codigoINE}) · Esquema ${SOCIDEAS_BOOK_SCHEMA} · ` +
+    `Generado: ${book.fechaGeneracion} · Cobertura global: ${book.coverage.global.toLocaleString('es-ES')} %`
+  const textCols = Math.max(1, maxCols - 1)
+  const mergedWidth = sumWidths(widths, 0, textCols)
+  const lines = wrappedLines(scope, mergedWidth)
   row.height = Math.max(18, lines * LINE_HEIGHT_BODY)
-  mergeRow(ws, rowN, nCols)
+  if (textCols > 1) mergeRow(ws, 2, textCols)
   const c = row.getCell(1)
-  c.value = text
-  c.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
+  c.value = scope
+  c.font = { name: FONT_NAME, size: 10, color: { argb: CARBON } }
   c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: lines > 1 }
-  band(row, nCols, HUESO)
-  for (let i = 1; i <= nCols; i += 1) {
+  band(row, maxCols, HUESO)
+  for (let i = 1; i <= maxCols; i += 1) {
     row.getCell(i).border = { bottom: { style: 'thin', color: { argb: LIMO } } }
   }
+  if (sheet.id !== '00_RESUMEN' && maxCols >= 2) {
+    const link = row.getCell(maxCols)
+    link.value = {
+      text: BACK_TO_INDEX_LABEL,
+      hyperlink: `#'00_RESUMEN'!A1`,
+      tooltip: 'Volver al resumen ejecutivo',
+    }
+    link.font = { name: FONT_NAME, size: 10, bold: true, underline: true, color: { argb: CONIFERA } }
+    link.alignment = { vertical: 'middle', horizontal: 'right' }
+  }
+}
+
+/** Índice con hipervínculos internos que se inserta en 00_RESUMEN.
+ *
+ *  Reserva ancho para sus CUATRO columnas: el índice no participa en
+ *  `computeSheetWidths` (se inyecta fuera de `sheet.bloques`), y sin reserva los
+ *  identificadores largos (`05_SOCIAL_EDUCACIÓN_SERVICIOS`) y los títulos se
+ *  recortaban contra el ancho de la tabla de portada. */
+function writeIndexBlock(ws: ExcelJS.Worksheet, book: SocideasBookV2, startRow: number, widths: number[]): number {
+  const nCols = 4
+  const reserve = (col: number, need: number): void => {
+    widths[col - 1] = Math.max(widths[col - 1] ?? MIN_COL_WIDTH, clampWidth(need))
+  }
+  reserve(1, Math.max(...book.sheets.map((s) => naturalTextWidth(s.id))))
+  reserve(2, Math.max(...book.sheets.map((s) => naturalTextWidth(s.titulo))))
+  reserve(3, naturalTextWidth('Bloques'))
+  reserve(4, naturalTextWidth('Indicadores publicables'))
+  paintTitle(ws, startRow, widths, nCols, 'Índice de hojas del libro', 12)
+  const headerRow = startRow + 1
+  const header = ws.getRow(headerRow)
+  paintHeaderRow(header, widths, nCols, ['Hoja', 'Contenido', 'Bloques', 'Indicadores publicables'])
+  let r = headerRow
+  for (const sheet of book.sheets) {
+    r += 1
+    const row = ws.getRow(r)
+    const publicables = sheet.bloques
+      .flatMap((b) => b.indicadores)
+      .filter((i) => i.availability === 'available' || i.availability === 'partial').length
+    const linkCell = row.getCell(1)
+    linkCell.value = { text: sheet.id, hyperlink: `#'${sheet.id}'!A1`, tooltip: `Ir a ${sheet.titulo}` }
+    linkCell.font = { name: FONT_NAME, size: 11, bold: true, underline: true, color: { argb: CONIFERA } }
+    linkCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+    row.getCell(2).value = sheet.titulo
+    row.getCell(2).font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
+    row.getCell(2).alignment = { vertical: 'middle', horizontal: 'left' }
+    row.getCell(3).value = sheet.bloques.length
+    row.getCell(4).value = publicables
+    for (let i = 3; i <= nCols; i += 1) {
+      const cc = row.getCell(i)
+      cc.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
+      cc.alignment = { vertical: 'middle', horizontal: 'right' }
+      cc.numFmt = '#,##0'
+    }
+    band(row, nCols, HUESO)
+    for (let i = 1; i <= nCols; i += 1) {
+      row.getCell(i).border = { ...thinLimoBorders() }
+    }
+    row.height = 18
+  }
+  return r
+}
+
+function writeSheet(
+  wb: ExcelJS.Workbook,
+  sheet: BookSheetV2,
+  book: SocideasBookV2,
+  usedTableNames: Set<string>,
+): { charts: ChartSpec[] } {
+  const ws = wb.addWorksheet(sheet.id, { properties: { tabColor: { argb: MUSGO } } })
+  const maxNCols = sheet.bloques.reduce((max, b) => Math.max(max, b.columnas.length), 2)
+  const widths = computeSheetWidths(sheet.bloques)
+  while (widths.length < maxNCols) widths.push(18)
+  // El enlace de retorno al índice vive en la última columna del encabezado
+  // (fila 2): la columna debe poder mostrarlo entero o Excel lo recorta por la
+  // izquierda (alineación derecha). Contrato v2: navegación interna siempre.
+  if (sheet.id !== '00_RESUMEN') {
+    widths[maxNCols - 1] = Math.max(widths[maxNCols - 1] ?? MIN_COL_WIDTH, Math.round(naturalTextWidth(BACK_TO_INDEX_LABEL)))
+  }
+  const charts: ChartSpec[] = []
+  let chartOrdinal = 0
+
+  writeSheetHeader(ws, sheet, book, widths, maxNCols)
+
+  let cursor = 4
+  let indexWritten = sheet.id !== '00_RESUMEN'
+  for (const block of sheet.bloques) {
+    try {
+      const res = writeBlock(ws, sheet, block, cursor, widths, maxNCols, usedTableNames, chartOrdinal)
+      if (res.chart && charts.length < MAX_CHARTS_PER_SHEET) {
+        charts.push(res.chart)
+        chartOrdinal += 1
+      }
+      cursor = res.endRow + 3
+      if (sheet.id === '00_RESUMEN' && !indexWritten) {
+        cursor = writeIndexBlock(ws, book, cursor, widths) + 3
+        indexWritten = true
+      }
+    } catch (blockErr) {
+      console.error(JSON.stringify({
+        tag: 'SOCIDEAS_XLSX_BLOCK_SKIP',
+        sheet: sheet.id,
+        blockId: block.id,
+        error: blockErr instanceof Error ? blockErr.message : String(blockErr),
+      }))
+      cursor += 1
+    }
+  }
+
+  // Autofiltro manual solo si ninguna tabla nativa lo aportó ya.
+  if (ws.getTables().length === 0) {
+    const firstData = sheet.bloques.find((b) => b.filas.length > 0 && b.columnas.length >= 2)
+    if (firstData) {
+      // Recalcular la posición real del primer bloque con datos: se almacena en
+      // la primera pasada; simplificamos localizando la fila de su cabecera por
+      // búsqueda de su título en la columna A.
+      for (let r = 4; r <= cursor; r += 1) {
+        const v = ws.getRow(r).getCell(1).value
+        if (typeof v === 'string' && v === firstData.titulo) {
+          const headerRow = r + 2
+          const lastRow = headerRow + firstData.filas.length
+          ws.autoFilter = { from: { row: headerRow, column: 1 }, to: { row: lastRow, column: firstData.columnas.length } }
+          break
+        }
+      }
+    }
+  }
+
+  // Espacio para gráficos: columnas a la derecha del contenido.
+  for (let i = maxNCols + 1; i <= maxNCols + CHART_SPAN_COLS; i += 1) {
+    if (!widths[i - 1]) ws.getColumn(i).width = CHART_COL_WIDTH
+  }
+
+  widths.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w
+  })
+
+  // Navegación y presentación
+  ws.views = [
+    { state: 'frozen', xSplit: 0, ySplit: 2, topLeftCell: 'A3', activeCell: 'A3', showRuler: false, showGridLines: false },
+  ]
+  ws.pageSetup = {
+    paperSize: 9,
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    printTitlesRow: '1:2',
+    showGridLines: false,
+    horizontalCentered: false,
+    margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.6, header: 0.25, footer: 0.25 },
+  }
+  ws.headerFooter = {
+    oddFooter: `&L SOCideas · ${book.municipio} (${book.codigoINE}) &C ${SOCIDEAS_BOOK_SCHEMA} &R &P/&N · ${book.fechaGeneracion}`,
+  }
+  ws.pageSetup.printArea = `A1:${colLetter(Math.max(maxNCols, 4))}${Math.max(cursor - 1, 4)}`
+
+  return { charts }
 }
 
 // ============================================================================
-// Entrada
+// Normalización de hipervínculos internos (ExcelJS deja '#' en location)
 // ============================================================================
 
-export interface ComparativeSheetInput {
-  /** Identificador contractual de la hoja (00_PROYECTO, 01_PERFIL_DEMOGRÁFICO, …). */
-  id: SocideasSheetId
-  /** Título visible en la pestaña y en la primera fila de la hoja. */
+/** Excel escribe los enlaces internos como `<hyperlink location="Hoja!A1">`
+ *  sin relación externa. ExcelJS añade `location="#Hoja!A1"` y una relación
+ *  externa espuria: se corrigen ambos para que Excel no avise. */
+export async function normalizeInternalHyperlinks(xlsxBuffer: Buffer): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(xlsxBuffer)
+  const sheetFiles = Object.keys(zip.files).filter((f) => /^xl\/worksheets\/sheet\d+\.xml$/.test(f))
+  for (const file of sheetFiles) {
+    const xml = await zip.file(file)?.async('string')
+    if (!xml || !xml.includes('location="#')) continue
+    const dropped = new Set<string>()
+    const fixed = xml.replace(/<hyperlink ([^>]*?)location="#([^"]+)"([^>]*?)\/>/g, (_m, pre: string, target: string, post: string) => {
+      const rIdMatch = /r:id="([^"]+)"/.exec(`${pre} ${post}`)
+      if (rIdMatch) dropped.add(rIdMatch[1])
+      const cleanedPre = pre.replace(/\s*r:id="[^"]+"/, '')
+      const cleanedPost = post.replace(/\s*r:id="[^"]+"/, '')
+      return `<hyperlink ${cleanedPre}location="${target}"${cleanedPost}/>`
+    })
+    if (dropped.size === 0) continue
+    await zip.file(file, fixed)
+    const relsFile = file.replace('xl/worksheets/', 'xl/worksheets/_rels/').replace(/\.xml$/, '.xml.rels')
+    const rels = await zip.file(relsFile)?.async('string')
+    if (rels) {
+      let fixedRels = rels
+      for (const rId of dropped) {
+        fixedRels = fixedRels.replace(
+          new RegExp(`<Relationship[^>]*Id="${rId}"[^>]*/>`, 'g'),
+          '',
+        )
+      }
+      await zip.file(relsFile, fixedRels)
+    }
+  }
+  return Buffer.from(await zip.generateAsync({ type: 'nodebuffer' }))
+}
+
+// ============================================================================
+// Entrada principal
+// ============================================================================
+
+export interface LegacyComparativeSheetInput {
+  id: string
   titulo: string
-  /** Subtítulo descriptivo (segunda fila) que forma la cabecera de la hoja. */
   subtitulo?: string
-  /** Bloques apilados verticalmente en la hoja. */
   bloques: ExportTable[]
 }
 
@@ -554,672 +790,204 @@ export interface MunicipioWorkbookInput {
   provincia: string
   comunidadAutonoma: string
   fechaGeneracion: string
-  /** Hojas 01-07 con sus bloques preagrupados. */
-  hojas: ComparativeSheetInput[]
-  /** Capa INE lateral (opcional, lectura pública). */
+  hojas: LegacyComparativeSheetInput[]
   ineLayers?: MunicipalIneLayersV1 | null
 }
 
-// ============================================================================
-// Hoja 00_PROYECTO
-// ============================================================================
-
-interface ProjectBlock {
-  label: string
-  value: string
-}
-
-/** Anchos de la hoja 00 a partir de su contenido real (columna A unificada). */
-function computeProjectWidths(
-  input: MunicipioWorkbookInput,
-  hojas: ComparativeSheetInput[],
-  globalColAWidth: number,
-): number[] {
-  const metaValues = [
-    input.municipio,
-    input.codigoINE,
-    input.provincia,
-    input.comunidadAutonoma,
-    input.fechaGeneracion,
-    'España · Comunidad autónoma · Provincia · Municipio',
-  ]
-  const notaText = 'Solo se muestran comparativas cuando las fuentes, períodos y definiciones son homogéneos entre ámbitos.'
-  const colBNeeds = [
-    ...metaValues,
-    ...hojas.map((h) => h.titulo),
-    ...hojas.map((h) => `${h.bloques.length} bloques`),
-    notaText,
-  ]
-  let colB = MIN_COL_WIDTH
-  for (const v of colBNeeds) colB = Math.max(colB, naturalTextWidth(v))
-  return [globalColAWidth, clampWidth(colB)]
-}
-
-function writeProyecto(
-  wb: ExcelJS.Workbook,
-  input: MunicipioWorkbookInput,
-  hojas: ComparativeSheetInput[],
-  globalColAWidth: number,
-): void {
-  const ws = wb.addWorksheet('00_PROYECTO', { properties: { tabColor: { argb: MUSGO } } })
-  const widths = computeProjectWidths(input, hojas, globalColAWidth)
-  const nCols = 2
-  paintTitle(ws, 1, widths, nCols, XLSX_BRAND, 14)
-
-  const meta: ProjectBlock[] = [
-    { label: 'Municipio', value: input.municipio },
-    { label: 'Código INE', value: input.codigoINE },
-    { label: 'Provincia', value: input.provincia },
-    { label: 'Comunidad autónoma', value: input.comunidadAutonoma },
-    { label: 'Fecha de generación', value: input.fechaGeneracion },
-    {
-      label: 'Cobertura territorial comparativa',
-      value: 'España · Comunidad autónoma · Provincia · Municipio',
-    },
-  ]
-  let r = 3
-  for (const { label, value } of meta) {
-    const row = ws.getRow(r)
-    const lines = Math.max(
-      wrappedLines(label, widths[0]),
-      wrappedLines(value, widths[1]),
-    )
-    row.height = Math.max(18, lines * LINE_HEIGHT_BODY)
-    const lbl = row.getCell(1)
-    lbl.value = label
-    lbl.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
-    lbl.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: wrappedLines(label, widths[0]) > 1 }
-    const val = row.getCell(2)
-    val.value = value
-    val.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    val.alignment = { vertical: 'middle', wrapText: wrappedLines(value, widths[1]) > 1 }
-    band(row, nCols, HUESO)
-    for (let i = 1; i <= nCols; i += 1) {
-      row.getCell(i).border = { ...thinLimoBorders() }
-    }
-    r += 1
-  }
-
-  r += 1
-  ws.getRow(r - 1).height = 20
-  paintTitle(ws, r, widths, nCols, 'Hojas del libro', 12)
-  r += 2
-  for (const hoja of hojas) {
-    // Fila 1: ID de la hoja (negrita) en col A, título en col B.
-    const row = ws.getRow(r)
-    row.height = Math.max(20, wrappedLines(hoja.titulo, widths[1]) * LINE_HEIGHT_BODY)
-    const lbl = row.getCell(1)
-    lbl.value = hoja.id
-    lbl.font = { name: FONT_NAME, size: 11, bold: true, color: { argb: CARBON } }
-    lbl.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: false }
-    const val = row.getCell(2)
-    val.value = hoja.titulo
-    val.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    val.alignment = { vertical: 'middle', wrapText: wrappedLines(hoja.titulo, widths[1]) > 1 }
-    band(row, nCols, HUESO)
-    for (let i = 1; i <= nCols; i += 1) {
-      row.getCell(i).border = { ...thinLimoBorders() }
-    }
-    r += 1
-
-    // Fila 2 (si hay subtítulo): descripción en cursiva en col A, "X bloques"
-    // en col B. Separado en fila distinta para evitar solapamiento visual.
-    if (hoja.subtitulo) {
-      const sub = ws.getRow(r)
-      const subLines = Math.max(
-        wrappedLines(hoja.subtitulo, widths[0]),
-        wrappedLines(`${hoja.bloques.length} bloques`, widths[1]),
-      )
-      sub.height = Math.max(18, subLines * LINE_HEIGHT_BODY)
-      const subVal = sub.getCell(1)
-      subVal.value = hoja.subtitulo
-      subVal.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
-      subVal.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: subLines > 1 }
-      const subVal2 = sub.getCell(2)
-      subVal2.value = `${hoja.bloques.length} bloques`
-      subVal2.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
-      subVal2.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false }
-      band(sub, nCols, HUESO)
-      for (let i = 1; i <= nCols; i += 1) {
-        sub.getCell(i).border = { ...thinLimoBorders() }
-      }
-      r += 1
-    }
-  }
-
-  r += 1
-  ws.getRow(r - 1).height = 20
-  paintTitle(ws, r, widths, nCols, 'Criterio metodológico', 12)
-  r += 2
-  const nota = ws.getRow(r)
-  const notaText = 'Solo se muestran comparativas cuando las fuentes, períodos y definiciones son homogéneos entre ámbitos.'
-  const notaLines = wrappedLines(notaText, sumWidths(widths, 0, nCols))
-  nota.height = Math.max(36, notaLines * LINE_HEIGHT_BODY)
-  mergeRow(ws, r, nCols)
-  const notaCell = nota.getCell(1)
-  notaCell.value = notaText
-  notaCell.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
-  notaCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
-  band(nota, nCols, HUESO)
-  for (let i = 1; i <= nCols; i += 1) {
-    const c = nota.getCell(i)
-    c.border = { ...thinLimoBorders() }
-    if (c.value === null || c.value === undefined) {
-      c.font = { name: FONT_NAME, size: 11, italic: true, color: { argb: CARBON } }
-    }
-  }
-  // Aplicar anchos al final (tras los merges) para que se respeten.
-  widths.forEach((w, i) => {
-    ws.getColumn(i + 1).width = w
-  })
-}
-
-// ============================================================================
-// Hoja temática: apila bloques (data o nota breve)
-// ============================================================================
-
-function writeSheet(
-  wb: ExcelJS.Workbook,
-  input: ComparativeSheetInput,
-  ctx: MunicipioWorkbookInput,
-  globalColAWidth: number,
-): void {
-  const ws = wb.addWorksheet(input.id, { properties: { tabColor: { argb: MUSGO } } })
-  // Columnas de datos reales de la hoja. Si no hay tabla (hoja de bloques
-  // pendientes) se despliega sobre NOTE_SPAN_COLS columnas para que título,
-  // fuente y nota no queden comprimidos en una columna estrecha.
-  const dataCols = input.bloques.reduce((max, b) => Math.max(max, b.columnas.length), 0)
-  const maxCols = dataCols >= 2 ? dataCols : NOTE_SPAN_COLS
-  const widths = computeSheetWidths(input.bloques, globalColAWidth)
-  while (widths.length < maxCols) widths.push(NOTE_SPAN_COL_WIDTH)
-  paintTitle(ws, 1, widths, maxCols, input.titulo, 14)
-  writeScopeLine(ws, 2, widths, maxCols, ctx)
-  ws.getRow(3).height = 20
-  let cursor = 4
-  for (const bloque of input.bloques) {
-    try {
-      const isNote =
-        bloque.availability === 'pending_integration' ||
-        bloque.availability === 'not_available' ||
-        bloque.filas.length === 0
-      const endRow = isNote
-        ? writeNoteBlock(ws, cursor, bloque, widths, maxCols).endRow
-        : writeDataBlock(ws, cursor, bloque, widths).endRow
-      // Aire vertical entre bloques: dos filas en blanco, la primera alta.
-      ws.getRow(endRow + 1).height = 20
-      cursor = endRow + 3
-    } catch (blockErr) {
-      console.error(JSON.stringify({
-        tag: 'SOCIDEAS_XLSX_BLOCK_SKIP',
-        sheet: input.id,
-        blockId: bloque.id,
-        blockTitle: bloque.titulo,
-        error: blockErr instanceof Error ? blockErr.message : String(blockErr),
-      }))
-    }
-  }
-  // Aplicar anchos al final (tras todos los merges) para que se respeten.
-  widths.forEach((w, i) => {
-    ws.getColumn(i + 1).width = w
-  })
-}
-
-// ============================================================================
-// Hoja 08_CRITERIOS_Y_FUENTES
-// ============================================================================
-
-interface FuenteRow {
-  area: string
-  fuente: string
-  operacion: string
-  periodo: string
-  url?: string | null
-}
-
-interface CriteriosFuentesInput {
-  bloques: ExportTable[]
-  fuentes: FuenteRow[]
-}
-
-const CRITERIOS_LECTURA = [
-  'Se priorizan datos oficiales y comparables.',
-  'Las comparativas solo se muestran cuando comparten definición y período.',
-  'Los datos censales no se presentan como anuales.',
-  'Los datos no publicados se representan como ND.',
-  'Un ND no equivale a cero.',
-  'Los indicadores derivados se identifican como cálculos SOCideas.',
-  'Los datos provisionales, cuando existen, deben identificarse expresamente.',
-]
-
-const FUENTES_COLS = ['Área', 'Fuente principal', 'Operación / tabla', 'Último período']
-
-/** Anchos de la hoja 08 a partir de su contenido real (columna A unificada). */
-function computeCriteriosWidths(fuentes: FuenteRow[], globalColAWidth: number): number[] {
-  const cols: (keyof FuenteRow)[][] = [['area'], ['fuente'], ['operacion'], ['periodo']]
-  const widths = FUENTES_COLS.map((header, ci) => {
-    let needed = naturalTextWidth(header)
-    for (const f of fuentes) {
-      const value = String(f[cols[ci][0]] ?? '')
-      needed = Math.max(needed, naturalTextWidth(value))
-    }
-    return clampWidth(needed)
-  })
-  widths[0] = globalColAWidth
-  return widths
-}
-
-function writeCriteriosFuentes(
-  wb: ExcelJS.Workbook,
-  input: CriteriosFuentesInput,
-  globalColAWidth: number,
-): void {
-  const ws = wb.addWorksheet('08_CRITERIOS_Y_FUENTES', { properties: { tabColor: { argb: MUSGO } } })
-  const nCols = 4
-  const widths = computeCriteriosWidths(input.fuentes, globalColAWidth)
-  paintTitle(ws, 1, widths, nCols, XLSX_BRAND, 14)
-  writeScopeLine(ws, 2, widths, nCols, {
-    municipio: 'Criterios y fuentes',
-    codigoINE: '—',
-    provincia: '—',
-    comunidadAutonoma: '—',
-  })
-
-  paintTitle(ws, 4, widths, nCols, 'Criterios de lectura', 12)
-  ws.getRow(5).height = 20
-  let r = 6
-  for (const c of CRITERIOS_LECTURA) {
-    const row = ws.getRow(r)
-    const text = `• ${c}`
-    const lines = wrappedLines(text, sumWidths(widths, 0, nCols))
-    row.height = Math.max(18, lines * LINE_HEIGHT_BODY)
-    mergeRow(ws, r, nCols)
-    const cell = row.getCell(1)
-    cell.value = text
-    cell.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: lines > 1, indent: 1 }
-    band(row, nCols, HUESO)
-    for (let i = 1; i <= nCols; i += 1) {
-      const cc = row.getCell(i)
-      cc.border = { ...thinLimoBorders() }
-      if ((cc.value === null || cc.value === undefined) && nCols > 1) {
-        cc.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-      }
-    }
-    r += 1
-  }
-  r += 1
-  ws.getRow(r - 1).height = 20
-
-  // Estados de cobertura usados en la exportación (glosario del catálogo único).
-  // Con NEXT_PUBLIC_CONPREL_UI=true se añade la fila CONPREL (§4c); sin flag,
-  // el glosario es idéntico al actual (no-regresión).
-  paintTitle(ws, r, widths, nCols, 'Estados de cobertura', 12)
-  ws.getRow(r + 1).height = 20
-  r += 2
-  for (const g of coverageGlossaryEntries()) {
-    const row = ws.getRow(r)
-    const text = `• ${g.estado}: ${g.texto}`
-    const lines = wrappedLines(text, sumWidths(widths, 0, nCols))
-    row.height = Math.max(18, lines * LINE_HEIGHT_BODY)
-    mergeRow(ws, r, nCols)
-    const cell = row.getCell(1)
-    cell.value = text
-    cell.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: lines > 1, indent: 1 }
-    band(row, nCols, HUESO)
-    for (let i = 1; i <= nCols; i += 1) {
-      const cc = row.getCell(i)
-      cc.border = { ...thinLimoBorders() }
-      if ((cc.value === null || cc.value === undefined) && nCols > 1) {
-        cc.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-      }
-    }
-    r += 1
-  }
-  r += 1
-  ws.getRow(r - 1).height = 20
-
-  paintTitle(ws, r, widths, nCols, 'Fuentes oficiales utilizadas', 12)
-  r += 2
-  const headerRowN = r
-  const header = ws.getRow(headerRowN)
-  FUENTES_COLS.forEach((col, i) => {
-    header.getCell(i + 1).value = col
-  })
-  paintHeaderRow(header, widths, nCols, FUENTES_COLS)
-  let fr = headerRowN
-  for (const f of input.fuentes) {
-    fr += 1
-    const row = ws.getRow(fr)
-    row.getCell(1).value = f.area
-    row.getCell(3).value = f.operacion
-    row.getCell(4).value = f.periodo
-    const fuenteCell = row.getCell(2)
-    if (f.url && isAllowedSourceUrl(f.url)) {
-      fuenteCell.value = { text: f.fuente, hyperlink: f.url, tooltip: 'Abrir ficha oficial' }
-      fuenteCell.font = { name: FONT_NAME, size: 11, color: { argb: CONIFERA }, underline: true, bold: true }
-    } else {
-      fuenteCell.value = f.fuente
-      fuenteCell.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    }
-    row.getCell(1).font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    row.getCell(3).font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    row.getCell(4).font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    let maxLines = 1
-    for (let i = 1; i <= nCols; i += 1) {
-      const text = i === 2 ? f.fuente : i === 1 ? f.area : i === 3 ? f.operacion : f.periodo
-      const lines = wrappedLines(text, widths[i - 1] ?? MIN_COL_WIDTH)
-      if (lines > maxLines) maxLines = lines
-      row.getCell(i).alignment = {
-        vertical: 'middle',
-        horizontal: cellAlign(FUENTES_COLS[i - 1] ?? '', i === 1),
-        wrapText: lines > 1,
-        indent: i === 1 ? 1 : undefined,
-      }
-      row.getCell(i).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HUESO } }
-      row.getCell(i).border = { ...thinLimoBorders() }
-    }
-    row.height = Math.max(18, maxLines * LINE_HEIGHT_BODY)
-  }
-  // Aplicar anchos al final (tras los merges) para que se respeten.
-  widths.forEach((w, i) => {
-    ws.getColumn(i + 1).width = w
-  })
-}
-
-// ============================================================================
-// Bloques pendientes fijos (hojas 02, 05, 06, 07)
-// ============================================================================
-
-function bloquePoliticoPendiente(): ExportTable {
-  return {
-    id: 'contexto-politico',
-    titulo: 'Contexto político',
-    hoja: '02_CONTEXTO_POLÍTICO',
-    columnas: ['Indicador'],
-    filas: [],
-    fuente: 'Pendiente de integración desde fuente oficial con cobertura territorial homogénea',
-    periodo: '—',
-    cobertura: 'Municipio',
-    estado: 'Pendiente de integración',
-    availability: 'pending_integration',
-    comparisonMode: 'municipal_only',
-    note: 'La información electoral e institucional se incorporará únicamente desde fuentes oficiales y con validación territorial.',
-  }
-}
-
-function bloquePatrimonioTurismo(): ExportTable {
-  return {
-    id: 'patrimonio-turismo',
-    titulo: 'Patrimonio y turismo',
-    hoja: '05_PATRIMONIO_Y_TURISMO',
-    columnas: ['Indicador'],
-    filas: [],
-    fuente: 'Pendiente de integración desde inventarios culturales y registros turísticos oficiales',
-    periodo: '—',
-    cobertura: 'Municipio',
-    estado: 'Pendiente de integración',
-    availability: 'pending_integration',
-    comparisonMode: 'municipal_only',
-    note: 'Patrimonio y turismo: pendientes de integración desde inventarios culturales y registros turísticos oficiales con cobertura territorial y licencia verificadas.',
-  }
-}
-
-function bloqueInfraestructura(): ExportTable {
-  return {
-    id: 'infraestructura',
-    titulo: 'Infraestructura, transporte, conectividad y transición energética',
-    hoja: '06_INFRAESTRUCTURA_Y_RECURSOS',
-    columnas: ['Indicador'],
-    filas: [],
-    fuente: 'Pendiente de integración desde fuentes geográficas y administrativas oficiales',
-    periodo: '—',
-    cobertura: 'Municipio',
-    estado: 'Pendiente de integración',
-    availability: 'pending_integration',
-    comparisonMode: 'municipal_only',
-    note: 'Infraestructura, transporte, conectividad y transición energética: pendientes de integración desde fuentes geográficas y administrativas oficiales.',
-  }
-}
-
-function bloqueAsociaciones(): ExportTable {
-  return {
-    id: 'asociaciones',
-    titulo: 'Directorio asociativo',
-    hoja: '07_ASOCIACIONES',
-    columnas: ['Indicador'],
-    filas: [],
-    fuente: 'Pendiente de integración desde registros oficiales con política de privacidad aplicable',
-    periodo: '—',
-    cobertura: 'Municipio',
-    estado: 'Pendiente de integración',
-    availability: 'pending_integration',
-    comparisonMode: 'municipal_only',
-    note: 'Directorio asociativo: pendiente de integración desde registros oficiales, licencias verificadas y política de privacidad aplicable.',
-  }
-}
-
-// ============================================================================
-// Catálogo centralizado de hojas (orden contractual)
-// ============================================================================
-
-function buildSheetCatalog(input: MunicipioWorkbookInput): {
-  hojas: ComparativeSheetInput[]
-  fuentes: FuenteRow[]
-} {
-  const sheetsById = new Map<SocideasSheetId, ExportTable[]>()
-  for (const id of SOCIDEAS_SHEET_IDS) sheetsById.set(id, [])
-
-  // 01. Perfil demográfico
-  const hoja01: ExportTable[] = []
-  for (const b of input.hojas.find((h) => h.id === '01_PERFIL_DEMOGRÁFICO')?.bloques ?? []) hoja01.push(b)
-  // Densidad: si la capa INE lateral la publica, reemplaza al placeholder.
-  try {
-    const densidad = buildDensidadTable(input.ineLayers)
-    if (densidad) {
-      const idx = hoja01.findIndex((b) => b.id === 'densidad')
-      if (idx >= 0) hoja01[idx] = densidad
-    }
-  } catch (e) {
-    console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'densidad', error: e instanceof Error ? e.message : String(e) }))
-  }
-  try {
-    const derivados = buildDemographicDerivedLayerTable(input.ineLayers)
-    if (derivados) {
-      const idx = hoja01.findIndex((b) => b.id === 'derivados')
-      if (idx >= 0) hoja01[idx] = derivados
-    }
-  } catch (e) {
-    console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'derivados', error: e instanceof Error ? e.message : String(e) }))
-  }
-  // Movilidad: si la capa INE lateral la publica, se añade al final.
-  try {
-    const movilidad = buildMovilidadMigratoriaTable(input.ineLayers)
-    if (movilidad && movilidad.length > 0) hoja01.push(...movilidad)
-  } catch (e) {
-    console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'movilidad', error: e instanceof Error ? e.message : String(e) }))
-  }
-  // Saldos migratorios netos (INE 69767): total, exterior e interior.
-  try {
-    const saldos = buildSaldosMigratoriosTables(input.ineLayers)
-    if (saldos && saldos.length > 0) hoja01.push(...saldos)
-  } catch (e) {
-    console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'saldos_migratorios', error: e instanceof Error ? e.message : String(e) }))
-  }
-  sheetsById.set('01_PERFIL_DEMOGRÁFICO', hoja01)
-
-  // 02. Contexto político: tablas electorales reales cuando la entrada las
-  // trae (hoja 02_CONTEXTO_POLÍTICO); si no, bloque pendiente de integración.
-  const bloques02 = input.hojas.find((h) => h.id === '02_CONTEXTO_POLÍTICO')?.bloques ?? []
-  const has02Real = bloques02.some((b) => b.availability === 'available')
-  sheetsById.set('02_CONTEXTO_POLÍTICO', has02Real ? bloques02 : [bloquePoliticoPendiente()])
-
-  // 03. Contexto económico
-  sheetsById.set(
-    '03_CONTEXTO_ECONÓMICO',
-    input.hojas.find((h) => h.id === '03_CONTEXTO_ECONÓMICO')?.bloques ?? [],
-  )
-
-  // 04. Contexto sociocultural
-  const hoja04: ExportTable[] = []
-  try {
-    const nivelEduc = buildNivelEducativoTable(input.ineLayers)
-    if (nivelEduc) hoja04.push(nivelEduc)
-  } catch (e) {
-    console.error(JSON.stringify({ tag: 'SOCIDEAS_XLSX_LAYER_SKIP', layer: 'nivel_educativo', error: e instanceof Error ? e.message : String(e) }))
-  }
-  hoja04.push(buildCentrosEducativosTable())
-  sheetsById.set('04_CONTEXTO_SOCIOCULTURAL', hoja04)
-
-  // 05/06/07
-  sheetsById.set('05_PATRIMONIO_Y_TURISMO', [bloquePatrimonioTurismo()])
-  sheetsById.set('06_INFRAESTRUCTURA_Y_RECURSOS', [bloqueInfraestructura()])
-  sheetsById.set('07_ASOCIACIONES', [bloqueAsociaciones()])
-
-  // Catálogo de hojas
-  const titulos: Record<SocideasSheetId, { titulo: string; subtitulo: string }> = {
-    '00_PROYECTO': { titulo: 'Proyecto y portada', subtitulo: 'Identificación, hojas del libro y criterio metodológico' },
-    '01_PERFIL_DEMOGRÁFICO': {
-      titulo: 'Perfil demográfico',
-      subtitulo: 'Población, composición, evolución, estructura, nacionalidad y arraigo',
-    },
-    '02_CONTEXTO_POLÍTICO': {
-      titulo: 'Contexto político',
-      subtitulo: has02Real
-        ? 'Elecciones municipales 2023 · Ministerio del Interior (Infoelectoral)'
-        : 'Bloque pendiente de integración desde fuente oficial',
-    },
-    '03_CONTEXTO_ECONÓMICO': {
-      titulo: 'Contexto económico',
-      subtitulo: 'Renta, desigualdad, tejido empresarial, sector agrario',
-    },
-    '04_CONTEXTO_SOCIOCULTURAL': {
-      titulo: 'Contexto sociocultural',
-      subtitulo: 'Nivel educativo (Censo 2021) y servicios municipales',
-    },
-    '05_PATRIMONIO_Y_TURISMO': { titulo: 'Patrimonio y turismo', subtitulo: 'Bloque pendiente de integración' },
-    '06_INFRAESTRUCTURA_Y_RECURSOS': {
-      titulo: 'Infraestructura y recursos',
-      subtitulo: 'Bloque pendiente de integración',
-    },
-    '07_ASOCIACIONES': { titulo: 'Asociaciones', subtitulo: 'Bloque pendiente de integración' },
-    '08_CRITERIOS_Y_FUENTES': { titulo: 'Criterios y fuentes', subtitulo: 'Criterios de lectura y registro central de fuentes' },
-  }
-
-  const hojas: ComparativeSheetInput[] = []
-  for (const id of SOCIDEAS_SHEET_IDS) {
-    if (id === '00_PROYECTO' || id === '08_CRITERIOS_Y_FUENTES') continue
-    const info = titulos[id]
-    hojas.push({
-      id,
-      // La marca completa se reserva a 00_PROYECTO: en las hojas temáticas el
-      // título visible debe caber sin cortarse.
-      titulo: info.titulo,
-      subtitulo: info.subtitulo,
-      bloques: sheetsById.get(id) ?? [],
-    })
-  }
-
-  // Fuentes centralizadas
-  const fuentes: FuenteRow[] = []
-  const seen = new Set<string>()
-  const pushFuente = (
-    area: string,
-    fuente: string,
-    operacion: string,
-    periodo: string,
-    url?: string | null,
-  ): void => {
-    const key = `${area}|${fuente}|${operacion}|${periodo}`
-    if (seen.has(key)) return
-    seen.add(key)
-    fuentes.push({ area, fuente, operacion, periodo, url })
-  }
-  for (const hoja of hojas) {
-    for (const b of hoja.bloques) {
-      if (!b.source) continue
-      const url = b.source.publicUrl ?? null
-      pushFuente(
-        b.hoja.replace(/^\d+_/, '').replace(/_/g, ' ').toLowerCase(),
-        b.source.institution,
-        b.source.operation,
-        b.periodo,
-        url,
-      )
-    }
-  }
-  // Fuentes garantizadas por contrato (hojas pendientes). Con datos electorales
-  // reales, la fuente la aporta la propia tabla (Ministerio del Interior).
-  if (!has02Real) pushFuente('Contexto político', 'Pendiente', 'Fuente oficial pendiente', '—')
-  pushFuente('Patrimonio y turismo', 'Pendiente', 'Inventarios culturales pendientes', '—')
-  pushFuente('Infraestructura y recursos', 'Pendiente', 'Fuentes geográficas pendientes', '—')
-  pushFuente('Asociaciones', 'Pendiente', 'Registros oficiales pendientes', '—')
-  // AEAT y ADRH SIEMPRE como filas separadas con su estado de cobertura
-  // (nunca en la misma columna comparativa): partial / missing_by_design /
-  // blocked_source explicados en la sección "Estados de cobertura".
-  pushFuente(
-    'Contexto económico',
-    'Agencia Estatal de Administración Tributaria',
-    'Estadística de declarantes del IRPF por municipios (EDM) · irpf_declaraciones: partial; irpf_renta_bruta_media e irpf_renta_disponible_media: blocked_source',
-    '2023',
-    AEAT_EDM_IRPF.publicUrl ?? null,
-  )
-  pushFuente(
-    'Contexto económico',
-    INE_INSTITUTION,
-    'Atlas de Distribución de Renta de los Hogares (ADRH) · renta por persona/hogar: serie separada de AEAT (sin mezcla)',
-    'ADRH (varía por tabla)',
-    'https://www.ine.es/daco/daco42/renta/adrh_municipios.htm',
-  )
-  // CONPREL: fila propia con cobertura parcial y URL oficial. Solo con el flag
-  // ON (sin flag la hoja 08 es idéntica a la actual). Nunca se mezcla con
-  // AEAT ni ADRH en la misma fila.
-  if (isConprelUiEnabled()) {
-    pushFuente(
-      'Contexto económico',
-      'Ministerio de Hacienda (CONPREL)',
-      CONPREL_FUENTE_08_OPERACION,
-      CONPREL_FUENTE_08_PERIODO,
-      CONPREL_PPTO_2025.url,
-    )
-  }
-
-  return { hojas, fuentes }
-}
-
-// ============================================================================
-// Punto de entrada
-// ============================================================================
-
-export async function buildMunicipioWorkbook(input: MunicipioWorkbookInput): Promise<Buffer> {
+/** Construye el libro v2 completo desde el contrato `socideas-book@2`. */
+export async function buildSocideasBookXlsx(book: SocideasBookV2): Promise<Buffer> {
   const wb = new ExcelJS.Workbook()
   wb.creator = XLSX_BRAND
   wb.created = new Date()
   wb.modified = new Date()
 
-  const { hojas, fuentes } = buildSheetCatalog(input)
+  const usedTableNames = new Set<string>()
+  const allCharts: ChartSpec[] = []
+  const bySheet: BookSheetV2[] = SOCIDEAS_BOOK_SHEETS.map((meta) => {
+    const found = book.sheets.find((s) => s.id === meta.id)
+    if (!found) throw new Error(`El libro no contiene la hoja contractual ${meta.id}`)
+    return found
+  }).map((s) => s)
 
-  // Ancho de la columna A unificada en TODO el libro ANTES de escribir hojas.
-  const globalColAWidth = calculateGlobalColAWidth(collectAllColATexts(hojas))
-
-  writeProyecto(wb, input, hojas, globalColAWidth)
-  for (const hoja of hojas) {
+  for (const sheet of bySheet) {
     try {
-      writeSheet(wb, hoja, input, globalColAWidth)
+      const { charts } = writeSheet(wb, sheet, book, usedTableNames)
+      allCharts.push(...charts)
     } catch (sheetErr) {
       console.error(JSON.stringify({
         tag: 'SOCIDEAS_XLSX_SHEET_SKIP',
-        sheetId: hoja.id,
+        sheetId: sheet.id,
         error: sheetErr instanceof Error ? sheetErr.message : String(sheetErr),
       }))
     }
   }
-  writeCriteriosFuentes(wb, { bloques: [], fuentes }, globalColAWidth)
 
-  const buffer = await wb.xlsx.writeBuffer()
+  let buffer: Uint8Array = new Uint8Array(await wb.xlsx.writeBuffer())
+  if (allCharts.length > 0) {
+    buffer = await injectNativeCharts(Buffer.from(buffer), allCharts)
+  }
+  buffer = await normalizeInternalHyperlinks(Buffer.from(buffer))
   return Buffer.from(buffer)
 }
 
-// Re-exports para compat con tests previos
-export { registrySource, INE_INSTITUTION, AEAT_EDM_IRPF }
-export type { ComparisonMode }
+/** Compatibilidad con llamadas v1 (diagnóstico y validadores): adapta los
+ *  bloques recibidos al contrato v2 sin inventar datos y garantiza que ninguna
+ *  hoja quede vacía. La ruta de producción usa `buildSocideasBookXlsx`. */
+export async function buildMunicipioWorkbook(input: MunicipioWorkbookInput): Promise<Buffer> {
+  const v1ToV2: Record<string, BookSheetId> = {
+    '01_PERFIL_DEMOGRÁFICO': '01_DEMOGRAFÍA',
+    '02_CONTEXTO_POLÍTICO': '02_POLÍTICA',
+    '03_CONTEXTO_ECONÓMICO': '03_ECONOMÍA_Y_EMPLEO',
+    '04_CONTEXTO_SOCIOCULTURAL': '05_SOCIAL_EDUCACIÓN_SERVICIOS',
+    '05_PATRIMONIO_Y_TURISMO': '07_PATRIMONIO_TURISMO',
+    '06_INFRAESTRUCTURA_Y_RECURSOS': '08_INFRAESTRUCTURA_RECURSOS',
+    '07_ASOCIACIONES': '09_ASOCIACIONES_GOBERNANZA',
+  }
+  const bloquesPorHoja = new Map<BookSheetId, BookTableV2[]>()
+  for (const hoja of input.hojas) {
+    const target = v1ToV2[hoja.id]
+    if (!target) continue
+    // Una hoja v1 declarada sin bloques NO debe registrar el destino: si se
+    // registra con [], el fallback `?? pending(...)` no se activa y la hoja v2
+    // quedaría vacía, rompiendo la garantía "ninguna hoja vacía".
+    if (hoja.bloques.length === 0) continue
+    const existing = bloquesPorHoja.get(target) ?? []
+    for (const b of hoja.bloques) {
+      existing.push({
+        schema: SOCIDEAS_BOOK_SCHEMA,
+        id: b.id,
+        titulo: b.titulo,
+        hoja: target,
+        columnas: b.columnas,
+        filas: b.filas as BookTableV2['filas'],
+        fuente: b.fuente,
+        periodo: b.periodo,
+        cobertura: b.cobertura,
+        estado: b.estado,
+        availability: b.availability ?? 'available',
+        note: b.note,
+        source: b.source,
+        comparisonMode: b.comparisonMode,
+        indicadores: [],
+      })
+    }
+    bloquesPorHoja.set(target, existing)
+  }
+
+  const pending = (hoja: BookSheetId, titulo: string): BookTableV2[] => [
+    {
+      schema: SOCIDEAS_BOOK_SCHEMA,
+      id: `${hoja.toLowerCase()}-declarada`,
+      titulo,
+      hoja,
+      columnas: ['Indicador', 'Estado', 'Fuente candidata', 'Motivo', 'Siguiente acción'],
+      filas: [[
+        { text: titulo, numeric: null },
+        { text: 'Pendiente de integración con operación candidata', numeric: null },
+        { text: '—', numeric: null },
+        { text: 'Bloque no alimentado en esta llamada (adaptación v1→v2).', numeric: null },
+        { text: 'Usar la ruta de producción con el pipeline v2.', numeric: null },
+      ]],
+      fuente: 'SOCideas · adaptador v1→v2',
+      periodo: '—',
+      cobertura: 'Municipio',
+      estado: 'Pendiente de integración',
+      availability: 'pending_integration',
+      indicadores: [],
+    },
+  ]
+
+  const sheets: BookSheetV2[] = []
+  const metaTitulos: Record<string, string> = {
+    '01_DEMOGRAFÍA': 'Demografía',
+    '02_POLÍTICA': 'Política',
+    '03_ECONOMÍA_Y_EMPLEO': 'Economía y empleo',
+    '04_AGRARIO': 'Agrario',
+    '05_SOCIAL_EDUCACIÓN_SERVICIOS': 'Social, educación y servicios',
+    '06_VIVIENDA_Y_HOGARES': 'Vivienda y hogares',
+    '07_PATRIMONIO_TURISMO': 'Patrimonio y turismo',
+    '08_INFRAESTRUCTURA_RECURSOS': 'Infraestructura y recursos',
+    '09_ASOCIACIONES_GOBERNANZA': 'Asociaciones y gobernanza',
+  }
+  const bloques00: BookTableV2[] = [
+    {
+      schema: SOCIDEAS_BOOK_SCHEMA,
+      id: 'portada-v1',
+      titulo: 'Identificación del libro',
+      hoja: '00_RESUMEN',
+      columnas: ['Campo', 'Valor'],
+      filas: [
+        { text: 'Municipio', numeric: null },
+        { text: input.municipio, numeric: null },
+      ].map((c) => [c]),
+      fuente: 'SOCideas',
+      periodo: input.fechaGeneracion,
+      cobertura: `${input.municipio} (${input.codigoINE}) · ${input.provincia} · ${input.comunidadAutonoma}`,
+      estado: 'Disponible',
+      indicadores: [],
+    },
+  ]
+  // Reconstruir la portada con filas Campo/Valor correctas
+  bloques00[0].filas = [
+    [{ text: 'Municipio', numeric: null }, { text: input.municipio, numeric: null }],
+    [{ text: 'Código INE', numeric: null }, { text: input.codigoINE, numeric: null }],
+    [{ text: 'Provincia', numeric: null }, { text: input.provincia, numeric: null }],
+    [{ text: 'Comunidad autónoma', numeric: null }, { text: input.comunidadAutonoma, numeric: null }],
+    [{ text: 'Fecha de generación', numeric: null }, { text: input.fechaGeneracion, numeric: null }],
+    [{ text: 'Esquema', numeric: null }, { text: SOCIDEAS_BOOK_SCHEMA, numeric: null }],
+  ]
+  sheets.push({ id: '00_RESUMEN', titulo: 'Resumen ejecutivo', subtitulo: 'Adaptación v1→v2', bloques: bloques00 })
+  for (const meta of SOCIDEAS_BOOK_SHEETS) {
+    if (meta.id === '00_RESUMEN' || meta.id === '10_METODOLOGÍA_FUENTES') continue
+    sheets.push({
+      id: meta.id,
+      titulo: meta.titulo,
+      subtitulo: meta.subtitulo,
+      bloques: bloquesPorHoja.get(meta.id) ?? pending(meta.id, metaTituloFallback(metaTitulos, meta.id)),
+    })
+  }
+  sheets.push({
+    id: '10_METODOLOGÍA_FUENTES',
+    titulo: 'Metodología y fuentes',
+    subtitulo: 'Adaptación v1→v2',
+    bloques: [{
+      schema: SOCIDEAS_BOOK_SCHEMA,
+      id: 'metodologia-v1',
+      titulo: 'Trazabilidad de las tablas incluidas',
+      hoja: '10_METODOLOGÍA_FUENTES',
+      columnas: ['Bloque', 'Fuente', 'Período', 'Estado'],
+      filas: input.hojas.flatMap((h) => h.bloques.map((b) => [
+        { text: `${h.id} · ${b.titulo}`, numeric: null },
+        { text: b.fuente, numeric: null },
+        { text: b.periodo, numeric: null },
+        { text: b.estado, numeric: null },
+      ])),
+      fuente: 'SOCideas · adaptador v1→v2',
+      periodo: input.fechaGeneracion,
+      cobertura: 'Todas las hojas',
+      estado: 'Disponible',
+      indicadores: [],
+    }],
+  })
+
+  const book: SocideasBookV2 = {
+    schemaVersion: SOCIDEAS_BOOK_SCHEMA,
+    municipio: input.municipio,
+    codigoINE: input.codigoINE,
+    fechaGeneracion: input.fechaGeneracion,
+    sheets,
+    indicadores: [],
+    coverage: { areas: [], global: 0, publicables: 0, declarados: 0 },
+    findings: [],
+    checks: [],
+    duplicateKeys: [],
+  }
+  return buildSocideasBookXlsx(book)
+}
+
+function metaTituloFallback(map: Record<string, string>, id: string): string {
+  return map[id] ?? id
+}
+
+// Re-exports de compatibilidad con consumidores existentes.
+export { INE_INSTITUTION }

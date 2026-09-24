@@ -4,15 +4,21 @@
 //    su rango fusionado);
 //  - celdas con wrap cuya altura de fila es insuficiente para las líneas que
 //    Excel necesita dibujar (texto cortado verticalmente);
-//  - columnas por encima del tope contractual de autoajuste (38);
-//  - notas metodológicas largas (cursiva) sin fusionar en hojas temáticas, que
-//    quedarían comprimidas en una sola columna.
+//  - columnas por encima del tope contractual de autoajuste (42 en el contrato
+//    `socideas-book@2`; constante espejo de `MAX_COL_WIDTH` del escritor);
+//  - notas metodológicas largas (cursiva) de un bloque MULTICOLUMNA sin fusionar,
+//    que quedarían comprimidas en una sola columna. Las notas de bloques de una
+//    sola columna no exigen fusión: ya ocupan todo el ancho de su bloque.
 //
 // El modelo de ancho replica el del generador (Poppins sobreestima 1.2×, colchón
 // de 2) para que la comprobación sea conservadora: si aquí pasa, no se corta.
+//
+// Contrato v2: las celdas pueden llevar fórmula con resultado cacheado
+// (`{ formula, result }`); `cellText` lee ese resultado para no omitirlas del
+// chequeo de truncado.
 import type ExcelJS from 'exceljs'
 
-export const MAX_ALLOWED_COLUMN_WIDTH = 38
+export const MAX_ALLOWED_COLUMN_WIDTH = 42
 const POPPINS_CHAR_FACTOR = 1.2
 const CELL_WIDTH_PADDING = 2
 /** Altura mínima por línea envelopada (puntos). Conservador (< generador). */
@@ -51,10 +57,13 @@ function linesFor(text: string, width: number): number {
 function cellText(cell: ExcelJS.Cell): string {
   const v = cell.value as unknown
   if (v && typeof v === 'object') {
-    const o = v as { text?: unknown; richText?: { text: string }[] }
+    const o = v as { text?: unknown; richText?: { text: string }[]; result?: unknown }
     if (typeof o.text === 'string') return o.text
     if (Array.isArray(o.richText)) return o.richText.map((r) => r.text).join('')
     if (v instanceof Date) return v.toISOString()
+    // Celda de fórmula (contrato v2): el texto visible es el resultado cacheado.
+    if (typeof o.result === 'number') return String(o.result)
+    if (typeof o.result === 'string') return o.result
     return ''
   }
   return v === null || v === undefined ? '' : String(v)
@@ -109,6 +118,17 @@ function readMerges(ws: ExcelJS.Worksheet): MergeRange[] {
     }
   }
   return out
+}
+
+/** ¿La fila anterior a `rn` tiene contenido más allá de la columna A? Si no,
+ *  la nota pertenece a un bloque de una sola columna y no procede fusionarla. */
+function previousRowIsWider(ws: ExcelJS.Worksheet, rn: number): boolean {
+  if (rn <= 1) return false
+  const prev = ws.getRow(rn - 1)
+  for (let ci = 2; ci <= ws.columnCount; ci += 1) {
+    if (cellText(prev.getCell(ci)).length > 0) return true
+  }
+  return false
 }
 
 export function findLayoutProblems(wb: ExcelJS.Workbook): {
@@ -179,24 +199,35 @@ export function findLayoutProblems(wb: ExcelJS.Workbook): {
       })
     })
 
-    // Notas metodológicas largas (cursiva) en hojas temáticas: deben ir fusionadas
-    // a lo ancho de la tabla; si no, quedan comprimidas en la columna A.
-    if (/^0[1-7]_/.test(ws.name) && ws.columnCount > 1) {
+    // Notas metodológicas largas (cursiva) en hojas temáticas: en un bloque
+    // multicolumna deben ir fusionadas a lo ancho de la tabla; si no, quedan
+    // comprimidas en una sola columna. Una nota de un bloque de UNA columna ya
+    // ocupa todo el ancho del bloque: no se exige fusión (contrato v2: las
+    // columnas "Estado"/"Motivo"/"Siguiente acción" también son cursivas y no
+    // son notas).
+    if (/^(0[1-9]|10)_/.test(ws.name) && ws.columnCount > 1) {
       ws.eachRow((row, rn) => {
         row.eachCell({ includeEmpty: false }, (cell, cn) => {
           const text = cellText(cell)
           if (text.length <= 40) return
           if (!cell.font?.italic) return
           stats.notesChecked += 1
-          if (!cell.isMerged) {
-            problems.push({
-              sheet: ws.name,
-              row: rn,
-              col: cn,
-              kind: 'note-not-merged',
-              detail: `nota larga sin fusionar: "${text.slice(0, 42)}…"`,
-            })
-          }
+          if (cell.isMerged) return
+          let aloneInRow = true
+          row.eachCell({ includeEmpty: false }, (other, otherCn) => {
+            if (otherCn !== cn && cellText(other).length > 0) aloneInRow = false
+          })
+          if (!aloneInRow) return
+          // Bloque de una sola columna (fila anterior solo en la columna A): la
+          // nota ocupa el ancho completo de su bloque.
+          if (!previousRowIsWider(ws, rn)) return
+          problems.push({
+            sheet: ws.name,
+            row: rn,
+            col: cn,
+            kind: 'note-not-merged',
+            detail: `nota larga sin fusionar: "${text.slice(0, 42)}…"`,
+          })
         })
       })
     }

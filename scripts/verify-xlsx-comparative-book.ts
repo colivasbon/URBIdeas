@@ -4,20 +4,21 @@
 // 31193 Cendea de Olza / Olza Zendea, uno con nombre muy largo y 28143 parcial)
 // y lo relee con ExcelJS.
 //
-// CAMBIO DE CONTRATO (v2 de maquetación): "sin celdas fusionadas" y "columnas
-// ≤24 / Año = 10" quedan SUPERSEDIDOS por el autoajuste que no trunca. Ahora se
-// EXIGE que haya fusiones de títulos/fuente/notas (para que no se corten) y que
-// ninguna columna supere el tope de autoajuste (38), verificando además que
-// ningún texto quede recortado (scripts/xlsx-layout-assert.ts).
+// CAMBIO DE CONTRATO (v2 `socideas-book@2`, 11 hojas): "sin celdas fusionadas",
+// "sin freeze", "sin autofilter", "sin enlaces internos", "columnas ≤24 /
+// Año = 10" y "cero hojas de trazabilidad" quedan SUPERSEDIDOS. Ahora se EXIGE
+// freeze en todas las hojas, tablas con filtro, navegación interna, fusiones de
+// título/fuente/nota (para no truncar) y tope de columna 42.
 //
 // Falla (exit 1) si:
-//  - no hay exactamente nueve hojas en el orden contractual;
-//  - existe alguna hoja oculta, freeze, autofilter, split o columna fijada;
-//  - existe cualquier URL fuera del allowlist oficial (R2, Supabase, Vercel,
-//    GitHub, localhost, CSV masivo, etc.);
+//  - no hay exactamente 11 hojas en el orden contractual `socideas-book@2`;
+//  - existe alguna hoja oculta o falta freeze/autofilter/fusiones;
+//  - existe cualquier URL externa fuera del allowlist oficial (R2, Supabase,
+//    Vercel, GitHub, localhost, CSV masivo, etc.) o no https;
+//  - el texto visible de un enlace externo no es SOURCE_LINK_LABEL;
 //  - una banda verde sobrepasa la última columna real de un bloque o se pinta
 //    una celda verde vacía posterior a la última columna;
-//  - alguna columna supera ancho 38 o algún texto/altura queda truncado;
+//  - alguna columna supera ancho 42 o algún texto/altura queda truncado;
 //  - aparece un suprimido serializado como 0 (salvo conteos de pirámide);
 //  - la hoja de asociaciones contiene teléfonos, emails, direcciones o nombres
 //    de contacto;
@@ -38,9 +39,9 @@ import {
   buildMunicipioWorkbook,
   SOURCE_LINK_LABEL,
   XLSX_BRAND,
-  type ComparativeSheetInput,
+  type LegacyComparativeSheetInput,
 } from '../src/lib/socideas-xlsx'
-import { SOCIDEAS_SHEET_IDS } from '../src/lib/socideas-export'
+import { SOCIDEAS_BOOK_SHEET_IDS } from '../src/lib/socideas-book-contract'
 import { findLayoutProblems, MAX_ALLOWED_COLUMN_WIDTH } from './xlsx-layout-assert'
 import {
   AEAT_EDM_IRPF,
@@ -52,7 +53,7 @@ import type { DemographicPresentationData } from '../src/lib/socideas-demographi
 import type { MunicipalIneLayersV1 } from '../src/lib/socideas-ine-layers'
 
 const EXPORT_DIR = 'tmp'
-const EXPECTED_SHEETS = [...SOCIDEAS_SHEET_IDS]
+const EXPECTED_SHEETS = [...SOCIDEAS_BOOK_SHEET_IDS]
 const FORBIDDEN_HOSTS = /(cloudflarestorage|supabase\.co|vercel\.app|cloudflare\.com|github\.com|localhost|127\.0\.0\.1|0\.0\.0\.0)/i
 const FORBIDDEN_CSV = /\.csv(\?|$)/i
 
@@ -575,7 +576,7 @@ async function buildScenario(s: Scenario): Promise<Built> {
     ...buildDemographicDimensionTables(s.dims),
   ]
   const economia = buildEconomiaTables(s.eco as never)
-  const hojas: ComparativeSheetInput[] = [
+  const hojas: LegacyComparativeSheetInput[] = [
     { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil demográfico', bloques: demografia },
     { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Contexto económico', bloques: economia },
   ]
@@ -599,25 +600,22 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(readFileSync(built.file))
   const names = wb.worksheets.map((w) => w.name)
-  check('nueve hojas exactas en orden contractual', JSON.stringify(names) === JSON.stringify(EXPECTED_SHEETS), names.join(','))
+  check('11 hojas exactas en orden contractual (socideas-book@2)', JSON.stringify(names) === JSON.stringify(EXPECTED_SHEETS), names.join(','))
   check('sin hojas adicionales', names.length === EXPECTED_SHEETS.length)
 
-  let frozen = false
-  let filtered = false
-  let internalLinks = 0
+  let frozenSheets = 0
+  let filterOrTableSheets = 0
   let mergedCells = 0
   let greenOutside = 0
   const widthProblems: string[] = []
   const linkProblems: string[] = []
-  const urlSeen: string[] = []
+  const linkLabelProblems: string[] = []
+  const externalLinks: string[] = []
   const forbiddenFound: string[] = []
-  const yearHeaderWidths: { sheet: string; col: number; width: number }[] = []
 
   for (const ws of wb.worksheets) {
-    for (const v of ws.views ?? []) {
-      if (v.state === 'frozen' || v.xSplit || v.ySplit) frozen = true
-    }
-    if (ws.autoFilter) filtered = true
+    if ((ws.views ?? []).some((v) => v.state === 'frozen' || v.xSplit || v.ySplit)) frozenSheets += 1
+    if (ws.autoFilter || ws.getTables().length > 0) filterOrTableSheets += 1
     if ((ws as unknown as { state?: string }).state === 'hidden') {
       check(`hoja visible: ${ws.name}`, false, 'estado hidden')
     }
@@ -625,13 +623,18 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
     ws.eachRow((row, rn) => {
       row.eachCell((cell, ci) => {
         const l = cellHyperlink(cell)
-        if (l) {
-          urlSeen.push(l)
-          if (l.startsWith('#')) internalLinks += 1
+        // Los enlaces internos de navegación del contrato v2 (`location="…"`)
+        // no llegan como hipervínculo a ExcelJS; se cuentan del XML. Todo
+        // hipervínculo visible aquí es externo y debe cumplir la allowlist.
+        if (l && !l.startsWith('#')) {
+          externalLinks.push(l)
           if (FORBIDDEN_HOSTS.test(l)) linkProblems.push(`${ws.name} R${rn}C${ci} host prohibido (${l})`)
           if (!l.startsWith('https://')) linkProblems.push(`${ws.name} R${rn}C${ci} no https (${l})`)
           if (FORBIDDEN_CSV.test(l)) linkProblems.push(`${ws.name} R${rn}C${ci} CSV masivo (${l})`)
           if (!isAllowedSourceUrl(l)) linkProblems.push(`${ws.name} R${rn}C${ci} dominio no autorizado (${l})`)
+          if (cellText(cell) !== SOURCE_LINK_LABEL) {
+            linkLabelProblems.push(`${ws.name} R${rn}C${ci} "${cellText(cell).slice(0, 32)}"`)
+          }
         }
         if (cell.isMerged) mergedCells += 1
         const s = cellText(cell)
@@ -642,9 +645,9 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
     })
   }
 
-  // Validación por hoja
+  // Validación por hoja (se excluyen las hojas meta 00/10: índice y catálogo).
   for (const ws of wb.worksheets) {
-    if (ws.name === '00_PROYECTO' || ws.name === '08_CRITERIOS_Y_FUENTES') continue
+    if (ws.name === '00_RESUMEN' || ws.name === '10_METODOLOGÍA_FUENTES') continue
 
     ws.eachRow((row, rn) => {
       let ncols = 0
@@ -675,17 +678,18 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
         if (cellText(cell) === 'Año') {
           const w = ws.getColumn(cn).width ?? 0
           if (w < 10) widthProblems.push(`${ws.name} Año C${cn}=${w} (mínimo 10)`)
-          yearHeaderWidths.push({ sheet: ws.name, col: cn, width: w })
         }
       })
     })
   }
 
-  // Ceros prohibidos salvo pirámide.
+  // Ceros prohibidos en hojas temáticas de datos (01–09) salvo los recuentos
+  // reales de la pirámide (01_DEMOGRAFÍA). Los ceros-contador del índice de
+  // 00_RESUMEN no son valores suprimidos y quedan fuera del barrido.
   const zeroProblems: string[] = []
   let piramideRows: { sheet: string; start: number; end: number } | null = null
   for (const ws of wb.worksheets) {
-    if (ws.name !== '01_PERFIL_DEMOGRÁFICO') continue
+    if (ws.name !== '01_DEMOGRAFÍA') continue
     let pirStart = -1
     let pirEnd = -1
     ws.eachRow((row, rn) => {
@@ -696,6 +700,7 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
     if (pirStart > 0) piramideRows = { sheet: ws.name, start: pirStart, end: pirEnd > 0 ? pirEnd : 9999 }
   }
   for (const ws of wb.worksheets) {
+    if (!/^0[1-9]_/.test(ws.name)) continue
     ws.eachRow((row, rn) => {
       row.eachCell((cell) => {
         if (typeof cell.value === 'number' && cell.value === 0) {
@@ -709,29 +714,36 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
   // Datos personales prohibidos en asociaciones.
   const personalFound: string[] = []
   for (const ws of wb.worksheets) {
-    if (ws.name !== '07_ASOCIACIONES') continue
+    if (ws.name !== '09_ASOCIACIONES_GOBERNANZA') continue
     ws.eachRow((row) => {
       row.eachCell((cell) => {
         const t = cellText(cell)
-        if (/@/.test(t) || /\b\d{9}\b/.test(t) || /\b\d{3}\s\d{3}\s\d{3}\b/.test(t) || /\+34/.test(t)) {
+        // Email real (la cabecera de ámbito contiene el esquema `socideas-book@2`
+        // y no es un dato personal), teléfono de 9 dígitos y prefijo +34.
+        if (/[\w.+-]+@[\w-]+\.[\w.]+/.test(t) || /\b\d{9}\b/.test(t) || /\b\d{3}\s\d{3}\s\d{3}\b/.test(t) || /\+34/.test(t)) {
           personalFound.push(`${ws.name}: ${t.slice(0, 60)}`)
         }
       })
     })
   }
 
-  // Macros/ActiveX/VBA
+  // Macros/ActiveX/VBA y enlaces internos (solo visibles en el XML).
   const zip = await JSZip.loadAsync(built.buffer)
   const macroEntries = Object.keys(zip.files).filter((f) => /vbaProject|activeX|macrosheet/i.test(f))
   const hasVba = Object.keys(zip.files).some((f) => f.toLowerCase().endsWith('.bin'))
+  let internalLinks = 0
+  for (const file of Object.keys(zip.files).filter((f) => /^xl\/worksheets\/sheet\d+\.xml$/.test(f))) {
+    const xml = (await zip.file(file)?.async('string')) ?? ''
+    internalLinks += (xml.match(/location="/g) ?? []).length
+  }
 
   // Maquetación: relectura con el comprobador compartido. Exige fusiones
   // (títulos/fuente/notas) y que NINGÚN texto quede truncado.
   const { problems: layoutProblems, stats: layoutStats } = findLayoutProblems(wb)
 
-  check('sin freeze panes', !frozen)
-  check('sin autofilter', !filtered)
-  check('sin enlaces internos', internalLinks === 0, `${internalLinks}`)
+  check('freeze panes en TODAS las hojas', frozenSheets === EXPECTED_SHEETS.length, `${frozenSheets}/${EXPECTED_SHEETS.length}`)
+  check('autofilter o tabla nativa en cada hoja', filterOrTableSheets === EXPECTED_SHEETS.length, `${filterOrTableSheets}/${EXPECTED_SHEETS.length}`)
+  check('enlaces internos de navegación ≥8', internalLinks >= 8, `${internalLinks}`)
   check(
     'fusiones presentes para títulos/fuente/notas (contrato v2)',
     mergedCells > 0,
@@ -751,46 +763,47 @@ async function analyze(s: Scenario, built: Built): Promise<void> {
       ` (${layoutStats.cellsChecked} celdas, ${layoutStats.wrappedCells} con wrap, ${layoutStats.notesChecked} notas)`,
   )
 
-  // Título de sección acortado por hoja: la marca completa solo vive en 00.
+  // Marca: la completa (XLSX_BRAND) vive en las propiedades del libro y, a lo
+  // sumo, en 00/10; el resto de hojas usa el título corto "SOCideas · <hoja>".
   const brandLeaks: string[] = []
+  if (wb.creator !== XLSX_BRAND) brandLeaks.push(`creator=${String(wb.creator)}`)
   for (const ws of wb.worksheets) {
     const title = cellText(ws.getRow(1).getCell(1))
-    if (ws.name === '00_PROYECTO' || ws.name === '08_CRITERIOS_Y_FUENTES') {
-      if (!title.includes(XLSX_BRAND)) brandLeaks.push(`${ws.name}: portada sin marca`)
-    } else if (title.includes(XLSX_BRAND) || title.length > 40) {
-      brandLeaks.push(`${ws.name}: título no acortado "${title}"`)
+    if (!title.startsWith('SOCideas ·')) brandLeaks.push(`${ws.name}: sin marca corta`)
+    if (ws.name !== '00_RESUMEN' && ws.name !== '10_METODOLOGÍA_FUENTES' && title.includes(XLSX_BRAND)) {
+      brandLeaks.push(`${ws.name}: marca completa fuera de 00/10`)
     }
   }
-  check('título por hoja acortado (marca solo en 00/08)', brandLeaks.length === 0, brandLeaks.slice(0, 2).join(' | '))
+  check('marca completa solo en 00/10 y corta en el resto', brandLeaks.length === 0, brandLeaks.slice(0, 2).join(' | '))
 
-  // 00: nombre (ID) y descripción (subtítulo) en filas separadas, sin solape.
-  const summary = wb.getWorksheet('00_PROYECTO')
-  const sheetIds = SOCIDEAS_SHEET_IDS.filter((id) => id !== '00_PROYECTO' && id !== '08_CRITERIOS_Y_FUENTES')
+  // 00: índice con las 11 hojas (00 + 9 temáticas 01–09 + 10) y, por fila, el
+  // título de la hoja y el recuento de bloques (el contrato v2 sustituye al
+  // listado "nombre/descripción en filas separadas" del v1).
+  const summary = wb.getWorksheet('00_RESUMEN')
+  const sheetIds = new Set<string>(EXPECTED_SHEETS)
   let listed = 0
-  const overlapProblems: string[] = []
+  const indexProblems: string[] = []
   summary?.eachRow((row) => {
     const a = cellText(row.getCell(1))
-    if (!(sheetIds as readonly string[]).includes(a)) return
+    if (!sheetIds.has(a)) return
     listed += 1
-    const b = cellText(row.getCell(2))
-    if (b.length === 0) overlapProblems.push(`${a}: sin título en la misma fila`)
-    const next = summary.getRow(row.number + 1)
-    const na = cellText(next.getCell(1))
-    const nb = cellText(next.getCell(2))
-    if (na.length === 0 || na === a || !/bloques$/.test(nb)) {
-      overlapProblems.push(`${a}: descripción no separada (siguiente A="${na.slice(0, 24)}", B="${nb}")`)
-    }
+    if (cellText(row.getCell(2)).length === 0) indexProblems.push(`${a}: sin título en la misma fila`)
+    if (typeof row.getCell(3).value !== 'number') indexProblems.push(`${a}: sin recuento de bloques`)
   })
   check(
-    '00: nombre y descripción de cada hoja en filas separadas',
-    listed === sheetIds.length && overlapProblems.length === 0,
-    `listadas ${listed}/${sheetIds.length} ${overlapProblems.slice(0, 2).join(' | ')}`,
+    '00: índice con las 11 hojas (9 temáticas 01-09 + 10)',
+    listed === EXPECTED_SHEETS.length && indexProblems.length === 0,
+    `listadas ${listed}/${EXPECTED_SHEETS.length} ${indexProblems.slice(0, 2).join(' | ')}`,
   )
   check('sin enlaces prohibidos', linkProblems.length === 0, linkProblems.slice(0, 3).join(' | '))
   check('sin URL técnica visible (#VALUE!, ERROR, etc.)', forbiddenFound.length === 0, forbiddenFound.slice(0, 3).join(' | '))
   check('suprimidos nunca como 0', zeroProblems.length === 0, zeroProblems.slice(0, 3).join(' | '))
   check('asociaciones sin datos personales', personalFound.length === 0, personalFound.slice(0, 3).join(' | '))
-  check(`texto del enlace correcto (${SOURCE_LINK_LABEL})`, urlSeen.every((u) => u.includes('ine.es') || u.includes('agenciatributaria')))
+  check(
+    `texto del enlace externo correcto (${SOURCE_LINK_LABEL})`,
+    linkLabelProblems.length === 0,
+    `${externalLinks.length} enlaces externos; ${linkLabelProblems.slice(0, 2).join(' | ')}`,
+  )
 }
 
 async function main(): Promise<void> {
@@ -801,7 +814,7 @@ async function main(): Promise<void> {
   }
   console.log(`\n${failures === 0 ? 'OK' : failures} comprobaciones ${failures === 0 ? 'superadas' : 'FALLIDAS'}`)
   if (failures > 0) process.exit(1)
-  console.log('Libro XLSX municipal comparativo verificado: nueve hojas en orden contractual.')
+  console.log('Libro XLSX municipal comparativo verificado: 11 hojas del contrato socideas-book@2.')
 }
 
 main().catch((e) => {

@@ -20,7 +20,14 @@ import { densityYearsWarning } from "./socideas-density";
 import { isConprelUiEnabled } from "./conprel-flag";
 import { buildConprelPresentacion, type ConprelPresentacion } from "./conprel-presentation";
 
-export interface ExportCell { text: string; numeric: number | null }
+export interface ExportCell {
+  text: string
+  numeric: number | null
+  /** Fórmula Excel auditable (libro v2). `numeric` conserva el resultado
+   *  cacheado para que el valor sea correcto sin recálculo y la paridad entre
+   *  fórmula y cálculo SOCideas pueda verificarse en QA. El CSV usa `text`. */
+  formula?: string
+}
 
 /**
  * Hojas oficiales del libro municipal comparativo. El orden es contractual:

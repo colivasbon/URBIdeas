@@ -6,21 +6,9 @@ import { getPerfilEconomico } from '@/lib/socideas-economia'
 import { readDemographicPresentation } from '@/lib/socideas-demographic-summary'
 import { readMigrationPresentation } from '@/lib/socideas-migration-summary'
 import { readMunicipalIneLayers } from '@/lib/socideas-ine-layers'
-import { buildDemographicDimensionTables } from '@/lib/socideas-demographic-export'
-import { buildElectoralTables } from '@/lib/socideas-electoral-export'
-import { buildMigrationFlowTables } from '@/lib/socideas-migration-export'
-import { buildSaldosMigratoriosTables, buildSectorAgrarioTables } from '@/lib/socideas-ine-layers-export'
-import {
-  buildDemografiaTables,
-  buildEconomiaTables,
-  normalizarMunicipio,
-  toAsciiFilename,
-} from '@/lib/socideas-export'
-import {
-  XLSX_BRAND,
-  buildMunicipioWorkbook,
-  type ComparativeSheetInput,
-} from '@/lib/socideas-xlsx'
+import { normalizarMunicipio, toAsciiFilename } from '@/lib/socideas-export'
+import { assembleSocideasBookV2 } from '@/lib/socideas-book-blocks'
+import { XLSX_BRAND, buildSocideasBookXlsx } from '@/lib/socideas-xlsx'
 
 export const dynamic = 'force-dynamic'
 
@@ -93,7 +81,13 @@ function logError(
 
 /**
  * GET /api/socideas/exportar/[codigoINE]: UN SOLO libro XLSX por municipio
- * con nueve hojas en orden contractual (libro municipal comparativo).
+ * con las hojas del contrato `socideas-book@2` (libro municipal comparativo):
+ * 00_RESUMEN, 01_DEMOGRAFÍA, 02_POLÍTICA, 03_ECONOMÍA_Y_EMPLEO, 04_AGRARIO,
+ * 05_SOCIAL_EDUCACIÓN_SERVICIOS, 06_VIVIENDA_Y_HOGARES, 07_PATRIMONIO_TURISMO,
+ * 08_INFRAESTRUCTURA_RECURSOS, 09_ASOCIACIONES_GOBERNANZA,
+ * 10_METODOLOGÍA_FUENTES. El ensamblado (bloques, indicadores, cobertura,
+ * reconciliaciones y gráficos declarativos) vive en `socideas-book-blocks.ts`;
+ * este route solo carga datos y serializa.
  *
  * Instrumentación: cada request lleva un requestId visible en el error
  * y registrado en server logs para diagnóstico.
@@ -197,60 +191,45 @@ export async function GET(
       demoStatus: demo.status, ecoStatus: eco.status,
     })
 
-    // 5. Construir tablas (con aislamiento por bloque)
+    // 5. Ensamblar el libro v2 (bloques + indicadores + checks + cobertura).
+    //    El ensamblado es puro: no escribe nada y aísla cada área.
     stage = 'build_demographic_sheet'
     const municipio = perfilDemo?.municipio.nombre ?? perfilEco?.municipio.nombre ?? codigoINE
     console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_demographic_sheet', start: true })
-    let demografia: Awaited<ReturnType<typeof buildDemografiaTables>> = []
-    try {
-      demografia = [
-        ...(perfilDemo ? buildDemografiaTables(perfilDemo) : []),
-        ...buildDemographicDimensionTables(demoExtra),
-        ...buildMigrationFlowTables(migracion),
-        ...(buildSaldosMigratoriosTables(ineLayers) ?? []),
-      ]
-    } catch (e) {
-      logError(requestId, stage, ineCode, e)
-    }
-    logStage(requestId, stage, ineCode, { blocks: demografia.length })
-    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_demographic_sheet', blocks: demografia.length })
-
+    const book = assembleSocideasBookV2({
+      municipio,
+      codigoINE,
+      provincia: perfilDemo?.municipio.provincia ?? perfilEco?.municipio.provincia ?? 'No disponible',
+      comunidadAutonoma: perfilDemo?.municipio.comunidad_autonoma ?? perfilEco?.municipio.comunidad_autonoma ?? 'No disponible',
+      fechaGeneracion: new Date().toISOString().slice(0, 10),
+      perfilDemografia: perfilDemo,
+      perfilEconomia: perfilEco,
+      ineLayers: ineLayers ?? null,
+      demoExtra,
+      migracion,
+      // Estructura anual 2025 (INE 68535/68534): cargada en la capa lateral
+      // `populationStructure` cuando la misión de ingesta la publique en R2.
+      // Hasta entonces el libro usa la pirámide histórica con estado declarado.
+      populationStructure: null,
+    })
+    const totalBlocks = book.sheets.reduce((a, s) => a + s.bloques.length, 0)
+    const bloquesConDatos = book.sheets
+      .flatMap((s) => s.bloques)
+      .filter((b) => b.filas.some((f) => f.some((c) => c.numeric !== null))).length
+    logStage(requestId, stage, ineCode, { blocks: totalBlocks, bloquesConDatos })
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', {
+      ineCode, requestId, stage: 'build_demographic_sheet',
+      blocks: totalBlocks, bloquesConDatos,
+      coverageGlobal: book.coverage.global,
+      indicadores: book.indicadores.length,
+      duplicateKeys: book.duplicateKeys.length,
+    })
     stage = 'build_economic_sheet'
-    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_economic_sheet', start: true })
-    let economia: Awaited<ReturnType<typeof buildEconomiaTables>> = []
-    try {
-      economia = perfilEco ? buildEconomiaTables(perfilEco) : []
-    } catch (e) {
-      logError(requestId, stage, ineCode, e)
-    }
-    // Sector agrario REAL desde layers.agriculture: sustituye a los placeholders
-    // pendientes (agrario/ganadería derivados de slugs v2 no cargados).
-    try {
-      const agr = buildSectorAgrarioTables(ineLayers)
-      if (agr && agr.length > 0) {
-        economia = economia.filter(
-          (t) => !(t.availability === 'pending_integration' && (t.id === 'agrario' || t.id === 'ganaderia')),
-        )
-        economia.push(...agr)
-      }
-    } catch (e) {
-      logError(requestId, stage, ineCode, e)
-    }
-    logStage(requestId, stage, ineCode, { blocks: economia.length })
-    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_economic_sheet', blocks: economia.length })
-
+    logStage(requestId, stage, ineCode, { ok: true })
     stage = 'build_political_sheet'
-    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_political_sheet', start: true })
-    let electoral: Awaited<ReturnType<typeof buildElectoralTables>> = []
-    try {
-      electoral = perfilDemo ? buildElectoralTables(perfilDemo.valores, municipio) : []
-    } catch (e) {
-      logError(requestId, stage, ineCode, e)
-    }
-    logStage(requestId, stage, ineCode, { blocks: electoral.length })
-    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'build_political_sheet', blocks: electoral.length })
+    logStage(requestId, stage, ineCode, { ok: true })
 
-    if (demografia.length === 0 && economia.length === 0) {
+    if (bloquesConDatos === 0) {
       return NextResponse.json(
         { error: 'Este municipio aún no tiene tablas con datos reales para exportar.', requestId, ref: `XLSX-${requestId}` },
         { status: 404 },
@@ -259,31 +238,17 @@ export async function GET(
 
     // 6. Generar XLSX
     stage = 'serialize_xlsx'
-    const hojas: ComparativeSheetInput[] = [
-      { id: '01_PERFIL_DEMOGRÁFICO', titulo: 'Perfil demográfico', bloques: demografia },
-      { id: '02_CONTEXTO_POLÍTICO', titulo: 'Contexto político', bloques: electoral },
-      { id: '03_CONTEXTO_ECONÓMICO', titulo: 'Contexto económico', bloques: economia },
-    ]
-
     logStage(requestId, stage, ineCode, {
-      totalBlocks: demografia.length + economia.length + electoral.length,
+      totalBlocks,
       hasIneLayers: ineLayers !== null,
     })
     console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', {
       ineCode, requestId, stage: 'serialize_xlsx',
-      totalBlocks: demografia.length + economia.length + electoral.length,
+      totalBlocks,
       hasIneLayers: ineLayers !== null,
     })
 
-    const buffer = await buildMunicipioWorkbook({
-      municipio,
-      codigoINE,
-      provincia: perfilDemo?.municipio.provincia ?? perfilEco?.municipio.provincia ?? 'No disponible',
-      comunidadAutonoma: perfilDemo?.municipio.comunidad_autonoma ?? perfilEco?.municipio.comunidad_autonoma ?? 'No disponible',
-      fechaGeneracion: new Date().toISOString().slice(0, 10),
-      hojas,
-      ineLayers,
-    })
+    const buffer = await buildSocideasBookXlsx(book)
 
     // Validar que el buffer no esté vacío o sea sospechosamente pequeño
     if (buffer.length < 1000) {

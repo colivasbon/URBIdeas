@@ -68,9 +68,9 @@ function testCatchBlock() {
   console.log('\n=== Test 3: Estructura del catch block ===')
 
   // El catch block del route handler debe:
-  // 1. Registrar el error (console.error)
+  // 1. Registrar el error (console.error) con mensaje SANITIZADO
   // 2. Devolver JSON con error genérico
-  // 3. No exponer el error original
+  // 3. No exponer el error original en la RESPUESTA
   // Verificamos leyendo el código fuente del route handler.
 
   const routeCode = readFileSync(
@@ -79,8 +79,21 @@ function testCatchBlock() {
   )
 
   check('catch usa console.error (registro)', routeCode.includes('console.error'))
-  check('catch NO expone err.message', !routeCode.includes('err.message'))
+  // El log de servidor puede incluir el mensaje del error, pero SIEMPRE
+  // sanitizado (rutas/tokens/hashes) y recortado; la respuesta al cliente usa
+  // solo el mensaje genérico. Se comprueba que ninguna respuesta JSON
+  // construida en el fichero interpole err.message/err.stack.
+  check(
+    'catch NO interpola err.message/err.stack en NextResponse.json',
+    !/NextResponse\.json\(\s*\{[^}]*err\.(message|stack)/s.test(routeCode),
+  )
   check('catch NO expone err.stack', !routeCode.includes('err.stack'))
+  check(
+    'log del catch sanitiza el mensaje (rutas, bearer, hashes)',
+    routeCode.includes('.replace(/[A-Za-z]:\\\\[^\\s]*/g, \'[path]\')') &&
+      routeCode.includes('Bearer [redacted]') &&
+      routeCode.includes('[hash]'),
+  )
   check('catch devuelve 500', routeCode.includes('status: 500'))
   check('catch devuelve JSON', routeCode.includes('NextResponse.json'))
   check('catch tiene mensaje genérico', routeCode.includes('No se pudo generar el archivo'))

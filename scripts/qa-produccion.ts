@@ -9,7 +9,9 @@
  *  - migración: FLUJOS y SALDO separados en la hoja demografía
  *  - datos preexistentes (población, renta/DIRCE, elecciones) intactos
  *  - ND no se presenta como 0 (indicios en HTML)
- *  - XLSX abre, 9 hojas, tablas nuevas presentes, sin corrupción
+ *  - XLSX abre, 11 hojas del contrato `socideas-book@2`, tablas nuevas
+ *    presentes (agrario, saldos, educación y diccionario de indicadores), sin
+ *    corrupción
  *
  * Uso: npx tsx scripts/qa-produccion.ts [--ssr 250] [--xlsx 30]
  */
@@ -172,9 +174,9 @@ async function main() {
   let xlsxOk = 0
   const xlsxFails: string[] = []
   const HOJAS_ESPERADAS = [
-    '00_PROYECTO', '01_PERFIL_DEMOGRÁFICO', '02_CONTEXTO_POLÍTICO', '03_CONTEXTO_ECONÓMICO',
-    '04_CONTEXTO_SOCIOCULTURAL', '05_PATRIMONIO_Y_TURISMO', '06_INFRAESTRUCTURA_Y_RECURSOS',
-    '07_ASOCIACIONES', '08_CRITERIOS_Y_FUENTES',
+    '00_RESUMEN', '01_DEMOGRAFÍA', '02_POLÍTICA', '03_ECONOMÍA_Y_EMPLEO', '04_AGRARIO',
+    '05_SOCIAL_EDUCACIÓN_SERVICIOS', '06_VIVIENDA_Y_HOGARES', '07_PATRIMONIO_TURISMO',
+    '08_INFRAESTRUCTURA_RECURSOS', '09_ASOCIACIONES_GOBERNANZA', '10_METODOLOGÍA_FUENTES',
   ]
   await pool(
     xlsxSet,
@@ -204,6 +206,7 @@ async function main() {
         if (!ss.includes('Usos agrarios')) xlsxFails.push(`${m.codigo_ine}: falta tabla 'Usos agrarios'`)
         if (!ss.includes('Saldo migratorio')) xlsxFails.push(`${m.codigo_ine}: falta tabla 'Saldo migratorio'`)
         if (!ss.includes('Nivel educativo')) xlsxFails.push(`${m.codigo_ine}: falta tabla 'Nivel educativo'`)
+        if (!ss.includes('Diccionario de indicadores')) xlsxFails.push(`${m.codigo_ine}: falta 'Diccionario de indicadores'`)
         xlsxOk++
       } catch (e) {
         xlsxFails.push(`${m.codigo_ine}: ${(e as Error).message}`)

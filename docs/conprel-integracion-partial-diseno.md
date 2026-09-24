@@ -16,6 +16,17 @@ Este documento recoge: (1) clave única y regla de duplicados, (2) contratos sep
 | Join municipal | `LEFT(LEFT(codente,5)) → INE-5`, filtro tipo `AA` (+ `ZZ` en 51001/52001) | 100 % de prefijos ∈ catálogo (matriz §11.2 del documento de decisión) |
 | Grupos de entidad | `tb_economica.id` = agrupación (corporación+dependientes); `idente` = entidad concreta. **El importe municipal usa `idente` del inventario AA/ZZ, nunca el `id` de grupo** | Madrid: `id=17037` con `idente`s 165/166/17039/17041/23593 = dependientes |
 
+**Consolidación de dependientes: NO implementada (decisión explícita).**
+La metodología de este diseño (regla de arriba) fija el `idente` municipal
+como única fuente del importe publicado. No existe aprobación SA1 de una
+regla que sume dependientes (`ZV/ZO/DD` ni `id` de grupo) al municipal; sin
+ella, consolidar produciría doble cómputo (dependiente ya agregado en la
+corporación o duplicado). El loader `scripts/load-conprel.ts` publica SOLO
+el idente AA/ZZ y la suite `verify-conprel-loader` prueba la **ausencia de
+doble cómputo** (valores de dependientes jamás aparecen ni suman). Si SA1
+aprueba una regla de consolidación, se implementará entonces, con tests de
+no-duplicación equivalentes.
+
 **Precisión de las 7 filas (familias, contadas como «filas municipales» en el dry-run previo):**
 el predicado laxo del dry-run (`tipo ∉ {AV,MM}` para prefijos 51/52) contabilizaba **7 organismos dependientes `ZV/ZO` de Ceuta y Melilla** (51001ZO001, 51001ZV003, 51001ZV005, 51001ZV006, 51001ZO003, 52001ZO001, 52001ZV004) además del municipal `ZZ000`. Con el predicado estricto `AA|ZZ` de la matriz: **7.352−7 = 7.345** (ppto) y **6.868−7 = 6.861** (liq) = municipios-distinto-ficha, **sin códigos repetidos**. No son duplicados de código: son **registros de tipo distinto**.
 
@@ -93,10 +104,20 @@ Los nombres `conprel_sim_*` son **provisionales de simulación**; los slugs defi
 
 Al habilitarse (tras aprobación) la carga real debe:
 
-1. **Manifest por run** en `tmp/conprel-manifest-<runId>.json`: URL de descarga, fecha, bytes, **sha256 del cuerpo crudo**, familia, ejercicio, fase (`definitiva_publicacion`), recuentos (entidades AA+ZZ, filas eco, capítulos), duplicados descartados (hoy 0), muestra de joins.
-2. **`data_sync_runs`**: `tipo_sincronizacion='conprel_ppto_2025'|'conprel_liq_2024'`, `bloque='economia'`, `periodo='2025'|'2024'`, `fuente='hacienda_conprel'`, `estado ok|partial|error`, `registros_leidos/actualizados`, `error_message`, `metadata={runId, sha256, bytes, fase, entidades, municipios_escritos, cobertura_pct, join_regla:'LEFT(codente,5)', duplicados_descartados, slugs_preservados, bytes_max, revalidation{...}}`.
-3. **Orden inalterado:** dry-run → escritura R2 (merge aditivo, <150 KB) → read-back → `revalidateAfterWrites` batch → fila de revalidación/degradación (`buildRevalidationAuditRow`). Fallo de revalidación ⇒ degradación auditada, R2 intacto.
-4. **Rollback:** por run, restore de envelopes desde el backup local previo (patrón fix-tgss) + `git revert` del loader; sin migraciones destructivas.
+1. **Manifest por run** en `tmp/conprel-manifest-<runId>.json`: URL de descarga, fecha, bytes, **sha256 del cuerpo crudo** del ZIP **y de los CSV del loader**, familia, ejercicio, fase (`definitiva_publicacion`), **corte exacto** (mtime del ZIP en ISO 8601 + `preparadoEn`), recuentos (entidades AA+ZZ, filas eco, capítulos), duplicados descartados (hoy 0), muestra de joins.
+2. **`data_sync_runs`**: `tipo_sincronizacion='conprel_ppto_2025'|'conprel_liq_2024'`, `bloque='economia'`, `periodo='2025'|'2024'`, `fuente='hacienda_conprel'`, `estado ok|partial|error`, `registros_leidos/actualizados`, `error_message`, `metadata={runId, sha256, bytes, fase, corte, entidades, municipios_escritos, cobertura_pct, join_regla:'LEFT(codente,5)', duplicados_descartados, slugs_preservados, bytes_max, lote, lote_total, backup{dir,ok,bytes,r2,limite}, revalidation{...}, degradacion, audit_supabase}`. Además una fila `*_revalidacion` cuando haya revalidación. El `estado` refleja éxito/fallo del run; `metadata.cobertura_pct` la cobertura; `metadata.degradacion` marca omisiones (sin Supabase, revalidación degradada, backup espejo R2 ausente).
+3. **Orden inalterado:** dry-run → **backup durable por run** (`tmp/conprel-backups/<runId>/` con `index.json` de bytes+sha256 por INE; aborta el run si el backup falla) → escritura R2 (merge aditivo, <150 KB) → read-back → `revalidateAfterWrites` batch **solo con INE escritos** → fila de revalidación/degradación (`buildRevalidationAuditRow`) + fila del run. Fallo de revalidación ⇒ degradación auditada, R2 intacto.
+4. **Rollback:** por run, restore de envelopes desde el backup local (patrón fix-tgss) vía `scripts/conprel-restore.ts` (valida sha256 y «reproduce el put» solo en destino aislado `tmp/conprel-restore-sim/<runId>/`; nunca escribe el R2 oficial) + `git revert` del loader; sin migraciones destructivas. El espejo R2 del backup (`socideas/backups/conprel/<runId>/`) es opcional y solo con credenciales + gate doble (ver `CONPREL_BACKUP_LIMITE_DOC` en `src/lib/conprel-backup.ts`).
+
+### 7.1 Carga inicial por lotes
+
+La primera escritura real se hace en tandas: `--lote=N --lote-total=M`
+particiona de forma **determinista** el conjunto de INEs ordenado en M
+tramos casi iguales (`src/lib/conprel-lotes.ts`). Secuencia recomendada:
+(1) lote 1 en modo escritura con backup+read-back+revalidación,
+(2) `conprel-restore` de muestra para verificar hashes,
+(3) lotes 2..M, (4) dry-run `--size-full` final. Cada lote deja su propia
+fila en `data_sync_runs` con `metadata.lote`/`lote_total`.
 
 ## 8. Puntos de verificación abiertos
 

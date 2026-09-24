@@ -42,6 +42,13 @@ import {
 } from '../src/lib/conprel-parser'
 import type { EnvV2 } from '../src/lib/conprel-parser'
 import { CONPREL_SLUGS } from '../src/lib/conprel-slugs'
+import {
+  ConprelLoteError,
+  aplicarLote,
+  particionLotes,
+  validarLoteArgs,
+} from '../src/lib/conprel-lotes'
+import { shouldRevalidate, revalidateAfterWrites } from '../src/lib/socideas-revalidate'
 
 const TMP = path.join(process.cwd(), 'tmp', 'conprel-verify')
 let failures = 0
@@ -446,6 +453,142 @@ function main(): void {
   )
 
   // ── resumen ─────────────────────────────────────────────────────────────
+  // ── 12. Ceros publicados ≠ ND (refuerzo explícito) ──────────────────────
+  console.log('\n— ceros publicados ≠ ND (refuerzo) —')
+  const envCero: EnvV2 = {
+    version: 2,
+    codigo_ine: '28079',
+    generado_en: new Date().toISOString(),
+    indicators: [],
+    sources: [],
+    source_urls: [],
+    dimensiones: [],
+    valores: [],
+  }
+  // Madrid cap1-I = 0,00 publicado → SÍ tupla valor 0 en el envelope.
+  const mergeCero = mergeConprelTuplas(envCero, madridTuplas, {
+    sourceSlug: 'hacienda_conprel',
+    organismo: 'x',
+    nombreFuente: 'CONPREL',
+    slugsARemplazar: slugsPpto,
+  })
+  const tieneCeroPublicado = envCero.valores.some(
+    (t) => Array.isArray(t) && t[2] === 0 && t[1] === 2025,
+  )
+  check(
+    'cero 0,00 publicado → tupla valor 0 presente en envelope',
+    tieneCeroPublicado && mergeCero.tuplasEscritas > 0,
+    `tuplasEscritas=${mergeCero.tuplasEscritas} tieneCero=${tieneCeroPublicado}`,
+  )
+  // Ceuta (campo nulo) → SIN tupla: ausencia ≠ 0 en el envelope.
+  const envNd: EnvV2 = {
+    version: 2,
+    codigo_ine: '51001',
+    generado_en: new Date().toISOString(),
+    indicators: [],
+    sources: [],
+    source_urls: [],
+    dimensiones: [],
+    valores: [],
+  }
+  mergeConprelTuplas(envNd, resCeuta.tuplas, {
+    sourceSlug: 'hacienda_conprel',
+    organismo: 'x',
+    nombreFuente: 'CONPREL',
+    slugsARemplazar: slugsPpto,
+  })
+  check(
+    'ND (campo nulo) → envelope SIN tuplas de la familia (nunca 0)',
+    envNd.valores.length === 0 && resCeuta.tuplas.length === 0,
+    `valores=${envNd.valores.length}`,
+  )
+  // Mismo envelope con ambos casos: el 0 publicado coexiste con la ausencia.
+  check(
+    'convivencia: 0 publicado y ND en envelopes distintos sin contaminarse',
+    tieneCeroPublicado && envNd.valores.length === 0,
+    'madrid=0 · ceuta=sin-tuplas',
+  )
+
+  // ── 13. Sin doble cómputo de dependientes ───────────────────────────────
+  console.log('\n— ausencia de doble cómputo de dependientes —')
+  const valsDependientes = [999999, 888888, 777777, 666666]
+  const doble = res.tuplas.filter((t) => valsDependientes.includes(t.valor))
+  // Suma municipal (Madrid+Bilbao+Ceuta) = solo filas de identes AA/ZZ.
+  const identesMunSet = new Set(inv.municipales.map((m) => m.idente))
+  const ecoMunicipal = eco.filas.filter((f) => identesMunSet.has(f.idente))
+  const ecoDependientes = eco.filas.filter((f) => !identesMunSet.has(f.idente))
+  const sumaMun = ecoMunicipal.reduce((s, f) => s + (f.valores.importe ?? 0), 0)
+  const sumaPub = res.tuplas.reduce((s, t) => s + t.valor, 0)
+  check(
+    'ninguna tupla procede de idente de dependiente (ZV/ZO/DD/grupo)',
+    doble.length === 0 && ecoDependientes.length >= 2,
+    `doble=${doble.length} filasDependientes=${ecoDependientes.length}`,
+  )
+  check(
+    'suma publicada == suma solo de identes municipales (sin doble cómputo)',
+    Math.abs(sumaPub - sumaMun) < 1e-9,
+    `pub=${sumaPub} mun=${sumaMun}`,
+  )
+
+  // ── 14. Lotes (--lote / --lote-total) ───────────────────────────────────
+  console.log('\n— lotes de carga —')
+  check(
+    'validarLoteArgs: ambos ausentes → OK',
+    (() => {
+      try {
+        validarLoteArgs({ lote: null, loteTotal: null })
+        return true
+      } catch {
+        return false
+      }
+    })(),
+  )
+  check(
+    'validarLoteArgs: incompleto → ConprelLoteError',
+    expectError(() => validarLoteArgs({ lote: 1, loteTotal: null }), [ConprelLoteError], 'incompleto') === null,
+  )
+  check(
+    'validarLoteArgs: lote fuera de rango → error',
+    expectError(() => validarLoteArgs({ lote: 5, loteTotal: 3 }), [ConprelLoteError], 'rango') === null,
+  )
+  const muestraInes = Array.from({ length: 100 }, (_, i) => String(i + 1).padStart(5, '0'))
+  const tramos = particionLotes(muestraInes, 7)
+  const union = [...new Set(tramos.flat())].sort()
+  const solape = tramos.flat().length === union.length
+  check(
+    'particionLotes: 100 INEs en 7 tramos sin solapes ni huecos',
+    tramos.length === 7 && union.length === 100 && solape && tramos.every((t) => t.length >= 14),
+    `tramos=${tramos.map((t) => t.length).join('/')}`,
+  )
+  const desorden = [...muestraInes].reverse()
+  const a1 = aplicarLote(desorden, { lote: 3, loteTotal: 7 })
+  const a2 = aplicarLote(muestraInes, { lote: 3, loteTotal: 7 })
+  check(
+    'aplicarLote: determinista (mismo lote con distinto orden de entrada)',
+    a1.ines.join() === a2.ines.join() && a1.etiqueta === 'lote_3_de_7',
+    `n=${a1.ines.length} etiqueta=${a1.etiqueta}`,
+  )
+  check(
+    'aplicarLote: sin lote → lista íntegra',
+    aplicarLote(muestraInes, { lote: null, loteTotal: null }).ines.length === 100,
+  )
+
+  // ── 15. Revalidación solo de INE escritos ──────────────────────────────
+  console.log('\n— revalidación solo de escritos —')
+  check('shouldRevalidate(0) → false (nada escrito, no se invoca)', shouldRevalidate(0) === false)
+  check('shouldRevalidate(1) → true', shouldRevalidate(1) === true)
+  // revalidateAfterWrites([]) no invoca la fn de red (devuelve null).
+  void revalidateAfterWrites([], {
+    revalidateFn: async () => {
+      throw new Error('no debe invocarse con lista vacía')
+    },
+  }).then((r) => {
+    check('revalidateAfterWrites([]) → null sin invocar el endpoint', r === null)
+    finalizar()
+  })
+}
+
+function finalizar(): void {
   console.log(`\n=== RESULTADO: ${passes} OK · ${failures} FAIL ===`)
   if (failures > 0) process.exit(1)
   process.exit(0)

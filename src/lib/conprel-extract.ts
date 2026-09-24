@@ -292,10 +292,20 @@ export interface ManifiestoFuentes {
     descargadoEnEsteRun: boolean
     accdb: string
     etiqueta: string
+    /** Corte exacto de la fuente: mtime del ZIP oficial (ISO 8601 UTC). */
+    corte: string
+    /** Momento en que este run preparó la fuente (ISO 8601 UTC). */
+    preparadoEn: string
+    /** SHA-256 + bytes de los CSV del loader (se rellena en extraerFamilia
+     *  y el loader lo vuelca aquí tras la extracción). */
+    csv?: {
+      inv: { path: string; bytes: number; sha256: string; filas: number }
+      eco: { path: string; bytes: number; sha256: string; filas: number }
+    }
   }>
 }
 
-/** SHA-256 del ZIP (cuerpo crudo) + URL/ejercicio para el manifiesto. */
+/** SHA-256 del ZIP (cuerpo crudo) + URL/ejercicio/corte para el manifiesto. */
 export async function prepararFuentes(
   familias: readonly ConprelFamilia[],
   runId: string,
@@ -303,10 +313,14 @@ export async function prepararFuentes(
   const dir = conprelTempDir()
   fs.mkdirSync(dir, { recursive: true })
   const fuentes: ManifiestoFuentes['fuentes'] = []
+  const ahora = new Date().toISOString()
   for (const f of familias) {
     const def = CONPREL_FAMILIAS[f]
     const zipPath = path.join(dir, def.zipName)
     const zipInfo = await descargarZip(def, zipPath)
+    const corte = fs.existsSync(zipPath)
+      ? new Date(fs.statSync(zipPath).mtimeMs).toISOString()
+      : ahora
     fuentes.push({
       familia: f,
       ejercicio: def.ejercicio,
@@ -318,13 +332,20 @@ export async function prepararFuentes(
       descargadoEnEsteRun: zipInfo.descargado,
       accdb: path.join(dir, def.accdbName),
       etiqueta: def.etiqueta,
+      corte,
+      preparadoEn: ahora,
     })
   }
   return {
     runId,
     parserVersion: CONPREL_PARSER_VERSION,
-    fecha: new Date().toISOString(),
+    fecha: ahora,
     duplicados: [],
     fuentes,
   }
+}
+
+/** SHA-256 y bytes de un fichero grande (streaming; sin cargarlo entero). */
+export function sha256FileDigest(p: string): { bytes: number; sha256: string } {
+  return { bytes: fs.statSync(p).size, sha256: sha256File(p) }
 }

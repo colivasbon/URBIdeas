@@ -20,7 +20,12 @@
  *   --provincias=01,31,48,20,51,52
  *                          select por prefijo INE (Álava, Navarra, Bizkaia,
  *                          Gipuzkoa, Ceuta, Melilla)
- *   --colisiones           las ~50 divergencias de nombre: join por C�DIGO,
+ *   --ines=28079,02003     selección explícita de INEs (útil con restore/read-back)
+ *   --lote=N --lote-total=M
+ *                          carga inicial por lotes: partición determinista del
+ *                          conjunto ordenado en M tramos; procesa el tramo N
+ *                          (p. ej. --lote=1 --lote-total=20). Ambos juntos.
+ *   --colisiones           las ~50 divergencias de nombre: join por CÓDIGO,
  *                          verificar que el INE no cambia
  *   --size-full            medición de tamaño de población COMPLETA (R2 lectura
  *                          pública, concurrencia 15): familia única + combinado
@@ -34,9 +39,18 @@
  *   npx tsx scripts/load-conprel.ts --all-liq
  *   npx tsx scripts/load-conprel.ts --size-full --all-ppto --all-liq
  *   npx tsx scripts/load-conprel.ts --colisiones --ausentes --familia=ppto
+ *   npx tsx scripts/load-conprel.ts --all-ppto --lote=1 --lote-total=20
  *
  * NUNCA escribe R2/Supabase en dry-run. El modo escritura exige ambas
  * habilitaciones y NO debe ejecutarse en esta misión.
+ *
+ * DEPENDIENTES (ZV/ZO/DD/grupos): NO se consolidan en el municipal.
+ * El diseño §1 (docs/conprel-integracion-partial-diseno.md) fija que el
+ * importe municipal usa el `idente` de la fila AA/ZZ del inventario, nunca
+ * el `id` de grupo ni los identes de dependientes. Sin aprobación SA1 de
+ * una regla de consolidación, el loader publica SOLO el idente municipal
+ * (tests de ausencia de doble cómputo en verify-conprel-loader: valores
+ * de dependientes jamás aparecen ni suman).
  */
 
 import { config } from 'dotenv'
@@ -67,7 +81,8 @@ import {
   CONPREL_SOURCE_ORGANISMO,
   CONPREL_SOURCE_SLUG,
 } from '../src/lib/conprel-contracts'
-import { extraerFamilia, prepararFuentes } from '../src/lib/conprel-extract'
+import { extraerFamilia, prepararFuentes, sha256FileDigest } from '../src/lib/conprel-extract'
+import { aplicarLote } from '../src/lib/conprel-lotes'
 import { MUESTRA_COBERTURA } from './qa-fixtures'
 import {
   buildRevalidationAuditRow,
@@ -88,6 +103,9 @@ interface Args {
   allLiq: boolean
   ausentes: boolean
   provincias: string[] | null
+  ines: string[] | null
+  lote: number | null
+  loteTotal: number | null
   colisiones: boolean
   sizeFull: boolean
   extract: boolean
@@ -104,6 +122,9 @@ function parseArgs(argv: string[]): Args {
     allLiq: false,
     ausentes: false,
     provincias: null,
+    ines: null,
+    lote: null,
+    loteTotal: null,
     colisiones: false,
     sizeFull: false,
     extract: false,
@@ -132,7 +153,16 @@ function parseArgs(argv: string[]): Args {
         .map((s) => s.trim())
         .filter(Boolean)
         .map((s) => s.padStart(2, '0'))
-    } else if (raw === '--help' || raw === '-h') {
+    } else if (raw.startsWith('--ines=')) {
+      a.ines = raw
+        .slice('--ines='.length)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => s.padStart(5, '0'))
+    } else if (raw.startsWith('--lote=')) a.lote = Number(raw.slice('--lote='.length))
+    else if (raw.startsWith('--lote-total=')) a.loteTotal = Number(raw.slice('--lote-total='.length))
+    else if (raw === '--help' || raw === '-h') {
       console.log('Ver cabecera del fichero para flags. --dry-run es el defecto.')
       process.exit(0)
     } else {
@@ -144,7 +174,18 @@ function parseArgs(argv: string[]): Args {
   // Alcance por defecto si no se indicó familia: ambas familias con datos.
   if (a.familias.length === 0) a.familias = ['ppto', 'liq']
   // Selección de alcance por defecto: muestra (seguro).
-  if (!a.muestra && !a.allPpto && !a.allLiq && !a.sizeFull && !a.ausentes && !a.colisiones && a.provincias === null) {
+  if (
+    !a.muestra &&
+    !a.allPpto &&
+    !a.allLiq &&
+    !a.sizeFull &&
+    !a.ausentes &&
+    !a.colisiones &&
+    a.provincias === null &&
+    a.ines === null &&
+    a.lote === null &&
+    a.loteTotal === null
+  ) {
     a.muestra = true
   }
   return a
@@ -316,6 +357,16 @@ async function cargarDatos(
       invPath: ext.invPath,
       ecoPath: ext.ecoPath,
     })
+    // Manifiesto: SHA-256 + bytes de los CSV del loader (trazabilidad del corte).
+    const invDig = sha256FileDigest(ext.invPath)
+    const ecoDig = sha256FileDigest(ext.ecoPath)
+    const fuente = man.fuentes.find((x) => x.familia === f)
+    if (fuente) {
+      fuente.csv = {
+        inv: { path: ext.invPath, bytes: invDig.bytes, sha256: invDig.sha256, filas: ext.invFilas },
+        eco: { path: ext.ecoPath, bytes: ecoDig.bytes, sha256: ecoDig.sha256, filas: ext.ecoFilas },
+      }
+    }
     console.log(
       `  inventario: ${inv.totalFilas} filas · municipales(AA+ZZ)=${inv.municipales.length} · ` +
         `eco cap=${ecoCap.totalCapitulos} · negativos=${ecoCap.negativos} · nulos=${ecoCap.nulos} · ceros=${ecoCap.cerosExplicitos}`,
@@ -353,7 +404,11 @@ function seleccionar(
   const mun = datos.inv.municipales
   let ines: string[]
   let etiqueta: string
-  if (args.muestra) {
+  if (args.ines) {
+    const set = new Set(args.ines)
+    ines = mun.map((m) => m.ine).filter((i) => set.has(i))
+    etiqueta = 'ines_explicitos'
+  } else if (args.muestra) {
     const set = new Set(MUESTRA_COBERTURA.map((m) => m.ine))
     ines = mun.map((m) => m.ine).filter((i) => set.has(i))
     etiqueta = 'muestra_fixtures_14'
@@ -369,6 +424,12 @@ function seleccionar(
     const allowed = new Set(args.provincias)
     ines = ines.filter((i) => allowed.has(i.slice(0, 2)))
     etiqueta += `_prov_${args.provincias.join('-')}`
+  }
+  // Lote (carga inicial por tandas): partición determinista tras los filtros.
+  if (args.lote !== null || args.loteTotal !== null) {
+    const r = aplicarLote(ines, { lote: args.lote, loteTotal: args.loteTotal })
+    ines = r.ines
+    if (r.etiqueta) etiqueta += `_${r.etiqueta}`
   }
   void catalogo
   return { ines: [...new Set(ines)].sort(), etiqueta }
@@ -716,77 +777,232 @@ function auditarAusentes(
 async function modoEscritura(
   datosMap: Map<ConprelFamilia, FamiliaDatos>,
   runId: string,
+  loteInfo: { lote: number | null; loteTotal: number | null } = { lote: null, loteTotal: null },
 ): Promise<void> {
-  // Implementación completa del pipeline de escritura (merge �  gate 150 KB � 
-  // putMunicipioJson �  read-back �  revalidateAfterWrites �  audit row).
+  // Pipeline de escritura (backup durable → merge → gate 150 KB →
+  // putMunicipioJson → read-back → revalidateAfterWrites SOLO INE escritos →
+  // audit rows data_sync_runs con éxito/fallo/cobertura/degradación).
   // Esta rama SOLO se alcanza con --confirm-r2-write Y
   // SOCIDEAS_CONPREL_WRITE=autorizado. La misión NO la ejecuta.
   const { getMunicipioJsonRaw, putMunicipioJson } = await import('../src/lib/socideas-r2')
+  const { backupEnvelopes, r2BackupCredsPresentes, CONPREL_BACKUP_LIMITE_DOC } = await import(
+    '../src/lib/conprel-backup'
+  )
+
+  // 1. BACKUP durable por run ANTES de cualquier put (misión §8).
+  const objetivos: string[] = []
+  for (const [, datos] of datosMap) {
+    for (const mun of datos.inv.municipales) objetivos.push(mun.ine)
+  }
+  const objetivosUnicos = [...new Set(objetivos)].sort()
+  console.log(`  Backup previo: ${objetivosUnicos.length} INEs → tmp/conprel-backups/${runId}/`)
+  // Espejo R2 del backup solo con habilitación explícita del operador
+  // (no se activa solo por tener credenciales; la misión no lo ejecuta).
+  const r2Mirror = process.env.SOCIDEAS_CONPREL_R2_BACKUP === 'si' && r2BackupCredsPresentes()
+  const bIndex = await backupEnvelopes({
+    runId,
+    ines: objetivosUnicos,
+    fetcher: async (ine) => {
+      const raw = await getMunicipioJsonRaw(ine)
+      if (!raw) return null
+      return { key: `socideas/v2/municipios/${ine}.json`, json: JSON.stringify(raw) }
+    },
+    r2Uploader: r2Mirror
+      ? async (item) => {
+          const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3')
+          const client = new S3Client({
+            region: 'auto',
+            endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+            credentials: {
+              accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+              secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+            },
+          })
+          await client.send(
+            new PutObjectCommand({
+              Bucket: process.env.R2_BUCKET!,
+              Key: item.key,
+              Body: item.body,
+              ContentType: 'application/json',
+              CacheControl: 'private, no-store',
+            }),
+          )
+        }
+      : undefined,
+  })
+  if (bIndex.errores > 0) {
+    console.error(
+      `  BLOQUEO BACKUP: ${bIndex.errores} errores respaldando envelopes previos. NO se escribe R2.`,
+    )
+    console.error(`  Límite: ${CONPREL_BACKUP_LIMITE_DOC}`)
+    process.exit(5)
+  }
+  console.log(
+    `  Backup ok=${bIndex.ok} sinEnvelope=${bIndex.ausentes} bytes=${bIndex.bytesTotales} r2=${bIndex.r2Backup}`,
+  )
+
+  // 2. Escritura por familia/INE (merge → gate → put → read-back).
   const writtenInes: string[] = []
+  const erroresWrite: string[] = []
   let written = 0
+  let candidatosConEco = 0
+  let bloqueos150 = 0
   for (const [fam, datos] of datosMap) {
     const def = CONPREL_FAMILIAS[fam]
     const slugsFam = new Set(CONPREL_SLUGS.filter((s) => s.familia === fam).map((s) => s.slug))
     for (const mun of datos.inv.municipales) {
       const b = buildTuplasFamilia(fam, [mun], datos.eco, { url: def.url })
-      if (b.tuplas.length === 0) continue // municipio sin fila �  ND (sin tupla)
-      const raw = await getMunicipioJsonRaw(mun.ine)
-      if (!raw || (raw as { version?: number }).version !== 2) continue
-      const env = raw as unknown as EnvV2
-      if (env.codigo_ine !== mun.ine) continue
-      mergeConprelTuplas(env, b.tuplas, {
-        sourceSlug: CONPREL_SOURCE_SLUG,
-        organismo: CONPREL_SOURCE_ORGANISMO,
-        nombreFuente: CONPREL_SOURCE_NOMBRE,
-        slugsARemplazar: slugsFam,
-      })
-      const json = JSON.stringify(env)
-      const gate = cabeEnvelope(json)
-      if (!gate.ok) {
-        console.error(`  BLOQUEO 150KB: ${mun.ine} = ${gate.bytes} B`)
-        continue
-      }
-      await putMunicipioJson(mun.ine, env)
-      // read-back
-      const back = await getMunicipioJsonRaw(mun.ine)
-      if (!back || back.codigo_ine !== mun.ine) {
-        console.error(`  READ-BACK fallido: ${mun.ine}`)
-        continue
-      }
-      written++
-      writtenInes.push(mun.ine)
-    }
-  }
-  // Revalidación batch + audit row UNA sola vez al final de todo el run
-  // (diseño §7: escritura R2 �  read-back �  revalidateAfterWrites �  audit row).
-  if (shouldRevalidate(written)) {
-    const reval = await revalidateAfterWrites(writtenInes)
-    if (reval) {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-      if (url && key) {
-        const sb = createClient(url, key, { auth: { persistSession: false } })
-        for (const [fam] of datosMap) {
-          const def = CONPREL_FAMILIAS[fam]
-          const row = buildRevalidationAuditRow(reval, {
-            runId,
-            writtenCount: written,
-            tipo: fam === 'ppto' ? 'conprel_ppto_2025' : 'conprel_liq_2024',
-            bloque: 'economia',
-            periodo: String(def.ejercicio),
-            fuente: CONPREL_SOURCE_SLUG,
-          })
-          await sb.from('data_sync_runs').insert(row)
+      if (b.tuplas.length === 0) continue // municipio sin fila → ND (sin tupla)
+      candidatosConEco++
+      try {
+        const raw = await getMunicipioJsonRaw(mun.ine)
+        if (!raw || (raw as { version?: number }).version !== 2) {
+          erroresWrite.push(`${mun.ine}:sin-envelope-v2`)
+          continue
         }
-      } else {
-        console.error('  SIN Supabase: degradación de revalidación solo en consola/manifest')
-      }
-      if (reval.degradado) {
-        console.error(`  REVALIDACI�N DEGRADADA: ${reval.error ?? 'sin detalle'}`)
+        const env = raw as unknown as EnvV2
+        if (env.codigo_ine !== mun.ine) {
+          erroresWrite.push(`${mun.ine}:codigo-mismatch`)
+          continue
+        }
+        mergeConprelTuplas(env, b.tuplas, {
+          sourceSlug: CONPREL_SOURCE_SLUG,
+          organismo: CONPREL_SOURCE_ORGANISMO,
+          nombreFuente: CONPREL_SOURCE_NOMBRE,
+          slugsARemplazar: slugsFam,
+        })
+        const json = JSON.stringify(env)
+        const gate = cabeEnvelope(json)
+        if (!gate.ok) {
+          bloqueos150++
+          erroresWrite.push(`${mun.ine}:${gate.bytes}B>150KB`)
+          console.error(`  BLOQUEO 150KB: ${mun.ine} = ${gate.bytes} B`)
+          continue
+        }
+        await putMunicipioJson(mun.ine, env)
+        // read-back: SOLO un put confirmado entra en writtenInes.
+        const back = await getMunicipioJsonRaw(mun.ine)
+        if (!back || back.codigo_ine !== mun.ine) {
+          erroresWrite.push(`${mun.ine}:read-back-fallido`)
+          console.error(`  READ-BACK fallido: ${mun.ine}`)
+          continue
+        }
+        written++
+        writtenInes.push(mun.ine)
+      } catch (e) {
+        erroresWrite.push(`${mun.ine}:${e instanceof Error ? e.message : String(e)}`.slice(0, 200))
       }
     }
   }
-  console.log(`Escritura completada: ${written} municipios · runId=${runId}`)
+
+  // 3. Revalidación batch SOLO con los INE escritos (read-back OK).
+  let reval: Awaited<ReturnType<typeof revalidateAfterWrites>> = null
+  if (shouldRevalidate(writtenInes.length)) {
+    reval = await revalidateAfterWrites(writtenInes)
+  }
+  console.log(
+    `  Revalidación: escritos=${writtenInes.length} · ${reval ? `modo=${reval.modo} invalidados=${reval.invalidados} degradado=${reval.degradado}` : 'omitida'}`,
+  )
+  if (reval?.degradado) {
+    console.error(`  REVALIDACIÓN DEGRADADA: ${reval.error ?? 'sin detalle'}`)
+  }
+
+  // 4. Auditoría data_sync_runs: fila por familia (éxito/fallo/cobertura/
+  //    degradación) + fila de revalidación si la hubo.
+  const cobertura = objetivosUnicos.length
+    ? Math.round((written / objetivosUnicos.length) * 1000) / 10
+    : 0
+  const estadoRun: 'ok' | 'partial' | 'error' =
+    written > 0 && erroresWrite.length === 0
+      ? 'ok'
+      : written > 0
+        ? 'partial'
+        : erroresWrite.length > 0
+          ? 'error'
+          : 'ok'
+  const supUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const sb =
+    supUrl && supKey ? createClient(supUrl, supKey, { auth: { persistSession: false } }) : null
+
+  for (const [fam, datos] of datosMap) {
+    const def = CONPREL_FAMILIAS[fam]
+    const runRow = {
+      source_id: null,
+      tipo_sincronizacion: fam === 'ppto' ? 'conprel_ppto_2025' : 'conprel_liq_2024',
+      municipio_codigo_ine: null,
+      estado: estadoRun,
+      registros_leidos: datos.inv.municipales.length,
+      registros_actualizados: written,
+      fin: new Date().toISOString(),
+      error_message: erroresWrite.length
+        ? erroresWrite.slice(0, 20).join(' | ').slice(0, 1900)
+        : null,
+      estado_dato: 'consolidado',
+      bloque: 'economia',
+      periodo: String(def.ejercicio),
+      fuente: CONPREL_SOURCE_SLUG,
+      metadata: {
+        run_id: runId,
+        modo: 'write',
+        lote: loteInfo.lote,
+        lote_total: loteInfo.loteTotal,
+        candidatos_familia: datos.inv.municipales.length,
+        candidatos_con_eco: candidatosConEco,
+        objetivo_total: objetivosUnicos.length,
+        escritos: written,
+        errores: erroresWrite.length,
+        bloqueos_150kb: bloqueos150,
+        cobertura_pct: cobertura,
+        join_regla: 'LEFT(codente,5)',
+        duplicados_descartados: 0,
+        backup: {
+          dir: bIndex.dir,
+          ok: bIndex.ok,
+          ausentes: bIndex.ausentes,
+          errores: bIndex.errores,
+          bytes: bIndex.bytesTotales,
+          r2: bIndex.r2Backup,
+          limite: CONPREL_BACKUP_LIMITE_DOC,
+        },
+        revalidation: reval
+          ? {
+              modo: reval.modo,
+              solicitadas: reval.solicitados,
+              invalidadas: reval.invalidados,
+              fallidas: reval.errores,
+              degradado: reval.degradado,
+              error: reval.error ?? null,
+            }
+          : null,
+        degradacion: Boolean(reval?.degradado) || !sb,
+        audit_supabase: Boolean(sb),
+      },
+    }
+    if (sb) {
+      const { error } = await sb.from('data_sync_runs').insert(runRow)
+      if (error) console.error(`  Auditoría run no insertada: ${error.message}`)
+      else console.log(`  Auditoría data_sync_runs insertada (${fam}, estado=${estadoRun})`)
+    } else {
+      console.error('  SIN Supabase: auditoría del run solo en consola/manifest')
+    }
+    if (reval) {
+      const row = buildRevalidationAuditRow(reval, {
+        runId,
+        writtenCount: written,
+        tipo: fam === 'ppto' ? 'conprel_ppto_2025_revalidacion' : 'conprel_liq_2024_revalidacion',
+        bloque: 'economia',
+        periodo: String(def.ejercicio),
+        fuente: CONPREL_SOURCE_SLUG,
+      })
+      if (sb) await sb.from('data_sync_runs').insert(row)
+      else console.error('  SIN Supabase: audit de revalidación solo en consola/manifest')
+    }
+  }
+  console.log(
+    `Escritura completada: written=${written} · candidatosConEco=${candidatosConEco} · ` +
+      `errores=${erroresWrite.length} (150KB=${bloqueos150}) · cobertura=${cobertura}% · runId=${runId}`,
+  )
 }
 
 // ���� main ��������������������������������������������������������������������������������������������������������������������������������������
@@ -954,7 +1170,7 @@ async function main(): Promise<void> {
   // 7. Escritura (solo con gate doble; NO en esta misión).
   if (gate.mode === 'write') {
     console.log('\n--- ESCRITURA R2 (habilitada por operador) ---')
-    await modoEscritura(datosMap, runId)
+    await modoEscritura(datosMap, runId, { lote: args.lote, loteTotal: args.loteTotal })
   }
 
   const outDir = path.join(process.cwd(), 'tmp')

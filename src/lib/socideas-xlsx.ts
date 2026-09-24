@@ -43,7 +43,13 @@ import {
   visibleSourceLabel,
   type SourceReference,
 } from './socideas-source-registry'
-import { COVERAGE_STATUS_GLOSSARY } from './socideas-indicator-catalog'
+import { coverageGlossaryEntries } from './socideas-indicator-catalog'
+import { isConprelUiEnabled } from './conprel-flag'
+import {
+  CONPREL_FUENTE_08_OPERACION,
+  CONPREL_FUENTE_08_PERIODO,
+} from './conprel-textos'
+import { CONPREL_PPTO_2025 } from './conprel-contracts'
 import {
   buildCentrosEducativosTable,
   buildDemographicDerivedLayerTable,
@@ -845,10 +851,12 @@ function writeCriteriosFuentes(
   ws.getRow(r - 1).height = 20
 
   // Estados de cobertura usados en la exportación (glosario del catálogo único).
+  // Con NEXT_PUBLIC_CONPREL_UI=true se añade la fila CONPREL (§4c); sin flag,
+  // el glosario es idéntico al actual (no-regresión).
   paintTitle(ws, r, widths, nCols, 'Estados de cobertura', 12)
   ws.getRow(r + 1).height = 20
   r += 2
-  for (const g of COVERAGE_STATUS_GLOSSARY) {
+  for (const g of coverageGlossaryEntries()) {
     const row = ws.getRow(r)
     const text = `• ${g.estado}: ${g.texto}`
     const lines = wrappedLines(text, sumWidths(widths, 0, nCols))
@@ -1163,6 +1171,18 @@ function buildSheetCatalog(input: MunicipioWorkbookInput): {
     'ADRH (varía por tabla)',
     'https://www.ine.es/daco/daco42/renta/adrh_municipios.htm',
   )
+  // CONPREL: fila propia con cobertura parcial y URL oficial. Solo con el flag
+  // ON (sin flag la hoja 08 es idéntica a la actual). Nunca se mezcla con
+  // AEAT ni ADRH en la misma fila.
+  if (isConprelUiEnabled()) {
+    pushFuente(
+      'Contexto económico',
+      'Ministerio de Hacienda (CONPREL)',
+      CONPREL_FUENTE_08_OPERACION,
+      CONPREL_FUENTE_08_PERIODO,
+      CONPREL_PPTO_2025.url,
+    )
+  }
 
   return { hojas, fuentes }
 }

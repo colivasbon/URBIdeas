@@ -17,6 +17,8 @@ import {
   type SourceReference,
 } from "./socideas-source-registry";
 import { densityYearsWarning } from "./socideas-density";
+import { isConprelUiEnabled } from "./conprel-flag";
+import { buildConprelPresentacion, type ConprelPresentacion } from "./conprel-presentation";
 
 export interface ExportCell { text: string; numeric: number | null }
 
@@ -442,6 +444,68 @@ export function buildDemografiaTables(perfil: PerfilDemografico): ExportTable[] 
   return tablas;
 }
 
+// ---------- CONPREL (PPTO-2025 + LIQ-2024) ----------
+//
+// Solo con NEXT_PUBLIC_CONPREL_UI=true Y dataset cargado (filas `conprel_*`
+// en el envelope o fixture mock). Sin datos no se emite ninguna tabla:
+// la exportación NUNCA inventa ceros ni ND de series no cargadas.
+
+function estadoCelda(fila: { ausente: boolean; valor: number | null; esCeroPublicado: boolean }): ExportCell {
+  if (fila.ausente || fila.valor === null) return cell("ND");
+  // Cero publicado: numérico 0 real (badge Crisopa solo para ND).
+  return cell(fmtES(fila.valor), fila.valor);
+}
+
+export function buildConprelTables(perfil: PerfilEconomico): ExportTable[] {
+  if (!isConprelUiEnabled()) return []
+  const pres = buildConprelPresentacion(perfil.valores, perfil.municipio.codigo_ine);
+  if (!pres) return []
+  const tablas: ExportTable[] = []
+  for (const familia of [pres.ppto, pres.liq]) {
+    const filas: ExportCell[][] = familia.filas.map((f) => [
+      cell(String(f.ejercicio), f.ejercicio),
+      cell(f.cdcta),
+      cell(f.concepto),
+      cell(f.magnitud),
+      estadoCelda(f),
+      cell(f.estado),
+    ])
+    tablas.push({
+      id: `conprel-${familia.familia}`,
+      titulo: `CONPREL · ${familia.titulo}`,
+      hoja: "03_CONTEXTO_ECONÓMICO",
+      columnas: ["Ejercicio", "cdcta", "Concepto cuenta", "Magnitud", "Valor €", "Estado"],
+      filas,
+      fuente: familia.fuente,
+      periodo: familia.presente
+        ? `${familia.ejercicio} · ${familia.etiquetaCorte}`
+        : `${familia.ejercicio} · ND (sin fila municipal)`,
+      cobertura: familia.coberturaTexto,
+      estado: "Serie partial por familia/ejercicio (cobertura nacional parcial)",
+      comparisonMode: "municipal_only",
+      availability: "available",
+      source: {
+        institution: "Ministerio de Hacienda (CONPREL)",
+        operation:
+          familia.familia === "ppto"
+            ? "Presupuestos de entidades locales · PPTO-2025"
+            : "Liquidaciones de entidades locales · LIQ-2024",
+        tableId: familia.tableId,
+        publicUrl: familia.fuenteUrl,
+        shortLabel: `CONPREL · ${familia.tableId}`,
+      },
+      note: familia.pie,
+    })
+  }
+  return tablas
+}
+
+/** Presencia CONPREL en el libro (hoja 08 condicionada al flag + datos). */
+export function conprelPresentacionDe(perfil: PerfilEconomico): ConprelPresentacion | null {
+  if (!isConprelUiEnabled()) return null
+  return buildConprelPresentacion(perfil.valores, perfil.municipio.codigo_ine)
+}
+
 // ---------- Economía ----------
 
 export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
@@ -858,9 +922,15 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
   }
 
   // 6. Presupuesto, empleo y subvenciones: bloque pendiente de integración.
+  //    Con datos CONPREL publicados, el presupuesto/liquidación YA no está
+  //    pendiente: el bloque queda limitado a empleo y subvenciones.
+  const conprelTablas = buildConprelTables(perfil);
+  const conprelActivo = conprelTablas.some((t) => t.id.startsWith("conprel-"));
   tablas.push({
     id: "presupuesto-empleo",
-    titulo: "Presupuesto municipal, empleo y subvenciones",
+    titulo: conprelActivo
+      ? "Empleo y subvenciones"
+      : "Presupuesto municipal, empleo y subvenciones",
     hoja: "03_CONTEXTO_ECONÓMICO",
     columnas: ["Indicador"],
     filas: [],
@@ -870,10 +940,16 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
     estado: "Pendiente de integración",
     availability: "pending_integration",
     comparisonMode: "municipal_only",
-    note: laborTiene("paro_registrado") || laborTiene("afiliacion_total")
-      ? "Presupuesto municipal y subvenciones: pendientes de integración desde fuentes administrativas oficiales."
-      : "Presupuesto municipal, empleo y afiliación: pendientes de integración desde fuentes administrativas oficiales (Hacienda, SEPE, Seguridad Social, FEADER, CCAA).",
+    note: conprelActivo
+      ? "Subvenciones y ayudas: pendientes de integración. Presupuestos y liquidaciones: ver los bloques CONPREL de esta hoja (serie partial por familia)."
+      : laborTiene("paro_registrado") || laborTiene("afiliacion_total")
+        ? "Presupuesto municipal y subvenciones: pendientes de integración desde fuentes administrativas oficiales."
+        : "Presupuesto municipal, empleo y afiliación: pendientes de integración desde fuentes administrativas oficiales (Hacienda, SEPE, Seguridad Social, FEADER, CCAA).",
   });
+
+  // 7. CONPREL (si el flag está ON y hay dataset cargado) — al final de la
+  //    hoja 03, como bloque propio sin mezclar AEAT/ADRH.
+  tablas.push(...conprelTablas);
 
   return tablas;
 }
@@ -897,11 +973,20 @@ export function demografiaExcluidas(hasDensidad = false): Exclusion[] {
 }
 
 /** Exclusiones documentadas de Economía (fuente única para página y libro XLSX). */
-export function economiaExcluidas(hasRenta: boolean): Exclusion[] {
+export function economiaExcluidas(hasRenta: boolean, hasConprel = false): Exclusion[] {
   return [
     { titulo: "Paro registrado (SEPE)", motivo: "Pendiente de conector en batch 1 (dry-run)." },
     { titulo: "Afiliación a la Seguridad Social (TGSS)", motivo: "Pendiente de conector en batch 1 (dry-run)." },
-    { titulo: "Presupuestos, liquidaciones y ayudas", motivo: "Sin fuente nacional homogénea verificada." },
+    hasConprel
+      ? {
+          titulo: "Ayudas y subvenciones",
+          motivo:
+            "Pendiente de integración. Presupuestos y liquidaciones: ver bloques CONPREL cuando la serie esté publicada (partial por familia).",
+        }
+      : {
+          titulo: "Presupuestos, liquidaciones y ayudas",
+          motivo: "Sin fuente nacional homogénea verificada.",
+        },
     { titulo: "Renta AEAT por declaración", motivo: hasRenta ? "Incluida si el ejercicio fue aportado; en otro caso pendiente." : "Pendiente de aportar el fichero base del ejercicio." },
   ];
 }

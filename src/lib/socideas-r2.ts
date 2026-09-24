@@ -165,6 +165,8 @@ export function sourceSlugForTable(tableId: string): string | null {
   if (tableId === 'NGMEP') return 'ign_infogeo'
   if (/^sepe_/.test(tableId)) return 'sepe'
   if (/^tgss_/.test(tableId)) return 'tgss'
+  // CONPREL (presupuestos/liquidaciones EELL): tableId ^CONPREL → fuente propia.
+  if (/^CONPREL/.test(tableId)) return 'hacienda_conprel'
   return null
 }
 

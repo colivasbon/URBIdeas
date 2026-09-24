@@ -99,13 +99,16 @@ export function leerCsvPipe(path: string): CsvTabla {
   return { header, rows }
 }
 
-/** Cabecera estricta: mismas columnas (orden y contenido) que el contrato. */
+/** Cabecera estricta: mismas columnas (orden y contenido) que el contrato.
+ *  Compara arrays celda a celda (NO join(',')): un fichero con delimitador
+ *  coma produciría una única celda «a,b,c» que, al unirse con join, imitaría
+ *  la cabecera esperada y falsearía el check. */
 export function assertHeader(actual: string[], esperadas: readonly string[], origen: string): void {
-  const a = actual.join(',')
-  const e = esperadas.join(',')
-  if (a !== e) {
+  const coincide =
+    actual.length === esperadas.length && actual.every((h, i) => h === esperadas[i])
+  if (!coincide) {
     throw new ConprelParseError(
-      `Cabecera alterada en ${origen}: esperada [${e}] · encontrada [${a}]`,
+      `Cabecera alterada en ${origen}: esperada [${esperadas.join(',')}] · encontrada [${actual.join(',')}]`,
     )
   }
 }

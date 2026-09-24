@@ -45,6 +45,7 @@ import * as path from 'path'
 import { createClient } from '@supabase/supabase-js'
 import {
   CONPREL_FAMILIAS,
+  CONPREL_MAX_ENVELOPE_BYTES,
   CONPREL_PARSER_VERSION,
 } from '../src/lib/conprel-contracts'
 import type { ConprelFamilia } from '../src/lib/conprel-contracts'
@@ -611,7 +612,7 @@ async function sizeFull(
       esc.max = bytes
       esc.maxIne = ine
     }
-    if (bytes > 150 * 1024) esc.over.push({ ine, bytes })
+    if (bytes >= CONPREL_MAX_ENVELOPE_BYTES) esc.over.push({ ine, bytes })
   }
 
   /** 2ª pasada secuencial sobre los sinR2 (descarta ruido de red bajo carga). */
@@ -734,6 +735,12 @@ async function modoEscritura(
       if (!raw || (raw as { version?: number }).version !== 2) continue
       const env = raw as unknown as EnvV2
       if (env.codigo_ine !== mun.ine) continue
+      // Backup local previo (diseño §7.4 — patrón fix-tgss): copia del
+      // envelope ANTES del merge para poder restaurar por run si el put
+      // o el read-back fallan a medias. Solo filesystem local.
+      const backupDir = path.join(process.cwd(), 'tmp', 'conprel-backup', runId)
+      fs.mkdirSync(backupDir, { recursive: true })
+      fs.writeFileSync(path.join(backupDir, `${mun.ine}.json`), JSON.stringify(env), 'utf8')
       mergeConprelTuplas(env, b.tuplas, {
         sourceSlug: CONPREL_SOURCE_SLUG,
         organismo: CONPREL_SOURCE_ORGANISMO,

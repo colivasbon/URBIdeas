@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useCallback, useRef } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 
 interface ModalProps {
   isOpen: boolean
@@ -10,18 +10,43 @@ interface ModalProps {
 
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLElement | null>(null)
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose()
-  }, [onClose])
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (e.key !== 'Tab' || !dialogRef.current) return
+      const focusables = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => el.offsetParent !== null)
+      if (focusables.length === 0) return
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    },
+    [onClose]
+  )
 
   useEffect(() => {
     if (isOpen) {
+      triggerRef.current = document.activeElement as HTMLElement
       document.body.style.overflow = 'hidden'
       document.addEventListener('keydown', handleKeyDown)
       dialogRef.current?.focus()
     } else {
       document.body.style.overflow = ''
+      triggerRef.current?.focus()
     }
     return () => {
       document.body.style.overflow = ''
@@ -32,27 +57,28 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="fixed inset-0 z-[400] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
       <div
-        className="absolute inset-0 bg-[var(--color-overlay)] backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-[var(--color-overlay)]"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="relative bg-[var(--color-card-bg-solid)] border border-[var(--color-border)] rounded-[6px] w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto shadow-xl animate-slide-in-down focus:outline-none"
+        className="modal-panel relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[var(--shadow-3)] focus:outline-none"
       >
         {title && (
-          <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] px-6 py-4 sticky top-0 bg-[var(--color-card-bg-solid)] z-10">
-            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{title}</h2>
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 py-4">
+            <h2 className="type-h4 text-[var(--text-primary)]">{title}</h2>
             <button
+              type="button"
               onClick={onClose}
-              className="flex items-center justify-center w-9 h-9 rounded-[6px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg)] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+              className="flex h-11 w-11 items-center justify-center rounded-[6px] text-[var(--text-muted)] transition-colors hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               aria-label="Cerrar"
             >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
               </svg>
             </button>
           </div>

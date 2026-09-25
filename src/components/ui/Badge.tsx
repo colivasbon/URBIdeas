@@ -6,28 +6,28 @@ interface BadgeProps {
   variant?: BadgeVariant
   children: React.ReactNode
   className?: string
+  /** Punto de estado de 6px (opcional). */
+  dot?: boolean
 }
 
-const variantStyles: Record<BadgeVariant, string> = {
-  primary: 'bg-musgo text-hueso border border-musgo',
-  secondary: 'bg-crisopa text-carbon border border-conifera',
-  accent: 'bg-retama text-carbon border border-retama',
-  danger: 'bg-rupestre text-hueso border border-rupestre',
-  success: 'bg-musgo text-white border border-musgo',
-  muted: 'bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border border-[var(--color-border)]',
-  crisopa: 'bg-crisopa/16 text-[var(--color-text-primary)] border border-crisopa',
+/* Mapeo cerrado al sistema IMA (4.5). Un único componente en toda la app. */
+const variantClass: Record<BadgeVariant, string> = {
+  primary: 'badge-info',
+  secondary: 'badge-available',
+  accent: 'badge-warning',
+  danger: 'badge-danger',
+  success: 'badge-success',
+  muted: 'badge-pending',
+  crisopa: 'badge-available',
 }
 
-export function Badge({ variant = 'primary', children, className = '' }: BadgeProps) {
+export function Badge({ variant = 'primary', children, className = '', dot = false }: BadgeProps) {
   return (
-    <span
-      className={[
-        'inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-[6px]',
-        variantStyles[variant],
-        className,
-      ].join(' ')}
-    >
+    <span className={['badge', variantClass[variant], className].join(' ')}>
+      {dot && <span aria-hidden="true" className="badge-dot" />}
       {children}
     </span>
   )
 }
+
+export default Badge

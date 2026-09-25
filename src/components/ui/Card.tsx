@@ -11,14 +11,9 @@ export function Card({ children, className = '', padding = true, hover = false }
   return (
     <div
       className={[
-        'bg-[var(--color-card-bg)]',
-        'border border-[var(--color-border-subtle)]',
-        'rounded-[6px]',
+        'rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[var(--shadow-1)]',
         padding ? 'p-5 sm:p-6' : '',
-        hover ? [
-          'transition-colors duration-200 ease-out',
-          'hover:border-conifera',
-        ].join(' ') : '',
+        hover ? 'card-interactive' : '',
         className,
       ].join(' ')}
     >
@@ -29,7 +24,7 @@ export function Card({ children, className = '', padding = true, hover = false }
 
 export function CardHeader({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`border-b border-[var(--color-border-subtle)] pb-4 mb-4 ${className}`}>
+    <div className={`mb-4 border-b border-[var(--border-subtle)] pb-4 ${className}`}>
       {children}
     </div>
   )
@@ -37,7 +32,7 @@ export function CardHeader({ children, className = '' }: { children: React.React
 
 export function CardTitle({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <h3 className={`text-lg font-semibold text-[var(--color-text-primary)] tracking-tight ${className}`}>
+    <h3 className={`type-h4 text-[var(--text-primary)] ${className}`}>
       {children}
     </h3>
   )

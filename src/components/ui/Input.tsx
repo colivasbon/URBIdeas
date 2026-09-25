@@ -7,37 +7,45 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string
 }
 
-export function Input({ label, icon, error, className = '', ...props }: InputProps) {
+export function Input({ label, icon, error, className = '', id, ...props }: InputProps) {
+  const generatedId = React.useId()
+  const inputId = id ?? generatedId
+  const errorId = `${inputId}-error`
+
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-sm font-medium text-[var(--color-text-secondary)]">
+        <label htmlFor={inputId} className="field-label">
           {label}
         </label>
       )}
-      <div className="relative group">
+      <div className="group relative">
         {icon && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] transition-colors duration-150 group-focus-within:text-[var(--musgo)]">
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors duration-150 group-focus-within:text-[var(--musgo)]"
+          >
             {icon}
           </span>
         )}
         <input
+          id={inputId}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
           className={[
-            'w-full bg-[var(--color-input-bg)] border rounded-[6px] px-3 py-2 text-sm min-h-[44px]',
-            'text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)]',
-            'transition-colors duration-200 ease-out',
-            'hover:border-[var(--color-border)] hover:bg-[var(--color-input-bg-hover)]',
-            'focus:outline-none focus:border-musgo focus:ring-2 focus:ring-musgo/25 focus:bg-[var(--color-input-bg-hover)]',
-            error ? 'border-rupestre focus:border-rupestre focus:ring-rupestre/20' : 'border-[var(--color-border-subtle)]',
+            'input',
+            'placeholder:text-[var(--text-muted)]',
             icon ? 'pl-10' : '',
+            error ? 'border-[var(--rupestre)]' : '',
             className,
           ].join(' ')}
-          aria-invalid={error ? true : undefined}
           {...props}
         />
       </div>
       {error && (
-        <p className="text-xs text-rupestre mt-0.5" role="alert">{error}</p>
+        <p id={errorId} className="text-xs text-[var(--rupestre-700)]" role="alert">
+          {error}
+        </p>
       )}
     </div>
   )

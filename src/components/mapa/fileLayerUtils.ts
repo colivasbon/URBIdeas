@@ -144,7 +144,7 @@ async function parseShapefileZip(file: File): Promise<GeoJSON.FeatureCollection>
     throw new Error("El ZIP no contiene un archivo .dbf (atributos). El shapefile está incompleto.")
   }
   if (!hasShx) {
-    throw new Error("El ZIP no contiene un archivo .shx (índice). El shapefile está incompleto.")
+    throw new Error("El ZIP no contiene un archivo .shx (Índice). El shapefile está incompleto.")
   }
 
   try {

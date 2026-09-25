@@ -3,8 +3,9 @@ import Link from "next/link";
 import { createSupabaseServerSafe } from "@/lib/supabase-server";
 import UrbideasHeader from "@/components/platform/UrbideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
-import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
-import TerritorialBackground from "@/components/ui/TerritorialBackground";
+import SectionReveal from "@/components/ui/SectionReveal";
+import KpiNumber from "@/components/ui/KpiNumber";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 
 export const metadata: Metadata = {
   title: "URBideas",
@@ -41,172 +42,141 @@ async function getStats() {
   };
 }
 
+const ACCESOS = [
+  {
+    title: "Municipios",
+    description: "Consulta el planeamiento urbanístico de cualquier municipio de España.",
+    href: "/urbideas/municipios",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 21h18M5 21V7l6-4 6 4v14M9 21v-6h4v6M9 9h.01M13 9h.01M9 12h.01M13 12h.01"
+      />
+    ),
+  },
+  {
+    title: "Mapa y dictamen",
+    description: "Dibuja un ámbito, cruza sus afecciones, recibe el dictamen y descarga el expediente.",
+    href: "/urbideas/mapa",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 6.75V15m6-6v8.25m.5-12.75 4.5 2.25v13.5l-4.5-2.25-6 3-4.5-2.25V5.25l4.5 2.25 6-3Z"
+      />
+    ),
+  },
+  {
+    title: "Legislación",
+    description: "Accede a la normativa urbanística por nivel: estatal, autonómica y municipal.",
+    href: "/urbideas/legislacion",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 6.04 9.75 4.5A4.5 4.5 0 0 0 3 8.25c0 .41.33.75.75.75h16.5c.41 0 .75-.34.75-.75a4.5 4.5 0 0 0-6.75-3.75L12 6.04Zm0 0v13.5m-6.75 0h13.5"
+      />
+    ),
+  },
+  {
+    title: "API",
+    description: "Endpoints REST para consulta programática de datos urbanísticos.",
+    href: "/urbideas/api-docs",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m6.75 7.5-4.5 4.5 4.5 4.5m10.5-9 4.5 4.5-4.5 4.5M14.25 4.5l-4.5 15"
+      />
+    ),
+  },
+];
+
 export default async function UrbideasHome() {
   const stats = await getStats();
+
+  const kpis = [
+    { value: stats.totalMunicipios.toLocaleString("es-ES"), label: "Municipios" },
+    { value: stats.totalLegalSources.toLocaleString("es-ES"), label: "Fuentes normativas" },
+    { value: stats.totalGeoServices.toLocaleString("es-ES"), label: "Servicios geo" },
+    { value: stats.totalCapasWMS.toLocaleString("es-ES"), label: "Capas WMS" },
+  ];
 
   return (
     <div className="flex min-h-screen flex-col">
       <UrbideasHeader />
 
-      <main className="flex-1 bg-[var(--color-dark-bg)]">
-        <EditorialParallaxHero decor={<TerritorialBackground variant="contours" />} className="hero-musgo bg-[var(--brand-bg)] text-hueso">
-        <section className="relative">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="py-12 sm:py-16 lg:py-20">
-              <div className="max-w-3xl">
-                <p className="editorial-eyebrow">
-                  <span>URBideas · Módulo de IDEAS Sostenibilidad</span>
-                </p>
-                <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl" style={{ lineHeight: 1.08 }}>
-                  URBideas
-                </h1>
-                <p className="mt-3 text-xl font-semibold text-hueso sm:text-2xl">
-                  Análisis territorial, urbanístico y geoespacial
-                </p>
-                <p className="mt-6 max-w-xl text-base leading-relaxed text-hueso sm:text-lg">
-                  Dictamen territorial de ámbito: dibuja o sube el recinto,
-                  cruza el suelo con sus afecciones y recibe un juicio
-                  compatible, condicionado o incompatible, listo para descargar.
-                </p>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <Link
-                    href="/urbideas/municipios"
-                    style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
-                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold rounded-[6px] hover:opacity-90 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
-                  >
-                    Buscar municipio
-                  </Link>
-                  <Link
-                    href="/urbideas/mapa"
-                    style={{ backgroundColor: 'var(--color-card-bg)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid', borderColor: 'var(--color-primary)' }}
-                    className="inline-flex min-h-[48px] items-center px-7 py-3.5 text-sm font-semibold rounded-[6px] hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
-                  >
-                    Dictaminar un ámbito
-                  </Link>
-                </div>
-                <p className="tnum mt-8 border-t border-white/20 pt-4 text-sm text-hueso">
-                  {stats.totalMunicipios.toLocaleString("es-ES")} municipios · {stats.totalLegalSources.toLocaleString("es-ES")} fuentes normativas · {stats.totalCapasWMS.toLocaleString("es-ES")} capas WMS
-                </p>
-              </div>
+      <main id="contenido" className="flex-1">
+        {/* Cabecera de módulo */}
+        <section className="relative overflow-hidden bg-[var(--bg-inverse)] text-[var(--text-inverse)]">
+          <div className="container-ima relative py-12 sm:py-16 lg:py-20">
+            <Breadcrumbs
+              items={[
+                { label: "IDEAS Sostenibilidad", href: "/" },
+                { label: "URBideas" },
+              ]}
+              tone="inverse"
+            />
+            <p className="type-overline mt-5 text-[var(--retama)]">URBideas · Módulo</p>
+            <h1 className="type-h1 mt-3 text-[var(--text-inverse)]">Análisis territorial, urbanístico y geoespacial</h1>
+            <p className="measure mt-5 text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-inverse-secondary)]">
+              Dictamen territorial de ámbito: dibuja o sube el recinto, cruza el suelo con sus
+              afecciones y recibe un juicio compatible, condicionado o incompatible, listo para
+              descargar.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link href="/urbideas/municipios" className="btn btn-primary btn-lg">
+                Buscar municipio
+                <svg className="btn-arrow h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3" />
+                </svg>
+              </Link>
+              <Link href="/urbideas/mapa" className="btn btn-inverse btn-lg">
+                Dictaminar un ámbito
+              </Link>
             </div>
           </div>
         </section>
-        </EditorialParallaxHero>
 
-        <section id="stats-bar" aria-label="Cobertura de URBideas" className="border-b border-[var(--color-border-subtle)] bg-[var(--color-dark-bg-elevated)]">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 sm:grid-cols-4">
-              {[
-                { value: stats.totalMunicipios.toLocaleString("es-ES"), label: "Municipios" },
-                { value: stats.totalLegalSources.toLocaleString("es-ES"), label: "Fuentes normativas" },
-                { value: stats.totalGeoServices.toLocaleString("es-ES"), label: "Servicios geo" },
-                { value: stats.totalCapasWMS.toLocaleString("es-ES"), label: "Capas WMS" },
-              ].map((stat, i) => (
-                <div
-                  key={stat.label}
-                  className={`py-6 sm:py-8 px-4 sm:px-6 ${
-                    i < 3 ? "border-r border-[var(--color-border-subtle)]" : ""
-                  }`}
-                >
-                  <p className="tnum text-2xl sm:text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
-                    {stat.value}
-                  </p>
-                  <p className="mt-1 text-xs text-[var(--color-text-muted)] font-medium">{stat.label}</p>
+        {/* Cifras de cobertura */}
+        <section aria-label="Cobertura de URBideas" className="border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+          <div className="container-ima">
+            <div className="grid grid-cols-2 gap-y-8 py-8 sm:grid-cols-4 sm:gap-0 sm:divide-x sm:divide-[var(--border-subtle)]">
+              {kpis.map((stat, i) => (
+                <div key={stat.label} className={i === 0 ? "sm:pr-6" : "sm:px-6"}>
+                  <KpiNumber value={stat.value} label={stat.label} />
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section>
-          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-            <div className="flex items-center gap-3 mb-10">
-              <div className="h-px w-12 bg-[var(--color-secondary)]" />
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--color-text-muted)]">
-                Acceso directo
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-10">
-              {[
-                {
-                  title: "Municipios",
-                  description: "Consulta el planeamiento urbanístico de cualquier municipio de España.",
-                  href: "/urbideas/municipios",
-                  number: "01",
-                },
-                {
-                  title: "Mapa",
-                  description: "Dibuja un ámbito, cruza sus afecciones, recibe el dictamen y descarga el expediente.",
-                  href: "/urbideas/mapa",
-                  number: "02",
-                },
-                {
-                  title: "Legislación",
-                  description: "Accede a la normativa urbanística por nivel: estatal, autonómico y municipal.",
-                  href: "/urbideas/legislacion",
-                  number: "03",
-                },
-                {
-                  title: "API",
-                  description: "Endpoints REST para consulta programática de datos urbanísticos.",
-                  href: "/urbideas/api-docs",
-                  number: "04",
-                },
-              ].map((item) => (
-                <Link key={item.title} href={item.href} className="group relative block rounded-[6px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]">
-                  <div className="flex items-start gap-5">
-                    <span className="tnum text-sm font-bold text-[var(--moss-ink)] mt-0.5">
-                      {item.number}
-                    </span>
-                    <div className="flex-1 border-b-2 border-[var(--color-border-subtle)] pb-6 group-hover:border-conifera transition-colors duration-200">
-                      <p className="text-xl font-bold text-[var(--color-text-primary)]">
-                        {item.title}
-                      </p>
-                      <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                        {item.description}
-                      </p>
-                      <span className="mt-3 inline-block text-xs font-semibold text-[var(--moss-ink)]">
-                        Explorar
-                      </span>
-                    </div>
-                  </div>
+        {/* Accesos directos */}
+        <SectionReveal>
+          <div className="container-ima section-ima">
+            <p className="type-overline text-[var(--moss-ink)]">Acceso directo</p>
+            <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
+              {ACCESOS.map((item) => (
+                <Link key={item.title} href={item.href} className="card card-interactive p-6">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-[6px] bg-[var(--status-info-bg)] text-[var(--status-info-fg)]">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+                      {item.icon}
+                    </svg>
+                  </span>
+                  <h2 className="type-h3 mt-4 text-[var(--text-primary)]">{item.title}</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{item.description}</p>
+                  <span className="btn btn-link mt-4 px-0" aria-hidden="true">
+                    Explorar
+                    <svg className="btn-arrow h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </span>
                 </Link>
               ))}
             </div>
           </div>
-        </section>
-
-        <section className="border-t border-[var(--color-border-subtle)] bg-[var(--color-dark-bg-elevated)]">
-          <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-              <div>
-                <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  URBideas · Módulo de IDEAS Sostenibilidad
-                </p>
-                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                  Información pública de planeamiento urbanístico centralizada y consulta por municipio.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <Link
-                  href="/"
-                  style={{ backgroundColor: 'var(--color-card-bg)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid', borderColor: 'var(--color-primary)' }}
-                  className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-80 transition-opacity"
-                >
-                  Volver a la plataforma
-                </Link>
-                <Link
-                  href="/urbideas/api-docs"
-                  style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
-                  className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-90 transition-opacity"
-                >
-                  Documentación API
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
+        </SectionReveal>
       </main>
 
       <PlatformFooter />

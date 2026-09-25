@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { MapContainer, TileLayer, Popup, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
@@ -51,12 +51,12 @@ const BASE_LAYERS: Record<string, { url: string; attribution: string; name: stri
   pnoa: {
     url: 'https://www.ign.es/wmts/pnoa-ma?service=WMTS&request=GetTile&version=1.0.0&layer=OI.OrthoimageCoverage&style=default&tilematrixset=EPSG%3A3857&tilematrix={z}&tilecol={x}&tilerow={y}&format=image/jpeg',
     attribution: '&copy; <a href="https://www.ign.es/">IGN - PNOA</a>',
-    name: 'SatÃ©lite (PNOA)',
+    name: 'Satélite (PNOA)',
   },
   esri: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: '&copy; <a href="https://www.esri.com/">Esri</a> - World Imagery',
-    name: 'SatÃ©lite (Esri)',
+    name: 'Satélite (Esri)',
   },
   ignBase: {
     url: 'https://www.ign.es/wmts/ign-base?service=WMTS&request=GetTile&version=1.0.0&layer=IGNBaseTodo&style=default&tilematrixset=EPSG%3A3857&tilematrix={z}&tilecol={x}&tilerow={y}&format=image/jpeg',
@@ -524,7 +524,7 @@ function VisorMapaInner({
         }}
       >
         <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-secondary)]" />
-        Ideas Medioambientales â€” Registro UrbanÃ­stico EspaÃ±a
+        Ideas Medioambientales — Registro Urbanístico España
       </div>
     </div>
   )

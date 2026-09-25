@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import UrbideasHeader from "@/components/platform/UrbideasHeader"
-import Footer from "@/components/layout/Footer"
+import PlatformFooter from "@/components/platform/PlatformFooter"
+import Breadcrumbs from "@/components/ui/Breadcrumbs"
 import { Badge } from "@/components/ui/Badge"
 import MunicipalTab from "@/components/datos/MunicipalTab"
 
@@ -229,39 +230,42 @@ export default function LegislacionPage() {
     <div className="flex min-h-screen flex-col">
       <UrbideasHeader />
 
-      <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <main id="contenido" className="flex-1">
+        <div className="container-ima py-8">
           {/* Page header */}
-          <section className="mb-6 border-b border-[var(--color-border-subtle)] pb-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-px w-8 bg-[var(--color-secondary)]" />
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Normativa
-              </p>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
-              Legislación Urbanística
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm text-[var(--color-text-muted)]">
+          <section className="mb-8 border-b border-[var(--border-subtle)] pb-8">
+            <Breadcrumbs
+              items={[
+                { label: "IDEAS Sostenibilidad", href: "/" },
+                { label: "URBideas", href: "/urbideas" },
+                { label: "Legislación" },
+              ]}
+            />
+            <p className="type-overline mt-5 text-[var(--moss-ink)]">Normativa</p>
+            <h1 className="type-h1 mt-3 text-[var(--text-primary)]">Legislación urbanística</h1>
+            <p className="measure mt-4 text-[var(--text-secondary)]">
               La legislación urbanística española se consulta en cuatro capas: el Estado fija el
               régimen básico del suelo; cada comunidad aprueba la ley urbanística de aplicación
               directa; la provincia publica el planeamiento en su boletín; el municipio aprueba el
               plan que rige cada parcela.
             </p>
+            <p className="note mt-6 max-w-3xl">
+              Consulta orientativa. Para validez jurídica, acuda siempre al texto publicado en la
+              sede electrónica o boletín oficial correspondiente.
+            </p>
           </section>
 
           {/* Tabs */}
-          <div className="mb-6 flex gap-0 border-b border-[var(--color-border-subtle)]">
+          <div className="tabs mb-8" role="tablist" aria-label="Ámbito de la normativa">
             {tabs.map((t) => (
               <button
                 key={t.key}
+                role="tab"
+                id={`tab-${t.key}`}
+                aria-selected={tab === t.key}
+                aria-controls={`panel-${t.key}`}
                 onClick={() => setTab(t.key)}
-                className={[
-                  'px-4 py-2.5 text-sm font-medium transition-colors duration-150 -mb-px',
-                  tab === t.key
-                    ? 'text-[var(--color-text-primary)] border-b-2 border-[var(--color-secondary)]'
-                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]',
-                ].join(' ')}
+                className="tab"
               >
                 {t.label}
               </button>
@@ -270,18 +274,20 @@ export default function LegislacionPage() {
 
           {/* Estatal */}
           {tab === "estatal" && (
-            <section>
-              <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] divide-y divide-[var(--color-border-subtle)]">
+            <section id="panel-estatal" role="tabpanel" aria-labelledby="tab-estatal">
+              <div className="divide-y divide-[var(--border-subtle)] rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
                 {leyesEstatales.map((ley) => (
-                  <div key={ley.referencia} className="px-5 py-4 transition-colors hover:bg-[var(--color-card-bg)]">
+                  <article key={ley.referencia} className="px-5 py-4 transition-colors hover:bg-[var(--musgo-50)]">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-[var(--color-text-primary)] leading-snug">{ley.titulo}</p>
-                        <p className="mt-1 text-xs text-[var(--color-text-muted)] leading-relaxed">
+                        <p className="text-sm font-medium leading-snug text-[var(--text-primary)]">{ley.titulo}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
                           {ley.descripcion}
                         </p>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px] text-[var(--color-text-muted)]">
-                          <span>Ref: <Badge variant="primary">{ley.referencia}</Badge></span>
+                        <div className="tnum mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
+                          <span className="inline-flex items-center gap-1.5">
+                            Ref: <Badge variant="muted">{ley.referencia}</Badge>
+                          </span>
                           <span>{ley.fecha}</span>
                         </div>
                       </div>
@@ -289,15 +295,12 @@ export default function LegislacionPage() {
                         href={ley.enlace}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
+                        className="link-external shrink-0 text-xs font-medium text-[var(--text-link)]"
                       >
                         BOE
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                        </svg>
                       </a>
                     </div>
-                  </div>
+                  </article>
                 ))}
               </div>
             </section>
@@ -305,66 +308,68 @@ export default function LegislacionPage() {
 
           {/* Autonómico */}
           {tab === "autonomico" && (
-            <section>
+            <section id="panel-autonomico" role="tabpanel" aria-labelledby="tab-autonomico">
               {loading ? (
-                <div className="flex items-center justify-center py-16">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
-                  <span className="ml-3 text-xs text-[var(--color-text-muted)]">
-                    Cargando legislación autonómica...
+                <div className="flex items-center justify-center gap-3 py-16" role="status" aria-live="polite">
+                  <span className="spinner text-[var(--conifera-700)]" aria-hidden="true" />
+                  <span className="text-xs text-[var(--text-muted)]">
+                    Cargando legislación autonómica…
                   </span>
                 </div>
               ) : grouped.length === 0 ? (
-                <p className="py-12 text-center text-xs text-[var(--color-text-muted)]">
+                <p className="py-12 text-center text-xs text-[var(--text-muted)]">
                   No se encontró legislación autonómica registrada.
                 </p>
               ) : (
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-3">
                   {grouped.map(([ccaa, leyes]) => {
                     const isExpanded = expandedCCAA[ccaa] ?? false
                     return (
                       <div
                         key={ccaa}
-                        className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] overflow-hidden"
+                        className="overflow-hidden rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
                       >
                         <button
                           onClick={() => toggleGroup(ccaa)}
-                          className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors duration-150 hover:bg-[var(--color-card-bg)]"
+                          aria-expanded={isExpanded}
+                          className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors duration-150 hover:bg-[var(--musgo-50)]"
                         >
                           <div className="flex items-center gap-2.5">
                             <svg
-                              className={`h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
+                              className={`h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
                               fill="none"
                               viewBox="0 0 24 24"
-                              strokeWidth={2}
+                              strokeWidth={1.5}
                               stroke="currentColor"
+                              aria-hidden="true"
                             >
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                             </svg>
-                            <span className="text-sm font-semibold text-[var(--color-text-primary)]">{ccaa}</span>
+                            <span className="text-sm font-medium text-[var(--text-primary)]">{ccaa}</span>
                           </div>
-                          <Badge variant="primary">{leyes.length}</Badge>
+                          <Badge variant="muted">{leyes.length}</Badge>
                         </button>
                         <div
-                          className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-250 ease-out ${
+                          className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${
                             isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
                           }`}
                         >
                           <div className="overflow-hidden">
-                            <div className="border-t border-[var(--color-border-subtle)] px-5 py-4">
-                              <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] divide-y divide-[var(--color-border-subtle)]">
+                            <div className="border-t border-[var(--border-subtle)] px-5 py-4">
+                              <div className="divide-y divide-[var(--border-subtle)] rounded-[6px] border border-[var(--border-subtle)]">
                                 {leyes.map((ley) => (
-                                  <div key={ley.id} className="px-4 py-3 transition-colors hover:bg-[var(--color-card-bg)]">
+                                  <div key={ley.id} className="px-4 py-3 transition-colors hover:bg-[var(--musgo-50)]">
                                     <div className="flex items-start justify-between gap-2">
-                                      <p className="text-sm font-medium text-[var(--color-text-primary)] leading-snug">{ley.titulo}</p>
+                                      <p className="text-sm font-medium leading-snug text-[var(--text-primary)]">{ley.titulo}</p>
                                       <Badge variant={vigenciaVariant[ley.estado_vigencia] ?? "primary"}>
                                         {ley.estado_vigencia}
                                       </Badge>
                                     </div>
-                                    <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+                                    <p className="tnum mt-1 text-xs text-[var(--text-muted)]">
                                       {ley.referencia_legal}
                                     </p>
                                     {ley.fecha_publicacion && (
-                                      <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+                                      <p className="tnum mt-1 text-xs text-[var(--text-muted)]">
                                         Publicación: {new Date(ley.fecha_publicacion).toLocaleDateString("es-ES")}
                                       </p>
                                     )}
@@ -374,12 +379,12 @@ export default function LegislacionPage() {
                                           href={ley.enlace_boe_boletin}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
+                                          className="link-external text-xs font-medium text-[var(--text-link)]"
                                         >
                                           Ver en boletín oficial
                                         </a>
                                       ) : (
-                                        <span className="text-[11px] text-[var(--color-text-muted)]">
+                                        <span className="text-xs text-[var(--text-muted)]">
                                           Enlace no disponible
                                         </span>
                                       )}
@@ -398,37 +403,33 @@ export default function LegislacionPage() {
             </section>
           )}
 
-          {/* Municipal */}
           {tab === "municipal" && (
-            <section>
+            <section id="panel-municipal" role="tabpanel" aria-labelledby="tab-municipal">
               <MunicipalTab />
             </section>
           )}
 
           {/* Geoespacial */}
           {tab === "geoespacial" && (
-            <section>
-              <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] p-5 mb-5">
-                <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Fuentes geoespaciales estatales</h3>
-                <p className="text-xs text-[var(--color-text-muted)] mb-4">
+            <section id="panel-geoespacial" role="tabpanel" aria-labelledby="tab-geoespacial">
+              <div className="card mb-5 p-5">
+                <h3 className="type-h4 text-[var(--text-primary)]">Fuentes geoespaciales estatales</h3>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">
                   Servicios interoperables reutilizables en toda España para SIOSE, SIU y ocupación del suelo.
                 </p>
-                <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] divide-y divide-[var(--color-border-subtle)]">
+                <div className="mt-4 divide-y divide-[var(--border-subtle)] rounded-[6px] border border-[var(--border-subtle)]">
                   {fuentesEstatalesGeo.map((fuente) => (
-                    <div key={fuente.titulo} className="px-4 py-3 transition-colors hover:bg-[var(--color-card-bg)]">
-                      <p className="text-sm font-medium text-[var(--color-text-primary)]">{fuente.titulo}</p>
-                      <p className="mt-1 text-xs text-[var(--color-text-muted)] leading-relaxed">{fuente.descripcion}</p>
+                    <div key={fuente.titulo} className="px-4 py-3 transition-colors hover:bg-[var(--musgo-50)]">
+                      <p className="text-sm font-medium text-[var(--text-primary)]">{fuente.titulo}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{fuente.descripcion}</p>
                       <div className="mt-2">
                         <a
                           href={fuente.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
+                          className="link-external text-xs font-medium text-[var(--text-link)]"
                         >
                           Abrir servicio
-                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                          </svg>
                         </a>
                       </div>
                     </div>
@@ -440,7 +441,7 @@ export default function LegislacionPage() {
         </div>
       </main>
 
-      <Footer />
+      <PlatformFooter />
     </div>
   )
 }

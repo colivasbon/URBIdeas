@@ -84,14 +84,14 @@ export default function FiltroCascada({ onMunicipioSeleccionado, onProvinciaSele
       .catch(() => { onMunRef.current?.(mun) })
   }
 
-  const selectClass = "w-full appearance-none bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] px-3 py-2 pr-8 text-sm text-[var(--color-text-primary)] transition-all duration-[var(--duration-normal)] hover:border-[var(--color-border)] hover:bg-[var(--color-input-bg-hover)] focus:outline-none focus:border-[var(--color-secondary)] focus:ring-2 focus:ring-[var(--color-secondary)]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+  const selectClass = "input appearance-none pr-8 disabled:opacity-45"
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Comunidad Autónoma</label>
+        <label htmlFor="filtro-ccaa" className="field-label">Comunidad Autónoma</label>
         <div className="relative">
-          <select value={selCCAA} onChange={e => setSelCCAA(e.target.value)} disabled={loadingCCAA} className={selectClass}>
+          <select id="filtro-ccaa" value={selCCAA} onChange={e => setSelCCAA(e.target.value)} disabled={loadingCCAA} className={selectClass}>
             <option value="">{loadingCCAA ? "Cargando..." : "Seleccionar CCAA..."}</option>
             {comunidades.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
@@ -103,9 +103,9 @@ export default function FiltroCascada({ onMunicipioSeleccionado, onProvinciaSele
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-[var(--color-text-secondary)]">Provincia</label>
+        <label htmlFor="filtro-provincia" className="field-label">Provincia</label>
         <div className="relative">
-          <select value={selProv} onChange={e => setSelProv(e.target.value)} disabled={!selCCAA || loadingProv} className={selectClass}>
+          <select id="filtro-provincia" value={selProv} onChange={e => setSelProv(e.target.value)} disabled={!selCCAA || loadingProv} className={selectClass}>
             <option value="">{loadingProv ? "Cargando..." : !selCCAA ? "Primero selecciona una CCAA" : "Seleccionar Provincia..."}</option>
             {provincias.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
           </select>
@@ -117,11 +117,11 @@ export default function FiltroCascada({ onMunicipioSeleccionado, onProvinciaSele
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-[var(--color-text-secondary)]">
-          Municipio{municipios.length > 0 && <span className="ml-2 text-xs text-[var(--color-text-muted)]">{municipios.length} disponibles</span>}
+        <label htmlFor="filtro-municipio" className="field-label">
+          Municipio{municipios.length > 0 && <span className="ml-2 text-xs text-[var(--text-muted)]">{municipios.length} disponibles</span>}
         </label>
         <div className="relative">
-          <select value={selMun} onChange={handleMunicipioChange} disabled={!selProv || loadingMun} className={selectClass}>
+          <select id="filtro-municipio" value={selMun} onChange={handleMunicipioChange} disabled={!selProv || loadingMun} className={selectClass}>
             <option value="">{loadingMun ? "Cargando..." : !selProv ? "Primero selecciona una provincia" : "Seleccionar Municipio..."}</option>
             {municipios.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
           </select>

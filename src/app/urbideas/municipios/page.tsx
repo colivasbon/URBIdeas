@@ -76,23 +76,23 @@ const estadoBadgeVariant: Record<string, "success" | "primary" | "accent" | "dan
 }
 
 function getEstadoBadge(estado: string) {
-  const base = "inline-flex items-center px-2 py-0.5 rounded-[6px] text-xs font-semibold border"
+  const base = "badge"
   switch (estado.toLowerCase()) {
     case "aprobado":
     case "vigente":
-      return `${base} bg-musgo text-white border-musgo`
+      return `${base} badge-available`
     case "en tramite":
     case "en trámite":
     case "pendiente":
-      return `${base} bg-crisopa text-carbon border-conifera`
+      return `${base} badge-warning`
     case "borrador":
     case "avance":
-      return `${base} bg-musgo text-hueso border-[var(--musgo-active)]`
+      return `${base} badge-info`
     case "derogado":
     case "caducado":
-      return `${base} bg-rupestre text-hueso border-rupestre`
+      return `${base} badge-danger`
     default:
-      return `${base} bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border-[var(--color-border)]`
+      return `${base} badge-pending`
   }
 }
 
@@ -348,19 +348,12 @@ export default function MunicipiosPage() {
     <div className="flex min-h-screen flex-col">
       <UrbideasHeader />
 
-      <main className="flex-1">
-        <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-          <section className="mb-8 border-b-2 border-musgo pb-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-0.5 w-8 bg-conifera" />
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--moss-ink)]">
-                Exploración · URBideas
-              </p>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
-              Municipios
-            </h1>
-            <p className="mt-3 max-w-2xl text-base leading-relaxed text-[var(--color-text-secondary)]">
+      <main id="contenido" className="flex-1">
+        <div className="container-ima py-8 sm:py-10">
+          <section className="mb-8 border-b border-[var(--border-subtle)] pb-6">
+            <p className="type-overline text-[var(--moss-ink)]">Exploración · URBideas</p>
+            <h1 className="type-h1 mt-3 text-[var(--text-primary)]">Municipios</h1>
+            <p className="measure mt-3 text-[var(--text-secondary)]">
               Busca, filtra y compara el planeamiento urbanístico de municipios de toda España.
             </p>
           </section>
@@ -392,10 +385,10 @@ export default function MunicipiosPage() {
                 <div className="animate-fade-in">
                   {/* Municipality header */}
                   <div className="mb-6">
-                    <h2 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
+                    <h2 className="type-h2 text-[var(--text-primary)]">
                       {selectedMunicipio.nombre}
                     </h2>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm text-[var(--color-text-secondary)]">
+                    <div className="tnum mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--text-secondary)]">
                       {selectedMunicipio.provincia?.comunidad_autonoma?.nombre && (
                         <span>{selectedMunicipio.provincia.comunidad_autonoma.nombre}</span>
                       )}

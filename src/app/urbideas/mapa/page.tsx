@@ -139,7 +139,7 @@ export default function MapaPage() {
   const [tab, setTab] = useState<'capas' | 'archivo' | 'ambitos'>('capas')
   const [soilGeoJSON, setSoilGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null)
 
-  // --- Ámbito de trabajo (Fase 1) ---
+  // --- Ímbito de trabajo (Fase 1) ---
   const [modoDibujo, setModoDibujo] = useState<ModoDibujo>(null)
   const [ambito, setAmbito] = useState<Ambito | null>(null)
   const [nombreAmbito, setNombreAmbito] = useState("")
@@ -292,11 +292,11 @@ export default function MapaPage() {
 
   const activarAmbito = useCallback((geojson: GeoJSON.FeatureCollection, nombre?: string) => {
     const tipo = tipoDeGeoJSON(geojson)
-    const a = nuevoAmbito(nombre || nombreAmbito || "Ámbito sin nombre", perfil, geojson, tipo)
+    const a = nuevoAmbito(nombre || nombreAmbito || "Ímbito sin nombre", perfil, geojson, tipo)
     setAmbito(a)
     setModoDibujo(null)
     setEncuadrarKey(k => k + 1)
-    // Resolución territorial inmediata: centroide → CCAA/municipio (PostGIS),
+    // Resolución territorial inmediata: centroide â†’ CCAA/municipio (PostGIS),
     // con Nominatim como respaldo. Autoselecciona "Limitar a".
     void (async () => {
       let t: TerritorioAmbito | null = null
@@ -540,7 +540,7 @@ export default function MapaPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ambito: { nombre: nombreAmbitoRef.current || 'Ámbito sin nombre', perfil_id: perfilRef.current, geojson: ambitoGeo, preset_modificado: presetModificadoRef.current },
+            ambito: { nombre: nombreAmbitoRef.current || 'Ímbito sin nombre', perfil_id: perfilRef.current, geojson: ambitoGeo, preset_modificado: presetModificadoRef.current },
             filas,
             ficha: {
               superficie_m2,
@@ -604,7 +604,7 @@ export default function MapaPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <UrbideasHeader />
-      <main className="flex-1">
+      <main id="contenido" className="flex-1">
         {/* Aviso móvil */}
         <p className="lg:hidden px-4 py-2 text-[11px] text-center" style={{ background: 'var(--color-input-bg)', color: 'var(--color-text-muted)' }}>
           Estás en móvil: el mapa funciona, pero la experiencia completa de dictamen es de escritorio.
@@ -649,7 +649,7 @@ export default function MapaPage() {
           {/* Barra de ámbito: dibujo + nombre + perfil + dictamen */}
           <div className="mb-3 flex flex-wrap items-center gap-2 p-2 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)]">
             <div className="flex items-center gap-1" role="toolbar" aria-label="Herramientas de dibujo">
-              {([['poligono', 'Polígono'], ['punto', 'Punto'], ['linea', 'Línea']] as [ModoDibujo, string][]).map(([m, label]) => (
+              {([['poligono', 'Polígono'], ['punto', 'Punto'], ['linea', 'LÍnea']] as [ModoDibujo, string][]).map(([m, label]) => (
                 <button key={m} onClick={() => setModoDibujo(cur => (cur === m ? null : m))}
                   className={`px-2.5 py-1.5 text-xs font-medium rounded-[var(--border-radius)] border transition-colors ${modoDibujo === m ? 'bg-[var(--color-secondary)] text-white border-[var(--color-secondary)]' : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}>
                   {label}
@@ -748,7 +748,7 @@ export default function MapaPage() {
             <div className={`w-full shrink-0 lg:w-80 ${sidebarOpen ? 'block' : 'hidden'} lg:block`}>
               <div className="lg:sticky lg:top-16 border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] bg-[var(--color-card-bg)] overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
                 <div className="flex border-b border-[var(--color-border)]">
-                  {([['capas', 'Capas'], ['archivo', 'Archivo'], ['ambitos', `Ámbitos (${misAmbitos.length})`]] as const).map(([t, label]) => (
+                  {([['capas', 'Capas'], ['archivo', 'Archivo'], ['ambitos', `Ímbitos (${misAmbitos.length})`]] as const).map(([t, label]) => (
                     <button key={t} onClick={() => setTab(t)}
                       className={`flex-1 px-2 py-2 text-xs font-medium ${tab === t ? 'text-[var(--color-secondary)] border-b-2 border-[var(--color-secondary)]' : 'text-[var(--color-text-secondary)]'}`}>
                       {label}
@@ -860,7 +860,7 @@ export default function MapaPage() {
                 <div>
                   <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Identificación del ámbito</h3>
                   <dl className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
-                    <FichaFila k="Ámbito" v={ambito.nombre} />
+                    <FichaFila k="Ímbito" v={ambito.nombre} />
                     <FichaFila k="Perfil" v={PERFILES.find(p => p.id === ambito.perfil_id)?.label || ambito.perfil_id} />
                     <FichaFila k="Municipio" v={dictamen.ficha.municipio} />
                     <FichaFila k="Código INE" v={dictamen.ficha.ine} />

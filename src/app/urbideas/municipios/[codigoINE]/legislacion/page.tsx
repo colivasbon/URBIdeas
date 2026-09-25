@@ -99,7 +99,7 @@ export default function LegislacionMunicipioPage({
     return (
       <div className="flex min-h-screen flex-col">
         <UrbideasHeader />
-        <main className="flex-1 flex items-center justify-center">
+        <main id="contenido" className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="h-6 w-6 mx-auto animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
             <p className="mt-3 text-xs text-[var(--color-text-muted)]">
@@ -116,7 +116,7 @@ export default function LegislacionMunicipioPage({
     return (
       <div className="flex min-h-screen flex-col">
         <UrbideasHeader />
-        <main className="flex-1 flex items-center justify-center">
+        <main id="contenido" className="flex-1 flex items-center justify-center">
           <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] p-6 max-w-md text-center">
             <p className="text-sm text-[var(--color-text-secondary)]">{error}</p>
             <div className="mt-4">
@@ -138,7 +138,7 @@ export default function LegislacionMunicipioPage({
     <div className="flex min-h-screen flex-col">
       <UrbideasHeader />
       
-      <main className="flex-1">
+      <main id="contenido" className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           {/* Breadcrumb */}
           <nav className="mb-4 text-[11px] text-[var(--color-text-muted)]">

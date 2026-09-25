@@ -82,7 +82,7 @@ export default function SelectorMultiMunicipio({ onCompare, provinciaId }: Selec
         />
       </div>
 
-      {maxReached && <p className="text-xs text-[var(--color-accent)] font-medium">Límite de {MAX_SELECTIONS} alcanzado.</p>}
+      {maxReached && <p className="text-xs text-[var(--color-accent)] font-medium">LÍmite de {MAX_SELECTIONS} alcanzado.</p>}
 
       {isOpen && !loading && filtered.length > 0 && (
         <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-[var(--color-card-bg-solid)] border border-[var(--color-border)] rounded-[var(--border-radius)] shadow-[var(--shadow-lg)]">

@@ -3,10 +3,10 @@ import Link from "next/link";
 import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import SocideasSearch from "@/components/socideas/SocideasSearch";
-import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
-import TerritorialBackground from "@/components/ui/TerritorialBackground";
 import SectionHeading from "@/components/ui/SectionHeading";
-import SourcePill from "@/components/ui/SourcePill";
+import Badge from "@/components/ui/Badge";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
+import SectionReveal from "@/components/ui/SectionReveal";
 
 export const metadata: Metadata = {
   title: "SOCideas",
@@ -14,89 +14,116 @@ export const metadata: Metadata = {
     "Beta interna de IDEAS Sostenibilidad para la caracterización sociodemográfica municipal con fuentes oficiales trazables.",
 };
 
+const BLOQUES = [
+  {
+    tone: "available" as const,
+    badge: "Disponible",
+    title: "Demografía",
+    description:
+      "Población municipal, evolución anual y estructura por edad y sexo. Instituto Nacional de Estadística.",
+  },
+  {
+    tone: "warning" as const,
+    badge: "En desarrollo",
+    title: "Economía",
+    description:
+      "Renta por declaración, renta y desigualdad, empresas y sector agrario. Cada subbloque declara cobertura y año.",
+  },
+  {
+    tone: "pending" as const,
+    badge: "En preparación",
+    title: "Secciones censales",
+    description:
+      "Geometría oficial del INE bajo demanda. Indicadores por sección solo con fuente oficial a ese nivel.",
+  },
+];
+
+const badgeVariant = {
+  available: "secondary",
+  warning: "accent",
+  pending: "muted",
+} as const;
+
 export default function SocideasHub() {
   return (
     <div className="flex min-h-screen flex-col">
       <SocideasHeader />
 
-      <main className="flex-1 bg-[var(--color-dark-bg)]">
-        <EditorialParallaxHero decor={<TerritorialBackground variant="grid" />} className="hero-musgo bg-[var(--brand-bg)] text-hueso">
-        <section className="relative">
-          <div className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 sm:pt-14 lg:px-8 pb-10">
-            <p className="editorial-eyebrow">
-              <span>SOCideas · Beta interna · IDEAS Sostenibilidad</span>
+      <main id="contenido" className="flex-1">
+        {/* Hero funcional: el buscador es el punto de partida */}
+        <section className="bg-[var(--bg-inverse)] text-[var(--text-inverse)]">
+          <div className="container-ima py-12 sm:py-16">
+            <Breadcrumbs
+              items={[{ label: "IDEAS Sostenibilidad", href: "/" }, { label: "SOCideas" }]}
+              tone="inverse"
+            />
+            <p className="type-overline mt-5 text-[var(--retama)]">
+              SOCideas · IDEAS Sostenibilidad
             </p>
-            <h1 className="mt-4 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl" style={{ lineHeight: 1.12 }}>
+            <h1 className="type-h1 mt-3 max-w-2xl text-[var(--text-inverse)]">
               Diagnóstico municipal con fuentes oficiales
             </h1>
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-hueso sm:text-lg">
-              Diagnóstico demográfico y económico de cualquier municipio español a partir de fuentes oficiales trazables. El buscador es el punto de partida.
+            <p className="measure mt-4 text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-inverse-secondary)]">
+              Diagnóstico demográfico y económico de cualquier municipio español a partir de
+              fuentes oficiales trazables.
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <SourcePill title="Demografía disponible con trazabilidad INE">
-                Demografía disponible · INE
-              </SourcePill>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Badge variant="muted">Beta interna</Badge>
+              <Badge variant="secondary" dot>
+                Demografía disponible
+              </Badge>
+              <Badge variant="accent">Economía en desarrollo</Badge>
             </div>
-            <section aria-label="Buscador municipal" className="glass-card mt-8 rounded-[6px] p-5 text-[var(--color-text-primary)] sm:p-7">
+
+            <div className="mt-8 rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 text-[var(--text-primary)] shadow-[var(--shadow-2)] sm:p-7">
               <SectionHeading
                 title="Buscador municipal"
                 lede="Escriba el nombre del municipio o de su provincia para abrir su ficha de caracterización."
+                as="h2"
               />
               <div className="mt-5">
                 <SocideasSearch />
               </div>
-            </section>
+            </div>
           </div>
         </section>
-        </EditorialParallaxHero>
 
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-          <section aria-label="Fuentes y cobertura">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Fuentes y cobertura</h2>
-              <SourcePill title="Economía en desarrollo por subbloques con año declarado">
-                Economía en desarrollo · AEAT · ADRH · DIRCE
-              </SourcePill>
+        {/* Fuentes y cobertura */}
+        <SectionReveal>
+          <div className="container-ima section-ima">
+            <p className="type-overline text-[var(--moss-ink)]">Fuentes y cobertura</p>
+            <div className="mt-8 grid gap-6 md:grid-cols-3">
+              {BLOQUES.map((bloque) => (
+                <div key={bloque.title} className="card p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="type-h4 text-[var(--text-primary)]">{bloque.title}</h2>
+                    <Badge variant={badgeVariant[bloque.tone]} dot={bloque.tone !== "pending"}>
+                      {bloque.badge}
+                    </Badge>
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+                    {bloque.description}
+                  </p>
+                </div>
+              ))}
             </div>
-            <div className="mt-6 grid gap-x-8 gap-y-6 md:grid-cols-3">
-              <div className="border-t-2 border-t-musgo pt-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--moss-ink)]">Demografía</p>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">Población municipal, evolución anual y estructura por edad y sexo. Instituto Nacional de Estadística.</p>
-                <p className="mt-3 inline-flex rounded-[6px] bg-musgo px-2 py-0.5 text-xs font-semibold text-white">Disponible</p>
-              </div>
-              <div className="border-t-2 border-t-conifera pt-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--moss-ink)]">Economía</p>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">Renta por declaración, renta y desigualdad, empresas y sector agrario. Cada subbloque declara cobertura y año.</p>
-                <p className="mt-3 inline-flex rounded-[6px] bg-crisopa px-2 py-0.5 text-xs font-semibold text-carbon">En desarrollo</p>
-              </div>
-              <div className="border-t-2 border-dashed border-t-limo pt-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Secciones censales</p>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">Geometría oficial del INE bajo demanda. Indicadores por sección solo con fuente oficial a ese nivel.</p>
-                <p className="mt-3 inline-flex rounded-[6px] border border-[var(--color-border)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-muted)]" style={{ backgroundColor: 'var(--color-input-bg)' }}>En preparación</p>
-              </div>
-            </div>
-            <p className="mt-6 border-t border-[var(--color-border-subtle)] pt-4 text-xs leading-relaxed text-[var(--color-text-muted)]">
-              Los datos se sincronizan de forma controlada y se almacenan con trazabilidad; no se consulta a las fuentes oficiales en cada visita.
+            <p className="note mt-8 max-w-3xl">
+              Los datos se sincronizan de forma controlada y se almacenan con trazabilidad; no se
+              consulta a las fuentes oficiales en cada visita.
             </p>
-          </section>
+          </div>
+        </SectionReveal>
 
-          <section aria-label="Enlaces relacionados" className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/"
-              style={{ backgroundColor: 'var(--color-card-bg)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid', borderColor: 'var(--color-primary)' }}
-              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
-            >
+        <section aria-label="Enlaces relacionados" className="border-t border-[var(--border-subtle)]">
+          <div className="container-ima flex flex-wrap gap-3 py-10">
+            <Link href="/socideas/como-funciona" className="btn btn-secondary">
+              Cómo funciona
+            </Link>
+            <Link href="/" className="btn btn-ghost">
               Volver a la plataforma
             </Link>
-            <Link
-              href="/urbideas"
-              style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
-              className="inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-90 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
-            >
-              Acceder a URBideas
-            </Link>
-          </section>
-        </div>
+          </div>
+        </section>
       </main>
 
       <PlatformFooter />

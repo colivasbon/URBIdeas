@@ -34,7 +34,7 @@ export default async function DescargasEconomia({
     return (
       <div className="flex min-h-screen flex-col">
         <SocideasHeader />
-        <main className="flex flex-1 items-center justify-center px-4"><EmptyState title="Código INE inválido" description="Se esperan 5 dígitos." /></main>
+        <main id="contenido" className="flex flex-1 items-center justify-center px-4"><EmptyState title="Código INE inválido" description="Se esperan 5 dígitos." /></main>
         <PlatformFooter />
       </div>
     );
@@ -45,7 +45,7 @@ export default async function DescargasEconomia({
     return (
       <div className="flex min-h-screen flex-col">
         <SocideasHeader />
-        <main className="flex flex-1 items-center justify-center px-4">
+        <main id="contenido" className="flex flex-1 items-center justify-center px-4">
           <EmptyState title={`No se encontró el municipio ${codigoINE}.`} description="Compruebe el código o vuelva al buscador." action={<Link href="/socideas" className="text-sm font-semibold text-[var(--color-secondary)]">Volver al buscador</Link>} />
         </main>
         <PlatformFooter />
@@ -60,7 +60,7 @@ export default async function DescargasEconomia({
   return (
     <div className="flex min-h-screen flex-col">
       <SocideasHeader codigoINE={codigoINE} />
-      <main className="flex-1">
+      <main id="contenido" className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
           <nav aria-label="Migas de pan" className="mb-3 text-xs text-[var(--color-text-muted)]">
             <Link href="/socideas" className="hover:text-[var(--color-secondary)]">SOCideas</Link>
@@ -81,13 +81,13 @@ export default async function DescargasEconomia({
               className="inline-flex min-h-[36px] items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)]"
               style={{ backgroundColor: 'var(--color-input-bg)' }}
             >
-              ← Volver a la ficha
+              â† Volver a la ficha
             </Link>
             <Link
               href={`/socideas/${codigoINE}/descargas/demografia`}
               className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-secondary)]"
             >
-              Descargas de Demografía →
+              Descargas de Demografía â†’
             </Link>
           </div>
           <div className="mt-8">

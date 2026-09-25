@@ -41,17 +41,17 @@ function Callout({
 }) {
   const bar =
     kind === "principio"
-      ? "border-l-[var(--color-success)]"
+      ? "border-l-[var(--musgo)]"
       : kind === "limitacion"
-        ? "border-l-[var(--color-warning)]"
-        : "border-l-[var(--color-secondary)]";
+        ? "border-l-[var(--rupestre-400)]"
+        : "border-l-[var(--conifera-700)]";
   const tag =
     kind === "principio" ? "Principio" : kind === "limitacion" ? "Limitación" : "Trazabilidad";
   return (
-    <div className={`premium-card my-5 border-l-4 ${bar} p-4 sm:p-5`} role="note" aria-label={`${tag}: ${title}`}>
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{tag}</p>
-      <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{title}</p>
-      <div className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">{children}</div>
+    <div className={`card my-5 border-l-4 ${bar} p-4 shadow-none sm:p-5`} role="note" aria-label={`${tag}: ${title}`}>
+      <p className="type-overline text-[var(--text-muted)]">{tag}</p>
+      <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">{title}</p>
+      <div className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{children}</div>
     </div>
   );
 }
@@ -73,7 +73,7 @@ export default function ComoFuncionaSocideas() {
     <div className="flex min-h-screen flex-col">
       <SocideasHeader />
 
-      <main className="flex-1">
+      <main id="contenido" className="flex-1">
         <EditorialParallaxHero decor={<TerritorialBackground variant="grid" />}>
           <div className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 sm:pt-14 lg:px-8 pb-10">
             <PageShell
@@ -102,10 +102,10 @@ export default function ComoFuncionaSocideas() {
 
         <div className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
           <div className="lg:grid lg:grid-cols-[240px_1fr] lg:gap-10">
-            {/* Índice */}
-            <nav aria-label="Índice de la página" className="lg:sticky lg:top-20 lg:self-start">
+            {/* Índice */}
+            <nav aria-label="Índice de la página" className="lg:sticky lg:top-20 lg:self-start">
               <div className="premium-card p-4 lg:mt-8">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Índice</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Índice</p>
                 <ol className="mt-2 flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
                   {INDICE.map((s, i) => (
                     <li key={s.id} className="shrink-0 lg:shrink">
@@ -113,7 +113,7 @@ export default function ComoFuncionaSocideas() {
                         href={`#${s.id}`}
                         className="block whitespace-nowrap rounded-[6px] px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] lg:whitespace-normal"
                       >
-                        <span aria-hidden="true" className="mr-2 text-xs font-bold tabular-nums text-[var(--color-secondary)]/70">
+                        <span aria-hidden="true" className="mr-2 text-xs font-bold tabular-nums text-[var(--text-link)]">
                           {String(i + 1).padStart(2, "0")}
                         </span>
                         {s.label}
@@ -216,13 +216,13 @@ export default function ComoFuncionaSocideas() {
                     ].map((paso, i, arr) => (
                       <li key={paso}>
                         <span className="flex items-center gap-3 rounded-[6px] bg-[var(--color-input-bg)] px-3 py-2.5">
-                          <span aria-hidden="true" className="text-xs font-bold tabular-nums text-[var(--color-secondary)]">
+                          <span aria-hidden="true" className="text-xs font-bold tabular-nums text-[var(--musgo)]">
                             {String(i + 1).padStart(2, "0")}
                           </span>
                           {paso}
                         </span>
                         {i < arr.length - 1 && (
-                          <span aria-hidden="true" className="block py-0.5 text-center text-[var(--color-text-muted)]">↓</span>
+                          <span aria-hidden="true" className="block py-0.5 text-center text-[var(--color-text-muted)]">â†“</span>
                         )}
                       </li>
                     ))}
@@ -254,8 +254,8 @@ export default function ComoFuncionaSocideas() {
                   el estado a fecha de redacción: lo disponible, lo que está en preparación técnica y lo
                   que permanece pendiente o sin cobertura.
                 </P>
-                <div className="mt-5 overflow-x-auto rounded-[6px] border border-[var(--color-border-subtle)]">
-                  <table className="ideas-table min-w-[880px] bg-[var(--color-card-bg)] p-4">
+                <div className="mt-5 overflow-x-auto rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+                  <table className="ideas-table min-w-[880px]">
                     <caption className="sr-only">Fuentes oficiales de SOCideas con cobertura, periodo y estado</caption>
                     <thead>
                       <tr>
@@ -392,7 +392,7 @@ export default function ComoFuncionaSocideas() {
                     "Ficha SOCideas: presentación con fuente, periodo y estado.",
                   ].map((paso, i) => (
                     <li key={paso} className="flex gap-3">
-                      <span aria-hidden="true" className="text-xs font-bold tabular-nums text-[var(--color-secondary)] mt-1">
+                      <span aria-hidden="true" className="text-xs font-bold tabular-nums text-[var(--musgo)] mt-1">
                         {String(i + 1).padStart(2, "0")}
                       </span>
                       <span>{paso}</span>
@@ -481,7 +481,7 @@ export default function ComoFuncionaSocideas() {
                   empleo cuando se incorpore, estructural el censo agrario—, por lo que la ficha combina
                   periodos distintos según el bloque. Antes de publicar, cada lote supera controles de
                   plausibilidad: códigos INE válidos, periodos coherentes, valores no negativos cuando
-                  corresponda, rentas positivas e índices dentro de rango.
+                  corresponda, rentas positivas e Índices dentro de rango.
                 </P>
                 <P>
                   El secreto estadístico recibe un tratamiento estricto: los valores inferiores al umbral

@@ -20,7 +20,7 @@ export interface ConsolidadoComparable {
 function fmtPrimitive(value: unknown): string {
   if (value === null || value === undefined) return "ND";
   if (typeof value === "number") return value.toLocaleString("es-ES");
-  if (typeof value === "boolean") return value ? "Sí" : "No";
+  if (typeof value === "boolean") return value ? "SÍ" : "No";
   return String(value);
 }
 

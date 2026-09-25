@@ -505,7 +505,7 @@ export default function EconomiaFicha({
           <h2 className="ideas-h2">Desigualdad</h2>
           <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
             <div>
-              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Evolución del índice de Gini</h3>
+              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Evolución del Índice de Gini</h3>
               <EvolutionChart series={giniSerie} id={`gini-${codigoINE}`} />
             </div>
             <div>
@@ -514,11 +514,11 @@ export default function EconomiaFicha({
             </div>
           </div>
           <div className="mt-4">
-            <ComparadorPeriodos serie={serie(valores, "gini")} unidad="puntos" titulo="Comparador del índice de Gini" />
+            <ComparadorPeriodos serie={serie(valores, "gini")} unidad="puntos" titulo="Comparador del Índice de Gini" />
           </div>
           <Metodologia
             nombre="Gini y P80/P20 (ADRH)"
-            definicion="El índice de Gini (0-100) mide la desigualdad de la renta por unidad de consumo; el ratio P80/P20 compara el percentil 80 con el 20."
+            definicion="El Índice de Gini (0-100) mide la desigualdad de la renta por unidad de consumo; el ratio P80/P20 compara el percentil 80 con el 20."
             fuente="INE · Atlas de Distribución de Renta de los Hogares, serie 2015-2023"
             periodo={gini?.anio_referencia ? String(gini.anio_referencia) : "—"}
             cobertura="Municipios con 100 o más residentes"

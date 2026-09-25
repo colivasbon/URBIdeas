@@ -17,8 +17,7 @@ interface Opcion {
   nombre: string;
 }
 
-const selectClasses =
-  "w-full rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:opacity-50";
+const selectClasses = "input disabled:opacity-45";
 
 export default function SocideasSearch() {
   const router = useRouter();
@@ -213,21 +212,20 @@ export default function SocideasSearch() {
           }
           autoComplete="off"
           disabled={!!abriendo}
-          className="flex-1 rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:opacity-50"
+          className="input flex-1 disabled:opacity-45"
         />
         <button
           type="submit"
           disabled={!!abriendo || buscando || q.trim().length < 2}
           aria-busy={buscando || undefined}
-          className="inline-flex min-h-[44px] items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-[6px] hover:bg-[var(--color-primary-light)] transition-all disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+          className="btn btn-primary relative"
         >
           {buscando && (
-            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
+            <span className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+              <span className="spinner" />
+            </span>
           )}
-          {buscando ? "Buscando…" : "Buscar"}
+          <span className={buscando ? "invisible" : undefined}>{buscando ? "Buscando…" : "Buscar"}</span>
         </button>
       </form>
 
@@ -244,25 +242,27 @@ export default function SocideasSearch() {
               Sin resultados. Prueba con el nombre oficial o el código INE de 5 dígitos.
             </p>
           ) : (
-            <ul className="divide-y divide-[var(--color-border-subtle)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)]">
+            <ul className="divide-y divide-[var(--border-subtle)] rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
               {resultados.map((m) => (
                 <li key={m.codigo_ine}>
                   <Link
                     href={`/socideas/${m.codigo_ine}`}
                     onClick={() => onResultadoClick(m)}
                     aria-disabled={!!abriendo}
-                    className={`flex items-center justify-between gap-4 px-5 py-4 hover:bg-[var(--color-input-bg)]/50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] rounded-[var(--border-radius-lg)] ${abriendo ? "pointer-events-none opacity-60" : ""}`}
+                    className={`flex items-center justify-between gap-4 rounded-[6px] px-5 py-4 transition-colors hover:bg-[var(--musgo-50)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${abriendo ? "pointer-events-none opacity-60" : ""}`}
                   >
                     <span>
-                      <span className="block text-sm font-semibold text-[var(--color-text-primary)]">
+                      <span className="block text-sm font-semibold text-[var(--text-primary)]">
                         {m.nombre}
                       </span>
-                      <span className="block text-xs text-[var(--color-text-muted)]">
+                      <span className="tnum block text-xs text-[var(--text-muted)]">
                         {m.provincia?.nombre ?? "—"} · {m.provincia?.comunidad_autonoma?.nombre ?? "—"} · INE{" "}
                         {m.codigo_ine}
                       </span>
                     </span>
-                    <span aria-hidden="true" className="text-[var(--color-secondary)]">→</span>
+                    <svg className="h-4 w-4 shrink-0 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3" />
+                    </svg>
                   </Link>
                 </li>
               ))}

@@ -12,7 +12,7 @@ export default function Loading() {
         </div>
       </div>
 
-      <main className="flex-1">
+      <main id="contenido" className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
           <div className="mb-8 border-b border-[var(--color-border-subtle)] pb-8">
             <div className="premium-skeleton h-3 w-40 rounded-[4px]" />

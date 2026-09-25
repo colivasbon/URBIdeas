@@ -54,7 +54,7 @@ export default async function SeccionesPage({
     return (
       <div className="flex min-h-screen flex-col">
         <SocideasHeader codigoINE={codigoINE} />
-        <main className="flex flex-1 items-center justify-center px-4">
+        <main id="contenido" className="flex flex-1 items-center justify-center px-4">
           <div className="ideas-status max-w-md text-center" data-state="error" role="alert">
             <p className="ideas-status__title">No se encontró el municipio con código INE {codigoINE}.</p>
             <Link href="/socideas" className="mt-4 inline-block text-sm font-semibold text-[var(--color-secondary)]">
@@ -70,7 +70,7 @@ export default async function SeccionesPage({
   return (
     <div className="flex min-h-screen flex-col">
       <SocideasHeader codigoINE={muni.codigo_ine} />
-      <main className="flex-1">
+      <main id="contenido" className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
           <section className="mb-8 border-b border-[var(--color-border-subtle)] pb-8">
             <nav aria-label="Migas de pan" className="mb-3 text-xs text-[var(--color-text-muted)]">

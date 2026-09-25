@@ -97,7 +97,7 @@ export default function EstructuraPoblacionBlock({
               rel="noreferrer"
               className="font-semibold text-[var(--color-secondary)]"
             >
-              tabla 68535 � 
+              tabla 68535 ·
             </a>
           </p>
         </div>
@@ -138,14 +138,14 @@ export default function EstructuraPoblacionBlock({
         {consultado !== null ? ` · Consultado: ${consultado}` : ""}
       </p>
       <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-        Reconciliaciones sin tolerancia: total = hombres + mujeres ({data.quality.totalBySexReconciled ? "OK" : "revisar"}) �
-        suma de los 21 grupos = total ({data.quality.totalByAgeReconciled ? "OK" : "revisar"}) � correspondencia territorial:{" "}
+        Reconciliaciones sin tolerancia: total = hombres + mujeres ({data.quality.totalBySexReconciled ? "OK" : "revisar"}) ·
+        suma de los 21 grupos = total ({data.quality.totalByAgeReconciled ? "OK" : "revisar"}) · correspondencia territorial:{" "}
         {data.quality.territoryMatch}.
       </p>
       <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-        Poblaci�n total a 1 de enero de {data.period}:{" "}
+        Población total a 1 de enero de {data.period}:{" "}
         <strong className="tabular-nums">{formatInt(view.municipalTotal)}</strong> personas (hombres{" "}
-        <span className="tabular-nums">{formatInt(view.municipalMale)}</span> � mujeres{" "}
+        <span className="tabular-nums">{formatInt(view.municipalMale)}</span> · mujeres{" "}
         <span className="tabular-nums">{formatInt(view.municipalFemale)}</span>).
       </p>
 

@@ -1,0 +1,37 @@
+[
+  {
+    "route": "/",
+    "violations": [],
+    "passes": 24
+  },
+  {
+    "route": "/urbideas",
+    "violations": [],
+    "passes": 22
+  },
+  {
+    "route": "/urbideas/municipios",
+    "violations": [],
+    "passes": 26
+  },
+  {
+    "route": "/urbideas/mapa",
+    "violations": [],
+    "passes": 24
+  },
+  {
+    "route": "/urbideas/legislacion",
+    "violations": [],
+    "passes": 25
+  },
+  {
+    "route": "/socideas",
+    "violations": [],
+    "passes": 27
+  },
+  {
+    "route": "/socideas/como-funciona",
+    "violations": [],
+    "passes": 27
+  }
+]

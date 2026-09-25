@@ -1,0 +1,125 @@
+[
+  {
+    "route": "/",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 16,
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "target": [
+          ".text-\\[10px\\]"
+        ]
+      }
+    ],
+    "passes": 24
+  },
+  {
+    "route": "/urbideas",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 16,
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "target": [
+          ".text-\\[10px\\]"
+        ]
+      }
+    ],
+    "passes": 22
+  },
+  {
+    "route": "/urbideas/municipios",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 16,
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "target": [
+          ".text-\\[10px\\]"
+        ]
+      },
+      {
+        "id": "select-name",
+        "impact": "critical",
+        "nodes": 3,
+        "help": "Select element must have an accessible name",
+        "target": [
+          ".gap-1\\.5.flex-col.flex:nth-child(1) > .relative > select"
+        ]
+      }
+    ],
+    "passes": 24
+  },
+  {
+    "route": "/urbideas/mapa",
+    "violations": [
+      {
+        "id": "target-size",
+        "impact": "serious",
+        "nodes": 4,
+        "help": "All touch targets must be 24px large, or leave sufficient space",
+        "target": [
+          "a[href$=\"municipios\"]"
+        ]
+      }
+    ],
+    "passes": 24
+  },
+  {
+    "route": "/urbideas/legislacion",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 3,
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "target": [
+          ".text-\\[10px\\]"
+        ]
+      },
+      {
+        "id": "target-size",
+        "impact": "serious",
+        "nodes": 4,
+        "help": "All touch targets must be 24px large, or leave sufficient space",
+        "target": [
+          "a[href$=\"municipios\"]"
+        ]
+      }
+    ],
+    "passes": 22
+  },
+  {
+    "route": "/socideas",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 16,
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "target": [
+          ".text-\\[10px\\]"
+        ]
+      }
+    ],
+    "passes": 27
+  },
+  {
+    "route": "/socideas/como-funciona",
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 31,
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "target": [
+          ".text-\\[10px\\]"
+        ]
+      }
+    ],
+    "passes": 27
+  }
+]

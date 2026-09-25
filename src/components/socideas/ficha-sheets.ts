@@ -56,7 +56,8 @@ export const FICHA_SHEETS: readonly FichaSheetMeta[] = [
     id: "02_CONTEXTO_POLÍTICO",
     code: "02",
     label: "Contexto político",
-    descripcion: "Participación y reparto de concejales en las elecciones municipales.",
+    descripcion:
+      "Elecciones municipales y resultados de la circunscripción provincial (autonómicas, Congreso y Senado, siempre separados).",
     estado: "parcial",
   },
   {
@@ -81,8 +82,9 @@ export const FICHA_SHEETS: readonly FichaSheetMeta[] = [
     id: "05_PATRIMONIO_Y_TURISMO",
     code: "05",
     label: "Patrimonio y turismo",
-    descripcion: "Inventario cultural y registros turísticos oficiales.",
-    estado: "pendiente",
+    descripcion:
+      "Resumen de Wikipedia con atribución CC BY-SA, bienes patrimoniales de Wikidata y Grupo de Acción Local (GAL).",
+    estado: "parcial",
   },
   {
     key: "infraestructura",
@@ -97,8 +99,9 @@ export const FICHA_SHEETS: readonly FichaSheetMeta[] = [
     id: "07_ASOCIACIONES",
     code: "07",
     label: "Asociaciones",
-    descripcion: "Directorio asociativo desde registros oficiales.",
-    estado: "pendiente",
+    descripcion:
+      "Directorio asociativo desde registros autonómicos de datos abiertos, con aviso de verificación.",
+    estado: "parcial",
   },
   {
     key: "fuentes",
@@ -127,4 +130,53 @@ export function resolveFichaSheet(
 
 export function fichaSheetByKey(key: FichaSheetKey): FichaSheetMeta {
   return FICHA_SHEETS.find((s) => s.key === key) ?? FICHA_SHEETS[1];
+}
+
+/* ============================================================
+   Indicadores de estado por hoja (v2.3 "mejoras generales")
+   Cuatro glifos fijos, cada uno con su texto accesible. El glifo es
+   SIEMPRE decorativo (aria-hidden en el componente que lo pinta); el
+   texto es la fuente de verdad para lectores de pantalla y tooltip.
+   ============================================================ */
+
+export type EstadoGlyph = "ok" | "stale" | "pronto" | "no-disponible";
+
+export interface GlyphMeta {
+  /** Glifo visible (decorativo: nunca se expone solo a lectores de pantalla). */
+  glifo: string;
+  /** Texto accesible/tooltip: qué significa el glifo, en castellano llano. */
+  texto: string;
+}
+
+export const SHEET_GLYPH: Record<EstadoGlyph, GlyphMeta> = {
+  ok: { glifo: "✓", texto: "Datos disponibles y recientes" },
+  stale: { glifo: "~", texto: "Datos disponibles pero pueden estar desactualizados" },
+  pronto: { glifo: "⏳", texto: "Próximamente" },
+  "no-disponible": { glifo: "—", texto: "No disponible para este municipio" },
+};
+
+/** Overrides por municipio: p. ej. `{ patrimonio: "no-disponible" }`. */
+export type EstadoGlyphOverrides = Partial<Record<FichaSheetKey, EstadoGlyph>>;
+
+/** Estado editorial estático → glifo por defecto (la frescura real se declara fuera). */
+const ESTADO_GLYPH: Record<FichaSheetEstado, EstadoGlyph> = {
+  datos: "ok",
+  parcial: "stale",
+  pendiente: "pronto",
+};
+
+/**
+ * Glifo de una hoja: el override por municipio manda (para marcar «—» cuando
+ * la fuente no cubre el territorio), y en su defecto se deriva del estado
+ * editorial estático. Sin datos inventados: solo etiqueta lo ya declarado.
+ */
+export function sheetGlyphFor(
+  sheet: FichaSheetMeta | FichaSheetKey,
+  overrides?: EstadoGlyphOverrides,
+): EstadoGlyph {
+  const key = typeof sheet === "string" ? sheet : sheet.key;
+  const override = overrides?.[key];
+  if (override) return override;
+  const meta = typeof sheet === "string" ? fichaSheetByKey(sheet) : sheet;
+  return ESTADO_GLYPH[meta.estado];
 }

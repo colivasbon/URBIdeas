@@ -12,9 +12,16 @@ import { SheetHeader, SheetPlaceholder } from "@/components/socideas/SheetShell"
 import {
   ContextoPoliticoSheet,
   CriteriosFuentesSheet,
+  PatrimonioSheet,
   ProyectoSheet,
   SocioculturalSheet,
 } from "@/components/socideas/SheetSections";
+import { AsociacionesBloque } from "@/components/socideas/AsociacionesBloque";
+import { readAsociacionesMunicipio } from "@/lib/socideas-asociaciones";
+import { readGalMunicipio } from "@/lib/socideas-gal";
+import { readWikipediaEnrichment } from "@/lib/wikipedia-enrichment";
+import { readElectoralProvincial } from "@/lib/socideas-electoral-provincial-store";
+import type { ElectoralProvincialBundle } from "@/lib/socideas-electoral-provincial-store";
 import { fichaSheetByKey, resolveFichaSheet } from "@/components/socideas/ficha-sheets";
 import FichaToolbar from "@/components/socideas/FichaToolbar";
 import ActualizacionMenu from "@/components/socideas/ActualizacionMenu";
@@ -29,6 +36,7 @@ import { readTemporaryMunicipalData } from "@/lib/socideas-temporary-data";
 import type { TemporaryMunicipalData } from "@/lib/socideas-temporary-data";
 import { readMunicipalStructureWithBenchmarks } from "@/lib/socideas-population-runtime";
 import type { MunicipalStructureWithBenchmarks } from "@/lib/socideas-population-runtime";
+import EstructuraSoloBloque from "@/components/socideas/EstructuraSoloBloque";
 import EmptyState from "@/components/ui/EmptyState";
 import SourcePill from "@/components/ui/SourcePill";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
@@ -133,7 +141,7 @@ export default async function SocideasFicha({
     return (
       <div className="flex min-h-screen flex-col">
         <SocideasHeader codigoINE={codigoINE} />
-        <main className="flex-1 flex items-center justify-center px-4 py-10">
+        <main id="contenido" className="flex-1 flex items-center justify-center px-4 py-10">
           <div className="w-full max-w-md">
             <EmptyState
               title={`No se encontró el municipio con código INE ${codigoINE}.`}
@@ -171,6 +179,34 @@ export default async function SocideasFicha({
       ? readMunicipalStructureWithBenchmarks(codigoINE).catch(() => null)
       : Promise.resolve(null) as Promise<MunicipalStructureWithBenchmarks | null>,
   ]);
+  // Capas v2.3 (asociaciones, GAL, Wikipedia y resultados de circunscripción).
+  // Se leen SOLO en las hojas que las muestran y siempre en paralelo: cada
+  // lectura degrada a `null` sin romper la ficha. Ninguna escribe nada.
+  const esHojaPolitico = hojaActiva === "politico";
+  const esHojaPatrimonio = hojaActiva === "patrimonio";
+  const esHojaAsociaciones = hojaActiva === "asociaciones";
+  const provinciaCodigo = municipio.provincia_codigo_ine;
+  // Cliente Supabase solo si alguna hoja v2.3 lo necesita (evita crear clientes
+  // inútiles en el resto de pestañas).
+  const supabaseV23 =
+    esHojaPatrimonio || esHojaAsociaciones ? createSupabaseServer() : null;
+  const [electoralProvincial, gal, wikipedia, asociaciones] = await Promise.all([
+    esHojaPolitico && provinciaCodigo
+      ? (readElectoralProvincial(provinciaCodigo.slice(0, 2)).catch(
+          () => null,
+        ) as Promise<ElectoralProvincialBundle | null>)
+      : (Promise.resolve(null) as Promise<ElectoralProvincialBundle | null>),
+    esHojaPatrimonio && supabaseV23
+      ? readGalMunicipio(supabaseV23, codigoINE).catch(() => null)
+      : Promise.resolve(null),
+    esHojaPatrimonio
+      ? readWikipediaEnrichment(codigoINE).catch(() => null)
+      : Promise.resolve(null),
+    esHojaAsociaciones && supabaseV23
+      ? readAsociacionesMunicipio(supabaseV23, codigoINE).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+
   // Vista previa de actualización (sin I/O extra): qué capas hay y su período.
   const capasPreview = buildMunicipalUpdatePreview(
     codigoINE,
@@ -187,7 +223,7 @@ export default async function SocideasFicha({
   return (
     <div className="flex min-h-screen flex-col">
       <SocideasHeader codigoINE={municipio.codigo_ine} search={new URLSearchParams(spObj).toString()} />
-      <main className="flex-1">
+      <main id="contenido" className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
           <section className="mb-8 border-b border-[var(--color-border-subtle)] pb-8">
             <nav aria-label="Migas de pan" className="mb-3 text-xs text-[var(--color-text-muted)]">
@@ -274,15 +310,31 @@ export default async function SocideasFicha({
                   }
                 />
               ) : perfil.total === null && perfil.evolucion.length === 0 ? (
-                <EmptyState
-                  title="Sin serie demográfica cargada"
-                  description="Este municipio no tiene población en los envelopes R2 de la carga nacional SOCideas. La ausencia se muestra como tal: no se imputa ningún valor ni se convierte en cero."
-                  action={
-                    <Link href="/socideas" className="text-sm font-semibold text-[var(--color-secondary)]">
-                      Volver al buscador
-                    </Link>
-                  }
-                />
+                <div>
+                  <EmptyState
+                    title="Sin serie demográfica cargada"
+                    description="Este municipio no tiene población en los envelopes R2 de la carga nacional SOCideas. La ausencia se muestra como tal: no se imputa ningún valor ni se convierte en cero."
+                    action={
+                      <Link href="/socideas" className="text-sm font-semibold text-[var(--color-secondary)]">
+                        Volver al buscador
+                      </Link>
+                    }
+                  />
+                  {/* La estructura anual vive en un objeto R2 INDEPENDIENTE del
+                      envelope de serie: un municipio sin serie (p. ej. Ceuta o
+                      Melilla en la carga nacional) sí puede tener pirámide 2025.
+                      No se debe ocultar detrás del estado vacío. */}
+                  {estructuraPoblacion && (
+                    <EstructuraSoloBloque
+                      data={estructuraPoblacion}
+                      municipioNombre={municipio.nombre}
+                      provinciaNombre={municipio.provincia}
+                      ccaaNombre={municipio.comunidad_autonoma}
+                      estRef={spObj.est_ref}
+                      estModo={spObj.est_modo}
+                    />
+                  )}
+                </div>
               ) : (
                 <FichaFiltros
                   codigoINE={municipio.codigo_ine}
@@ -297,7 +349,11 @@ export default async function SocideasFicha({
               ))}
 
             {hojaActiva === "politico" && (
-              <ContextoPoliticoSheet valores={perfil.valores} municipio={municipio.nombre} />
+              <ContextoPoliticoSheet
+                valores={perfil.valores}
+                municipio={municipio.nombre}
+                provincial={electoralProvincial}
+              />
             )}
 
             {hojaActiva === "economia" &&
@@ -313,10 +369,10 @@ export default async function SocideasFicha({
             {hojaActiva === "sociocultural" && <SocioculturalSheet ineLayers={ineLayers} />}
 
             {hojaActiva === "patrimonio" && (
-              <SheetPlaceholder
-                title="Patrimonio y turismo"
-                description="Pendiente de integración desde inventarios culturales y registros turísticos oficiales con cobertura territorial y licencia verificadas. Nada se rellena con valores provisionales."
-                source="Fuente prevista: inventarios culturales y registros turísticos oficiales."
+              <PatrimonioSheet
+                wikipedia={wikipedia}
+                gal={gal}
+                municipio={municipio.nombre}
               />
             )}
 
@@ -328,13 +384,16 @@ export default async function SocideasFicha({
               />
             )}
 
-            {hojaActiva === "asociaciones" && (
-              <SheetPlaceholder
-                title="Directorio asociativo"
-                description="Pendiente de integración desde registros oficiales con licencias verificadas y política de privacidad aplicable."
-                source="Fuente prevista: registros oficiales de asociaciones."
-              />
-            )}
+            {hojaActiva === "asociaciones" &&
+              (asociaciones ? (
+                <AsociacionesBloque data={asociaciones} municipio={municipio.nombre} />
+              ) : (
+                <SheetPlaceholder
+                  title="Directorio asociativo"
+                  description="Sin datos publicados de asociaciones para este municipio en este momento. El directorio se alimenta exclusivamente de registros autonómicos de datos abiertos; nunca se inventan entidades ni se realiza scraping."
+                  source="Registros autonómicos de asociaciones (datos abiertos)."
+                />
+              ))}
 
             {hojaActiva === "fuentes" && <CriteriosFuentesSheet />}
           </div>

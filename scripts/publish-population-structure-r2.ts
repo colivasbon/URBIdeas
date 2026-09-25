@@ -85,6 +85,8 @@ type Args = {
   onlyPilots: boolean
   concurrency: number
   limitMunicipios: number | null
+  /** Publica SOLO `refs.json` (backup + read-back), sin tocar el resto del prefijo. */
+  refsOnly: boolean
 }
 
 function parseArgs(): Args {
@@ -100,6 +102,7 @@ function parseArgs(): Args {
     onlyPilots: argv.includes('--only-pilots'),
     concurrency: numeric('--concurrency=') ?? 24,
     limitMunicipios: numeric('--limit-municipios='),
+    refsOnly: argv.includes('--refs-only'),
   }
 }
 
@@ -193,6 +196,18 @@ async function getObjectBytes(r2: R2, key: string): Promise<Buffer | null> {
     const res = await withRetry(`GET ${key}`, () =>
       r2.client.send(new GetObjectCommand({ Bucket: r2.bucket, Key: key })),
     )
+    const bytes = await res.Body?.transformToByteArray()
+    return bytes === undefined ? null : Buffer.from(bytes)
+  } catch (err) {
+    if (isNotFound(err)) return null
+    throw err
+  }
+}
+
+/** GET sin reintentos que trata 404 como ausencia (para backups opcionales). */
+async function getObjectBytesMaybe(r2: R2, key: string): Promise<Buffer | null> {
+  try {
+    const res = await r2.client.send(new GetObjectCommand({ Bucket: r2.bucket, Key: key }))
     const bytes = await res.Body?.transformToByteArray()
     return bytes === undefined ? null : Buffer.from(bytes)
   } catch (err) {
@@ -604,9 +619,81 @@ interface BackupEntry {
   body: Buffer | null
 }
 
+// ============================================================================
+// Modo mínimo `--refs-only`: publica `refs.json` con backup + read-back.
+// ============================================================================
+
+const REFS_LOCAL = path.join(STRUCTURE_DIR, 'refs.json')
+const REFS_KEY = `${POPULATION_STRUCTURE_R2_PREFIX}/refs.json`
+
+async function publicarRefsSolo(write: boolean): Promise<void> {
+  if (!existsSync(REFS_LOCAL)) {
+    console.error(`[refs] FALLO: no existe ${REFS_LOCAL} (genera la estructura 2025 primero).`)
+    process.exitCode = 1
+    return
+  }
+  const body = readFileSync(REFS_LOCAL)
+  const localSha = sha256(body)
+  console.log(
+    `SOCideas · publicación refs.json · modo ${write ? 'WRITE' : 'DRY-RUN (sin escrituras)'} · ` +
+      `key ${REFS_KEY} · ${formatBytes(body.length)} · sha ${short(localSha)}`,
+  )
+  if (!write) {
+    console.log('DRY-RUN refs completado: no se ha escrito nada en R2.')
+    return
+  }
+  const r2 = r2Client()
+  if (r2 === null) {
+    console.error('[refs] FALLO: faltan credenciales R2 (R2_ACCOUNT_ID/R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY/R2_BUCKET). Abortado sin escribir.')
+    process.exitCode = 1
+    return
+  }
+
+  // Backup del objeto vivo (si existe) en tmp/backup (nunca en R2).
+  const runStamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const backupDir = path.join(BACKUP_ROOT, runStamp)
+  mkdirSync(backupDir, { recursive: true })
+  const prev = await getObjectBytesMaybe(r2, REFS_KEY)
+  let backupPath: string | null = null
+  if (prev !== null) {
+    backupPath = path.join(backupDir, 'refs.json')
+    writeFileSync(backupPath, prev)
+    console.log(`[refs][backup] ${backupPath} (${formatBytes(prev.length)}, sha ${short(sha256(prev))})`)
+  } else {
+    backupPath = path.join(backupDir, 'refs.json.no-existia')
+    writeFileSync(backupPath, '')
+    console.log('[refs][backup] el objeto no existía previamente')
+  }
+
+  // Escritura + read-back byte a byte.
+  await putObject(r2, REFS_KEY, body, 'population-structure-refs')
+  const rb = await getObjectBytes(r2, REFS_KEY)
+  if (rb === null) throw new Error('read-back: el objeto no existe tras el PUT')
+  const rbSha = sha256(rb)
+  if (rbSha !== localSha) throw new Error(`read-back sha ${short(rbSha)} ≠ local ${short(localSha)}`)
+  console.log(`[refs][read-back] OK · sha ${short(rbSha)} · bytes ${rb.length}`)
+
+  const manifest = {
+    publishedAt: new Date().toISOString(),
+    key: REFS_KEY,
+    local: REFS_LOCAL,
+    sha256: localSha,
+    bytes: body.length,
+    backup: backupPath,
+    readBack: { sha256: rbSha, bytes: rb.length },
+  }
+  const manifestPath = path.join(AUDIT_DIR, `publish-refs-manifest-${Date.now()}.json`)
+  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8')
+  console.log(`[refs] manifiesto: ${manifestPath}`)
+}
+
 async function main(): Promise<void> {
   const args = parseArgs()
   const started = Date.now()
+  if (args.refsOnly) {
+    await publicarRefsSolo(args.write)
+    return
+  }
   console.log(
     `SOCideas · publicación estructura de población v2 · modo ${args.write ? 'WRITE' : 'DRY-RUN (sin escrituras)'} · ` +
       `prefijo ${R2_PREFIX}`,
@@ -902,7 +989,7 @@ async function main(): Promise<void> {
   for (const item of stratItems) {
     const bytes = await getObjectBytes(r2, item.key)
     if (bytes === null) {
-      stratFailures.push(`${item.key}: ausente en read-back`) 
+      stratFailures.push(`${item.key}: ausente en read-back`)
       continue
     }
     if (sha256(bytes) !== item.sha256) {

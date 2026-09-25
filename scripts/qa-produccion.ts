@@ -203,7 +203,7 @@ async function main() {
         if (missing.length) { xlsxFails.push(`${m.codigo_ine}: faltan hojas ${missing.join(',')}`); return }
         const ssPath = path.join(dest, 'xl', 'sharedStrings.xml')
         const ss = fs.existsSync(ssPath) ? fs.readFileSync(ssPath, 'utf8') : ''
-        if (!ss.includes('Usos agrarios')) xlsxFails.push(`${m.codigo_ine}: falta tabla 'Usos agrarios'`)
+        if (!ss.includes('Usos del suelo agrario')) xlsxFails.push(`${m.codigo_ine}: falta tabla 'Usos del suelo agrario'`)
         if (!ss.includes('Saldo migratorio')) xlsxFails.push(`${m.codigo_ine}: falta tabla 'Saldo migratorio'`)
         if (!ss.includes('Nivel educativo')) xlsxFails.push(`${m.codigo_ine}: falta tabla 'Nivel educativo'`)
         if (!ss.includes('Diccionario de indicadores')) xlsxFails.push(`${m.codigo_ine}: falta 'Diccionario de indicadores'`)

@@ -10,6 +10,10 @@ import { readMunicipalStructureWithBenchmarks } from '@/lib/socideas-population-
 import { normalizarMunicipio, toAsciiFilename } from '@/lib/socideas-export'
 import { assembleSocideasBookV2 } from '@/lib/socideas-book-blocks'
 import { XLSX_BRAND, buildSocideasBookXlsx } from '@/lib/socideas-xlsx'
+import { readElectoralProvincial } from '@/lib/socideas-electoral-provincial-store'
+import { readAsociacionesMunicipio } from '@/lib/socideas-asociaciones'
+import { readGalMunicipio } from '@/lib/socideas-gal'
+import { readWikipediaEnrichment } from '@/lib/wikipedia-enrichment'
 
 export const dynamic = 'force-dynamic'
 
@@ -199,7 +203,37 @@ export async function GET(
       demoStatus: demo.status, ecoStatus: eco.status,
     })
 
-    // 5. Ensamblar el libro v2 (bloques + indicadores + checks + cobertura).
+    // 5. Bloques v2.3 (circunscripción, asociaciones, GAL, Wikipedia).
+    //    Todos son lecturas paralelas y todos degradan a `null`: si falta un
+    //    origen, su bloque se declara pendiente en el libro y la exportación
+    //    sigue adelante. Ninguno escribe nada.
+    const provinciaCodigo =
+      perfilDemo?.municipio.provincia_codigo_ine ?? perfilEco?.municipio.provincia_codigo_ine ?? null
+    const [electoralProvincial, asociaciones, gal, wikipedia] = await Promise.all([
+      provinciaCodigo
+        ? readElectoralProvincial(provinciaCodigo.slice(0, 2)).catch(() => null)
+        : Promise.resolve(null),
+      readAsociacionesMunicipio(supabase, codigoINE).catch(() => null),
+      readGalMunicipio(supabase, codigoINE).catch(() => null),
+      readWikipediaEnrichment(codigoINE).catch(() => null),
+    ])
+    console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', {
+      ineCode, requestId, stage: 'load_v23_layers',
+      provinciaCodigo, hasElectoralProvincial: electoralProvincial !== null,
+      bloquesCircunscripcion: electoralProvincial
+        ? {
+            autonomicas: electoralProvincial.autonomicas !== null,
+            congreso: electoralProvincial.congreso !== null,
+            senado: electoralProvincial.senado !== null,
+          }
+        : null,
+      asociaciones: asociaciones?.estado ?? null,
+      asociacionesTotal: asociaciones?.total ?? null,
+      gal: gal?.estado ?? null,
+      wikipedia: wikipedia?.status ?? null,
+    })
+
+    // 6. Ensamblar el libro v2 (bloques + indicadores + checks + cobertura).
     //    El ensamblado es puro: no escribe nada y aísla cada área.
     stage = 'build_demographic_sheet'
     const municipio = perfilDemo?.municipio.nombre ?? perfilEco?.municipio.nombre ?? codigoINE
@@ -219,6 +253,13 @@ export async function GET(
       // benchmarks territoriales. Si aún no está publicada o no valida, se pasa
       // `null` y el bloque queda declarado como pendiente (sin romper el libro).
       populationStructure: populationStructure ?? null,
+      // Resultados de circunscripción 2023 (autonómico, Congreso y Senado).
+      congresoProvincia: electoralProvincial?.congreso ?? null,
+      autonomicasCircunscripcion: electoralProvincial?.autonomicas ?? null,
+      senadoCircunscripcion: electoralProvincial?.senado ?? null,
+      asociaciones: asociaciones ?? null,
+      gal: gal ?? null,
+      wikipedia: wikipedia ?? null,
     })
     const totalBlocks = book.sheets.reduce((a, s) => a + s.bloques.length, 0)
     const bloquesConDatos = book.sheets
@@ -245,7 +286,7 @@ export async function GET(
       )
     }
 
-    // 6. Generar XLSX
+    // 7. Generar XLSX
     stage = 'serialize_xlsx'
     logStage(requestId, stage, ineCode, {
       totalBlocks,

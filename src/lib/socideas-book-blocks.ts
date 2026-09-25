@@ -38,6 +38,19 @@ import {
 } from './socideas-elections'
 import { AEAT_EDM_IRPF, INE_INSTITUTION, registrySource } from './socideas-source-registry'
 import {
+  ELECTORAL_SIGLAS_NORMALIZATION,
+  normalizarSiglasElectoral,
+  type AutonomicasCircunscripcionPayload,
+  type SenadoCircunscripcionPayload,
+} from './socideas-electoral-provincial'
+
+export { ELECTORAL_SIGLAS_NORMALIZATION } from './socideas-electoral-provincial'
+// v2.3: bloques de asociaciones, GAL y patrimonio enriquecido. Solo tipos
+// (el ensamblado sigue siendo puro: sin red, sin Supabase, sin R2).
+import type { AsociacionesMunicipio } from './socideas-asociaciones'
+import type { GalMunicipio } from './socideas-gal'
+import type { WikipediaEnrichment } from './wikipedia-enrichment'
+import {
   type BookChartSpec,
   type BookCoverage,
   type BookFinding,
@@ -182,11 +195,21 @@ export interface SocideasBookInputV2 {
   populationStructure?: PopulationStructureAnnual | null
   electoral?: ElectoralSeriePayload | null
   congresoProvincia?: CongresoProvinciaPayload | null
+  /** Autonómicas por circunscripción provincial (Cortes de CLM 2023). */
+  autonomicasCircunscripcion?: AutonomicasCircunscripcionPayload | null
+  /** Senado por circunscripción: voto a candidatos (23-J-2023). */
+  senadoCircunscripcion?: SenadoCircunscripcionPayload | null
   laborSerie?: LaborSeriePunto[] | null
   vivienda?: ViviendaPayload | null
   servicios?: ServiciosPayload | null
   patrimonio?: PatrimonioPayload | null
   cultivos?: CropPayload | null
+  /** Directorio asociativo del municipio (registros autonómicos, v2.3). */
+  asociaciones?: AsociacionesMunicipio | null
+  /** Grupo de Acción Local (LEADER/FEADER) que cubre el municipio (v2.3). */
+  gal?: GalMunicipio | null
+  /** Enriquecimiento Wikipedia/Wikidata (resumen, bienes patrimoniales) (v2.3). */
+  wikipedia?: WikipediaEnrichment | null
 }
 
 // ============================================================================
@@ -263,6 +286,7 @@ function availabilityV1(state: BookState): { availability: AvailabilityV1; estad
 
 const LIC_INE = 'Reutilización permitida citando la fuente (INE)'
 const LIC_MIR = 'Datos abiertos de Infoelectoral (Ministerio del Interior)'
+const LIC_JCCM = 'Datos abiertos de la Junta de Comunidades de Castilla-La Mancha (CC BY-SA)'
 const LIC_AEAT = 'Datos abiertos AEAT (reutilización citando la fuente)'
 const LIC_PEND = 'Licencia pendiente de verificación en la fuente candidata'
 
@@ -557,8 +581,8 @@ export const INDICATOR_LIBRARY: Readonly<Record<string, IndicatorMeta>> = {
   },
   elec_autonomicas: {
     nombre: 'Elecciones autonómicas', descripcion: 'Resultados de la circunscripción provincial/autonómica.',
-    unidad: 'votos', tipo_valor: 'entero', source_slug: 'mir_infoelectoral', organismo: 'Ministerio del Interior',
-    operacion: 'Infoelectoral · datos abiertos autonómicos', license: LIC_MIR, capability: 'autonomica',
+    unidad: 'votos', tipo_valor: 'entero', source_slug: 'jccm_electoral', organismo: 'Junta de Comunidades de Castilla-La Mancha',
+    operacion: 'Datos Abiertos CLM · Resultados a las Cortes + acuerdo de la Junta Electoral de CLM (DOCM)', license: LIC_JCCM, capability: 'autonomica',
     comparabilidad: 'La circunscripción es provincial o autonómica; nunca se atribuyen escaños al municipio.',
     area: 'politica',
   },
@@ -608,7 +632,7 @@ export const INDICATOR_LIBRARY: Readonly<Record<string, IndicatorMeta>> = {
   },
   gini: {
     nombre: 'Índice de Gini', descripcion: 'Desigualdad de renta (0–100).',
-    unidad: 'índice', tipo_valor: 'decimal', source_slug: 'ine_adrh', organismo: INE_INSTITUTION,
+    unidad: 'Índice', tipo_valor: 'decimal', source_slug: 'ine_adrh', organismo: INE_INSTITUTION,
     operacion: 'ADRH · indicadores de desigualdad', license: LIC_INE, capability: 'nacional',
     comparabilidad: 'Solo municipios ≥100 residentes; comparativa territorial ADRH si el ámbito coincide.',
     area: 'economia',
@@ -830,6 +854,7 @@ export const FRESHNESS_REGISTRY: Readonly<Record<string, FreshnessRule>> = {
   tgss: { latest: '2026-07', kind: 'mensual', reason: 'Último mes cargado y verificado en la capa (2026-07).' },
   sepe_tgss: { latest: '2026-07', kind: 'mensual', reason: 'Series mensuales de empleo: último mes cargado (2026-07).' },
   mir_infoelectoral: { latest: '2023', kind: 'electoral', reason: 'Municipales 2023: última convocatoria celebrada.' },
+  jccm_electoral: { latest: '2023', kind: 'electoral', reason: 'Cortes de Castilla-La Mancha 2023: última convocatoria celebrada (28-M-2023).' },
   ine_censo_2021: { latest: '2021', kind: 'estructural', reason: 'Censo de Población y Viviendas 2021: última operación estructural.' },
   ine_censo_agrario: { latest: '2020', kind: 'estructural', reason: 'Censo Agrario 2020: última operación estructural.' },
   ign_ngmep: { latest: '2025', kind: 'anual', reason: 'Nomenclátor geográfico: superficie vigente 2025.' },
@@ -1674,6 +1699,20 @@ function buildDemografiaSheet(input: SocideasBookInputV2): BookTableV2[] {
 
 const PENDIENTE_PAYLOAD_ELECTORAL = 'Datos existentes en fuente oficial; pendientes de carga al pipeline (sin escrituras en esta misión).'
 
+/** Nota de cobertura CANÓNICA de un bloque electoral provincial.
+ *
+ *  Regla de oro de v2.3: un resultado de circunscripción NUNCA se presenta como
+ *  dato del municipio. La nota es textual, obligatoria y visible en cada uno de
+ *  los tres bloques (autonómico, Congreso y Senado). */
+export function notaCoberturaProvincial(circunscripcion: string, municipio: string, eleccion: string): string {
+  return (
+    `Los resultados corresponden a la circunscripción electoral de ${circunscripcion}. ` +
+    `${municipio} no dispone de desglose a nivel municipal para esta elección. ` +
+    `(${eleccion})`
+  )
+}
+
+
 function politicaParticipacion(p: ElectoralPresentacion, indicadores: BookIndicator[]): BookTableV2 {
   const censo = p.censo
   const votantes = p.votantes
@@ -1886,21 +1925,78 @@ function buildPoliticaSheet(input: SocideasBookInputV2): BookTableV2[] {
     )
   }
 
-  // Autonómicas: circunscripción provincial, nunca escaños al municipio
-  bloques.push(
-    pendingTable(
-      '02_POLÍTICA',
-      'elecciones-autonomicas',
-      'Elecciones autonómicas · circunscripción',
-      `El municipio pertenece a una circunscripción provincial/autonómica: solo se publicarán voto y participación del ámbito correspondiente, nunca escaños atribuidos al municipio. Fuente oficial disponible en Infoelectoral (datos abiertos). ${PENDIENTE_PAYLOAD_ELECTORAL}`,
-      [ind('elec_autonomicas', { periodo: 'última convocatoria', availability: 'pending_integration', ambito: 'provincia' })],
-      { candidataFuente: 'Infoelectoral · datos abiertos autonómicos', siguienteAccion: 'Incorporar resultados autonómicos por circunscripción y añadir comparación provincial/autonómica homogénea' },
-    ),
-  )
+  // Autonómicas: circunscripción provincial, nunca escaños al municipio.
+  // Manzaneque (como cualquier municipio) no tiene desglose autonómico municipal.
+  if (input.autonomicasCircunscripcion) {
+    const a = input.autonomicasCircunscripcion
+    const notaCobertura = notaCoberturaProvincial(a.circunscripcion, municipio, `Elecciones autonómicas ${a.anio} · ${a.camara}`)
+    const participacion: ExportCell[][] = [
+      [label('Censo electoral'), num(a.censo), label('—')],
+      [label('Votantes'), num(a.votantes), pct(pctRatio(a.votantes, a.censo))],
+      [label('Participación (derivada: votantes / censo)'), label('—'), pct(pctRatio(a.votantes, a.censo))],
+      [label('Votos válidos'), num(a.validos), pct(pctRatio(a.validos, a.votantes))],
+      [label('Votos en blanco'), num(a.blancos), pct(pctRatio(a.blancos, a.validos))],
+      [label('Votos nulos'), num(a.nulos), pct(pctRatio(a.nulos, a.votantes))],
+      [label(`Escaños de ${a.circunscripcion} en las Cortes (total)`), num(a.escanosTotal), label('—')],
+    ]
+    bloques.push(
+      table({
+        id: 'elecciones-autonomicas',
+        titulo: `Elecciones autonómicas ${a.anio} · ${a.camara} · circunscripción de ${a.circunscripcion}`,
+        hoja: '02_POLÍTICA',
+        columnas: ['Concepto', 'Personas', '%'],
+        filas: participacion,
+        fuente: a.fuenteLabel,
+        periodo: `${a.anio} (${a.fecha})`,
+        cobertura: `Circunscripción provincial: ${a.circunscripcion} (ámbito provincial, no municipal)`,
+        estado: 'Consolidado (resultados definitivos publicados por la Junta Electoral)',
+        note: `${notaCobertura} Participación derivada (votantes/censo), cifra provincial. Los escaños son de la circunscripción provincial, nunca del municipio.`,
+        indicadores: [ind('elec_autonomicas', { periodo: `${a.anio}`, availability: 'available', ambito: 'provincia', granularidad: 'provincial', dimensiones: ['camara:autonomicas'] })],
+        tablaExcel: 'tbl_pol_autonomicas',
+      }),
+    )
+    const candAut = [...a.candidaturas].sort((b, c) => (c.votos ?? -1) - (b.votos ?? -1)).slice(0, 10)
+    if (candAut.length > 0) {
+      bloques.push(
+        table({
+          id: 'elecciones-autonomicas-candidaturas',
+          titulo: `Autonómicas ${a.anio} · votos y escaños por candidatura (${a.circunscripcion})`,
+          hoja: '02_POLÍTICA',
+          columnas: ['Candidatura', 'Siglas normalizadas', 'Votos', '% sobre válidos', 'Escaños en las Cortes'],
+          filas: candAut.map((c) => [
+            label(c.nombre),
+            label(normalizarSiglasElectoral(c.siglas || c.nombre)),
+            num(c.votos),
+            pct(pctRatio(c.votos, a.validos)),
+            num(c.escanos),
+          ]),
+          fuente: a.fuenteLabel,
+          periodo: `${a.anio} (${a.fecha})`,
+          cobertura: `Circunscripción provincial: ${a.circunscripcion}`,
+          estado: 'Consolidado (resultados definitivos)',
+          note: `Escaños de la circunscripción provincial (${a.circunscripcion}); no del municipio. ${notaCobertura} Las siglas se homologan solo con la tabla declarada; el literal de la fuente se conserva en la candidatura.`,
+          indicadores: [ind('elec_autonomicas', { periodo: `${a.anio}`, availability: 'available', ambito: 'provincia', granularidad: 'provincial', dimensiones: ['camara:autonomicas', 'candidatura'] })],
+          tablaExcel: 'tbl_pol_autonomicas_cand',
+        }),
+      )
+    }
+  } else {
+    bloques.push(
+      pendingTable(
+        '02_POLÍTICA',
+        'elecciones-autonomicas',
+        'Elecciones autonómicas · circunscripción',
+        `El municipio pertenece a una circunscripción provincial/autonómica: solo se publicarán voto y participación del ámbito correspondiente, nunca escaños atribuidos al municipio. Fuente oficial disponible en Datos Abiertos de Castilla-La Mancha y acuerdo de la Junta Electoral de CLM (DOCM). ${PENDIENTE_PAYLOAD_ELECTORAL}`,
+        [ind('elec_autonomicas', { periodo: 'última convocatoria', availability: 'pending_integration', ambito: 'provincia' })],
+        { candidataFuente: 'Datos Abiertos CLM · resultados a las Cortes', siguienteAccion: 'Incorporar resultados autonómicos por circunscripción y añadir comparación provincial/autonómica homogénea' },
+      ),
+    )
+  }
 
   // Congreso
   if (input.congresoProvincia) {
     const g = input.congresoProvincia
+    const notaCongreso = notaCoberturaProvincial(g.provincia, municipio, `Elecciones generales (Congreso) ${g.anio}`)
     const filas: ExportCell[][] = [
       [label('Censo electoral'), num(g.censo), label('—')],
       [label('Votantes'), num(g.votantes), pct(pctRatio(g.votantes, g.censo))],
@@ -1918,7 +2014,7 @@ function buildPoliticaSheet(input: SocideasBookInputV2): BookTableV2[] {
         fuente: `${g.fuenteLabel} · datos abiertos`,
         periodo: `${g.anio} (${g.fecha})`,
         cobertura: `Circunscripción provincial: ${g.provincia} (ámbito provincial, no municipal)`,
-        note: 'Resultados de Congreso por circunscripción provincial. No se atribuyen escaños ni votos al municipio. Cámara separada del Senado.',
+        note: `${notaCongreso} Resultados de Congreso por circunscripción provincial; no se atribuyen escaños ni votos al municipio. Participación y votos son cifras provinciales, no nacionales. Cámara separada del Senado.`,
         indicadores: [ind('elec_congreso', { periodo: `${g.anio}`, availability: 'available', ambito: 'provincia', granularidad: 'provincial', dimensiones: ['camara:congreso'] })],
         tablaExcel: 'tbl_pol_congreso',
       }),
@@ -1930,9 +2026,10 @@ function buildPoliticaSheet(input: SocideasBookInputV2): BookTableV2[] {
           id: 'elecciones-congreso-candidaturas',
           titulo: `Congreso ${g.anio} · votos y escaños por candidatura (${g.provincia})`,
           hoja: '02_POLÍTICA',
-          columnas: ['Candidatura', 'Votos', '% sobre válidos', 'Escaños'],
+          columnas: ['Candidatura', 'Siglas normalizadas', 'Votos', '% sobre válidos', 'Escaños'],
           filas: cand.map((c) => [
-            label(c.siglas ? `${c.nombre} (${c.siglas})` : c.nombre),
+            label(c.nombre),
+            label(normalizarSiglasElectoral(c.siglas || c.nombre)),
             num(c.votos),
             pct(pctRatio(c.votos, g.validos)),
             num(c.escanos),
@@ -1940,7 +2037,7 @@ function buildPoliticaSheet(input: SocideasBookInputV2): BookTableV2[] {
           fuente: `${g.fuenteLabel} · datos abiertos`,
           periodo: `${g.anio} (${g.fecha})`,
           cobertura: `Circunscripción provincial: ${g.provincia}`,
-          note: 'Escaños de la circunscripción provincial; no del municipio.',
+          note: `${notaCongreso} Escaños de la circunscripción provincial; no del municipio. Cámara separada del Senado: nunca se suman votos ni escaños entre ambas. Las siglas se homologan solo con la tabla declarada; el literal de la fuente se conserva en la candidatura.`,
           indicadores: [ind('elec_congreso', { periodo: `${g.anio}`, availability: 'available', ambito: 'provincia', granularidad: 'provincial', dimensiones: ['camara:congreso', 'candidatura'] })],
           tablaExcel: 'tbl_pol_congreso_cand',
         }),
@@ -1959,17 +2056,48 @@ function buildPoliticaSheet(input: SocideasBookInputV2): BookTableV2[] {
     )
   }
 
-  // Senado: cámara separada, voto a candidatos
-  bloques.push(
-    pendingTable(
-      '02_POLÍTICA',
-      'elecciones-senado',
-      'Elecciones generales (Senado) · voto a candidatos',
-      `El Senado se elige por voto a candidatos en circunscripción provincial: NO se fuerza al esquema de candidaturas del Congreso. Fuente oficial en Infoelectoral (datos abiertos generales). ${PENDIENTE_PAYLOAD_ELECTORAL}`,
-      [ind('elec_senado', { periodo: 'última convocatoria', availability: 'pending_integration', ambito: 'provincia', granularidad: 'provincial', dimensiones: ['camara:senado'] })],
-      { candidataFuente: 'Infoelectoral · datos abiertos generales (Senado)', siguienteAccion: 'Modelar voto a candidatos individuales y cargar por provincia' },
-    ),
-  )
+  // Senado: cámara separada, voto a candidatos. Nunca en la tabla del Congreso
+  // ni sumado con ella. El sistema es de listas abiertas: cada elector marca
+  // hasta 3 candidatos y se eligen los 4 más votados de la circunscripción.
+  if (input.senadoCircunscripcion) {
+    const s = input.senadoCircunscripcion
+    const notaSenado = notaCoberturaProvincial(s.circunscripcion, municipio, `Elecciones generales (Senado) ${s.anio}`)
+    const filasSenado: ExportCell[][] = [...s.candidatos]
+      .sort((a, b) => (b.votos ?? -1) - (a.votos ?? -1))
+      .map((c) => [
+        label([c.nombre, c.apellido1, c.apellido2].filter(Boolean).join(' ')),
+        label(c.partidoNombre ? `${c.partidoNombre} (${normalizarSiglasElectoral(c.partidoSiglas)})` : normalizarSiglasElectoral(c.partidoSiglas)),
+        num(c.votos),
+        label(c.elegido ? 'SÍ' : 'No'),
+      ])
+    bloques.push(
+      table({
+        id: 'elecciones-senado',
+        titulo: `Elecciones generales (Senado) ${s.anio} · voto a candidatos (${s.circunscripcion})`,
+        hoja: '02_POLÍTICA',
+        columnas: ['Candidato', 'Candidatura (siglas normalizadas)', 'Votos', 'Elegido'],
+        filas: filasSenado,
+        fuente: s.fuenteLabel,
+        periodo: `${s.anio} (${s.fecha})`,
+        cobertura: `Circunscripción provincial: ${s.circunscripcion} (ámbito provincial, no municipal)`,
+        estado: 'Consolidado (resultados definitivos publicados por la Junta Electoral Central)',
+        note: `${notaSenado} Sistema mayoritario de listas abiertas: cada elector vota hasta 3 candidatos y resultan elegidos los más votados de la circunscripción. Los votos son de la circunscripción provincial, nunca del municipio. Tabla SEPARADA del Congreso: cámara distinta, nunca se suman votos ni escaños entre ambas. El voto es a candidatos, no a listas cerradas.`,
+        indicadores: [ind('elec_senado', { periodo: `${s.anio}`, availability: 'available', ambito: 'provincia', granularidad: 'provincial', dimensiones: ['camara:senado', 'candidato'] })],
+        tablaExcel: 'tbl_pol_senado',
+      }),
+    )
+  } else {
+    bloques.push(
+      pendingTable(
+        '02_POLÍTICA',
+        'elecciones-senado',
+        'Elecciones generales (Senado) · voto a candidatos',
+        `El Senado se elige por voto a candidatos en circunscripción provincial: NO se fuerza al esquema de candidaturas del Congreso. Fuente oficial en Infoelectoral (datos abiertos generales). ${PENDIENTE_PAYLOAD_ELECTORAL}`,
+        [ind('elec_senado', { periodo: 'última convocatoria', availability: 'pending_integration', ambito: 'provincia', granularidad: 'provincial', dimensiones: ['camara:senado'] })],
+        { candidataFuente: 'Infoelectoral · datos abiertos generales (Senado)', siguienteAccion: 'Modelar voto a candidatos individuales y cargar por provincia' },
+      ),
+    )
+  }
 
   // Normalización de siglas
   bloques.push(
@@ -1981,7 +2109,7 @@ function buildPoliticaSheet(input: SocideasBookInputV2): BookTableV2[] {
       filas: ELECTORAL_SIGLAS_NORMALIZATION.map((n) => [label(n.literal), label(n.normalizada), label(n.criterio)]),
       fuente: 'Regla SOCideas explícita; el literal original de la fuente se conserva siempre',
       periodo: 'Todas las convocatorias',
-      cobertura: 'Municipio',
+      cobertura: 'Todas las convocatorias y ámbitos (municipal, provincial y autonómico)',
       estado: 'Disponible',
       note: 'La homologación se aplica solo a la comparación entre convocatorias; nunca se sobrescribe el literal publicado.',
       indicadores: [],
@@ -1991,20 +2119,8 @@ function buildPoliticaSheet(input: SocideasBookInputV2): BookTableV2[] {
   return bloques
 }
 
-/** Tabla explícita y auditable de homologación de siglas (no inferencia). */
-export const ELECTORAL_SIGLAS_NORMALIZATION: ReadonlyArray<{ literal: string; normalizada: string; criterio: string }> = [
-  { literal: 'PSOE', normalizada: 'PSOE', criterio: 'Sigla oficial mantenida entre convocatorias.' },
-  { literal: 'PSOE-A', normalizada: 'PSOE', criterio: 'Federación autonómica del mismo partido.' },
-  { literal: 'PP', normalizada: 'PP', criterio: 'Sigla oficial mantenida entre convocatorias.' },
-  { literal: 'PP-', normalizada: 'PP', criterio: 'Variante tipográfica del literal publicado.' },
-  { literal: 'VOX', normalizada: 'VOX', criterio: 'Sigla oficial mantenida.' },
-  { literal: 'IU', normalizada: 'IU', criterio: 'Sigla oficial mantenida.' },
-  { literal: 'IU-ICAM', normalizada: 'IU', criterio: 'Coalición con la misma raíz; se documenta la federación.' },
-  { literal: 'PODEMOS', normalizada: 'PODEMOS', criterio: 'Sigla oficial mantenida.' },
-  { literal: 'UNIDAS PODEMOS', normalizada: 'PODEMOS', criterio: 'Coalición sucesora declarada; el literal original se conserva.' },
-  { literal: 'CS', normalizada: 'CS', criterio: 'Sigla oficial mantenida.' },
-  { literal: 'C\u2019s', normalizada: 'CS', criterio: 'Variante tipográfica del literal publicado.' },
-]
+// La tabla de homologación de siglas vive ahora en `socideas-electoral-provincial.ts`
+// y se re-exporta desde aquí (misma fuente única, sin duplicar lógica).
 
 // ============================================================================
 // 03_ECONOMÍA_Y_EMPLEO
@@ -2194,7 +2310,7 @@ function buildEconomiaSheet(input: SocideasBookInputV2): BookTableV2[] {
           id: 'chart-eco-desigualdad',
           tipo: 'line',
           titulo: 'Evolución de la desigualdad',
-          unidad: 'índice / ratio',
+          unidad: 'Índice / ratio',
           periodo: `${anios[0]}–${anios[anios.length - 1]}`,
           fuente: 'INE · ADRH',
           categoriaColumna: 1,
@@ -2530,9 +2646,9 @@ function buildServiciosSheet(input: SocideasBookInputV2): BookTableV2[] {
           label(s.fechaConsulta),
         ]),
         fuente: input.servicios.fuenteLabel,
-        periodo: 'Consulta puntual con fecha por ítem',
+        periodo: 'Consulta puntual con fecha por Ítem',
         cobertura: ctxMunicipio(input),
-        note: 'Cada ítem distingue "no existe" de "no verificable" y documenta fuente y fecha. La distancia se expresa en km.',
+        note: 'Cada Ítem distingue "no existe" de "no verificable" y documenta fuente y fecha. La distancia se expresa en km.',
         indicadores: [ind('servicios_municipales', { periodo: 'consulta', availability: 'available', dimensiones: ['servicio'] })],
         tablaExcel: 'tbl_soc_servicios',
       }),
@@ -2543,9 +2659,9 @@ function buildServiciosSheet(input: SocideasBookInputV2): BookTableV2[] {
         '05_SOCIAL_EDUCACIÓN_SERVICIOS',
         'servicios-municipales',
         'Servicios municipales y equipamientos',
-        'Sin inventario oficial homogéneo incorporado. Se exige evidencia por ítem (fuente, fecha, ámbito y distancia) para publicar.',
+        'Sin inventario oficial homogéneo incorporado. Se exige evidencia por Ítem (fuente, fecha, ámbito y distancia) para publicar.',
         [ind('servicios_municipales', { periodo: '—', availability: 'pending_integration' })],
-        { candidataFuente: 'Catálogos oficiales de servicios y equipamientos municipales/autonómicos', siguienteAccion: 'Definir checklist verificable con fuente y fecha por ítem; distinguir ausente de no verificable' },
+        { candidataFuente: 'Catálogos oficiales de servicios y equipamientos municipales/autonómicos', siguienteAccion: 'Definir checklist verificable con fuente y fecha por Ítem; distinguir ausente de no verificable' },
       ),
     )
   }
@@ -2686,8 +2802,129 @@ function buildCapacidadSheet(
 }
 
 function buildPatrimonioSheet(input: SocideasBookInputV2): BookTableV2[] {
+  const bloques: BookTableV2[] = []
+
+  // v2.3 · Wikipedia/Wikidata: resumen editorial + bienes patrimoniales.
+  // Atribución CC BY-SA obligatoria y visible cuando hay contenido.
+  const wiki = input.wikipedia
+  if (wiki && wiki.status !== 'error') {
+    if (wiki.wikipedia) {
+      bloques.push(
+        table({
+          id: 'patrimonio-wikipedia',
+          titulo: 'Resumen del municipio (Wikipedia)',
+          hoja: '07_PATRIMONIO_TURISMO',
+          columnas: ['Campo', 'Valor'],
+          filas: [
+            [label('Artículo'), label(wiki.wikipedia.title)],
+            [label('URL'), label(wiki.wikipedia.url)],
+            [label('Resumen'), label(wiki.wikipedia.summary.slice(0, 1000))],
+            [label('Web oficial (Wikidata P856)'), label(wiki.wikidata?.officialWebsite ?? 'ND')],
+            [
+              label('Coordenadas'),
+              label(
+                wiki.wikidata?.coordinates
+                  ? `${wiki.wikidata.coordinates.lat.toFixed(5)}, ${wiki.wikidata.coordinates.lon.toFixed(5)}`
+                  : 'ND',
+              ),
+            ],
+            [label('Fundación (P571)'), label(wiki.wikidata?.founded ?? 'ND')],
+            [
+              label('Atribución'),
+              label(
+                `Texto extraído de Wikipedia, La enciclopedia libre. Artículo: ${wiki.wikipedia.title}. ` +
+                  `Licencia CC BY-SA 4.0. Consultado el ${wiki.retrievedAt.slice(0, 10)}.`,
+              ),
+            ],
+            [
+              label('Aviso'),
+              label('Este contenido puede no estar actualizado. Consultar Wikipedia para la versión más reciente.'),
+            ],
+          ],
+          fuente: 'Wikipedia, La enciclopedia libre · Wikidata',
+          periodo: `Consulta ${wiki.retrievedAt.slice(0, 10)}`,
+          cobertura: ctxMunicipio(input),
+          estado: 'Consulta externa con atribución',
+          note:
+            'Reutilización con atribución obligatoria bajo licencia CC BY-SA 4.0. Solo se muestran imágenes con licencia libre verificada (CC0, CC BY o dominio público).',
+          indicadores: [ind('patrimonio_bienes', { periodo: wiki.retrievedAt.slice(0, 4), availability: 'available', dimensiones: ['wikipedia'] })],
+          tablaExcel: 'tbl_pat_wikipedia',
+        }),
+      )
+    }
+    if (wiki.heritageSites.length > 0) {
+      bloques.push(
+        table({
+          id: 'patrimonio-bienes-wikidata',
+          titulo: 'Bienes patrimoniales (Wikidata)',
+          hoja: '07_PATRIMONIO_TURISMO',
+          columnas: ['Bien', 'QID', 'Categoría patrimonial', 'Imagen', 'Enlace'],
+          filas: wiki.heritageSites.map((h) => [
+            label(h.title),
+            label(h.qid),
+            label(h.heritageType),
+            label(h.image ? 'SÍ (licencia libre verificada)' : 'No publicada'),
+            label(h.url),
+          ]),
+          fuente: 'Wikidata (consulta SPARQL por municipio)',
+          periodo: `Consulta ${wiki.retrievedAt.slice(0, 10)}`,
+          cobertura: ctxMunicipio(input),
+          note:
+            'Elementos con designación patrimonial (P1435) ubicados en el municipio (P131). Sin imagen cuando la licencia no se pudo verificar.',
+          indicadores: [ind('patrimonio_bienes', { periodo: wiki.retrievedAt.slice(0, 4), availability: 'available', dimensiones: ['bic', 'wikidata'] })],
+          tablaExcel: 'tbl_pat_bienes',
+        }),
+      )
+    }
+  }
+
+  // v2.3 · Grupo de Acción Local (LEADER/FEADER): contexto rural.
+  const gal = input.gal
+  if (gal) {
+    bloques.push(
+      table({
+        id: 'contexto-rural-gal',
+        titulo: 'Contexto rural — Grupo de Acción Local (GAL)',
+        hoja: '07_PATRIMONIO_TURISMO',
+        columnas: ['Campo', 'Valor'],
+        filas:
+          gal.estado === 'pertenece' && gal.gal
+            ? [
+                [label('GAL'), label(gal.gal.nombre)],
+                [label('Código'), label(gal.gal.codigo ?? 'ND')],
+                [label('Ámbito territorial'), label(gal.gal.ambito ?? 'ND')],
+                [label('Período de programación'), label(gal.gal.periodo ?? 'ND')],
+                [label('Web oficial'), label(gal.gal.web ?? 'ND')],
+                [label('Correo electrónico'), label(gal.gal.email ?? 'ND')],
+                [label('Teléfono'), label(gal.gal.telefono ?? 'ND')],
+                [label('Fuente'), label(gal.gal.fuenteUrl)],
+                [label('Fecha de descarga'), label(gal.gal.fuenteFecha)],
+                [label('Aviso de verificación'), label(gal.gal.aviso)],
+              ]
+            : [
+                [
+                  label('Estado'),
+                  label(
+                    gal.estado === 'sin_gal'
+                      ? 'Este municipio no está incluido en el ámbito de ningún GAL con datos publicados.'
+                      : 'Sin datos publicados de GAL para este municipio.',
+                  ),
+                ],
+              ],
+        fuente: gal.gal?.fuenteUrl ?? 'Red PAC España / datos.gob.es · sin fuente estructurada para este municipio',
+        periodo: gal.gal?.periodo ?? '—',
+        cobertura: ctxMunicipio(input),
+        estado: gal.estado === 'pertenece' ? 'Disponible (verificar vigencia)' : 'Sin datos para este municipio',
+        note:
+          'Verificar en la web del GAL la vigencia de la información y los municipios incluidos en el ámbito territorial actual.',
+        indicadores: [],
+        tablaExcel: 'tbl_pat_gal',
+      }),
+    )
+  }
+
   if (input.patrimonio && input.patrimonio.items.length > 0) {
-    return [
+    bloques.push(
       table({
         id: 'patrimonio-inventario',
         titulo: 'Patrimonio cultural inventariado',
@@ -2708,8 +2945,11 @@ function buildPatrimonioSheet(input: SocideasBookInputV2): BookTableV2[] {
         indicadores: [ind('patrimonio_bienes', { periodo: 'consulta', availability: 'available', dimensiones: ['bien'] })],
         tablaExcel: 'tbl_pat_inventario',
       }),
-    ]
+    )
   }
+
+  if (bloques.length > 0) return bloques
+
   return buildCapacidadSheet(
     input,
     '07_PATRIMONIO_TURISMO',
@@ -2741,6 +2981,84 @@ function buildInfraestructuraSheet(input: SocideasBookInputV2): BookTableV2[] {
 }
 
 function buildAsociacionesSheet(input: SocideasBookInputV2): BookTableV2[] {
+  const bloques: BookTableV2[] = []
+  const asoc = input.asociaciones
+
+  if (asoc) {
+    // Resumen + aviso de verificación (SIEMPRE visible, celda combinada wrap).
+    bloques.push(
+      table({
+        id: 'asociaciones-resumen',
+        titulo: '07 Asociaciones · resumen y aviso de verificación',
+        hoja: '09_ASOCIACIONES_GOBERNANZA',
+        columnas: ['Campo', 'Valor'],
+        filas: [
+          [label('Total de asociaciones'), num(asoc.total)],
+          [
+            label('Estado'),
+            label(asoc.estado === 'con_datos' ? 'Datos publicados por el registro autonómico' : 'Sin datos publicados para este municipio'),
+          ],
+          [label('Fuente'), label(asoc.fuenteUrl ?? '—')],
+          [label('Fecha de descarga'), label(asoc.fuenteFecha ?? '—')],
+          [label('Aviso de verificación'), label(asoc.aviso)],
+          ...(asoc.buscadorCcaa
+            ? [[label('Buscador autonómico'), label(`${asoc.buscadorCcaa.nombre}: ${asoc.buscadorCcaa.url}`)]]
+            : []),
+        ],
+        fuente: asoc.fuenteUrl ?? 'Registros autonómicos de asociaciones',
+        periodo: asoc.fuenteFecha ?? '—',
+        cobertura: ctxMunicipio(input),
+        estado: asoc.estado === 'con_datos' ? 'Disponible (datos de registro, verificar antes de uso oficial)' : 'Sin datos para este municipio',
+        note: asoc.aviso,
+        indicadores: [],
+        tablaExcel: 'tbl_asoc_resumen',
+      }),
+    )
+
+    if (asoc.porTipo.length > 0) {
+      bloques.push(
+        table({
+          id: 'asociaciones-por-tipo',
+          titulo: '07 Asociaciones · distribución por tipo',
+          hoja: '09_ASOCIACIONES_GOBERNANZA',
+          columnas: ['Tipo', 'Total'],
+          filas: asoc.porTipo.map((t) => [label(t.tipo), num(t.total)]),
+          fuente: asoc.fuenteUrl ?? 'Registros autonómicos de asociaciones',
+          periodo: asoc.fuenteFecha ?? '—',
+          cobertura: ctxMunicipio(input),
+          note: 'Recuento sobre las filas con nombre publicado; nunca se imputan tipos.',
+          indicadores: [],
+          tablaExcel: 'tbl_asoc_tipo',
+        }),
+      )
+    }
+
+    if (asoc.items.length > 0) {
+      bloques.push(
+        table({
+          id: 'asociaciones-listado',
+          titulo: '07 Asociaciones · listado',
+          hoja: '09_ASOCIACIONES_GOBERNANZA',
+          columnas: ['Nombre', 'Tipo', 'Estado', 'Fecha de inscripción'],
+          filas: asoc.items.map((i) => [
+            label(i.nombre),
+            label(i.tipo ?? '—'),
+            label(i.estado ?? '—'),
+            label(i.fecha_inscripcion ?? '—'),
+          ]),
+          fuente: asoc.fuenteUrl ?? 'Registros autonómicos de asociaciones',
+          periodo: asoc.fuenteFecha ?? '—',
+          cobertura: ctxMunicipio(input),
+          note: `${asoc.aviso} Solo se publican datos de entidades, nunca datos personales.`,
+          indicadores: [],
+          tablaExcel: 'tbl_asoc_listado',
+        }),
+      )
+    }
+  }
+
+  if (bloques.length > 0) return bloques
+
   return buildCapacidadSheet(
     input,
     '09_ASOCIACIONES_GOBERNANZA',
@@ -2828,11 +3146,12 @@ function buildMetodologiaSheet(input: SocideasBookInputV2, indicadores: BookIndi
       id: 'fuentes-oficiales',
       titulo: 'Registro de fuentes oficiales y candidatas',
       hoja: '10_METODOLOGÍA_FUENTES',
-      columnas: ['Área', 'Organismo', 'Operación', 'Licencia', 'Periodicidad', 'Estado de integración'],
+      columnas: ['Área', 'Organismo', 'Operación', 'Licencia', 'Periodicidad', 'Estado de integración', 'Última actualización'],
       filas: fuentes,
       fuente: 'SOCideas · registro central de fuentes',
-      periodo: '—',
+      periodo: '-',
       cobertura: 'Todas las hojas',
+      note: 'La columna «Última actualización» es la fecha de descarga/ingesta real de la fuente en SOCideas; si es anterior al dato publicado, el dato es de ese corte.',
       indicadores: [],
       tablaExcel: 'tbl_met_fuentes',
     }),
@@ -2865,29 +3184,38 @@ function BOOK_STATE_GLOSSARY_ROWS(): ExportCell[][] {
 }
 
 function FUENTES_ROWS(): ExportCell[][] {
+  // Columna final = fecha real de última actualización/ingesta de la fuente.
+  // Nunca se oculta: si el dato es de 2020, aquí pone 2020.
   return [
-    ['Demografía', 'Instituto Nacional de Estadística', 'Padrón municipal (DPOP) y Padrón Continuo', LIC_INE, 'Anual', 'Integrada'],
-    ['Demografía', 'Instituto Nacional de Estadística', 'Censo anual de población (68535/66322/68540)', LIC_INE, 'Anual', 'Integrada'],
-    ['Demografía', 'Instituto Nacional de Estadística', 'Estadística de Migraciones y Cambios de Residencia (69711/69743/69746/69767)', LIC_INE, 'Anual', 'Integrada'],
-    ['Política', 'Ministerio del Interior', 'Infoelectoral · municipales (más de 250 hab.)', LIC_MIR, 'Cuatrienal', 'Integrada (2023)'],
-    ['Política', 'Ministerio del Interior', 'Infoelectoral · serie municipal histórica y generales', LIC_MIR, 'Cuatrienal', 'Pendiente de carga'],
-    ['Política', 'Ministerio del Interior', 'Infoelectoral · autonómicas por circunscripción', LIC_MIR, 'Cuatrienal', 'Pendiente de carga'],
-    ['Economía', 'Agencia Estatal de Administración Tributaria', 'IRPF por municipios (EDM)', LIC_AEAT, 'Anual', 'Integrada (2023)'],
-    ['Economía', 'Instituto Nacional de Estadística', 'ADRH (renta y desigualdad)', LIC_INE, 'Anual', 'Integrada'],
-    ['Economía', 'Instituto Nacional de Estadística', 'DIRCE municipal (4721)', LIC_INE, 'Anual', 'Integrada'],
-    ['Economía', 'SEPE', 'Paro registrado por municipio, sexo, edad y sector', 'Datos abiertos SEPE', 'Mensual', 'Integrada (último mes)'],
-    ['Economía', 'TGSS', 'Afiliación por municipio y régimen', 'Datos abiertos Seguridad Social', 'Mensual', 'Integrada (último mes)'],
-    ['Economía', 'Ministerio de Hacienda', 'CONPREL · presupuestos y liquidaciones', LIC_PEND, 'Anual', 'No publicada (fuera de alcance)'],
-    ['Agrario', 'Instituto Nacional de Estadística', 'Censo Agrario 2020 (52071/52076/52081/52082)', LIC_INE, 'Decenal', 'Integrada'],
-    ['Servicios', 'Instituto Nacional de Estadística', 'Censo 2021 · nivel educativo (55249)', LIC_INE, 'Decenal', 'Integrada'],
-    ['Servicios', 'Ministerio de Educación', 'Registro Estatal de Centros Docentes', LIC_PEND, 'Continua', 'Pendiente'],
-    ['Servicios', 'Ministerio de Sanidad', 'REGCESS', LIC_PEND, 'Continua', 'Pendiente'],
-    ['Vivienda', 'Instituto Nacional de Estadística', 'Censo 2021 · vivienda y hogares', LIC_INE, 'Decenal', 'Pendiente'],
-    ['Vivienda', 'Dirección General del Catastro', 'Estadísticas catastrales municipales', LIC_PEND, 'Anual', 'Pendiente'],
-    ['Patrimonio', 'Ministerio de Cultura y CCAA', 'BIC e inventarios autonómicos; registros turísticos', LIC_PEND, 'Continua', 'Pendiente (adaptadores CCAA)'],
-    ['Infraestructura', 'IGN y administraciones', 'Redes de transporte, agua, residuos y energía', LIC_PEND, 'Variable', 'Pendiente (cálculo geoespacial documentado)'],
-    ['Asociaciones', 'Ministerio del Interior y CCAA', 'Registros públicos de asociaciones y entidades locales', LIC_PEND, 'Continua', 'Pendiente (privacidad por diseño)'],
-  ].map(([a, b, c, d, e, f]) => [label(a), label(b), label(c), label(d), label(e), label(f)])
+    ['Demografía', 'Instituto Nacional de Estadística', 'Padrón municipal (DPOP) y Padrón Continuo', LIC_INE, 'Anual', 'Integrada', '2025-01-01 (estructura 2025)'],
+    ['Demografía', 'Instituto Nacional de Estadística', 'Censo anual de población (68521/68535/66322/68540)', LIC_INE, 'Anual', 'Integrada', '2025-01-01 (INE 68521/68535)'],
+    ['Demografía', 'Instituto Nacional de Estadística', 'Estadística de Migraciones y Cambios de Residencia (69711/69743/69746/69767)', LIC_INE, 'Anual', 'Integrada', '2024-01-01'],
+    ['Política', 'Ministerio del Interior', 'Infoelectoral · municipales (más de 250 hab.)', LIC_MIR, 'Cuatrienal', 'Integrada (2023)', '2023-05-28'],
+    ['Política', 'Ministerio del Interior', 'Infoelectoral · Congreso 23-J-2023 por circunscripción (voto a candidatos)', LIC_MIR, 'Cuatrienal', 'Integrada (R2: socideas/electoral/provincial/<prov>.json)', '2023-07-23'],
+    ['Política', 'Ministerio del Interior', 'Infoelectoral · Senado 23-J-2023 por circunscripción, voto a candidatos', LIC_MIR, 'Cuatrienal', 'Integrada (R2: socideas/electoral/provincial/<prov>.json)', '2023-07-23'],
+    ['Política', 'Junta de Comunidades de Castilla-La Mancha', 'Cortes de CLM 28-M-2023 por circunscripción (Datos Abiertos CLM + JEC-CLM, DOCM 2023/5411)', LIC_JCCM, 'Cuatrienal', 'Integrada (R2: socideas/electoral/provincial/<prov>.json)', '2023-05-28'],
+    ['Economía', 'Agencia Estatal de Administración Tributaria', 'IRPF por municipios (EDM)', LIC_AEAT, 'Anual', 'Integrada (2023)', '2023-01-01'],
+    ['Economía', 'Instituto Nacional de Estadística', 'ADRH (renta y desigualdad)', LIC_INE, 'Anual', 'Integrada', '2023-01-01'],
+    ['Economía', 'Instituto Nacional de Estadística', 'DIRCE municipal (4721)', LIC_INE, 'Anual', 'Integrada', '2023-01-01'],
+    ['Economía', 'SEPE', 'Paro registrado por municipio, sexo, edad y sector', 'Datos abiertos SEPE', 'Mensual', 'Integrada (último mes)', '2026-07'],
+    ['Economía', 'TGSS', 'Afiliación por municipio y régimen', 'Datos abiertos Seguridad Social', 'Mensual', 'Integrada (último mes)', '2026-07'],
+    ['Economía', 'Ministerio de Hacienda', 'CONPREL · presupuestos y liquidaciones', LIC_PEND, 'Anual', 'No publicada (fuera de alcance)', '—'],
+    ['Agrario', 'Instituto Nacional de Estadística', 'Censo Agrario 2020 (52071/52076/52081/52082)', LIC_INE, 'Decenal', 'Integrada', '2020-06-17'],
+    ['Servicios', 'Instituto Nacional de Estadística', 'Censo 2021 · nivel educativo (55249)', LIC_INE, 'Decenal', 'Integrada', '2021-11-09'],
+    ['Servicios', 'Ministerio de Educación', 'Registro Estatal de Centros Docentes', LIC_PEND, 'Continua', 'Pendiente', '—'],
+    ['Servicios', 'Ministerio de Sanidad', 'REGCESS', LIC_PEND, 'Continua', 'Pendiente', '—'],
+    ['Vivienda', 'Instituto Nacional de Estadística', 'Censo 2021 · vivienda y hogares', LIC_INE, 'Decenal', 'Pendiente', '2021-11-09'],
+    ['Vivienda', 'Dirección General del Catastro', 'Estadísticas catastrales municipales', LIC_PEND, 'Anual', 'Pendiente', '—'],
+    ['Patrimonio', 'Ministerio de Cultura y CCAA', 'BIC e inventarios autonómicos; registros turísticos', LIC_PEND, 'Continua', 'Pendiente (adaptadores CCAA)', '—'],
+    ['Patrimonio', 'Wikipedia / Wikimedia Foundation', 'Resumen del municipio y bienes patrimoniales (vía Wikidata)', 'Reutilización con atribución obligatoria · CC BY-SA 4.0', 'Consulta puntual', 'Integrada (v2.3 · socideas/wikipedia/{INE}.json)', '2026-09-25'],
+    ['Patrimonio', 'Red PAC España / datos.gob.es', 'Grupos de Acción Local (LEADER/FEADER) y cobertura municipal', 'Datos abiertos de la administración (citando la fuente)', 'Período de programación', 'Integrada (v2.3 · 283 GAL, 7.069 municipios)', '2026-09-25'],
+    ['Patrimonio', 'Junta de Comunidades de Castilla-La Mancha', 'Poblaciones LEADER / GDR PEPAC 2023-2027 (CLM)', 'Datos abiertos de la administración (citando la fuente)', '2023-2027', 'Integrada (v2.3 · prioridad CLM)', '2026-09-25'],
+    ['Asociaciones', 'Registros autonómicos de asociaciones', 'CLM, Comunitat Valenciana, Galicia, La Rioja y Navarra (datos abiertos)', 'Datos abiertos · aviso de verificación visible en cada hoja', 'Continua (fecha de descarga por CCAA)', 'Integrada (v2.3 · 181.800 filas)', '2026-09-25'],
+    ['Asociaciones', 'Registros autonómicos sin descarga estructurada', 'Aragón, Andalucía, Baleares, Canarias, Cantabria, Cataluña, Madrid, Murcia, País Vasco', LIC_PEND, 'Continua', 'Declarado (sin_datos_abiertos; sin scraping)', '2026-09-25'],
+    ['Asociaciones', 'Sin fuente de datos abiertos identificada', 'Asturias, Extremadura, Castilla y León (autenticación), Ceuta, Melilla', LIC_PEND, '—', 'Declarado (no_disponible; nunca se inventan datos)', '2026-09-25'],
+    ['Infraestructura', 'IGN y administraciones', 'Redes de transporte, agua, residuos y energía', LIC_PEND, 'Variable', 'Pendiente (cálculo geoespacial documentado)', '—'],
+    ['Asociaciones', 'Ministerio del Interior y CCAA', 'Registro Nacional de Asociaciones (marco general)', LIC_PEND, 'Continua', 'Pendiente (privacidad por diseño)', '—'],
+  ].map(([a, b, c, d, e, f, g]) => [label(a), label(b), label(c), label(d), label(e), label(f), label(g)])
 }
 
 function LIMITACIONES_ROWS(input: SocideasBookInputV2, checks: BookReconciliation[]): ExportCell[][] {
@@ -2904,6 +3232,20 @@ function LIMITACIONES_ROWS(input: SocideasBookInputV2, checks: BookReconciliatio
   }
   if (!input.electoral) {
     rows.push([label('Serie electoral histórica no cargada'), label('La serie municipal por convocatoria requiere carga previa al pipeline.')])
+  }
+  if (!input.autonomicasCircunscripcion) {
+    rows.push([label('Autonómicas por circunscripción no cargadas'), label('Solo se publican para municipios con fixture provincial verificado; el resto queda declarado como pendiente. Los escaños son de la circunscripción, nunca del municipio.')])
+  }
+  if (!input.senadoCircunscripcion) {
+    rows.push([label('Senado por circunscripción no cargado'), label('El voto a candidatos al Senado (23-J-2023) solo se publica para municipios con fixture provincial verificado. Cámara separada del Congreso: nunca se suman.')])
+  }
+  if (input.autonomicasCircunscripcion || input.senadoCircunscripcion || input.congresoProvincia) {
+    rows.push([
+      label('Bloques de circunscripción'),
+      label(
+        'Autonómico, Congreso y Senado se publican por circunscripción provincial, con nota de cobertura explícita en el XLSX y en la ficha web. Nunca se atribuyen al municipio y nunca se suman entre cámaras.',
+      ),
+    ])
   }
   if (!input.laborSerie || input.laborSerie.length === 0) {
     rows.push([label('Serie mensual de empleo'), label('Solo está cargado el último mes de SEPE/TGSS: la serie histórica mensual por sector exige carga incremental y no se simula.')])
@@ -2922,7 +3264,7 @@ function LIMITACIONES_ROWS(input: SocideasBookInputV2, checks: BookReconciliatio
   }
   rows.push([label('Presupuesto municipal'), label('CONPREL no está publicado en R2: el bloque no se incluye; se declara como pendiente con operación candidata.')])
   rows.push([label('Comparativas territoriales'), label('Solo se muestran comparativas con el mismo período y definición; nunca se interpolan años.')])
-  rows.push([label('Áreas pendientes'), label('Vivienda, patrimonio, infraestructura y asociaciones se declaran con capacidades y siguiente acción; no computan como cubiertas.')])
+  rows.push([label('Áreas pendientes'), label('Vivienda e infraestructura se declaran con capacidades y siguiente acción; no computan como cubiertas. Asociaciones, GAL y patrimonio enriquecido se publican con su aviso de verificación y su atribución.')])
   return rows
 }
 
@@ -2958,7 +3300,7 @@ function buildResumenSheet(
   const rnp = ultimoEco('renta_neta_media_persona')
   push('Renta neta media por persona', num(rnp.v?.valor_numerico ?? null), '€', String(rnp.anio ?? '—'), rnp.v ? 'Disponible (ADRH)' : 'No difundido')
   const gini = ultimoEco('gini')
-  push('Índice de Gini', num(gini.v?.valor_numerico ?? null, 1), 'índice', String(gini.anio ?? '—'), gini.v ? 'Disponible (ADRH)' : 'No difundido')
+  push('Índice de Gini', num(gini.v?.valor_numerico ?? null, 1), 'Índice', String(gini.anio ?? '—'), gini.v ? 'Disponible (ADRH)' : 'No difundido')
   const p80 = ultimoEco('p80_p20')
   push('Ratio P80/P20', num(p80.v?.valor_numerico ?? null, 1), 'ratio', String(p80.anio ?? '—'), p80.v ? 'Disponible (ADRH)' : 'No difundido')
   const paro = ultimoEco('paro_registrado')
@@ -3075,7 +3417,7 @@ function pendingTable(
   titulo: string,
   motivo: string,
   indicadores: BookIndicator[],
-  extra?: { candidataFuente?: string; siguienteAccion?: string },
+  extra?: { candidataFuente?: string; siguienteAccion?: string; cobertura?: string },
 ): BookTableV2 {
   return table({
     id,
@@ -3093,9 +3435,22 @@ function pendingTable(
     ],
     fuente: indicadores[0]?.organismo ? `${indicadores[0].organismo} · ${indicadores[0].operacion}` : 'Fuente oficial pendiente de verificación',
     periodo: indicadores[0]?.periodo ?? '—',
-    cobertura: 'Municipio',
+    cobertura: extra?.cobertura ?? coberturaPorAmbito(indicadores[0]),
     indicadores,
   })
+}
+
+/** Cobertura declarada de un bloque pendiente según el ámbito del indicador.
+ *
+ *  Nunca se etiqueta un bloque provincial/autonómico como municipal: esa fue la
+ *  raíz del defecto crítico de v2.3 (bloques electorales provinciales de Toledo
+ *  presentados como si fueran datos del municipio). */
+function coberturaPorAmbito(ind: BookIndicator | undefined): string {
+  const ambito = ind?.ambito ?? 'municipio'
+  if (ambito === 'provincia') return 'Circunscripción provincial: ámbito provincial, no municipal'
+  if (ambito === 'autonomica' || ambito === 'ccaa') return 'Ámbito autonómico, no municipal'
+  if (ambito === 'espana' || ambito === 'nacional') return 'Ámbito nacional'
+  return 'Municipio'
 }
 
 /** Une los bloques de todas las hojas y calcula cobertura, hallazgos y checks. */

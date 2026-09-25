@@ -75,7 +75,12 @@ export function isTemporaryCurrent(data: TemporaryMunicipalData, now = new Date(
 }
 
 function r2PublicBase(): string | null {
-  const base = process.env.NEXT_PUBLIC_SOCIDEAS_R2_BASE ?? process.env.SOCIDEAS_R2_PUBLIC_BASE
+  // `||` (no `??`): una env definida pero VACÍA debe caer al fallback, igual
+  // que en `socideas-r2.ts`; con `??` una cadena vacía anulaba la lectura.
+  const base =
+    process.env.NEXT_PUBLIC_SOCIDEAS_R2_BASE ||
+    process.env.SOCIDEAS_R2_PUBLIC_BASE ||
+    'https://pub-ecf1b1fd05e54263b2c664384c92c7b4.r2.dev'
   return base ? base.replace(/\/$/, '') : null
 }
 

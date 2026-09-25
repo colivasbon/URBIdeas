@@ -489,6 +489,29 @@ async function validateGeneratedBook(buffer: Buffer, book: SocideasBookV2): Prom
 interface PayloadBundle {
   electoral?: SocideasBookInputV2['electoral']
   congresoProvincia?: SocideasBookInputV2['congresoProvincia']
+  autonomicasCircunscripcion?: SocideasBookInputV2['autonomicasCircunscripcion']
+  senadoCircunscripcion?: SocideasBookInputV2['senadoCircunscripcion']
+}
+
+/**
+ * Fixtures provinciales 2023 de la circunscripción de Toledo (solo se aplican a
+ * municipios de la provincia 45). Se generan con
+ * `npx tsx scripts/ingest-elections-toledo-2023.ts`. Si faltan, se devuelve
+ * undefined y los bloques quedan declarados como pendientes (sin romper).
+ */
+function leerFixtureProvincial<T>(archivo: string, provinciaCodigo: string, esperado: string): T | undefined {
+  if (provinciaCodigo !== '45') return undefined
+  const file = path.join(OUT_DIR, archivo)
+  if (!fs.existsSync(file)) return undefined
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as unknown
+    if (typeof raw !== 'object' || raw === null) return undefined
+    if ((raw as { circunscripcion?: string }).circunscripcion === undefined) return undefined
+    if (!Array.isArray((raw as Record<string, unknown>)[esperado])) return undefined
+    return raw as T
+  } catch {
+    return undefined
+  }
 }
 
 function loadElectoralSeries(ine: string): SocideasBookInputV2['electoral'] | undefined {
@@ -623,6 +646,16 @@ function loadPayloads(ine: string, provinciaCodigo: string, provinciaNombre: str
   return {
     electoral: loadElectoralSeries(ine),
     congresoProvincia: loadCongresoProvincia(provinciaCodigo, provinciaNombre),
+    autonomicasCircunscripcion: leerFixtureProvincial<SocideasBookInputV2['autonomicasCircunscripcion']>(
+      'elecciones-autonomicas-clm-2023-toledo.json',
+      provinciaCodigo,
+      'candidaturas',
+    ),
+    senadoCircunscripcion: leerFixtureProvincial<SocideasBookInputV2['senadoCircunscripcion']>(
+      'elecciones-senado-2023-toledo.json',
+      provinciaCodigo,
+      'candidatos',
+    ),
   }
 }
 

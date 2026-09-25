@@ -30,9 +30,9 @@ import JSZip from 'jszip'
 
 export interface ChartSeriesSpec {
   nombre: string
-  /** Título de la categoría por punto (se cachea en el XML para que el gráfico se vea sin abrir Excel). */
+  /** TÍtulo de la categoría por punto (se cachea en el XML para que el gráfico se vea sin abrir Excel). */
   categorias: string[]
-  /** Valores por punto; null = hueco (no se escribe <c:pt> para ese índice). */
+  /** Valores por punto; null = hueco (no se escribe <c:pt> para ese Índice). */
   valores: (number | null)[]
 }
 
@@ -41,7 +41,7 @@ export interface ChartSpec {
   sheetName: string
   tipo: 'line' | 'bar' | 'column' | 'pie'
   titulo: string
-  /** Línea de subtítulo obligatoria: "unidad · período · fuente". */
+  /** LÍnea de subtítulo obligatoria: "unidad · período · fuente". */
   subtitulo: string
   series: ChartSeriesSpec[]
   /** Referencias A1 SIN hoja, p. ej. categoriasRef: 'A12:A41', valoresRef: 'B12:B41'. */
@@ -201,7 +201,7 @@ function normalizarRutaParte(destino: string, carpetaBase: string): string {
   return segmentos.join('/')
 }
 
-/** Siguiente índice libre para una familia de partes (drawingN.xml, chartN.xml...). */
+/** Siguiente Índice libre para una familia de partes (drawingN.xml, chartN.xml...). */
 function siguienteIndiceDeParte(nombres: string[], patron: RegExp): number {
   let maximo = 0
   for (const nombre of nombres) {

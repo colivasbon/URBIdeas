@@ -1,7 +1,7 @@
 // Motor de sincronización económica SOCideas (SOLO servidor).
 // Un municipio por ejecución. Actualización PARCIAL del JSON v2 en R2:
 // lee el envelope existente, reemplaza SOLO los slugs del grupo `economia` y
-// preserva íntegramente Demografía. Si una fuente falla, se conservan los datos
+// preserva Íntegramente Demografía. Si una fuente falla, se conservan los datos
 // anteriores y el run queda partial/error. Registra todo en data_sync_runs.
 //
 // Flujo por fuente (todas controladas, ninguna en lectura de ficha):

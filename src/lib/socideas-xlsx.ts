@@ -5,7 +5,7 @@
 // QUÉ CAMBIA RESPECTO AL LIBRO v1 (auditoría 2026-09-24)
 //   v1: 9 hojas apiladas, 0 fórmulas, 0 gráficos, 0 tablas, 0 filtros, 0
 //       paneles congelados, 124 fusiones, bloques duplicados.
-//   v2: 11 hojas del contrato, índice con hipervínculos internos y retorno,
+//   v2: 11 hojas del contrato, Índice con hipervínculos internos y retorno,
 //       freeze panes, tablas Excel nativas con filtro, gráficos nativos
 //       (inyectados como OOXML: ExcelJS 4.4 no los soporta), fórmulas
 //       auditables con resultado cacheado, formatos por unidad, configuración
@@ -13,7 +13,7 @@
 //
 // MAQUETACIÓN
 //   - Autoajuste consciente de Poppins (factor 1.2) con tope 42 caracteres.
-//   - Título de hoja (fila 1) y línea de ámbito (fila 2), congeladas.
+//   - TÍtulo de hoja (fila 1) y línea de ámbito (fila 2), congeladas.
 //   - Bloques apilados: título (Musgo), fuente/período/ámbito/estado (con
 //     enlace oficial solo si el host está en la allowlist), cabecera (Crisopa),
 //     datos, nota metodológica.
@@ -171,7 +171,7 @@ function paintTitle(
   }
 }
 
-/** Línea de procedencia: fuente · período · ámbito · estado + enlace si procede. */
+/** LÍnea de procedencia: fuente · período · ámbito · estado + enlace si procede. */
 function paintSourceLine(
   ws: ExcelJS.Worksheet,
   rowN: number,
@@ -589,7 +589,7 @@ function writeSheetHeader(
 
 /** Índice con hipervínculos internos que se inserta en 00_RESUMEN.
  *
- *  Reserva ancho para sus CUATRO columnas: el índice no participa en
+ *  Reserva ancho para sus CUATRO columnas: el Índice no participa en
  *  `computeSheetWidths` (se inyecta fuera de `sheet.bloques`), y sin reserva los
  *  identificadores largos (`05_SOCIAL_EDUCACIÓN_SERVICIOS`) y los títulos se
  *  recortaban contra el ancho de la tabla de portada. */
@@ -647,7 +647,7 @@ function writeSheet(
   const maxNCols = sheet.bloques.reduce((max, b) => Math.max(max, b.columnas.length), 2)
   const widths = computeSheetWidths(sheet.bloques)
   while (widths.length < maxNCols) widths.push(18)
-  // El enlace de retorno al índice vive en la última columna del encabezado
+  // El enlace de retorno al Índice vive en la última columna del encabezado
   // (fila 2): la columna debe poder mostrarlo entero o Excel lo recorta por la
   // izquierda (alineación derecha). Contrato v2: navegación interna siempre.
   if (sheet.id !== '00_RESUMEN') {

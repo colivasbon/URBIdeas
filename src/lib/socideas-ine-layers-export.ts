@@ -135,7 +135,7 @@ export function buildCentrosEducativosTable(): ExportTable {
 
 /**
  * Indicadores demográficos derivados INE (densidad, edad media, dependencias,
- * índices de envejecimiento y variaciones): complementan los derivados del
+ * Índices de envejecimiento y variaciones): complementan los derivados del
  * envelope cuando la capa INE lateral los publica.
  */
 export function buildDemographicDerivedLayerTable(

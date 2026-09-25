@@ -21,7 +21,7 @@ export const FAMILIAS: Familia[] = [
   { id: 'dominio', orden: 6, titulo: 'Dominio público y servidumbres', descripcion: 'DPH, DPMT y servidumbres, viario y ferrocarril.' },
   { id: 'infra', orden: 7, titulo: 'Red e infraestructuras', descripcion: 'Redes, acceso vial y servicios. Informativo salvo servidumbre.' },
   { id: 'medio', orden: 8, titulo: 'Medio ambiente y espacios protegidos', descripcion: 'Red Natura 2000, parques, montes, Ramsar, humedales, IBA, ZEPA.' },
-  { id: 'pecuarias', orden: 9, titulo: 'Vías pecuarias', descripcion: 'Cañada, cordel, vereda, colada y lugares asociados. Ley 3/1995.' },
+  { id: 'pecuarias', orden: 9, titulo: 'VÍas pecuarias', descripcion: 'Cañada, cordel, vereda, colada y lugares asociados. Ley 3/1995.' },
 ]
 
 export const FAMILIA_IDS = FAMILIAS.map(f => f.id)
@@ -52,7 +52,7 @@ interface Regla {
 
 // Orden de reglas: primera coincidencia manda. Lo no matched => usos/informativo.
 const REGLAS: Regla[] = [
-  { familia: 'pecuarias', severidad: 'veto', norma: 'Ley 3/1995 de Vías Pecuarias', test: /via.?pecuaria|ca[ñn]ada|cordel|vereda|colada|pecuari/i },
+  { familia: 'pecuarias', severidad: 'veto', norma: 'Ley 3/1995 de VÍas Pecuarias', test: /via.?pecuaria|ca[ñn]ada|cordel|vereda|colada|pecuari/i },
   { familia: 'medio', severidad: 'veto', norma: 'Ley 42/2007 Patrimonio Natural; Red Natura 2000', test: /red.?natura|natura.?2000|\blic\b|zepa|zec|parque.?nacional|parque.?natural|monte.?catalogado|monte.?utilidad|ramsar|humedal|iba\b|avifauna|espacio.?protegido|zona.?protegida/i },
   { familia: 'patrimonio', severidad: 'veto', norma: 'Ley 16/1985 Patrimonio Histórico; normativa autonómica', test: /patrimonio|bic\b|bien.?interes|bienes.?cultural|proteccion.?cultural|yacimiento|arqueolog/i },
   { familia: 'inundacion', severidad: 'veto', norma: 'R.D. 903/2010; mapa SNCZI', test: /inunda|flujo.?preferente|snc?zi|cauce|avenida|riesgo.?sism|sismic|deslizamiento|erosion/i },
@@ -113,8 +113,8 @@ interface Override {
 }
 
 export const OVERRIDES: Override[] = [
-  // Vía pecuaria real: la categoría que traiga la CCAA no manda sobre el nombre.
-  { test: /vias?[_ ]pecuarias|prot_vp|pecuari/i, familia: 'pecuarias', severidad: 'veto', norma: 'Ley 3/1995 de Vías Pecuarias', motivo: 'capa de vías pecuarias' },
+  // VÍa pecuaria real: la categoría que traiga la CCAA no manda sobre el nombre.
+  { test: /vias?[_ ]pecuarias|prot_vp|pecuari/i, familia: 'pecuarias', severidad: 'veto', norma: 'Ley 3/1995 de VÍas Pecuarias', motivo: 'capa de vías pecuarias' },
   // DPM de Aragón = Disponibilidad de Planeamiento, NO dominio público marítimo. No tocar.
   // Cartografía histórica del IGN: apoyo visual, no patrimonio protegido (un veto aquí bloquearía todo).
   { test: /planosig/i, familia: 'usos', severidad: 'informativo', norma: 'IGN PlanosIG (cartografía histórica, apoyo visual)', motivo: 'planimetría histórica, no BIC' },

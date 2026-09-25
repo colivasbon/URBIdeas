@@ -91,7 +91,7 @@ export interface RawDimRow {
   rawValor: string
 }
 
-/** Parsea UNA línea jaxiT3 con índices ya resueltos. Puro y testeable. */
+/** Parsea UNA línea jaxiT3 con Índices ya resueltos. Puro y testeable. */
 export function parseDimLine(
   cols: string[],
   idx: { muni: number; sexo: number; edad: number; dim: number; per: number; val: number },

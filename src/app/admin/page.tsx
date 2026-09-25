@@ -148,7 +148,7 @@ export default function AdminPage() {
     <div className="flex min-h-screen flex-col">
       <Header />
 
-      <main className="flex-1">
+      <main id="contenido" className="flex-1">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           {/* Page header */}
           <section className="mb-6 border-b border-[var(--color-border-subtle)] pb-6">
@@ -239,7 +239,7 @@ export default function AdminPage() {
                               </td>
                               <td className="px-4 py-2.5">
                                 <Badge variant={f.activo ? "success" : "danger"}>
-                                  {f.activo ? "Sí" : "No"}
+                                  {f.activo ? "SÍ" : "No"}
                                 </Badge>
                               </td>
                             </tr>
@@ -294,7 +294,7 @@ export default function AdminPage() {
                               </td>
                               <td className="px-4 py-2.5">
                                 <Badge variant={c.activo ? "success" : "danger"}>
-                                  {c.activo ? "Sí" : "No"}
+                                  {c.activo ? "SÍ" : "No"}
                                 </Badge>
                               </td>
                             </tr>

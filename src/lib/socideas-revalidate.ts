@@ -18,7 +18,7 @@ export const REVALIDATE_PATH = '/api/socideas/revalidate'
 export const REVALIDATE_TOKEN_HEADER = 'x-revalidate-token'
 /** Tamaño de lote por petición (el endpoint acepta hasta MAX_INES por request). */
 export const REVALIDATE_BATCH_SIZE = 200
-/** Límite estricto de INEs por request (payloads mayores se rechazan con 400). */
+/** LÍmite estricto de INEs por request (payloads mayores se rechazan con 400). */
 export const REVALIDATE_MAX_INES = 2000
 /** Reintentos por lote ante error de red/5xx (backoff exponencial base 500 ms). */
 export const REVALIDATE_MAX_RETRIES = 3

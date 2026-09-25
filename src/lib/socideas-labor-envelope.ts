@@ -78,7 +78,7 @@ export function tgssMuniUrl(year: number, month: number): string {
 export const SEPE_CATALOG_URL =
   'https://datos.gob.es/es/catalogo/ea0041513-paro-registrado-por-municipios-desglosado-por-sexo-tramos-de-edad-y-sector-de-actividad-economica'
 
-/** Columnas observadas del CSV SEPE 2026 (índices 0-based tras split por `;`). */
+/** Columnas observadas del CSV SEPE 2026 (Índices 0-based tras split por `;`). */
 export const SEPE_COLUMNS = [
   'codigo_mes', // 0: YYYYMM (202601..202607 en el fichero 2026)
   'mes', // 1: "Julio de 2026"

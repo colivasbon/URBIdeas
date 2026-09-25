@@ -115,7 +115,7 @@ export function parseAdrhMunicipalCsv(csv: string, codigoIne: string): AdrhMunic
   const sep = lines[0].includes('\t') ? '\t' : lines[0].includes(';') ? ';' : ','
   const headers = lines[0].split(sep).map((h) => h.trim().toLowerCase())
   const iMuni = headers.findIndex((h) => h.includes('municip'))
-  const iInd = headers.findIndex((h) => h.includes('indicador') || h.includes('índice') || h.includes('indice'))
+  const iInd = headers.findIndex((h) => h.includes('indicador') || h.includes('Índice') || h.includes('indice'))
   const iPer = headers.findIndex((h) => h.includes('periodo') || h.includes('período') || h.includes('año') || h.includes('anyo'))
   const iVal = headers.findIndex((h) => h.includes('total') || h.includes('valor'))
   const iDis = headers.findIndex((h) => h.includes('distrito'))

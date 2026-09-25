@@ -122,7 +122,7 @@ export function toV2Envelope(
 }
 
 /** Expande un envelope v2 a filas completas (forma que consume la ficha).
- * Fase 2B: la tupla v2 no lleva índice de fuente; con varias fuentes (Economía)
+ * Fase 2B: la tupla v2 no lleva Índice de fuente; con varias fuentes (Economía)
  * la fuente se resuelve por `tableId` (correspondencia oficial) con fallback a
  * `sources[0]`. Los JSON de 1 fuente (Demografía) se expanden exactamente igual
  * que antes. */

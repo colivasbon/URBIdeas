@@ -10,7 +10,7 @@
 //    prefijo `socideas/backups/conprel/<runId>/`. Eso es SOLO para el run de
 //    escritura real (gate doble) o un `--r2` explícito del CLI; esta misión
 //    NO ejecuta escrituras R2. Sin credenciales → solo local, y el límite
-//    queda documentado en el índice (`r2Backup`).
+//    queda documentado en el Índice (`r2Backup`).
 //  - Este módulo NO valida el write-gate: el loader lo hace antes de llamar.
 //
 // Nunca imprime valores de credenciales.
@@ -80,7 +80,7 @@ export interface BackupEnvelopesOpts {
 
 /**
  * Copia los envelopes indicados a `tmp/conprel-backups/<runId>/` y escribe
- * `index.json`. No lanza ante 404 (queda `ausentes` en el índice); un
+ * `index.json`. No lanza ante 404 (queda `ausentes` en el Índice); un
  * throw del fetcher queda como `error:<detalle>` por INE (el loader decide
  * si aborta: exigimos al menos que los objetivos con eco estén respaldados).
  */
@@ -152,7 +152,7 @@ export async function backupEnvelopes(opts: BackupEnvelopesOpts): Promise<Backup
   return index
 }
 
-/** Lee un índice de backup existente. */
+/** Lee un Índice de backup existente. */
 export function leerBackupIndex(runId: string, root = CONPREL_BACKUP_ROOT): BackupIndex {
   const p = path.join(backupDirFor(runId, root), 'index.json')
   if (!fs.existsSync(p)) throw new Error(`Backup inexistente: ${p}`)
@@ -167,9 +167,9 @@ export function r2BackupCredsPresentes(env: NodeJS.ProcessEnv = process.env): bo
 }
 
 /**
- * Límite documentado del backup local: vive en `tmp/` del worktree/de la
+ * LÍmite documentado del backup local: vive en `tmp/` del worktree/de la
  * máquina que ejecuta el run. Si esa máquina muere antes del espejo R2, el
- * backup local se pierde. Por eso (a) el índice lleva hashes verificables,
+ * backup local se pierde. Por eso (a) el Índice lleva hashes verificables,
  * (b) el loader exige backup antes de escribir y (c) con credenciales R2 el
  * run de escritura real debe activar `r2Uploader` (prefijo
  * `socideas/backups/conprel/<runId>/`) — esa escritura SÍ toca R2 y solo se

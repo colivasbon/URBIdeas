@@ -16,7 +16,7 @@
 //   grano distinto —candidato, no candidatura— y sin participación)
 // - Nota metodológica:
 //   https://infoelectoral.interior.gob.es/export/sites/default/pdf/elecciones-celebradas/datos-abiertos/Nota-Metodologica.pdf
-// - Vía clásica por convocatoria (ficheros fijos 05/06*.DAT en ZIP
+// - VÍa clásica por convocatoria (ficheros fijos 05/06*.DAT en ZIP
 //   .../estaticos/docxl/apliextr/04202305_MUNI.zip): NO viable en la práctica
 //   (timeout >60 s verificado hoy; el propio paquete R infoelectoral documenta
 //   timeouts del mismo host). Se usa Datos Abiertos.

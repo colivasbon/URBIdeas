@@ -180,7 +180,7 @@ export const AEAT_EDM_IRPF: SourceReference = {
   shortLabel: 'AEAT · IRPF por municipios (EDM)',
 }
 
-/** Línea visible de procedencia: organismo · operación [· tabla] [· período]. */
+/** LÍnea visible de procedencia: organismo · operación [· tabla] [· período]. */
 export function visibleSourceLabel(
   source: SourceReference | null | undefined,
   fallback: string,

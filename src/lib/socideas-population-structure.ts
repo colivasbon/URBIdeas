@@ -707,7 +707,7 @@ export function validatePopulationStructure(
 
 /** Versión del esquema del dataset territorial. */
 export const POPULATION_STRUCTURE_DATASET_SCHEMA = 'socideas-population-structure-dataset@1'
-/** Versión del esquema del índice de referencias de benchmark. */
+/** Versión del esquema del Índice de referencias de benchmark. */
 export const POPULATION_BENCHMARK_REFS_SCHEMA = 'socideas-population-benchmark-refs@1'
 
 /** Nivel territorial de la tabla 68521. */

@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createSupabaseServer()
 
-    // Vías exactas (sin caché).
+    // VÍas exactas (sin caché).
     if (codigoIne || provinciaId) {
       const join = ''
       let query = supabase

@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const NORMA_DEFECTO = 'Fuente WMS (ver ficha de capa)'
 
     // La BD manda: una fila con algún valor distinto del defecto (023/025 o
-    // corrección manual) se respeta íntegra. Una fila totalmente por defecto
+    // corrección manual) se respeta Íntegra. Una fila totalmente por defecto
     // equivale a "sin clasificar" y la resuelve el clasificador (con overrides).
     function conClasificacion(
       capa: Record<string, unknown>,

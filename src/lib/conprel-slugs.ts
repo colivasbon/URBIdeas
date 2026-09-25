@@ -93,7 +93,7 @@ export const CONPREL_SLUGS_LIQ: readonly ConprelSlugDef[] = [
     verificacion: 'verificado',
     evidencia:
       'Agente A (PDF 809 L437 «recaudación o pagos líquidos… ejercicio corriente»): Ceuta I1 ' +
-      'Access=9229,49629 miles = EL «Recaudación Líquida Ejercicio corriente» EXACTO; G1 ' +
+      'Access=9229,49629 miles = EL «Recaudación LÍquida Ejercicio corriente» EXACTO; G1 ' +
       '108733,7153 EXACTO; ratios Andalucía coherentes. VERIFICADA PUBLICACIÓN. ' +
       '(Corrige la hipótesis previa «liquidado» del diseño §3.)',
     cambioPendiente: null,

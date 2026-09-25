@@ -10,7 +10,7 @@ import {
 export const dynamic = 'force-dynamic'
 
 // ——— B3: rate limit deslizante (en memoria, best-effort por instancia) ———
-// Límites: 60 peticiones autenticadas/min por IP y 10.000 INEs/min acumulados.
+// LÍmites: 60 peticiones autenticadas/min por IP y 10.000 INEs/min acumulados.
 // Los loaders hacen 1 petición por lote de ≤200 INE: un run de catálogo
 // completo (≈8.132 INE = 41 lotes) debe caber SIN ser bloqueado — con el
 // techo previo de 5.000 el lote 26 recibía 429 y la revalidación quedaba
@@ -106,7 +106,7 @@ function rateLimitedResponse(decision: Extract<RateDecision, { ok: false }>): Ne
     ts: new Date().toISOString(),
   }))
   return NextResponse.json(
-    { data: null, error: 'Límite de tasa excedido. Reintente en unos segundos.', count: 0 },
+    { data: null, error: 'LÍmite de tasa excedido. Reintente en unos segundos.', count: 0 },
     { status: 429, headers: { 'Retry-After': String(decision.retryAfterSec) } },
   )
 }

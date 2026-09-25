@@ -7,20 +7,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 
 /* ============================================================
-   ProductNavbar — base compartida de navegación de plataforma
-   y módulos (URBideas / SOCideas / Asistencias).
-
+   ProductNavbar — navegación de plataforma y módulos (IMA)
    - Una sola lógica de contracción al scroll (listener pasivo + rAF).
-   - Una sola lógica de submenús click-to-open (Escape / click-fuera /
-     navegación / apertura exclusiva, aria-expanded + aria-controls).
-   - Una sola lógica de menú móvil accesible (secciones expandibles,
-     cierre al navegar / Escape, restauración de scroll de body).
-   - Variantes visuales por módulo vía `tone`, sin duplicar markup.
+   - Submenús click-to-open (Escape / click-fuera / navegación).
+   - Drawer móvil con focus trap, Escape, bloqueo de scroll y stagger.
+   - Cabecera clara: 64px desktop / 56px móvil; blur + borde al scrollear.
    ============================================================ */
 
 export type ProductNavSubItem = {
   label: string;
-  /** Sin href → ítem no navegable (p. ej. «Próximamente»). Nunca usar "#". */
+  /** Sin href → Ítem no navegable (p. ej. «Próximamente»). Nunca usar "#". */
   href?: string;
   description?: string;
   badge?: "Próximamente";
@@ -39,7 +35,7 @@ export type ProductNavItem = {
 export type ProductTone = "platform" | "urban" | "social" | "assistance";
 
 export type ProductNavbarConfig = {
-  product: "platform" | "urbideas" | "socideas"; // TODO: RE-HABILITAR ASISTENCIAS — añadir "asistencias" al reactivar
+  product: "platform" | "urbideas" | "socideas";
   productLabel: string;
   /** Inicial del distintivo del módulo (p. ej. "U", "S", "A"). */
   productMark: string;
@@ -55,42 +51,25 @@ export type ProductNavbarConfig = {
 
 export const PLATFORM_HOME_ARIA_LABEL = "Ir a la página principal de Ideas Sostenibilidad";
 
-const COMPACT_AFTER_PX = 56;
-const NEAR_TOP_PX = 8;
+const SCROLLED_AFTER_PX = 8;
+const INDICATOR_BASE = 100;
 
-function useCompactOnScroll(): boolean {
-  const [compact, setCompact] = useState(false);
-  const lastY = useRef(0);
+function useScrolled(): boolean {
+  const [scrolled, setScrolled] = useState(false);
   const ticking = useRef(false);
 
   useEffect(() => {
-    // Sincronización inicial diferida (rAF): evita set-state síncrono en el efecto.
-    const raf = requestAnimationFrame(() => {
-      lastY.current = window.scrollY;
-      setCompact(window.scrollY > COMPACT_AFTER_PX);
-    });
-
     const update = () => {
       ticking.current = false;
-      const y = window.scrollY;
-      const prev = lastY.current;
-      lastY.current = y;
-      // Sin setState por píxel: solo cambia en transiciones de estado.
-      setCompact((c) => {
-        if (y <= NEAR_TOP_PX) return false;
-        if (y > COMPACT_AFTER_PX && y > prev + 2) return true;
-        if (y < prev - 4) return false;
-        return c;
-      });
+      setScrolled(window.scrollY > SCROLLED_AFTER_PX);
     };
-
     const onScroll = () => {
       if (!ticking.current) {
         ticking.current = true;
         requestAnimationFrame(update);
       }
     };
-
+    const raf = requestAnimationFrame(update);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       cancelAnimationFrame(raf);
@@ -98,7 +77,7 @@ function useCompactOnScroll(): boolean {
     };
   }, []);
 
-  return compact;
+  return scrolled;
 }
 
 function stripHash(href: string): string {
@@ -117,34 +96,45 @@ function isItemActive(pathname: string, item: ProductNavItem): boolean {
   return (item.items ?? []).some((s) => s.href && isHrefActive(pathname, s.href, false));
 }
 
-const TONE_BAR: Record<ProductTone, string> = {
-  platform: "bg-conifera",
-  urban: "bg-conifera",
-  social: "bg-conifera",
-  assistance: "bg-conifera",
-};
-
 export default function ProductNavbar({ config }: { config: ProductNavbarConfig }) {
   const pathname = usePathname();
-  const compact = useCompactOnScroll();
+  const scrolled = useScrolled();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const rootRef = useRef<HTMLElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
   const triggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const tone: ProductTone = config.tone ?? "platform";
+  const linkRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const navRef = useRef<HTMLElement>(null);
+  const mobileButtonRef = useRef<HTMLButtonElement>(null);
+  const [indicator, setIndicator] = useState<{ x: number; scale: number } | null>(null);
   const isPlatform = config.product === "platform";
 
-  const closeAll = useCallback(() => {
-    setOpenMenu(null);
-  }, []);
+  const activeItem = config.navigation.find((i) => isItemActive(pathname, i));
 
-  // Cierre al navegar: cada página monta su propio header (sin layout
-  // compartido), por lo que el estado se reinicia con la navegación; además
-  // todos los enlaces cierran vía onClick. Sin efecto sobre pathname para
-  // evitar set-state-in-effect y renders en cascada.
+  // Indicador deslizante: solo transform (translateX + scaleX).
+  useEffect(() => {
+    const el = activeItem ? linkRefs.current[activeItem.id] : null;
+    const nav = navRef.current;
+    if (!el || !nav) {
+      setIndicator(null);
+      return;
+    }
+    const measure = () => {
+      const a = el.getBoundingClientRect();
+      const n = nav.getBoundingClientRect();
+      const width = Math.max(24, a.width * 0.5);
+      setIndicator({ x: a.left - n.left + (a.width - width) / 2, scale: width / INDICATOR_BASE });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [activeItem, pathname]);
 
-  // Escape + click fuera (solo cuando hay algo abierto).
+  const closeAll = useCallback(() => setOpenMenu(null), []);
+
+  // Escape + click fuera.
   useEffect(() => {
     if (!openMenu && !mobileOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -153,13 +143,11 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
         setOpenMenu(null);
         setMobileOpen(false);
         setMobileExpanded(null);
-        trigger?.focus();
+        (trigger ?? mobileButtonRef.current)?.focus();
       }
     };
     const onPointer = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpenMenu(null);
-      }
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpenMenu(null);
     };
     document.addEventListener("keydown", onKey);
     document.addEventListener("pointerdown", onPointer);
@@ -169,323 +157,356 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
     };
   }, [openMenu, mobileOpen]);
 
-  // Bloqueo de scroll del body en móvil, siempre restaurado.
+  // Bloqueo de scroll + focus trap del drawer móvil.
   useEffect(() => {
     if (!mobileOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const first = drawerRef.current?.querySelector<HTMLElement>(
+      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    first?.focus();
+
+    const onTab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || !drawerRef.current) return;
+      const focusables = Array.from(
+        drawerRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => el.offsetParent !== null);
+      if (focusables.length === 0) return;
+      const firstEl = focusables[0];
+      const lastEl = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    };
+    document.addEventListener("keydown", onTab);
     return () => {
       document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onTab);
     };
   }, [mobileOpen]);
 
-  const toggleMenu = (id: string) =>
-    setOpenMenu((cur) => (cur === id ? null : id));
+  const closeMobile = () => {
+    setMobileOpen(false);
+    setMobileExpanded(null);
+  };
+
+  const toggleMenu = (id: string) => setOpenMenu((cur) => (cur === id ? null : id));
 
   const linkClasses = (active: boolean) =>
     [
-      "relative px-3 py-2 text-sm font-semibold rounded-[6px] transition-all duration-150",
-      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+      "relative inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-[6px] transition-colors duration-150",
+      "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
       active
-        ? "bg-white/20"
-        : "hover:bg-white/10",
+        ? "text-[var(--moss-ink)] font-semibold"
+        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--musgo-50)]",
     ].join(" ");
-
-  const backLinkClasses =
-    "inline-flex items-center gap-1.5 rounded-[6px] text-xs font-semibold hover:underline hover:underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
   const mobileMenuLabel = mobileOpen
     ? `Cerrar menú${isPlatform ? "" : ` de ${config.productLabel}`}`
     : (config.mobileMenuLabel ?? (isPlatform ? "Abrir menú" : `Abrir menú de ${config.productLabel}`));
 
   return (
-    <header ref={rootRef} className="sticky top-0 z-50 w-full">
-      <div aria-hidden="true" className={`h-1 w-full ${TONE_BAR[tone]}`} />
-      <div style={{ backgroundColor: 'var(--brand-bg)', color: '#FFFFFF' }}>
-      
-        <div
-          className={[
-            "mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 transition-all duration-300",
-            compact ? "h-12" : "h-14 sm:h-16",
-          ].join(" ")}
-        >
-          {/* Nivel plataforma + nivel producto */}
-          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+    <header
+      ref={rootRef}
+      className={[
+        "sticky top-0 z-[100] w-full transition-colors duration-200",
+        scrolled
+          ? "site-header--scrolled border-b border-[var(--border-subtle)]"
+          : "border-b border-transparent bg-[var(--bg-canvas)]",
+      ].join(" ")}
+    >
+      <div className="mx-auto flex h-14 w-full max-w-[1240px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-10 md:h-16">
+        {/* Nivel plataforma + nivel producto */}
+        <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+          <Link
+            href="/"
+            aria-label={PLATFORM_HOME_ARIA_LABEL}
+            className="flex shrink-0 items-center gap-2 rounded-[6px] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            <Image
+              src="/logo/Logo_Principal_-_color_-_Ideas_Medioambientales.png"
+              alt="Ideas Medioambientales"
+              width={28}
+              height={28}
+              className="h-7 w-auto"
+              priority
+            />
+          </Link>
+          {isPlatform ? (
             <Link
               href="/"
-              aria-label={PLATFORM_HOME_ARIA_LABEL}
-              className="flex shrink-0 items-center rounded-[6px] bg-white px-1.5 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+              className="min-w-0 rounded-[6px] leading-tight focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             >
-              <Image
-                src="/logo/Logo_Principal_-_color_-_Ideas_Medioambientales.png"
-                alt="Ideas Medioambientales"
-                width={28}
-                height={28}
-                className={`w-auto transition-all duration-300 ${compact ? "h-6" : "h-7"}`}
-                priority
-              />
+              <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">
+                IDEAS Sostenibilidad
+              </span>
+              <span className="hidden truncate text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)] sm:block">
+                Ideas Medioambientales
+              </span>
             </Link>
-            {isPlatform ? (
+          ) : (
+            <>
+              <span aria-hidden="true" className="h-6 w-px shrink-0 bg-[var(--border-subtle)]" />
               <Link
-                href="/"
-                className="min-w-0 leading-tight rounded-[6px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                href={config.productHref}
+                aria-label={`${config.productLabel} — inicio del módulo`}
+                className="flex min-w-0 items-center gap-2 rounded-[6px] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
-                <span className="block truncate text-sm font-semibold" style={{ color: '#FFFFFF' }}>
-                  IDEAS Sostenibilidad
-                </span>
-                {!compact && (
-                  <span className="block truncate text-[10px] font-medium uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                    Área de Sostenibilidad de Ideas Medioambientales
-                  </span>
-                )}
-              </Link>
-            ) : (
-              <>
-                <span aria-hidden="true" className="h-6 w-px shrink-0 bg-white/25" />
-                <Link
-                  href={config.productHref}
-                  aria-label={`${config.productLabel} — inicio del módulo`}
-                  className="flex min-w-0 items-center gap-2 rounded-[6px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--retama)]"
+                <span
+                  aria-hidden="true"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-[var(--musgo)] text-xs font-bold text-[var(--hueso)]"
                 >
-                  <span
-                    className={[
-                      "flex shrink-0 items-center justify-center rounded-[6px] bg-white font-bold transition-all duration-300",
-                      compact ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm",
-                    ].join(" ")}
-                    style={{ color: 'var(--color-primary)' }}
-                  >
-                    {config.productMark}
+                  {config.productMark}
+                </span>
+                <span className="min-w-0 leading-tight">
+                  <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">
+                    {config.productLabel}
                   </span>
-                  <span className="min-w-0 leading-tight">
-                    <span
-                      className={[
-                        "block truncate font-bold tracking-tight transition-all duration-300",
-                        compact ? "text-base" : "text-lg",
-                      ].join(" ")}
-                      style={{ color: '#FFFFFF' }}
-                    >
-                      {config.productLabel}
+                  {config.productDescription && (
+                    <span className="hidden truncate text-[10px] font-medium text-[var(--text-muted)] sm:block">
+                      {config.productDescription}
                     </span>
-                    {!compact && config.productDescription && (
-                      <span className="block truncate text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                        {config.productDescription}
-                      </span>
-                    )}
-                  </span>
-                </Link>
-              </>
-            )}
-          </div>
+                  )}
+                </span>
+              </Link>
+            </>
+          )}
+        </div>
 
-          {/* Navegación desktop: click-to-open */}
-          <nav className="hidden items-center gap-1 md:flex" aria-label={isPlatform ? "Navegación de la plataforma" : `Navegación del módulo ${config.productLabel}`}>
-            {config.navigation.map((item) => {
-              const active = isItemActive(pathname, item);
-              if (!item.items || item.items.length === 0) {
-                return (
-                  <Link
-                    key={item.id}
-                    href={item.href ?? "/"}
-                    aria-current={active ? "page" : undefined}
-                    className={linkClasses(active)}
-                    style={{ color: '#FFFFFF' }}
-                  >
-                    {item.label}
-                    {active && (
-                      <span className="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full" style={{ backgroundColor: '#FBE122' }} />
-                    )}
-                  </Link>
-                );
-              }
-              const open = openMenu === item.id;
-              const panelId = `productnav-${config.product}-${item.id}`;
+        {/* Navegación desktop */}
+        <nav
+          ref={navRef}
+          className="relative hidden items-center gap-0.5 md:flex"
+          aria-label={isPlatform ? "Navegación de la plataforma" : `Navegación del módulo ${config.productLabel}`}
+        >
+          {config.navigation.map((item) => {
+            const active = isItemActive(pathname, item);
+            if (!item.items || item.items.length === 0) {
               return (
-                <div key={item.id} className="relative">
-                  <button
-                    ref={(el) => {
-                      triggerRefs.current[item.id] = el;
-                    }}
-                    type="button"
-                    aria-expanded={open}
-                    aria-controls={panelId}
-                    onClick={() => toggleMenu(item.id)}
-                    className={`${linkClasses(active)} inline-flex items-center gap-1`}
-                    style={{ color: '#FFFFFF' }}
+                <Link
+                  key={item.id}
+                  ref={(el) => {
+                    linkRefs.current[item.id] = el;
+                  }}
+                  href={item.href ?? "/"}
+                  aria-current={active ? "page" : undefined}
+                  className={linkClasses(active)}
+                >
+                  {item.label}
+                </Link>
+              );
+            }
+            const open = openMenu === item.id;
+            const panelId = `productnav-${config.product}-${item.id}`;
+            return (
+              <div key={item.id} className="relative">
+                <button
+                  ref={(el) => {
+                    triggerRefs.current[item.id] = el;
+                  }}
+                  type="button"
+                  aria-expanded={open}
+                  aria-controls={panelId}
+                  onClick={() => toggleMenu(item.id)}
+                  className={linkClasses(active)}
+                >
+                  {item.label}
+                  <svg
+                    className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                    aria-hidden="true"
                   >
-                    {item.label}
-                    <svg
-                      className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={2.5}
-                      stroke="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                    </svg>
-                    {active && (
-                      <span className="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full bg-retama" />
-                    )}
-                  </button>
-                  {open && (
-                    <div
-                      id={panelId}
-                      role="menu"
-                      aria-label={item.label}
-                      className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-[6px] border border-white/20 shadow-xl animate-slide-in-down"
-                      style={{ backgroundColor: 'var(--brand-bg)' }}
-                    >
-                      <ul className="p-1.5">
-                        {item.items.map((sub) => {
-                          const subActive = sub.href ? isHrefActive(pathname, sub.href, false) : false;
-                          const disabled = sub.disabled || !sub.href;
-                          return (
-                            <li key={sub.label} role="none">
-                              {disabled ? (
-                                <span
-                                  aria-disabled="true"
-                                  className="flex items-start justify-between gap-3 rounded-[6px] px-3 py-2.5 text-sm text-[var(--color-text-muted)]"
-                                >
-                                  <span>
-                                    <span className="block font-medium">{sub.label}</span>
-                                    {sub.description && (
-                                      <span className="mt-0.5 block text-xs">{sub.description}</span>
-                                    )}
-                                  </span>
-                                  {sub.badge && (
-                                    <span className="shrink-0 rounded-[6px] border border-limo bg-[var(--color-input-bg)] px-2 py-0.5 text-[11px] font-semibold">
-                                      {sub.badge}
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+                {open && (
+                  <div
+                    id={panelId}
+                    role="menu"
+                    aria-label={item.label}
+                    className="absolute left-0 top-full z-[200] mt-2 w-72 overflow-hidden rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[var(--shadow-2)]"
+                  >
+                    <ul className="p-1.5">
+                      {item.items.map((sub) => {
+                        const subActive = sub.href ? isHrefActive(pathname, sub.href, false) : false;
+                        const disabled = sub.disabled || !sub.href;
+                        return (
+                          <li key={sub.label} role="none">
+                            {disabled ? (
+                              <span
+                                aria-disabled="true"
+                                className="flex items-start justify-between gap-3 rounded-[6px] px-3 py-2.5 text-sm text-[var(--text-muted)]"
+                              >
+                                <span>
+                                  <span className="block font-medium">{sub.label}</span>
+                                  {sub.description && (
+                                    <span className="mt-0.5 block text-xs">{sub.description}</span>
+                                  )}
+                                </span>
+                                {sub.badge && <span className="badge badge-pending shrink-0">{sub.badge}</span>}
+                              </span>
+                            ) : (
+                              <Link
+                                role="menuitem"
+                                href={sub.href as string}
+                                aria-current={subActive ? "page" : undefined}
+                                onClick={closeAll}
+                                className={[
+                                  "flex items-start justify-between gap-3 rounded-[6px] px-3 py-2.5 text-sm transition-colors",
+                                  "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
+                                  subActive
+                                    ? "bg-[var(--status-info-bg)] font-medium text-[var(--status-info-fg)]"
+                                    : "text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)]",
+                                ].join(" ")}
+                              >
+                                <span>
+                                  <span className="block font-medium">{sub.label}</span>
+                                  {sub.description && (
+                                    <span className="mt-0.5 block text-xs text-[var(--text-muted)]">
+                                      {sub.description}
                                     </span>
                                   )}
                                 </span>
-                              ) : (
-                                <Link
-                                  role="menuitem"
-                                  href={sub.href as string}
-                                  aria-current={subActive ? "page" : undefined}
-                                  onClick={closeAll}
-                                  className={[
-                                    "flex items-start justify-between gap-3 rounded-[6px] px-3 py-2.5 text-sm transition-colors",
-                                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]",
-                                    subActive
-                                      ? "bg-[var(--color-input-bg)] text-[var(--color-text-primary)]"
-                                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-input-bg-hover)] hover:text-[var(--color-text-primary)]",
-                                  ].join(" ")}
-                                >
-                                  <span>
-                                    <span className="block font-medium">{sub.label}</span>
-                                    {sub.description && (
-                                      <span className="mt-0.5 block text-xs text-[var(--color-text-muted)]">
-                                        {sub.description}
-                                      </span>
-                                    )}
-                                  </span>
-                                  {sub.badge && (
-                                    <span className="shrink-0 rounded-[6px] border border-limo bg-[var(--color-input-bg)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-text-muted)]">
-                                      {sub.badge}
-                                    </span>
-                                  )}
-                                </Link>
-                              )}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {!isPlatform && (
-              <>
-                <span className="mx-1 h-5 w-px bg-white/25" aria-hidden="true" />
-                <Link href="/" className={backLinkClasses} aria-label="Volver a IDEAS Sostenibilidad">
-                  IDEAS Sostenibilidad
-                </Link>
-              </>
-            )}
-            {isPlatform && config.corporateUrl && (
-              <a
-                href={config.corporateUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ml-1 rounded-[6px] px-3 py-2 text-sm font-medium transition-colors duration-150 hover:bg-white/10"
-                style={{ color: '#FFFFFF' }}
-              >
-                Ideas Medioambientales
-              </a>
-            )}
-            <span className="ml-2 border-l border-white/25 pl-2">
-              <ThemeToggle />
-            </span>
-          </nav>
-
-          {/* Controles móviles */}
-          <div className="flex items-center gap-2 md:hidden">
-            <ThemeToggle />
-            <button
-              type="button"
-              onClick={() => setMobileOpen((v) => !v)}
-              aria-label={mobileMenuLabel}
-              aria-expanded={mobileOpen}
-              className="flex h-11 w-11 items-center justify-center rounded-[6px] transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-              style={{ color: '#FFFFFF' }}
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-                {mobileOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
+                                {sub.badge && <span className="badge badge-pending shrink-0">{sub.badge}</span>}
+                              </Link>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 )}
-              </svg>
-            </button>
-          </div>
+              </div>
+            );
+          })}
+
+          {activeItem && indicator && (
+            <span
+              aria-hidden="true"
+              className="nav-indicator pointer-events-none absolute bottom-0 left-0 h-0.5 w-[100px] origin-left bg-[var(--conifera)]"
+              style={{ transform: `translateX(${indicator.x}px) scaleX(${indicator.scale})` }}
+            />
+          )}
+
+          {!isPlatform && (
+            <>
+              <span className="mx-1 h-5 w-px bg-[var(--border-subtle)]" aria-hidden="true" />
+              <Link
+                href="/"
+                className="rounded-[6px] px-2 py-2 text-xs font-semibold text-[var(--text-link)] hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              >
+                IDEAS Sostenibilidad
+              </Link>
+            </>
+          )}
+          {isPlatform && config.corporateUrl && (
+            <a
+              href={config.corporateUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link-external ml-1 rounded-[6px] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            >
+              Ideas Medioambientales
+            </a>
+          )}
+          <span className="ml-2 border-l border-[var(--border-subtle)] pl-2">
+            <ThemeToggle />
+          </span>
+        </nav>
+
+        {/* Controles móviles */}
+        <div className="flex items-center gap-1 md:hidden">
+          <ThemeToggle />
+          <button
+            ref={mobileButtonRef}
+            type="button"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label={mobileMenuLabel}
+            aria-expanded={mobileOpen}
+            aria-controls="productnav-drawer"
+            className="flex h-11 w-11 items-center justify-center rounded-[6px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+              {mobileOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
+              )}
+            </svg>
+          </button>
         </div>
       </div>
 
-      {/* Panel móvil */}
+      {/* Drawer móvil */}
       {mobileOpen && (
-        <>
+        <div className="fixed inset-0 z-[300] md:hidden">
           <div
-            className="fixed inset-0 z-40 bg-[var(--color-overlay)] backdrop-blur-sm md:hidden"
-            onClick={() => setMobileOpen(false)}
+            className="absolute inset-0 bg-[var(--color-overlay)]"
+            onClick={closeMobile}
             aria-hidden="true"
           />
-          <nav
-            className="absolute inset-x-0 top-full z-50 border-b border-white/20 shadow-lg animate-slide-in-down md:hidden"
-            style={{ backgroundColor: 'var(--brand-bg)', color: '#FFFFFF' }}
-            aria-label={isPlatform ? "Navegación de la plataforma" : `Navegación del módulo ${config.productLabel}`}
+          <div
+            ref={drawerRef}
+            id="productnav-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label={isPlatform ? "Menú de navegación" : `Menú de ${config.productLabel}`}
+            className="absolute inset-y-0 right-0 flex w-[min(20rem,88vw)] flex-col overflow-y-auto bg-[var(--bg-surface)] shadow-[var(--shadow-3)]"
           >
-            <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
+            <div className="flex h-14 items-center justify-between border-b border-[var(--border-subtle)] px-4 sm:px-6">
+              <span className="type-overline text-[var(--text-muted)]">
+                {isPlatform ? "Plataforma" : config.productLabel}
+              </span>
+              <button
+                type="button"
+                onClick={closeMobile}
+                aria-label="Cerrar menú"
+                className="flex h-11 w-11 items-center justify-center rounded-[6px] text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <nav className="flex-1 p-3" aria-label={isPlatform ? "Navegación de la plataforma" : `Navegación del módulo ${config.productLabel}`}>
               {!isPlatform && (
                 <Link
                   href="/"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-semibold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                  style={{ color: '#FFFFFF' }}
+                  onClick={closeMobile}
+                  className="mb-1 block rounded-[6px] px-4 py-3 text-sm font-semibold text-[var(--text-link)] hover:bg-[var(--musgo-50)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                 >
-                  IDEAS Sostenibilidad
+                  ← IDEAS Sostenibilidad
                 </Link>
               )}
-              {config.navigation.map((item) => {
+              {config.navigation.map((item, index) => {
                 const active = isItemActive(pathname, item);
+                const stagger = { animationDelay: `${index * 30}ms` } as React.CSSProperties;
                 if (!item.items || item.items.length === 0) {
                   return (
                     <Link
                       key={item.id}
                       href={item.href ?? "/"}
-                      onClick={() => setMobileOpen(false)}
+                      onClick={closeMobile}
                       aria-current={active ? "page" : undefined}
+                      style={stagger}
                       className={[
-                        "flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-semibold transition-all duration-150",
-                        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+                        "animate-slide-in-right flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-medium transition-colors",
+                        "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
                         active
-                          ? "bg-white/20"
-                          : "hover:bg-white/10",
+                          ? "bg-[var(--status-info-bg)] font-semibold text-[var(--status-info-fg)]"
+                          : "text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)]",
                       ].join(" ")}
-                      style={{ color: '#FFFFFF' }}
                     >
-                      {active && <span className="h-5 w-1 shrink-0 rounded-full" style={{ backgroundColor: '#FBE122' }} />}
                       {item.label}
                     </Link>
                   );
@@ -493,70 +514,62 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                 const expanded = mobileExpanded === item.id;
                 const sectionId = `productnav-mobile-${config.product}-${item.id}`;
                 return (
-                  <div key={item.id} className="rounded-[6px]">
+                  <div key={item.id} className="animate-slide-in-right" style={stagger}>
                     <button
                       type="button"
                       aria-expanded={expanded}
                       aria-controls={sectionId}
                       onClick={() => setMobileExpanded((cur) => (cur === item.id ? null : item.id))}
                       className={[
-                        "flex w-full items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-semibold transition-all duration-150",
-                        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+                        "flex w-full items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-medium transition-colors",
+                        "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
                         active
-                          ? "bg-white/20"
-                          : "hover:bg-white/10",
+                          ? "font-semibold text-[var(--moss-ink)]"
+                          : "text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)]",
                       ].join(" ")}
-                      style={{ color: '#FFFFFF' }}
                     >
-                      {active && <span className="h-5 w-1 shrink-0 rounded-full" style={{ backgroundColor: '#FBE122' }} />}
                       <span className="flex-1 text-left">{item.label}</span>
                       <svg
                         className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
                         fill="none"
                         viewBox="0 0 24 24"
-                        strokeWidth={2.5}
+                        strokeWidth={1.5}
                         stroke="currentColor"
                         aria-hidden="true"
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                       </svg>
                     </button>
                     {expanded && (
-                      <ul id={sectionId} className="pb-1 pl-8 pr-2">
+                      <ul id={sectionId} className="pb-1 pl-3">
                         {item.items.map((sub) => {
                           const subActive = sub.href ? isHrefActive(pathname, sub.href, false) : false;
                           const disabled = sub.disabled || !sub.href;
                           return (
                             <li key={sub.label}>
                               {disabled ? (
-                                <span aria-disabled="true" className="flex items-center justify-between gap-2 rounded-[6px] px-4 py-2.5 text-sm text-hueso">
+                                <span
+                                  aria-disabled="true"
+                                  className="flex items-center justify-between gap-2 rounded-[6px] px-4 py-2.5 text-sm text-[var(--text-muted)]"
+                                >
                                   {sub.label}
-                                  {sub.badge && (
-                                    <span className="shrink-0 rounded-[6px] border border-white/40 px-2 py-0.5 text-[11px] font-semibold">
-                                      {sub.badge}
-                                    </span>
-                                  )}
+                                  {sub.badge && <span className="badge badge-pending shrink-0">{sub.badge}</span>}
                                 </span>
                               ) : (
                                 <Link
                                   href={sub.href as string}
-                                  onClick={() => setMobileOpen(false)}
+                                  onClick={closeMobile}
                                   aria-current={subActive ? "page" : undefined}
                                   className={[
-                                    "flex items-center justify-between gap-2 rounded-[6px] px-4 py-2.5 text-sm transition-all duration-150",
-                                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+                                    "flex items-center justify-between gap-2 rounded-[6px] px-4 py-2.5 text-sm transition-colors",
+                                    "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
                                     subActive
-                                      ? "bg-white/20"
-                                      : "hover:bg-white/10",
+                                      ? "bg-[var(--status-info-bg)] font-medium text-[var(--status-info-fg)]"
+                                      : "text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)]",
                                   ].join(" ")}
-                                  style={{ color: '#FFFFFF' }}
                                 >
                                   {sub.label}
-                                  {sub.badge && (
-                                    <span className="shrink-0 rounded-[6px] border border-white/40 px-2 py-0.5 text-[11px] font-semibold">
-                                      {sub.badge}
-                                    </span>
-                                  )}
+                                  {sub.badge && <span className="badge badge-pending shrink-0">{sub.badge}</span>}
                                 </Link>
                               )}
                             </li>
@@ -572,15 +585,14 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                   href={config.corporateUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-semibold hover:bg-white/10"
-                  style={{ color: '#FFFFFF' }}
+                  className="link-external mt-1 flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                 >
                   Ideas Medioambientales
                 </a>
               )}
-            </div>
-          </nav>
-        </>
+            </nav>
+          </div>
+        </div>
       )}
     </header>
   );

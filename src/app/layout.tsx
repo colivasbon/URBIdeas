@@ -4,12 +4,11 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 
 // Poppins corporativa (400/500/600/700) servida por next/font (self-hosted).
-// ALCANCE: todo el dominio (URBideas + SOCideas comparten este layout raíz).
-// No hay razón técnica en contra: un único layout, sin fuentes por sección,
-// pesos suficientes para jerarquía institucional (600/700) y datos (400/500).
+// latin + latin-ext: la interfaz es en español y puede mostrar topónimos con
+// diacríticos fuera del subconjunto latino básico.
 const poppins = Poppins({
   weight: ["400", "500", "600", "700"],
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
   display: "swap",
   variable: "--font-poppins",
 });
@@ -39,10 +38,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" data-theme="light" className={`h-full antialiased ${poppins.variable}`} suppressHydrationWarning>
-      <body className="min-h-full flex flex-col" style={{ fontFamily: "var(--font-poppins), 'Poppins', system-ui, -apple-system, sans-serif" }}>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+      <body className="min-h-full flex flex-col">
+        <a href="#contenido" className="skip-link">
+          Saltar al contenido
+        </a>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

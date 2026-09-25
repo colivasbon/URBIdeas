@@ -14,6 +14,14 @@ import { ANIO_SUPERFICIE, calcDensity, densityPendingReason } from "@/lib/socide
 import { FlujosMigratoriosBlock, SaldosMigratoriosBlock } from "./MigrationBlocks";
 import { MigracionBlock } from "./IneLayersBlocks";
 import TemporaryDataNotice from "./TemporaryDataNotice";
+import EstructuraPoblacionBlock from "./EstructuraPoblacionBlock";
+import type { MunicipalStructureWithBenchmarks } from "@/lib/socideas-population-runtime";
+import {
+  isEstructuraModo,
+  isEstructuraRefKey,
+  type EstructuraModo,
+  type EstructuraRefKey,
+} from "@/lib/socideas-population-presentation";
 import type { DemographicPresentationData } from "@/lib/socideas-demographic-summary";
 import type { MigrationPresentationData } from "@/lib/socideas-migration-summary";
 import type { MunicipalIneLayersV1 } from "@/lib/socideas-ine-layers";
@@ -44,6 +52,8 @@ interface FiltrosUI {
   comparar: AmbitoTerritorial[];
   pirAnio: number | null;
   pirModo: PirModo;
+  estRef: EstructuraRefKey;
+  estModo: EstructuraModo;
 }
 
 const DEFAULT_COMPARAR: AmbitoTerritorial[] = ["municipio"];
@@ -81,6 +91,8 @@ function filtrosIniciales(sp: URLSearchParams, d: PerfilDemografico["disponibles
     .split(",")
     .map((s) => s.trim())
     .filter((s): s is AmbitoTerritorial => (AMBITOS as string[]).includes(s));
+  const estRefRaw = sp.get("est_ref");
+  const estModoRaw = sp.get("est_modo");
   return {
     anio,
     sexo,
@@ -89,6 +101,8 @@ function filtrosIniciales(sp: URLSearchParams, d: PerfilDemografico["disponibles
     comparar: compararRaw.length > 0 ? compararRaw : [...DEFAULT_COMPARAR],
     pirAnio,
     pirModo,
+    estRef: isEstructuraRefKey(estRefRaw) ? estRefRaw : "espana",
+    estModo: isEstructuraModo(estModoRaw) ? estModoRaw : "perfil",
   };
 }
 
@@ -101,6 +115,8 @@ function aURL(codigoINE: string, f: FiltrosUI, def: FiltrosUI): string {
   if (f.comparar.join(",") !== def.comparar.join(",")) p.set("comparar", f.comparar.join(","));
   if (f.pirAnio !== null) p.set("pir_anio", String(f.pirAnio));
   if (f.pirModo !== "abs") p.set("pir_modo", f.pirModo);
+  if (f.estRef !== def.estRef) p.set("est_ref", f.estRef);
+  if (f.estModo !== def.estModo) p.set("est_modo", f.estModo);
   // Preserva el estado validado del explorador (x_*) sin tocar su semántica.
   if (typeof window !== "undefined") {
     for (const [k, v] of new URLSearchParams(window.location.search)) {
@@ -127,6 +143,7 @@ export default function FichaFiltros({
   ineLayers = null,
   migracion = null,
   temporaryData = null,
+  estructuraPoblacion = null,
 }: {
   codigoINE: string;
   initial: PerfilDemografico;
@@ -135,6 +152,7 @@ export default function FichaFiltros({
   ineLayers?: MunicipalIneLayersV1 | null;
   migracion?: MigrationPresentationData | null;
   temporaryData?: TemporaryMunicipalData | null;
+  estructuraPoblacion?: MunicipalStructureWithBenchmarks | null;
 }) {
   const migracionBalance = buildMigrationBalancePresentation(ineLayers);
   const sp = new URLSearchParams(searchParams);
@@ -146,6 +164,8 @@ export default function FichaFiltros({
     comparar: [...DEFAULT_COMPARAR],
     pirAnio: null,
     pirModo: "abs",
+    estRef: "espana",
+    estModo: "perfil",
   };
   const [filtros, setFiltros] = useState<FiltrosUI>(() => filtrosIniciales(sp, initial.disponibles));
 
@@ -567,6 +587,18 @@ export default function FichaFiltros({
           </p>
         </details>
       </section>
+
+      {/* Bloque 3b: estructura de población 2025 (Censo Anual de Población) */}
+      <EstructuraPoblacionBlock
+        data={estructuraPoblacion}
+        municipioNombre={perfil.municipio.nombre}
+        provinciaNombre={perfil.municipio.provincia}
+        ccaaNombre={perfil.municipio.comunidad_autonoma}
+        refKey={filtros.estRef}
+        modo={filtros.estModo}
+        onRefChange={(key) => set({ estRef: key })}
+        onModoChange={(value) => set({ estModo: value })}
+      />
 
       {/* Bloque 4: densidad (cálculo SOCideas INE + IGN, patrón envejecimiento/dependencia) */}
       {perfil.densidad.valor !== null ? (

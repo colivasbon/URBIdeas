@@ -6,6 +6,7 @@ import { getPerfilEconomico } from '@/lib/socideas-economia'
 import { readDemographicPresentation } from '@/lib/socideas-demographic-summary'
 import { readMigrationPresentation } from '@/lib/socideas-migration-summary'
 import { readMunicipalIneLayers } from '@/lib/socideas-ine-layers'
+import { readMunicipalStructureWithBenchmarks } from '@/lib/socideas-population-runtime'
 import { normalizarMunicipio, toAsciiFilename } from '@/lib/socideas-export'
 import { assembleSocideasBookV2 } from '@/lib/socideas-book-blocks'
 import { XLSX_BRAND, buildSocideasBookXlsx } from '@/lib/socideas-xlsx'
@@ -20,6 +21,7 @@ type ExportStage =
   | 'load_demographic_summary'
   | 'load_migration_summary'
   | 'load_ine_layers'
+  | 'load_population_structure'
   | 'build_project_sheet'
   | 'build_demographic_sheet'
   | 'build_political_sheet'
@@ -130,7 +132,7 @@ export async function GET(
     stage = 'load_base_data'
     logStage(requestId, stage, ineCode, { parallel: true })
     console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', { ineCode, requestId, stage: 'load_base_data', parallel: true })
-    const [demo, eco, demoExtra, migracion, ineLayers] = await Promise.all([
+    const [demo, eco, demoExtra, migracion, ineLayers, populationStructure] = await Promise.all([
       getPerfilDemografico(supabase, codigoINE, {}),
       getPerfilEconomico(supabase, codigoINE),
       readDemographicPresentation(codigoINE).catch((e) => {
@@ -148,6 +150,11 @@ export async function GET(
         logStage(requestId, 'load_ine_layers', ineCode, { ok: false, error: String(e) })
         return null
       }),
+      readMunicipalStructureWithBenchmarks(codigoINE).catch((e) => {
+        console.warn('[SOCIDEAS_XLSX_EXPORT_LAYER_SKIP]', { ineCode, requestId, layer: 'population_structure', errorName: e?.name, errorMessageSafe: String(e?.message).slice(0, 200) })
+        logStage(requestId, 'load_population_structure', ineCode, { ok: false, error: String(e) })
+        return null
+      }),
     ])
     console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', {
       ineCode, requestId, stage: 'load_base_data_done',
@@ -155,6 +162,7 @@ export async function GET(
       hasDemographicPresentation: demoExtra !== null,
       hasMigrationPresentation: migracion !== null,
       hasIneLayers: ineLayers !== null,
+      hasPopulationStructure: populationStructure !== null,
     })
 
     // 4. Validar que el municipio existe
@@ -207,10 +215,10 @@ export async function GET(
       ineLayers: ineLayers ?? null,
       demoExtra,
       migracion,
-      // Estructura anual 2025 (INE 68535/68534): cargada en la capa lateral
-      // `populationStructure` cuando la misión de ingesta la publique en R2.
-      // Hasta entonces el libro usa la pirámide histórica con estado declarado.
-      populationStructure: null,
+      // Estructura anual 2025 (INE 68535/68534) leída de R2 en runtime; incluye
+      // benchmarks territoriales. Si aún no está publicada o no valida, se pasa
+      // `null` y el bloque queda declarado como pendiente (sin romper el libro).
+      populationStructure: populationStructure ?? null,
     })
     const totalBlocks = book.sheets.reduce((a, s) => a + s.bloques.length, 0)
     const bloquesConDatos = book.sheets
@@ -223,6 +231,7 @@ export async function GET(
       coverageGlobal: book.coverage.global,
       indicadores: book.indicadores.length,
       duplicateKeys: book.duplicateKeys.length,
+      hasPopulationStructure: populationStructure !== null,
     })
     stage = 'build_economic_sheet'
     logStage(requestId, stage, ineCode, { ok: true })

@@ -27,6 +27,8 @@ import { buildMunicipalUpdatePreview, readMunicipalIneLayers } from "@/lib/socid
 import type { MunicipalIneLayersV1 } from "@/lib/socideas-ine-layers";
 import { readTemporaryMunicipalData } from "@/lib/socideas-temporary-data";
 import type { TemporaryMunicipalData } from "@/lib/socideas-temporary-data";
+import { readMunicipalStructureWithBenchmarks } from "@/lib/socideas-population-runtime";
+import type { MunicipalStructureWithBenchmarks } from "@/lib/socideas-population-runtime";
 import EmptyState from "@/components/ui/EmptyState";
 import SourcePill from "@/components/ui/SourcePill";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
@@ -160,11 +162,14 @@ export default async function SocideasFicha({
   // y los datos provisionales se leen siempre porque alimentan la vista previa
   // de actualización y la hoja sociocultural.
   const esHojaDemografia = hojaActiva === "demografia";
-  const [demografiaExtra, ineLayers, migracion, temporaryData] = await Promise.all([
+  const [demografiaExtra, ineLayers, migracion, temporaryData, estructuraPoblacion] = await Promise.all([
     esHojaDemografia ? readDemographicPresentation(codigoINE).catch(() => null) : Promise.resolve(null),
     readMunicipalIneLayers(codigoINE).catch(() => null) as Promise<MunicipalIneLayersV1 | null>,
     esHojaDemografia ? readMigrationPresentation(codigoINE).catch(() => null) : Promise.resolve(null),
     readTemporaryMunicipalData(codigoINE).catch(() => null) as Promise<TemporaryMunicipalData | null>,
+    esHojaDemografia
+      ? readMunicipalStructureWithBenchmarks(codigoINE).catch(() => null)
+      : Promise.resolve(null) as Promise<MunicipalStructureWithBenchmarks | null>,
   ]);
   // Vista previa de actualización (sin I/O extra): qué capas hay y su período.
   const capasPreview = buildMunicipalUpdatePreview(
@@ -287,6 +292,7 @@ export default async function SocideasFicha({
                   ineLayers={slimIneLayersForDemografia(ineLayers)}
                   migracion={migracion}
                   temporaryData={temporaryData}
+                  estructuraPoblacion={estructuraPoblacion}
                 />
               ))}
 

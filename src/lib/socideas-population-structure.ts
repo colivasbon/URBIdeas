@@ -687,3 +687,459 @@ export function validatePopulationStructure(
   if (errors.length > 0) return { ok: false, errors }
   return { ok: true, data: v as unknown as PopulationStructureAnnual }
 }
+
+// ============================================================================
+// Estructura territorial 2025 (nacional / CCAA / provincia) — AMPLIACIÓN ADITIVA
+//
+// QUÉ ES
+//   Modelo puro (sin I/O, sin dependencias) de la estructura de población por
+//   sexo y edad de los territorios supra-municipales a partir de la tabla INE
+//   68521 (nacional, comunidades y ciudades autónomas y provincias), con la
+//   misma desagregación quinquenal (21 grupos) y la misma nacionalidad "Total"
+//   que la tabla municipal 68535. Reutiliza los tipos, `parseValueEs`,
+//   `computeStructureIndicators` y `reconcileStructure` del contrato municipal
+//   mediante un adaptador interno: las reglas normativas (ausencia ≠ 0,
+//   tolerancia 0, nada se estima) son idénticas a las municipales.
+//
+//   Esta sección es ADITIVA: NO altera `socideas-population-structure@1` ni la
+//   API municipal ya validada (`PopulationStructureAnnual`).
+// ============================================================================
+
+/** Versión del esquema del dataset territorial. */
+export const POPULATION_STRUCTURE_DATASET_SCHEMA = 'socideas-population-structure-dataset@1'
+/** Versión del esquema del índice de referencias de benchmark. */
+export const POPULATION_BENCHMARK_REFS_SCHEMA = 'socideas-population-benchmark-refs@1'
+
+/** Nivel territorial de la tabla 68521. */
+export type TerritorialLevel = 'nacional' | 'ccaa' | 'provincia'
+/** Estado de validación de un objeto territorial o del dataset. */
+export type TerritorialValidationStatus = 'passed' | 'partial' | 'failed'
+
+/** Procedencia de un objeto territorial (tabla 68521). */
+export interface TerritorialSource {
+  table: '68521'
+  url: string
+  checksum: string
+  retrievedAt: string
+}
+
+/** Calidad de un objeto territorial. */
+export interface TerritorialQuality {
+  /** Estado agregado de total/hombres/mujeres y de las 21 bandas. */
+  valueStatus: StructureValueStatus
+  totalBySexReconciled: boolean
+  totalByAgeReconciled: boolean
+  validationStatus: TerritorialValidationStatus
+}
+
+/** Estructura de población de un territorio (nacional, CCAA o provincia). */
+export interface TerritorialPopulationStructure {
+  /** "ES" para el nivel nacional; código INE de 2 dígitos para CCAA/provincia. */
+  territoryCode: string
+  territoryName: string
+  territoryLevel: TerritorialLevel
+  period: string // "2025"
+  total: number | null
+  male: number | null
+  female: number | null
+  /** 21 grupos quinquenales ("0 a 4 años" ... "100 y más años"). */
+  ageBands: PopulationStructureBand[]
+  derivedIndicators: StructureIndicator[]
+  source: TerritorialSource
+  quality: TerritorialQuality
+}
+
+/** Entrada del manifiesto de fuentes del dataset. */
+export interface PopulationSourceManifestEntry {
+  table: '68521' | '68535'
+  label: string
+  url: string
+  path: string
+  sha256: string
+  bytes: number | null
+  rows: number | null
+}
+
+/** Calidad agregada del dataset territorial. */
+export interface PopulationStructureDatasetQuality {
+  provincesCount: number
+  autonomousCommunitiesCount: number
+  provincesWithCompleteBands: number
+  autonomousCommunitiesWithCompleteBands: number
+  nationalCompleteBands: boolean
+  provincesReconciled: number
+  autonomousCommunitiesReconciled: number
+  nationalReconciled: boolean
+  bandLabelsConsistentWith68535: boolean
+  validationStatus: TerritorialValidationStatus
+}
+
+/** Dataset territorial 2025 (nacional + CCAA + provincias). */
+export interface PopulationStructureDataset {
+  schemaVersion: typeof POPULATION_STRUCTURE_DATASET_SCHEMA
+  period: string
+  retrievedAt: string
+  sourceManifest: PopulationSourceManifestEntry[]
+  provinces: TerritorialPopulationStructure[]
+  autonomousCommunities: TerritorialPopulationStructure[]
+  national: TerritorialPopulationStructure
+  quality: PopulationStructureDatasetQuality
+}
+
+/** Referencias de benchmark de un municipio (códigos INE). */
+export interface PopulationBenchmarkRefs {
+  provincia: string
+  ccaa: string
+  nacional: 'ES'
+}
+
+/** Índice de referencias de benchmark municipal. */
+export interface PopulationBenchmarkRefsIndex {
+  schemaVersion: typeof POPULATION_BENCHMARK_REFS_SCHEMA
+  period: string
+  generatedAt: string
+  refs: Record<string, PopulationBenchmarkRefs>
+}
+
+/** Etiqueta canónica del grupo quinquenal a partir de su clave (0..100). */
+export function canonicalBandLabel(key: number): string {
+  return key === 100 ? '100 y más años' : `${key} a ${key + 4} años`
+}
+
+/** Estado agregado de una serie territorial (totales + 21 bandas). */
+export function territorialValueStatus(t: TerritorialPopulationStructure): StructureValueStatus {
+  const statuses: StructureValueStatus[] = [
+    t.total === null ? 'missing' : 'observed',
+    t.male === null ? 'missing' : 'observed',
+    t.female === null ? 'missing' : 'observed',
+    ...t.ageBands.map((band) => band.status),
+  ]
+  return worstStatus(statuses)
+}
+
+/**
+ * Adaptador territorio → contrato municipal. Permite reutilizar
+ * `reconcileStructure` y `computeStructureIndicators` sin duplicar reglas. Es
+ * interno: el objeto resultante NO se publica ni se valida como municipal.
+ */
+function territorialToAnnual(t: TerritorialPopulationStructure): PopulationStructureAnnual {
+  return {
+    schemaVersion: POPULATION_STRUCTURE_SCHEMA,
+    sourceTable: '68535',
+    sourceUrl: t.source.url,
+    scope: 'municipal_national',
+    period: t.period,
+    retrievedAt: t.source.retrievedAt,
+    ineCode: t.territoryCode,
+    municipalityName: t.territoryName,
+    ageBands5y: t.ageBands,
+    ageDetail: null,
+    totals: { total: t.total, male: t.male, female: t.female },
+    quality: {
+      territoryMatch: 'exact',
+      totalBySexReconciled: false,
+      totalByAgeReconciled: false,
+      groupingReconciled: false,
+      sourceChecksum: t.source.checksum,
+      validationStatus: 'failed',
+      crossCheck68065: null,
+    },
+  }
+}
+
+/** Reconciliaciones del territorio (total=H+M, suma de bandas=total). */
+export function reconcileTerritorialStructure(t: TerritorialPopulationStructure): StructureReconciliation[] {
+  return reconcileStructure(territorialToAnnual(t))
+}
+
+/** Indicadores derivados del territorio (mismos que el contrato municipal). */
+export function computeTerritorialIndicators(t: TerritorialPopulationStructure): StructureIndicator[] {
+  return computeStructureIndicators(territorialToAnnual(t))
+}
+
+const TERRITORIAL_LEVELS: readonly TerritorialLevel[] = ['nacional', 'ccaa', 'provincia']
+const VALIDATION_STATUSES: readonly TerritorialValidationStatus[] = ['passed', 'partial', 'failed']
+
+/**
+ * Valida un objeto territorial. Fail closed: cualquier duda es un error.
+ * Recalcula las reconciliaciones y exige que los flags `quality` coincidan con
+ * el cálculo (tolerancia 0).
+ */
+function validateTerritorialObject(
+  v: unknown,
+  expectedLevel: TerritorialLevel,
+  errors: string[],
+  path: string,
+): void {
+  const before = errors.length
+  if (!isRecord(v)) {
+    errors.push(`${path} no es un objeto`)
+    return
+  }
+  if (!isNonEmptyString(v.territoryCode)) errors.push(`${path}.territoryCode no es texto`)
+  if (!isNonEmptyString(v.territoryName)) errors.push(`${path}.territoryName no es texto`)
+  if (typeof v.territoryLevel !== 'string' || !(TERRITORIAL_LEVELS as readonly string[]).includes(v.territoryLevel)) {
+    errors.push(`${path}.territoryLevel inválido: ${JSON.stringify(v.territoryLevel)}`)
+  } else if (v.territoryLevel !== expectedLevel) {
+    errors.push(`${path}.territoryLevel debe ser ${expectedLevel}; es ${v.territoryLevel}`)
+  }
+  if (v.territoryLevel === 'nacional') {
+    if (v.territoryCode !== 'ES') errors.push(`${path}.territoryCode del nacional debe ser 'ES'`)
+  } else if (typeof v.territoryCode !== 'string' || !/^\d{2}$/.test(v.territoryCode)) {
+    errors.push(`${path}.territoryCode debe ser un código INE de 2 dígitos`)
+  }
+  if (typeof v.period !== 'string' || !/^\d{4}$/.test(v.period)) errors.push(`${path}.period debe ser un año`)
+  if (!isNullableNumber(v.total) || !isNullableNumber(v.male) || !isNullableNumber(v.female)) {
+    errors.push(`${path}.total/male/female deben ser números finitos o null`)
+  }
+  if (!Array.isArray(v.ageBands)) {
+    errors.push(`${path}.ageBands debe ser un array`)
+  } else {
+    const bands = v.ageBands
+    if (bands.length !== QUINQUENIAL_BANDS.length) {
+      errors.push(`${path}.ageBands debe tener ${QUINQUENIAL_BANDS.length} grupos; tiene ${bands.length}`)
+    }
+    const keys: number[] = []
+    bands.forEach((raw, i) => {
+      if (!isRecord(raw)) {
+        errors.push(`${path}.ageBands[${i}] no es un objeto`)
+        return
+      }
+      const key = typeof raw.band === 'string' ? structureBandKey(raw.band) : Number.NaN
+      if (!Number.isFinite(key)) {
+        errors.push(`${path}.ageBands[${i}].band no reconocible: ${JSON.stringify(raw.band)}`)
+      } else {
+        keys.push(key)
+      }
+      if (isNullableNumber(raw.total) && isNullableNumber(raw.male) && isNullableNumber(raw.female)) {
+        const coherence = seriesCoherence(raw.status, [raw.total, raw.male, raw.female])
+        if (coherence !== null) errors.push(`${path}.ageBands[${i}]: ${coherence}`)
+      } else {
+        errors.push(`${path}.ageBands[${i}] tiene valores no numéricos`)
+      }
+    })
+    if (keys.length === bands.length && keys.join(',') !== QUINQUENIAL_KEYS.join(',')) {
+      errors.push(`${path}.ageBands no cubre exactamente las claves 0..100 (paso 5) en orden`)
+    }
+  }
+  if (!Array.isArray(v.derivedIndicators)) {
+    errors.push(`${path}.derivedIndicators debe ser un array`)
+  } else {
+    v.derivedIndicators.forEach((raw, i) => {
+      if (!isRecord(raw)) {
+        errors.push(`${path}.derivedIndicators[${i}] no es un objeto`)
+        return
+      }
+      if (!isNonEmptyString(raw.key)) errors.push(`${path}.derivedIndicators[${i}].key no es texto`)
+      if (!isNonEmptyString(raw.label)) errors.push(`${path}.derivedIndicators[${i}].label no es texto`)
+      if (!isNullableNumber(raw.value)) errors.push(`${path}.derivedIndicators[${i}].value debe ser número o null`)
+      for (const field of ['unit', 'formula', 'method'] as const) {
+        if (typeof raw[field] !== 'string') errors.push(`${path}.derivedIndicators[${i}].${field} debe ser texto`)
+      }
+    })
+  }
+  if (!isRecord(v.source)) {
+    errors.push(`${path}.source no es un objeto`)
+  } else if (
+    v.source.table !== '68521' ||
+    !isNonEmptyString(v.source.url) ||
+    !/^https?:\/\//.test(v.source.url) ||
+    typeof v.source.checksum !== 'string' ||
+    !/^[0-9a-f]{64}$/.test(v.source.checksum) ||
+    typeof v.source.retrievedAt !== 'string' ||
+    Number.isNaN(Date.parse(v.source.retrievedAt))
+  ) {
+    errors.push(`${path}.source inválido (tabla 68521, url http(s), checksum SHA-256 y retrievedAt ISO)`)
+  }
+  if (!isRecord(v.quality)) {
+    errors.push(`${path}.quality no es un objeto`)
+  } else {
+    const q = v.quality
+    if (!isStatus(q.valueStatus)) errors.push(`${path}.quality.valueStatus inválido`)
+    for (const flag of ['totalBySexReconciled', 'totalByAgeReconciled'] as const) {
+      if (typeof q[flag] !== 'boolean') errors.push(`${path}.quality.${flag} debe ser booleano`)
+    }
+    if (typeof q.validationStatus !== 'string' || !(VALIDATION_STATUSES as readonly string[]).includes(q.validationStatus)) {
+      errors.push(`${path}.quality.validationStatus inválido`)
+    }
+  }
+  // Reconciliaciones recalculadas: solo si la estructura es válida hasta aquí.
+  if (errors.length === before) {
+    const annual = territorialToAnnual(v as unknown as TerritorialPopulationStructure)
+    const checks = reconcileStructure(annual)
+    const hardMismatch = checks.some(
+      (check) => check.izquierda !== null && check.derecha !== null && !check.ok,
+    )
+    if (hardMismatch) errors.push(`${path}: reconciliación con tolerancia 0 fallida (${checks.filter((c) => !c.ok).map((c) => c.id).join(', ')})`)
+    const byId = new Map(checks.map((check) => [check.id, check]))
+    const quality = v.quality as Record<string, unknown>
+    const sex = byId.get('totales-sexo')
+    if (sex !== undefined && quality.totalBySexReconciled !== sex.ok) {
+      errors.push(`${path}.quality.totalBySexReconciled (${String(quality.totalBySexReconciled)}) no coincide con el cálculo (${sex.ok})`)
+    }
+    const ages = byId.get('bandas-total')
+    if (ages !== undefined && quality.totalByAgeReconciled !== ages.ok) {
+      errors.push(`${path}.quality.totalByAgeReconciled (${String(quality.totalByAgeReconciled)}) no coincide con el cálculo (${ages.ok})`)
+    }
+  }
+}
+
+/** Valida el dataset territorial completo. Fail closed. */
+export function validatePopulationStructureDataset(
+  v: unknown,
+): { ok: true; data: PopulationStructureDataset } | { ok: false; errors: string[] } {
+  const errors: string[] = []
+  if (!isRecord(v)) return { ok: false, errors: ['La raíz no es un objeto'] }
+
+  if (v.schemaVersion !== POPULATION_STRUCTURE_DATASET_SCHEMA) {
+    errors.push(`schemaVersion inválido: ${JSON.stringify(v.schemaVersion)}`)
+  }
+  if (typeof v.period !== 'string' || !/^\d{4}$/.test(v.period)) {
+    errors.push('period debe ser un año de 4 dígitos')
+  }
+  if (typeof v.retrievedAt !== 'string' || Number.isNaN(Date.parse(v.retrievedAt))) {
+    errors.push('retrievedAt debe ser una fecha ISO válida')
+  }
+  if (!Array.isArray(v.sourceManifest) || v.sourceManifest.length === 0) {
+    errors.push('sourceManifest debe ser un array no vacío')
+  } else {
+    const tables: string[] = []
+    v.sourceManifest.forEach((raw, i) => {
+      if (!isRecord(raw)) {
+        errors.push(`sourceManifest[${i}] no es un objeto`)
+        return
+      }
+      if (raw.table !== '68521' && raw.table !== '68535') errors.push(`sourceManifest[${i}].table inválida`)
+      else tables.push(raw.table)
+      if (!isNonEmptyString(raw.label)) errors.push(`sourceManifest[${i}].label no es texto`)
+      if (!isNonEmptyString(raw.url) || !/^https?:\/\//.test(raw.url)) errors.push(`sourceManifest[${i}].url inválida`)
+      if (!isNonEmptyString(raw.path)) errors.push(`sourceManifest[${i}].path no es texto`)
+      if (typeof raw.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(raw.sha256)) {
+        errors.push(`sourceManifest[${i}].sha256 debe ser SHA-256 en minúsculas`)
+      }
+      if (!isNullableNumber(raw.bytes)) errors.push(`sourceManifest[${i}].bytes debe ser número o null`)
+      if (!isNullableNumber(raw.rows)) errors.push(`sourceManifest[${i}].rows debe ser número o null`)
+    })
+    if (!tables.includes('68521')) errors.push("sourceManifest debe incluir la tabla '68521'")
+  }
+
+  validateTerritorialObject(v.national, 'nacional', errors, 'national')
+
+  const ccaaCodes: string[] = []
+  if (!Array.isArray(v.autonomousCommunities)) {
+    errors.push('autonomousCommunities debe ser un array')
+  } else {
+    v.autonomousCommunities.forEach((raw, i) => {
+      const before = errors.length
+      validateTerritorialObject(raw, 'ccaa', errors, `autonomousCommunities[${i}]`)
+      if (errors.length === before && isRecord(raw) && typeof raw.territoryCode === 'string') {
+        ccaaCodes.push(raw.territoryCode)
+      }
+    })
+  }
+  const provCodes: string[] = []
+  if (!Array.isArray(v.provinces)) {
+    errors.push('provinces debe ser un array')
+  } else {
+    v.provinces.forEach((raw, i) => {
+      const before = errors.length
+      validateTerritorialObject(raw, 'provincia', errors, `provinces[${i}]`)
+      if (errors.length === before && isRecord(raw) && typeof raw.territoryCode === 'string') {
+        provCodes.push(raw.territoryCode)
+      }
+    })
+  }
+  if (new Set(ccaaCodes).size !== ccaaCodes.length) errors.push('autonomousCommunities tiene códigos duplicados')
+  if (new Set(provCodes).size !== provCodes.length) errors.push('provinces tiene códigos duplicados')
+
+  if (!isRecord(v.quality)) {
+    errors.push('quality no es un objeto')
+  } else {
+    const q = v.quality
+    if (q.provincesCount !== provCodes.length) errors.push('quality.provincesCount no coincide con provinces')
+    if (q.autonomousCommunitiesCount !== ccaaCodes.length) {
+      errors.push('quality.autonomousCommunitiesCount no coincide con autonomousCommunities')
+    }
+    for (const [key, max] of [
+      ['provincesWithCompleteBands', provCodes.length],
+      ['autonomousCommunitiesWithCompleteBands', ccaaCodes.length],
+    ] as const) {
+      const value = q[key]
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > max) {
+        errors.push(`quality.${key} debe ser un entero entre 0 y ${max}`)
+      }
+    }
+    for (const flag of ['nationalCompleteBands', 'nationalReconciled', 'bandLabelsConsistentWith68535'] as const) {
+      if (typeof q[flag] !== 'boolean') errors.push(`quality.${flag} debe ser booleano`)
+    }
+    if (typeof q.validationStatus !== 'string' || !(VALIDATION_STATUSES as readonly string[]).includes(q.validationStatus)) {
+      errors.push('quality.validationStatus inválido')
+    }
+  }
+
+  if (errors.length > 0) return { ok: false, errors }
+  return { ok: true, data: v as unknown as PopulationStructureDataset }
+}
+
+/** Valida las referencias de benchmark de un municipio. Fail closed. */
+export function validatePopulationBenchmarkRefs(
+  v: unknown,
+): { ok: true; data: PopulationBenchmarkRefs } | { ok: false; errors: string[] } {
+  const errors: string[] = []
+  if (!isRecord(v)) return { ok: false, errors: ['La raíz no es un objeto'] }
+  if (typeof v.provincia !== 'string' || !/^\d{2}$/.test(v.provincia)) {
+    errors.push('provincia debe ser un código INE de 2 dígitos')
+  }
+  if (typeof v.ccaa !== 'string' || !/^\d{2}$/.test(v.ccaa)) {
+    errors.push('ccaa debe ser un código INE de 2 dígitos')
+  }
+  if (v.nacional !== 'ES') errors.push("nacional debe ser 'ES'")
+  if (errors.length > 0) return { ok: false, errors }
+  return { ok: true, data: v as unknown as PopulationBenchmarkRefs }
+}
+
+// ============================================================================
+// Claves de objeto R2 y validación por objeto — AMPLIACIÓN ADITIVA (runtime)
+//
+// QUÉ ES
+//   El layout canónico de objetos de la estructura de población `v1` en R2 y
+//   un validador de UN SOLO territorio. No altera ningún contrato ya validado:
+//   `validateTerritorialStructure` reutiliza la validación interna del dataset
+//   (`validateTerritorialObject`) sin relajar ni duplicar sus reglas.
+// ============================================================================
+
+/** Prefijo R2 de la estructura de población `v1`. */
+export const POPULATION_STRUCTURE_R2_PREFIX = 'socideas/population-structure/v1'
+
+/** Tag base de Data Cache para la estructura de población publicada. */
+export const POPULATION_STRUCTURE_TAG = 'socideas-population-structure'
+
+/** Nivel de objeto publicado en R2 (municipio + jerarquía territorial). */
+export type PopulationStructureObjectLevel = 'municipio' | 'nacional' | 'ccaa' | 'provincia'
+
+/**
+ * Clave R2 canónica de un objeto de estructura:
+ *   `socideas/population-structure/v1/<nivel>/<código>.json`
+ * (`municipio` usa el INE de 5 dígitos; `nacional` usa `ES`; CCAA/provincia el
+ * código INE de 2 dígitos).
+ */
+export function populationStructureObjectKey(
+  level: PopulationStructureObjectLevel,
+  code: string,
+): string {
+  return `${POPULATION_STRUCTURE_R2_PREFIX}/${level}/${code}.json`
+}
+
+/**
+ * Valida un único objeto territorial (nacional/CCAA/provincia). Fail closed:
+ * mismas reglas que la validación del dataset, aplicadas a un objeto suelto.
+ */
+export function validateTerritorialStructure(
+  v: unknown,
+  expectedLevel: TerritorialLevel,
+): { ok: true; data: TerritorialPopulationStructure } | { ok: false; errors: string[] } {
+  const errors: string[] = []
+  validateTerritorialObject(v, expectedLevel, errors, 'territory')
+  if (errors.length > 0) return { ok: false, errors }
+  return { ok: true, data: v as unknown as TerritorialPopulationStructure }
+}

@@ -1,198 +1,133 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import PlatformHeader, { CORPORATE_URL } from "@/components/platform/PlatformHeader";
+import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
-import MapSheet from "@/components/platform/MapSheet";
+import { CORPORATE_URL } from "@/components/platform/product-nav-config";
+import SocideasSearch from "@/components/socideas/SocideasSearch";
 import Badge from "@/components/ui/Badge";
 
 export const metadata: Metadata = {
-  title: "IDEAS Sostenibilidad | Ideas Medioambientales",
+  title: { absolute: "SOCideas | IDEAS Sostenibilidad" },
   description:
-    "Plataforma del Área de Sostenibilidad de Ideas Medioambientales para el análisis territorial, la consulta municipal y el apoyo técnico a proyectos.",
+    "Beta interna de IDEAS Sostenibilidad para la caracterización sociodemográfica municipal con fuentes oficiales trazables.",
 };
 
-type Entrada = { nombre: string; descripcion: string; href?: string };
-
-const URBIDEAS: Entrada[] = [
-  {
-    nombre: "Mapa y dictamen",
-    href: "/urbideas/mapa",
-    descripcion: "Dibuje un ámbito, cruce sus afecciones y descargue el expediente con el dictamen.",
-  },
-  {
-    nombre: "Municipios",
-    href: "/urbideas/municipios",
-    descripcion: "Planeamiento urbanístico de cualquier municipio de España.",
-  },
-  {
-    nombre: "Legislación",
-    href: "/urbideas/legislacion",
-    descripcion: "Normativa urbanística estatal, autonómica y municipal.",
-  },
-  {
-    nombre: "API",
-    href: "/urbideas/api-docs",
-    descripcion: "Los mismos datos, para consulta programática desde sus herramientas.",
-  },
-];
-
-const SOCIDEAS: Entrada[] = [
+const BLOQUES = [
   {
     nombre: "Demografía",
-    descripcion: "Población, evolución anual y estructura por edad y sexo, con comparativa provincial y autonómica.",
+    descripcion: "Población, evolución anual y estructura por edad y sexo, con comparativa provincial, autonómica y estatal.",
+    fuente: "INE",
   },
   {
     nombre: "Economía",
     descripcion: "Renta de los hogares y por declaración, desigualdad, tejido empresarial y estructura agraria.",
+    fuente: "INE, AEAT",
   },
   {
     nombre: "Secciones censales",
-    descripcion: "Indicadores por sección censal sobre la geometría oficial del INE.",
+    descripcion: "Atlas por sección censal sobre la geometría oficial, solo con indicadores publicados a ese nivel.",
+    fuente: "INE",
   },
   {
     nombre: "Descargas",
-    descripcion: "Tablas de cada bloque con fuente y periodo, listas para anexar a un informe.",
+    descripcion: "Tablas de cada bloque con fuente y periodo, en formato listo para anexar.",
+    fuente: "Todas",
   },
 ];
 
 const FUENTES = [
-  { fuente: "INE, Padrón municipal", aporta: "Población y estructura por edad y sexo", modulo: "SOCideas" },
-  { fuente: "INE, Atlas de Distribución de Renta de los Hogares", aporta: "Renta por persona y hogar, Gini, P80/P20", modulo: "SOCideas" },
-  { fuente: "AEAT, declarantes del IRPF por municipio", aporta: "Renta bruta y disponible por declaración", modulo: "SOCideas" },
-  { fuente: "INE, DIRCE", aporta: "Empresas totales y por sector", modulo: "SOCideas" },
-  { fuente: "INE, Censo Agrario 2020", aporta: "Superficie agraria, explotaciones y cabaña ganadera", modulo: "SOCideas" },
-  { fuente: "Boletines oficiales estatal y autonómicos", aporta: "Normativa urbanística y planeamiento publicado", modulo: "URBideas" },
-  { fuente: "Servicios WMS de las administraciones", aporta: "Capas de afecciones para el cruce de ámbitos", modulo: "URBideas" },
+  { fuente: "INE, Padrón municipal", aporta: "Población y estructura por edad y sexo" },
+  { fuente: "INE, Atlas de Distribución de Renta de los Hogares", aporta: "Renta por persona y hogar, Gini, P80/P20" },
+  { fuente: "AEAT, declarantes del IRPF por municipio", aporta: "Renta bruta y disponible por declaración" },
+  { fuente: "INE, DIRCE", aporta: "Empresas totales y por sector" },
+  { fuente: "INE, Censo Agrario 2020", aporta: "Superficie agraria, explotaciones y cabaña ganadera" },
 ];
 
-function IndiceModulo({ entradas }: { entradas: Entrada[] }) {
-  return (
-    <dl className="module-index mt-6">
-      {entradas.map((e) => (
-        <div key={e.nombre} className="module-index__row">
-          <dt>
-            {e.href ? (
-              <Link href={e.href} className="module-index__name">
-                {e.nombre}
-              </Link>
-            ) : (
-              <span className="module-index__name">{e.nombre}</span>
-            )}
-          </dt>
-          <dd className="module-index__desc">{e.descripcion}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-export default function PlatformHome() {
+export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
-      <PlatformHeader />
+      <SocideasHeader />
 
       <main id="contenido" className="flex-1">
-        {/* Hoja de portada: sin animación de entrada (no penalizar LCP) */}
-        <section className="container-ima pt-6 pb-12 sm:pt-10 sm:pb-16">
-          <MapSheet>
-            <div className="max-w-[44rem]">
-              <p className="type-label text-[var(--moss-ink)]">
-                Área de Sostenibilidad de Ideas Medioambientales
-              </p>
-              <h1 className="type-display mt-4 max-w-[18ch] text-[var(--text-primary)]">
-                Diagnóstico territorial de cualquier municipio de España
-              </h1>
-              <p className="mt-6 max-w-[34rem] text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-secondary)]">
-                Planeamiento, afecciones y normativa en URBideas. Demografía y economía con fuente
-                y año en SOCideas. Cada dato remite a su fuente oficial.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link href="/socideas#buscador" className="btn btn-primary btn-lg">
-                  Buscar un municipio
-                </Link>
-                <Link href="/urbideas/mapa" className="btn btn-secondary btn-lg">
-                  Dibujar un ámbito en el mapa
-                </Link>
-              </div>
-            </div>
-          </MapSheet>
-        </section>
-
-        {/* Contenido por módulo */}
-        <section aria-labelledby="modulos" className="border-t border-[var(--border-subtle)]">
-          <div className="container-ima section-ima">
-            <h2 id="modulos" className="type-h2 max-w-[24ch] text-[var(--text-primary)]">
-              Qué puede consultar
-            </h2>
-            <div className="mt-10 grid gap-12 lg:grid-cols-2 lg:gap-16">
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h3 className="type-h3">
-                    <Link href="/urbideas" className="text-[var(--text-primary)]">
-                      URBideas
-                    </Link>
-                  </h3>
-                  <Badge variant="secondary" dot>
-                    Disponible
-                  </Badge>
-                </div>
-                <p className="mt-2 text-[var(--text-secondary)]">
-                  Análisis territorial, urbanístico y geoespacial.
-                </p>
-                <IndiceModulo entradas={URBIDEAS} />
-              </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h3 className="type-h3">
-                    <Link href="/socideas" className="text-[var(--text-primary)]">
-                      SOCideas
-                    </Link>
-                  </h3>
-                  <Badge variant="muted">Beta interna</Badge>
-                </div>
-                <p className="mt-2 text-[var(--text-secondary)]">
-                  Ficha municipal demográfica y económica. Se abre buscando el municipio.
-                </p>
-                <IndiceModulo entradas={SOCIDEAS} />
-              </div>
-            </div>
-            <p className="mt-12 max-w-[60ch] text-sm text-[var(--text-muted)]">
-              Las asistencias técnicas de sostenibilidad (caracterización territorial, comunicación,
-              participación y seguimiento de proyectos) se incorporarán como tercer módulo.
+        <section className="container-ima home-top" aria-labelledby="titulo-portada">
+          <div className="home-top__rule" aria-hidden="true" />
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="type-label text-[var(--moss-ink)]">SOCideas</p>
+            <Badge variant="muted">Beta interna</Badge>
+          </div>
+          <h1 id="titulo-portada" className="type-display mt-5 max-w-[16ch] text-[var(--text-primary)]">
+            La ficha social y económica de un municipio
+          </h1>
+          <p className="mt-6 max-w-[42ch] text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-secondary)]">
+            Busque el municipio por nombre o código INE. Cada indicador de la ficha indica su
+            fuente oficial y su año.
+          </p>
+          <div id="buscador" className="home-finder mt-10 scroll-mt-24">
+            <h2 className="type-h4 text-[var(--text-primary)]">Buscar un municipio</h2>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+              Por nombre, por código INE o acotando por comunidad y provincia.
             </p>
+            <div className="mt-5">
+              <SocideasSearch />
+            </div>
           </div>
         </section>
 
-        {/* Fuentes */}
-        <section aria-labelledby="fuentes" className="border-t border-[var(--border-subtle)] bg-[var(--bg-surface-sunken)]">
+        <section aria-labelledby="contenido-ficha" className="border-t border-[var(--border-default)] bg-[var(--bg-canvas)]">
           <div className="container-ima section-ima">
-            <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+            <div className="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
+              <div>
+                <h2 id="contenido-ficha" className="type-h2 text-[var(--text-primary)]">
+                  Qué contiene la ficha
+                </h2>
+                <p className="mt-4 max-w-[40ch] text-[var(--text-secondary)]">
+                  Los datos se sincronizan de forma controlada y se guardan con su trazabilidad; no se
+                  consulta a la fuente en cada visita.
+                </p>
+                <p className="mt-6">
+                  <Link href="/socideas/como-funciona" className="link text-sm">
+                    Metodología, fuentes y cobertura
+                  </Link>
+                </p>
+              </div>
+              <div className="home-index">
+                {BLOQUES.map((b) => (
+                  <div key={b.nombre} className="home-index__row">
+                    <div>
+                      <span className="home-index__name">{b.nombre}</span>
+                      <span className="home-index__src">{b.fuente}</span>
+                    </div>
+                    <p className="home-index__desc">{b.descripcion}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="fuentes" className="border-t border-[var(--border-default)] bg-[var(--bg-canvas)]">
+          <div className="container-ima section-ima">
+            <div className="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
               <div>
                 <h2 id="fuentes" className="type-h2 text-[var(--text-primary)]">
                   De dónde salen los datos
                 </h2>
-                <p className="mt-4 max-w-[46ch] text-[var(--text-secondary)]">
-                  Los datos se sincronizan de forma controlada desde fuentes oficiales; la
-                  plataforma no consulta a la fuente en cada visita. Cada cifra conserva su fuente
-                  y su periodo de referencia para citarla en un informe.
+                <p className="mt-4 max-w-[42ch] text-[var(--text-secondary)]">
+                  Cada cifra conserva su fuente y su periodo de referencia para citarla en un informe.
                 </p>
-                <p className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-                  <Link href="/socideas/como-funciona" className="link">
-                    Metodología de SOCideas
-                  </Link>
+                <p className="mt-6 text-sm">
                   <a href={CORPORATE_URL} target="_blank" rel="noopener noreferrer" className="link link-external">
                     Ideas Medioambientales
                   </a>
                 </p>
               </div>
-              <div className="data-table-wrap rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+              <div className="data-table-wrap rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)]">
                 <table className="data-table">
-                  <caption className="sr-only">Fuentes oficiales por módulo</caption>
+                  <caption className="sr-only">Fuentes oficiales de SOCideas</caption>
                   <thead>
                     <tr>
                       <th scope="col">Fuente</th>
                       <th scope="col">Qué aporta</th>
-                      <th scope="col">Módulo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -200,7 +135,6 @@ export default function PlatformHome() {
                       <tr key={f.fuente}>
                         <td className="font-medium">{f.fuente}</td>
                         <td className="meta">{f.aporta}</td>
-                        <td className="meta whitespace-nowrap">{f.modulo}</td>
                       </tr>
                     ))}
                   </tbody>

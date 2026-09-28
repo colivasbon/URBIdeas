@@ -154,7 +154,7 @@ export default function AdminPage() {
         <div className="container-ima pb-16">
           <PageShell
             breadcrumbs={
-              <Breadcrumbs items={[{ label: "IDEAS Sostenibilidad", href: "/" }, { label: "Administración" }]} />
+              <Breadcrumbs items={[{ label: "SOCideas", href: "/" }, { label: "Administración" }]} />
             }
             title="Panel de administración"
             lede="Gestione fuentes geoportales, capas WMS, servicios geoespaciales y fuentes normativas, y supervise el estado del sistema."

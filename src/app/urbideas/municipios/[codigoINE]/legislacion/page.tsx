@@ -102,7 +102,7 @@ export default function LegislacionMunicipioPage({
   const breadcrumbs = (
     <Breadcrumbs
       items={[
-        { label: "IDEAS Sostenibilidad", href: "/" },
+        { label: "SOCideas", href: "/" },
         { label: "URBideas", href: "/urbideas" },
         { label: "Legislación", href: "/urbideas/legislacion" },
         { label: nombreMunicipio || resolvedParams.codigoINE },

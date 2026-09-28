@@ -93,7 +93,7 @@ export default async function UrbideasHome() {
       <main id="contenido" className="flex-1">
         <section className="container-ima pt-6 pb-12 sm:pt-10 sm:pb-16">
           <Breadcrumbs
-            items={[{ label: "IDEAS Sostenibilidad", href: "/" }, { label: "URBideas" }]}
+            items={[{ label: "SOCideas", href: "/" }, { label: "URBideas" }]}
             className="mb-6"
           />
           <MapSheet legend={legend}>

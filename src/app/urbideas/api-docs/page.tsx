@@ -176,7 +176,7 @@ export default function ApiDocsPage() {
             breadcrumbs={
               <Breadcrumbs
                 items={[
-                  { label: "IDEAS Sostenibilidad", href: "/" },
+                  { label: "SOCideas", href: "/" },
                   { label: "URBideas", href: "/urbideas" },
                   { label: "API" },
                 ]}

@@ -47,6 +47,8 @@ export type ProductNavbarConfig = {
   mobileMenuLabel?: string;
   /** Enlace corporativo externo existente (solo plataforma). */
   corporateUrl?: string;
+  /** Enlace de retorno al área principal (SOCideas) desde módulos secundarios. */
+  backLink?: { label: string; href: string };
 };
 
 export const PLATFORM_HOME_ARIA_LABEL = "Ir a la página principal de Ideas Sostenibilidad";
@@ -215,6 +217,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
   return (
     <header
       ref={rootRef}
+      data-product={config.product}
       className={[
         "sticky top-0 z-[100] w-full transition-colors duration-200",
         scrolled
@@ -398,14 +401,14 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
             />
           )}
 
-          {!isPlatform && (
+          {!isPlatform && config.backLink && (
             <>
               <span className="mx-1 h-5 w-px bg-[var(--border-subtle)]" aria-hidden="true" />
               <Link
-                href="/"
+                href={config.backLink.href}
                 className="rounded-[6px] px-2 py-2 text-xs font-semibold text-[var(--text-link)] hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
-                IDEAS Sostenibilidad
+                {config.backLink.label}
               </Link>
             </>
           )}
@@ -479,13 +482,13 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
               </button>
             </div>
             <nav className="flex-1 p-3" aria-label={isPlatform ? "Navegación de la plataforma" : `Navegación del módulo ${config.productLabel}`}>
-              {!isPlatform && (
+              {!isPlatform && config.backLink && (
                 <Link
-                  href="/"
+                  href={config.backLink.href}
                   onClick={closeMobile}
                   className="mb-1 block rounded-[6px] px-4 py-3 text-sm font-semibold text-[var(--text-link)] hover:bg-[var(--musgo-50)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                 >
-                  Volver a IDEAS Sostenibilidad
+                  Volver a {config.backLink.label}
                 </Link>
               )}
               {config.navigation.map((item, index) => {

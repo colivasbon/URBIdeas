@@ -58,7 +58,7 @@ export default async function SeccionesPage({
         <main id="contenido" className="flex flex-1 items-center justify-center px-4">
           <div className="ideas-status max-w-md text-center" data-state="error" role="alert">
             <p className="ideas-status__title">No se encontró el municipio con código INE {codigoINE}.</p>
-            <Link href="/socideas" className="link mt-4 inline-block text-sm font-semibold">
+            <Link href="/" className="link mt-4 inline-block text-sm font-semibold">
               Volver al buscador
             </Link>
           </div>
@@ -77,7 +77,7 @@ export default async function SeccionesPage({
             breadcrumbs={
               <Breadcrumbs
                 items={[
-                  { label: "SOCideas", href: "/socideas" },
+                  { label: "SOCideas", href: "/" },
                   { label: muni.nombre, href: `/socideas/${muni.codigo_ine}` },
                   { label: "Secciones censales" },
                 ]}

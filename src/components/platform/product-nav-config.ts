@@ -3,23 +3,9 @@ import type { ProductNavbarConfig } from "./ProductNavbar";
 export const CORPORATE_URL =
   process.env.NEXT_PUBLIC_CORPORATE_URL ?? "https://ideasmedioambientales.com";
 
+/** La plataforma se presenta con SOCideas como área principal. */
 export function platformNavConfig(): ProductNavbarConfig {
-  return {
-    product: "platform",
-    productLabel: "IDEAS Sostenibilidad",
-    productMark: "I",
-    productHref: "/",
-    tone: "platform",
-    mobileMenuLabel: "Abrir menú",
-    corporateUrl: CORPORATE_URL,
-    navigation: [
-      { id: "inicio", label: "Inicio", href: "/", exact: true },
-      { id: "urbideas", label: "URBideas", href: "/urbideas" },
-      { id: "socideas", label: "SOCideas", href: "/socideas" },
-      // TODO: RE-HABILITAR ASISTENCIAS — nav item deshabilitado temporalmente
-      // { id: "asistencias", label: "Asistencias", href: "/asistencias" },
-    ],
-  };
+  return socideasNavConfig();
 }
 
 export function urbideasNavConfig(): ProductNavbarConfig {
@@ -31,6 +17,7 @@ export function urbideasNavConfig(): ProductNavbarConfig {
     productDescription: "Análisis territorial",
     tone: "urban",
     mobileMenuLabel: "Abrir menú de URBideas",
+    backLink: { label: "SOCideas", href: "/" },
     navigation: [
       { id: "inicio", label: "Inicio", href: "/urbideas", exact: true },
       {
@@ -69,17 +56,17 @@ export function socideasNavConfig(ctx: SocideasContext = {}): ProductNavbarConfi
     product: "socideas",
     productLabel: "SOCideas",
     productMark: "S",
-    productHref: "/socideas",
+    productHref: "/",
     productDescription: "Diagnóstico municipal",
     tone: "social",
     mobileMenuLabel: "Abrir menú de SOCideas",
     navigation: [
-      { id: "inicio", label: "Inicio", href: "/socideas", exact: true },
+      { id: "inicio", label: "Inicio", href: "/", exact: true },
       {
         id: "explorar",
         label: "Explorar",
         items: [
-          { label: "Buscador municipal", href: "/socideas#buscador", description: "Buscar por nombre o código INE" },
+          { label: "Buscador municipal", href: "/#buscador", description: "Buscar por nombre o código INE" },
           ...(ine
             ? [
                 {
@@ -117,6 +104,17 @@ export function socideasNavConfig(ctx: SocideasContext = {}): ProductNavbarConfi
             href: "/socideas/como-funciona#actualizacion-calidad",
             description: "Actualización y controles de calidad",
           },
+        ],
+      },
+      {
+        id: "urbideas",
+        label: "URBideas",
+        items: [
+          { label: "Presentación", href: "/urbideas", description: "Análisis territorial y urbanístico" },
+          { label: "Mapa y dictamen", href: "/urbideas/mapa", description: "Cruce de afecciones sobre un ámbito" },
+          { label: "Municipios", href: "/urbideas/municipios", description: "Planeamiento por municipio" },
+          { label: "Legislación", href: "/urbideas/legislacion", description: "Normativa estatal, autonómica y municipal" },
+          { label: "API", href: "/urbideas/api-docs", description: "Consulta programática" },
         ],
       },
     ],

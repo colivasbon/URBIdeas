@@ -104,7 +104,7 @@ export default function DesignSystemPage() {
       <main id="contenido" className="flex-1">
         <div className="container-ima pb-16">
           <PageShell
-            breadcrumbs={<Breadcrumbs items={[{ label: "IDEAS Sostenibilidad", href: "/" }, { label: "Design system" }]} />}
+            breadcrumbs={<Breadcrumbs items={[{ label: "SOCideas", href: "/" }, { label: "Design system" }]} />}
             title="Design system"
             lede="Dirección técnica y cartográfica: cromo sobrio, filetes y tipografía en lugar de tarjetas con sombra. Página interna, no indexada ni enlazada en la navegación."
             meta={

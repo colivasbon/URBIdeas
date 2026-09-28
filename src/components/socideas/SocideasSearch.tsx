@@ -167,7 +167,7 @@ export default function SocideasSearch() {
             disabled={!ccaaId || !!abriendo}
             className={selectClasses}
           >
-            <option value="">{ccaaId ? "Todas" : "Elija antes una comunidad"}</option>
+            <option value="">{ccaaId ? "Todas" : "Elija comunidad"}</option>
             {provincias.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.nombre}
@@ -186,7 +186,7 @@ export default function SocideasSearch() {
             disabled={!provinciaId || !!abriendo}
             className={selectClasses}
           >
-            <option value="">{provinciaId ? `Elegir entre ${municipios.length}` : "Elija antes una provincia"}</option>
+            <option value="">{provinciaId ? `Elegir entre ${municipios.length}` : "Elija provincia"}</option>
             {municipios.map((m) => (
               <option key={m.codigo_ine} value={m.codigo_ine}>
                 {m.nombre}

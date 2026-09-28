@@ -40,7 +40,7 @@ export default async function DescargasEconomia({
               <EmptyState
                 title="Código INE no válido"
                 description="El código INE municipal tiene cinco dígitos (por ejemplo, 02003). Revise la dirección o busque el municipio por nombre."
-                action={<Link href="/socideas" className="btn btn-secondary btn-sm">Buscar un municipio</Link>}
+                action={<Link href="/" className="btn btn-secondary btn-sm">Buscar un municipio</Link>}
               />
             </div>
           </div>
@@ -61,7 +61,7 @@ export default async function DescargasEconomia({
               <EmptyState
                 title={`No se encontró el municipio con código INE ${codigoINE}`}
                 description="El código no corresponde a ningún municipio del catálogo. Compruebe los cinco dígitos o búsquelo por nombre."
-                action={<Link href="/socideas" className="btn btn-secondary btn-sm">Buscar un municipio</Link>}
+                action={<Link href="/" className="btn btn-secondary btn-sm">Buscar un municipio</Link>}
               />
             </div>
           </div>
@@ -84,8 +84,7 @@ export default async function DescargasEconomia({
             breadcrumbs={
               <Breadcrumbs
                 items={[
-                  { label: "IDEAS Sostenibilidad", href: "/" },
-                  { label: "SOCideas", href: "/socideas" },
+                  { label: "SOCideas", href: "/" },
                   { label: perfil.municipio.nombre, href: `/socideas/${codigoINE}?categoria=economia` },
                   { label: "Descargas de economía" },
                 ]}

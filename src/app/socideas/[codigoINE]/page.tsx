@@ -148,7 +148,7 @@ export default async function SocideasFicha({
                 title={`No se encontró el municipio con código INE ${codigoINE}`}
                 description="El código no corresponde a ningún municipio del catálogo o sus datos no se han podido leer. Compruebe los cinco dígitos del código INE o búsquelo por nombre."
                 action={
-                  <Link href="/socideas" className="btn btn-secondary btn-sm">
+                  <Link href="/" className="btn btn-secondary btn-sm">
                     Buscar un municipio
                   </Link>
                 }
@@ -162,11 +162,6 @@ export default async function SocideasFicha({
   }
 
   const { municipio } = perfil;
-  const mapHref =
-    municipio.centroide_lat !== null && municipio.centroide_lng !== null
-      ? `/urbideas/mapa?lat=${municipio.centroide_lat.toFixed(4)}&lng=${municipio.centroide_lng.toFixed(4)}&zoom=12`
-      : "/urbideas";
-
   // Lectura lateral R2 (solo en la hoja de Demografía): nunca rompe
   // la ficha; ante ausencia o error se omite sin estado visible. Las capas INE
   // y los datos provisionales se leen siempre porque alimentan la vista previa
@@ -231,8 +226,7 @@ export default async function SocideasFicha({
             breadcrumbs={
               <Breadcrumbs
                 items={[
-                  { label: "IDEAS Sostenibilidad", href: "/" },
-                  { label: "SOCideas", href: "/socideas" },
+                  { label: "SOCideas", href: "/" },
                   { label: municipio.nombre },
                 ]}
               />
@@ -275,9 +269,6 @@ export default async function SocideasFicha({
               demoPeriodo={periodoDe(buildDemografiaTables(perfil).map((t) => t.periodo))}
               ecoPeriodo={economia ? periodoDe(buildEconomiaTables(economia).map((t) => t.periodo)) : null}
             >
-              <Link href={mapHref} className="btn btn-ghost">
-                Abrir en URBideas
-              </Link>
               <ActualizacionMenu
                 codigoINE={municipio.codigo_ine}
                 ultimaDemografia={perfil.ultima_sincronizacion}
@@ -304,7 +295,7 @@ export default async function SocideasFicha({
                   title="Preparando datos oficiales"
                   description="Este municipio aún no tiene su perfil demográfico sincronizado. La sincronización la realiza el equipo técnico desde el servidor con fuentes oficiales; ningún dato se muestra sin trazabilidad."
                   action={
-                    <Link href="/socideas" className="btn btn-secondary btn-sm">
+                    <Link href="/" className="btn btn-secondary btn-sm">
                       Buscar otro municipio
                     </Link>
                   }
@@ -315,7 +306,7 @@ export default async function SocideasFicha({
                     title="Sin serie demográfica cargada"
                     description="Este municipio no tiene población en los envelopes R2 de la carga nacional SOCideas. La ausencia se muestra como tal: no se imputa ningún valor ni se convierte en cero."
                     action={
-                      <Link href="/socideas" className="btn btn-secondary btn-sm">
+                      <Link href="/" className="btn btn-secondary btn-sm">
                         Buscar otro municipio
                       </Link>
                     }

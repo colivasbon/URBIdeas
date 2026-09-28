@@ -237,7 +237,7 @@ export default function LegislacionPage() {
             breadcrumbs={
               <Breadcrumbs
                 items={[
-                  { label: "IDEAS Sostenibilidad", href: "/" },
+                  { label: "SOCideas", href: "/" },
                   { label: "URBideas", href: "/urbideas" },
                   { label: "Legislación" },
                 ]}

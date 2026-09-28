@@ -98,6 +98,7 @@
   --retama: #FBE122;
   --hueso: #F1F1F1;
 
+
   /* -------------------------------------------------------------------------
      2. Tipografía
      ------------------------------------------------------------------------- */
@@ -354,7 +355,7 @@
   --text-secondary: #C3CEC6;
   --text-muted: #9AA79E;
   --text-inverse: var(--hueso);
-  --text-link: var(--crisopa);
+  --text-link: var(--hueso);
   --text-link-hover: var(--retama);
   --text-accent-on-dark: var(--retama);
 
@@ -388,7 +389,7 @@
   --focus-ring: 0 0 0 2px var(--bg-canvas), 0 0 0 4px var(--border-focus);
 
   --brand-bg: var(--musgo-900);
-  --moss-ink: var(--crisopa);
+  --moss-ink: var(--hueso);
   --danger-ink: #E3A6A8;
 
   --shadow-1: 0 1px 2px rgba(2, 10, 8, 0.4);
@@ -1098,9 +1099,20 @@ html {
     border-bottom: 1px solid var(--border-subtle);
   }
   .site-footer {
-    background: var(--bg-inverse);
-    color: var(--text-inverse);
+    background: var(--carbon);
+    color: var(--hueso);
+    border-top: 1px solid rgba(241, 241, 241, 0.12);
   }
+  .site-footer__row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  @media (min-width: 900px) {
+    .site-footer__row { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--space-8); }
+  }
+  .site-footer__links { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); font-size: var(--fs-body-sm); }
+  .site-footer__note { font-size: var(--fs-label); line-height: var(--lh-label); color: color-mix(in srgb, var(--hueso) 82%, var(--carbon)); max-width: 62ch; }
   .site-footer a {
     color: var(--text-inverse-secondary);
     text-decoration: none;
@@ -1272,13 +1284,61 @@ html {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
-/* Cabecera de página interior */
-.page-head {
-  padding-block: var(--space-10) var(--space-8);
-  border-bottom: 1px solid var(--border-strong);
-  margin-bottom: var(--space-10);
+/* ---------------------------------------------------------------------------
+   Dirección visual: hoja de trabajo cartográfica.
+   Base Hueso. SOCideas se dibuja sobre una retícula de pantalla completa en
+   Limo (fija tras el contenido); Musgo solo en filetes, vínculos y marcas;
+   Conífera únicamente en la acción principal; Carbón en texto y pie.
+   --------------------------------------------------------------------------- */
+body:has(header[data-product="socideas"]) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cpath d='M120 0H0V120' fill='none' stroke='%23B0BDB0' stroke-opacity='0.55'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M24 0H0V24' fill='none' stroke='%23B0BDB0' stroke-opacity='0.22'/%3E%3C/svg%3E");
+  background-size: 120px 120px, 24px 24px;
+  background-attachment: fixed;
 }
-@media (min-width: 1024px) { .page-head { padding-block: var(--space-16) var(--space-10); } }
+[data-theme="dark"] body:has(header[data-product="socideas"]) {
+  background-image: none;
+}
+
+/* Cabecera de página interior: filete Musgo superior y jerarquía tipográfica */
+.page-head {
+  border-top: 3px solid var(--musgo);
+  padding-block: var(--space-8) var(--space-8);
+  margin-bottom: var(--space-8);
+  border-bottom: 1px solid var(--border-subtle);
+}
+@media (min-width: 1024px) { .page-head { padding-block: var(--space-12) var(--space-10); } }
+
+/* Portada SOCideas */
+.home-top { padding-block: var(--space-12) var(--space-10); }
+@media (min-width: 1024px) { .home-top { padding-block: var(--space-24) var(--space-16); } }
+.home-top__rule { border-top: 3px solid var(--musgo); width: 4.5rem; margin-bottom: var(--space-6); }
+.home-finder {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  padding: var(--space-6);
+  max-width: 46rem;
+}
+.home-index { border-top: 3px solid var(--musgo); counter-reset: idx; }
+.home-index__row {
+  display: grid;
+  gap: var(--space-2) var(--space-6);
+  padding-block: var(--space-6);
+  border-bottom: 1px solid var(--border-default);
+  counter-increment: idx;
+}
+@media (min-width: 720px) { .home-index__row { grid-template-columns: 3rem 13rem minmax(0, 1fr); align-items: baseline; } }
+.home-index__row::before {
+  content: counter(idx, decimal-leading-zero);
+  font-weight: 600;
+  font-size: var(--fs-label);
+  letter-spacing: 0.04em;
+  color: var(--musgo-700);
+  font-variant-numeric: tabular-nums;
+}
+.home-index__name { font-size: var(--fs-h3); font-weight: 700; letter-spacing: var(--tr-h3); color: var(--text-primary); }
+.home-index__src { display: block; margin-top: var(--space-1); font-size: var(--fs-label); font-weight: 500; color: var(--text-muted); }
+.home-index__desc { color: var(--text-secondary); max-width: 54ch; }
 
 /* Portada: índice de contenidos por módulo */
 .module-index { border-top: 1px solid var(--border-strong); }

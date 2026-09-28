@@ -268,8 +268,7 @@ export default function ComoFuncionaSocideas() {
             breadcrumbs={
               <Breadcrumbs
                 items={[
-                  { label: "IDEAS Sostenibilidad", href: "/" },
-                  { label: "SOCideas", href: "/socideas" },
+                  { label: "SOCideas", href: "/" },
                   { label: "Cómo funciona" },
                 ]}
               />
@@ -285,7 +284,7 @@ export default function ComoFuncionaSocideas() {
               </>
             }
             actions={
-              <Link href="/socideas" className="btn btn-primary">
+              <Link href="/" className="btn btn-primary">
                 Consultar un municipio
               </Link>
             }
@@ -651,7 +650,7 @@ export default function ComoFuncionaSocideas() {
                   ))}
                 </div>
                 <div className="mt-12 flex flex-wrap gap-3 border-t border-[var(--border-subtle)] pt-8">
-                  <Link href="/socideas" className="btn btn-primary">
+                  <Link href="/" className="btn btn-primary">
                     Consultar un municipio
                   </Link>
                   <Link href="/" className="btn btn-secondary">

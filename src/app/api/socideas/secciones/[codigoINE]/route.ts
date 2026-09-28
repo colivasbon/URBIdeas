@@ -1,36 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServer } from '@/lib/supabase-server'
+import { descargarSeccionesConFallback } from '@/lib/ine-secciones-geometry'
+import {
+  SECCIONES_ATRIBUCION,
+  SECCIONES_ATLAS_SCHEMA,
+  type GeoJsonFeatureCollection,
+} from '@/lib/socideas-secciones'
+import { leerAtlasParaApi } from '@/lib/socideas-secciones-store'
 
 export const dynamic = 'force-dynamic'
 
-const OGC_BASE = 'https://www.ine.es/geoserver/ogc/features/v1'
-const WFS_BASE = 'https://www.ine.es/geoserver/WMS_INE_SECCIONES_G01/wfs'
-const ATRIBUCION = 'Seccionado cedido por el Instituto Nacional de Estadística'
+/** La geometría del INE es INMUTABLE por colección, así que puede cachearse un
+ *  día. La estadística (atlas) se cachea aparte, en la capa de R2 con
+ *  `unstable_cache`, y solo se sirve el año pedido. */
+const CACHE_GEOMETRIA = 'public, max-age=86400, stale-while-revalidate=604800'
 
-// Colecciones verificadas (más reciente primero). El año de la colección es el
-// año de delimitación que se devuelve y muestra en la UI.
-const COLECCIONES = ['Secciones_2025', 'Secciones_2024'] as const
-
-function trimPrecision(obj: unknown): unknown {
-  if (Array.isArray(obj)) return obj.map(trimPrecision)
-  if (typeof obj === 'number') return Math.round(obj * 100000) / 100000
-  if (obj && typeof obj === 'object') {
-    const out: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) out[k] = trimPrecision(v)
-    return out
-  }
-  return obj
-}
-
-async function fetchTimeout(url: string, ms = 20000): Promise<Response> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), ms)
-  try {
-    return await fetch(url, { signal: controller.signal, headers: { Accept: 'application/geo+json, application/json' } })
-  } finally {
-    clearTimeout(timer)
-  }
-}
+const TOLERANCIA_SIMPLIFICACION = 8
 
 /** Log de rendimiento solo en desarrollo: duración, colección y conteo.
  * Sin tokens, geometrías ni datos personales. */
@@ -41,10 +26,18 @@ function devLogSecciones(msg: string): void {
 }
 
 /** GET /api/socideas/secciones/[codigoINE]: geometría de secciones censales del
- * municipio (proxy servidor; el navegador nunca llama al INE directamente).
- * Solo el municipio solicitado, colección más reciente disponible. */
+ *  municipio más el atlas de indicadores cuando está publicado.
+ *
+ *  Dos caminos, y la UI se comporta bien con los dos:
+ *   1. Atlas publicado en R2 → se sirve desde R2 (rápido y estable) y la
+ *      geometría viene dentro del propio objeto. El navegador nunca llama al
+ *      INE.
+ *   2. Sin atlas → la geometría se pide al INE como proxy (comportamiento
+ *      previo) y la UI muestra un estado vacío honesto, sin coropleta.
+ *
+ *  Nunca se descarga una capa nacional: siempre se filtra por CUMUN. */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ codigoINE: string }> },
 ) {
   const { codigoINE } = await params
@@ -54,6 +47,73 @@ export async function GET(
   const ine = codigoINE.trim()
   const t0 = Date.now()
 
+  // Solo se expande el año pedido: no se envían nueve años que el usuario no
+  // está viendo. Rango validado para no confiar en el parámetro.
+  const anioParam = request.nextUrl.searchParams.get('anio')
+  const anioCrudo = anioParam ? Number.parseInt(anioParam, 10) : null
+  const anio =
+    anioCrudo !== null && Number.isInteger(anioCrudo) && anioCrudo >= 1900 && anioCrudo <= 2100
+      ? anioCrudo
+      : undefined
+  const indicadorPedido = request.nextUrl.searchParams.get('ind') ?? undefined
+
+  // ── 1. Atlas publicado en R2 (camino normal) ──────────────────────────────
+  const atlas = await leerAtlasParaApi(ine, {
+    anio,
+    indicadores: indicadorPedido ? [indicadorPedido] : undefined,
+  }).catch(() => null)
+
+  if (atlas) {
+    const geojson: GeoJsonFeatureCollection = {
+      type: 'FeatureCollection',
+      features: atlas.sections,
+    }
+    devLogSecciones(
+      `ine=${ine} via=R2 secciones=${atlas.sections.length} indicadores=${atlas.indicators.length} ms=${Date.now() - t0}`,
+    )
+    return NextResponse.json(
+      {
+        data: {
+          codigo_ine: ine,
+          anio_delimitacion: atlas.geometryYear,
+          fuente: atlas.geometrySource || SECCIONES_ATRIBUCION,
+          n_secciones: atlas.sections.length,
+          geojson,
+          atlas: {
+            schemaVersion: SECCIONES_ATLAS_SCHEMA,
+            municipalityIne: atlas.municipalityIne,
+            municipalityName: atlas.municipalityName,
+            provinceName: atlas.provinceName,
+            geometryYear: atlas.geometryYear,
+            geometryCollection: atlas.geometryCollection,
+            geometrySource: atlas.geometrySource,
+            geometryCrs: atlas.geometryCrs,
+            geometryRetrievedAt: atlas.geometryRetrievedAt,
+            statsRetrievedAt: atlas.statsRetrievedAt,
+            generatedAt: atlas.generatedAt,
+            indicators: atlas.indicators,
+            cobertura: atlas.cobertura,
+            observations: atlas.observations,
+            municipalReference: atlas.municipalReference,
+            quality: atlas.quality,
+            sourceChecksums: atlas.sourceChecksums,
+            schemaChecksum: atlas.schemaChecksum,
+            // `sections` se incluye para que el bloque sea AUTOCONTENIDO y
+            // validable tal cual con `validarSeccionesAtlas`: sin él, la
+            // comprobación del contrato fallaría por un campo que la API sí
+            // sirve, en `data.geojson`. Es la misma geometría, no una copia
+            // distinta: evita que mapa y validación puedan divergir.
+            sections: atlas.sections,
+          },
+        },
+        error: null,
+        count: atlas.sections.length,
+      },
+      { headers: { 'Cache-Control': CACHE_GEOMETRIA } },
+    )
+  }
+
+  // ── 2. Fallback: geometría bajo demanda desde el INE (sin estadística) ────
   try {
     const supabase = createSupabaseServer()
     const { data: muni } = await supabase
@@ -62,74 +122,44 @@ export async function GET(
       .eq('codigo_ine', ine)
       .single()
     if (!muni) {
-      return NextResponse.json({ data: null, error: 'Municipio no encontrado', count: 0 }, { status: 404 })
+      return NextResponse.json(
+        { data: null, error: 'Municipio no encontrado', count: 0 },
+        { status: 404 },
+      )
     }
 
-    let lastError = 'sin respuesta del INE'
-    for (const coleccion of COLECCIONES) {
-      const collectionId = `WMS_INE_SECCIONES_G01:${coleccion}`
-      // 1. OGC API Features con filtro CQL por municipio.
-      try {
-        const url =
-          `${OGC_BASE}/collections/${encodeURIComponent(collectionId)}/items` +
-          `?f=json&limit=1000&filter-lang=cql-text&filter=${encodeURIComponent(`CUMUN='${ine}'`)}`
-        const res = await fetchTimeout(url)
-        if (res.ok) {
-          const geo = (await res.json()) as { features?: unknown[] }
-          if (Array.isArray(geo.features)) {
-            devLogSecciones(`ine=${ine} via=OGC coleccion=${coleccion} n=${geo.features.length} ms=${Date.now() - t0}`)
-            return NextResponse.json({
-              data: {
-                codigo_ine: ine,
-                anio_delimitacion: parseInt(coleccion.replace('Secciones_', ''), 10),
-                fuente: ATRIBUCION,
-                n_secciones: geo.features.length,
-                geojson: trimPrecision({ type: 'FeatureCollection', features: geo.features }),
-              },
-              error: null,
-              count: geo.features.length,
-            })
-          }
-        } else {
-          lastError = `OGC ${coleccion}: HTTP ${res.status}`
-        }
-      } catch {
-        lastError = `OGC ${coleccion}: fallo de red`
-      }
-      // 2. WFS clásico con CQL_FILTER (fallback).
-      try {
-        const wfs =
-          `${WFS_BASE}?service=WFS&version=2.0.0&request=GetFeature` +
-          `&typeName=${encodeURIComponent(collectionId)}&outputFormat=application%2Fjson` +
-          `&CQL_FILTER=${encodeURIComponent(`CUMUN='${ine}'`)}`
-        const res = await fetchTimeout(wfs)
-        if (res.ok) {
-          const geo = (await res.json()) as { features?: unknown[] }
-          if (Array.isArray(geo.features)) {
-            devLogSecciones(`ine=${ine} via=WFS coleccion=${coleccion} n=${geo.features.length} ms=${Date.now() - t0}`)
-            return NextResponse.json({
-              data: {
-                codigo_ine: ine,
-                anio_delimitacion: parseInt(coleccion.replace('Secciones_', ''), 10),
-                fuente: ATRIBUCION,
-                n_secciones: geo.features.length,
-                geojson: trimPrecision({ type: 'FeatureCollection', features: geo.features }),
-              },
-              error: null,
-              count: geo.features.length,
-            })
-          }
-        } else {
-          lastError = `WFS ${coleccion}: HTTP ${res.status}`
-        }
-      } catch {
-        lastError = `WFS ${coleccion}: fallo de red`
-      }
-    }
-    devLogSecciones(`ine=${ine} fallo (${lastError}) ms=${Date.now() - t0}`)
-    return NextResponse.json({ data: null, error: `Secciones no disponibles (${lastError})`, count: 0 }, { status: 502 })
+    const geo = await descargarSeccionesConFallback(ine, {
+      toleranciaMetros: TOLERANCIA_SIMPLIFICACION,
+    })
+    devLogSecciones(
+      `ine=${ine} via=INE coleccion=${geo.collection} n=${geo.features.length} ` +
+        `agregados=${geo.agregadosDistrito.length} paginas=${geo.paginas} ms=${Date.now() - t0}`,
+    )
+
+    return NextResponse.json(
+      {
+        data: {
+          codigo_ine: ine,
+          anio_delimitacion: geo.geometryYear,
+          fuente: SECCIONES_ATRIBUCION,
+          n_secciones: geo.features.length,
+          geojson: { type: 'FeatureCollection', features: geo.features } as GeoJsonFeatureCollection,
+          // `atlas: null` es explícito: la UI muestra un estado vacío útil,
+          // nunca una coropleta inventada ni valores(DB) atribuidos a secciones.
+          atlas: null,
+          avisos: [
+            `Geometría oficial de ${geo.collection}. Este municipio todavía no tiene indicadores por sección cargados.`,
+            `Se excluyeron ${geo.agregadosDistrito.length} polígonos agregados de distrito: no son secciones.`,
+          ],
+        },
+        error: null,
+        count: geo.features.length,
+      },
+      { headers: { 'Cache-Control': CACHE_GEOMETRIA } },
+    )
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Error interno del servidor'
-    return NextResponse.json({ data: null, error: message, count: 0 }, { status: 500 })
+    const mensaje = error instanceof Error ? error.message : 'Error interno del servidor'
+    devLogSecciones(`ine=${ine} fallo (${mensaje}) ms=${Date.now() - t0}`)
+    return NextResponse.json({ data: null, error: mensaje, count: 0 }, { status: 502 })
   }
 }

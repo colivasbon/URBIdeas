@@ -1046,6 +1046,24 @@
 .leaflet-control-zoom a:hover { background: var(--musgo-50) !important; }
 [data-theme="dark"] .leaflet-control-zoom a:hover { background: var(--color-input-bg-hover) !important; }
 
+/* Atlas de secciones censales: zoom táctil ≥ 44 px (WCAG 2.2 AA, 2.5.8).
+   Acotado a `.socideas-atlas-map` para no alterar el visor de URBideas, que
+   comparte los estilos globales de Leaflet. */
+.socideas-atlas-map .leaflet-control-zoom a {
+  width: 44px !important;
+  height: 44px !important;
+  line-height: 44px !important;
+  font-size: 20px !important;
+}
+.socideas-atlas-map .leaflet-control-attribution {
+  font-size: 10px !important;
+}
+.socideas-atlas-map .leaflet-control-attribution a {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+}
+
 .leaflet-control-layers {
   background: var(--bg-surface) !important;
   border: 1px solid var(--border-subtle) !important;

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
-import SeccionesMap from "@/components/socideas/SeccionesMap";
+import SeccionesAtlas from "@/components/socideas/SeccionesAtlas";
 import SectionEyebrow from "@/components/ui/SectionEyebrow";
 
 export const dynamic = "force-dynamic";
@@ -90,13 +90,15 @@ export default async function SeccionesPage({
               {muni.nombre} · {muni.provincia.nombre} · {muni.provincia.comunidad_autonoma.nombre} · Código INE {muni.codigo_ine}
             </p>
             <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[var(--color-text-muted)]">
-              Las secciones censales son divisiones estadísticas internas del municipio. Los datos
-              específicos por sección solo se incorporan cuando existe una fuente oficial que los publica
-              con ese nivel territorial.
+              Las secciones censales son divisiones estadísticas internas del municipio. Los
+              indicadores que se muestran proceden del Atlas de Distribución de Renta de los
+              Hogares del INE, que los difunde para esta sección censal concreta. Cada valor lleva
+              su año de referencia y su estado de difusión: cuando el INE no difunde una celda
+              aparece como ND y nunca como cero.
             </p>
           </section>
 
-          <SeccionesMap codigoINE={muni.codigo_ine} nombre={muni.nombre} />
+          <SeccionesAtlas codigoINE={muni.codigo_ine} nombre={muni.nombre} />
         </div>
       </main>
       <PlatformFooter />

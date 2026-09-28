@@ -55,3 +55,11 @@ tmp/
 # Agent skills (instaladas via npx skills add, no versionar)
 .agents/skills/
 .opencode/skills/
+
+# belt CLI: caché local de historial y avisos (no es fuente del proyecto)
+.belt/
+
+# Playwright: capturas y trazas de ejecución (artefactos de QA, no fuentes)
+/test-results/
+/playwright-report/
+/blob-report/

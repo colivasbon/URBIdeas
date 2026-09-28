@@ -841,8 +841,13 @@ function dibujarSecciones(
     seleccion: string | null;
   },
 ): void {
-  const zoom = mapa.getZoom();
-  const aPx = (lonlat: [number, number]): Leaflet.Point => mapa.project([lonlat[1], lonlat[0]], zoom);
+  // Coordenadas RELATIVAS AL CONTENEDOR, igual que las teselas (que se colocan
+  // con `getBoundingClientRect`). `map.project()` devuelve píxeles ABSOLUTOS del
+  // mundo en ese zoom, así que las secciones caían fuera del lienzo y el PNG
+  // salía solo con el mapa base. `latLngToContainerPoint` sí comparte sistema
+  // con el volcado de teselas.
+  const aPx = (lonlat: [number, number]): Leaflet.Point =>
+    mapa.latLngToContainerPoint([lonlat[1], lonlat[0]]);
   const trama = patronTramaSinDato(ctx, COLOR_SIN_DATO, COLOR_CONTORNO_SIN_DATO, 8);
   const opacidad = Math.max(0.08, Math.min(1, opciones.opacidad));
   const t = {

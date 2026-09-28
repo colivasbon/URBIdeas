@@ -367,7 +367,11 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
           coberturaPct: vista_.coberturaPct,
           escala: escalaPng,
           baseOmitida: captura.baseOmitida,
-          avisos: vista_.avisos,
+          // El PNG es un documento: solo lleva el desfase temporal, que afecta a
+          // la lectura del dato. Los avisos internos de ingestión se omiten aquí
+          // (siguen en la ficha y en el XLSX) para no convertir el pie en un
+          // volcado técnico.
+          avisos: vista_.avisos.filter((a) => /desfase temporal/i.test(a)),
         });
         const blob = await blobDeLienzo(enlazado);
         if (!blob) throw new Error("El navegador no ha podido generar el archivo PNG.");
@@ -895,10 +899,14 @@ function construirVista(
       `Desfase temporal declarado por la fuente: la geometría es de ${atlas.geometryYear} y el dato es de ${anio}. No son contemporáneos.`,
     );
   }
-  for (const nota of (atlas.quality?.notas ?? []).slice(0, 4)) avisos.push(nota);
+  // Los avisos internos de ingestión (tolerancia de simplificación, páginas
+  // descargadas, filas del CSV, polígonos excluidos) NO se muestran como
+  // leyenda: son diagnóstico técnico y saturaban la vista. La trazabilidad
+  // completa sigue en `quality` y en el XLSX. Solo se declara si la validación
+  // de calidad viene en estado «failed».
   if (atlas.quality?.status === "failed") {
     avisos.push(
-      "La validación de calidad de esta fuente está en estado «failed»: sus avisos se transmiten aquí sin filtrar.",
+      "La validación de calidad de esta fuente está en estado «failed»: revise la trazabilidad antes de usar el dato.",
     );
   }
 

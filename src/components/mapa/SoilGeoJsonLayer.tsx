@@ -1,7 +1,12 @@
 "use client"
 import { useEffect, useRef } from 'react'
 import { useMap } from 'react-leaflet'
-import L from 'leaflet'
+// `import type` se borra al compilar: Leaflet toca `window` en cuanto se evalúa
+// el módulo, y este fichero también lo importa `FileLayerPanel` para leer
+// CLASES_SUELO. Traer Leaflet al grafo de SSR rompía el prerender de
+// /urbideas/mapa. El valor se carga de forma perezosa dentro del efecto, que
+// solo corre en el cliente.
+import type * as Leaflet from 'leaflet'
 
 /**
  * Clases de suelo → paleta corporativa. Leaflet pinta en SVG con atributos de
@@ -29,35 +34,45 @@ interface SoilGeoJsonLayerProps {
 
 export function SoilGeoJsonLayer({ geojson }: SoilGeoJsonLayerProps) {
   const map = useMap()
-  const layerRef = useRef<L.GeoJSON | null>(null)
+  const layerRef = useRef<Leaflet.GeoJSON | null>(null)
 
   useEffect(() => {
-    if (layerRef.current) {
-      map.removeLayer(layerRef.current)
-      layerRef.current = null
+    let cancelado = false
+
+    const limpiar = () => {
+      if (layerRef.current) {
+        map.removeLayer(layerRef.current)
+        layerRef.current = null
+      }
     }
 
-    if (!geojson || geojson.features.length === 0) return
+    limpiar()
+    if (!geojson || geojson.features.length === 0) return limpiar
 
-    const geoJsonLayer = L.geoJSON(geojson, {
-      style: (feature) => {
-        const clase = feature?.properties?.ClaseSuelo || ''
-        const color = COLOR_POR_CLASE[clase] || COLOR_SIN_CLASE
-        return {
-          color: TRAZO,
-          weight: 0.5,
-          opacity: 0.5,
-          fillColor: color,
-          fillOpacity: 0.5,
-        }
-      },
-      onEachFeature: (feature, leafletLayer) => {
-        const props = feature.properties || {}
-        const clase = props.ClaseSuelo || ''
-        const color = COLOR_POR_CLASE[clase] || COLOR_SIN_CLASE
-        const label = LABEL_POR_CLASE[clase] || clase || 'Sin clasificar'
+    void (async () => {
+      const mod = (await import('leaflet')) as unknown as typeof Leaflet & { default?: typeof Leaflet }
+      if (cancelado) return
+      const L = mod.default ?? mod
 
-        const popupContent = `
+      const geoJsonLayer = L.geoJSON(geojson, {
+        style: (feature) => {
+          const clase = feature?.properties?.ClaseSuelo || ''
+          const color = COLOR_POR_CLASE[clase] || COLOR_SIN_CLASE
+          return {
+            color: TRAZO,
+            weight: 0.5,
+            opacity: 0.5,
+            fillColor: color,
+            fillOpacity: 0.5,
+          }
+        },
+        onEachFeature: (feature, leafletLayer) => {
+          const props = feature.properties || {}
+          const clase = props.ClaseSuelo || ''
+          const color = COLOR_POR_CLASE[clase] || COLOR_SIN_CLASE
+          const label = LABEL_POR_CLASE[clase] || clase || 'Sin clasificar'
+
+          const popupContent = `
           <div style="font-family:var(--font-family);min-width:180px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
               <span style="width:12px;height:12px;flex:none;background:${color};border:1px solid ${TRAZO}"></span>
@@ -69,18 +84,18 @@ export function SoilGeoJsonLayer({ geojson }: SoilGeoJsonLayerProps) {
             </table>
           </div>
         `
-        leafletLayer.bindPopup(popupContent, { maxWidth: 300, className: 'urbideas-popup' })
-      },
-    })
+          leafletLayer.bindPopup(popupContent, { maxWidth: 300, className: 'urbideas-popup' })
+        },
+      })
 
-    geoJsonLayer.addTo(map)
-    layerRef.current = geoJsonLayer
+      if (cancelado) return
+      geoJsonLayer.addTo(map)
+      layerRef.current = geoJsonLayer
+    })()
 
     return () => {
-      if (layerRef.current) {
-        map.removeLayer(layerRef.current)
-        layerRef.current = null
-      }
+      cancelado = true
+      limpiar()
     }
   }, [map, geojson])
 

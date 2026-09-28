@@ -239,7 +239,7 @@ export default function FichaFiltros({
     `Población: ${perfil.total?.anio_referencia ?? "—"} · Pirámide: ${perfil.piramide.anio ?? "—"}`,
   ];
   if (perfil.piramide.anio !== null && refAnio !== null && perfil.piramide.anio !== refAnio) {
-    vista.push(`Aviso: la pirámide (${perfil.piramide.anio}) y la población total (${refAnio}) son de operaciones distintas, no contemporáneas.`);
+    vista.push(`Aviso: la estructura de la población (Censo Anual ${perfil.piramide.anio}) y la población actual (Padrón ${refAnio}) son operaciones distintas del INE con universos y fechas de referencia diferentes.`);
   }
   for (const a of filtros.comparar) {
     const r = d.ambitos[a];
@@ -264,7 +264,7 @@ export default function FichaFiltros({
     { titulo: "Fuente provisional", estado: "provisional", detalle: "No hay fuente provisional configurada para demografía. Se conserva el último dato consolidado." },
   ];
   if (perfil.piramide.anio !== null && refAnio !== null && perfil.piramide.anio !== refAnio) {
-    coberturaDemografia.push({ titulo: "Periodos con rezago", estado: "partial", detalle: `La pirámide (${perfil.piramide.anio}) y la población total (${refAnio}) son de operaciones distintas, no contemporáneas.` });
+    coberturaDemografia.push({ titulo: "Operaciones distintas", estado: "partial", detalle: `La estructura de la población (Censo Anual ${perfil.piramide.anio}) y la población actual (Padrón ${refAnio}) son operaciones distintas del INE con universos y fechas de referencia diferentes.` });
   }
 
   // (Sin bloque "Explorar datos" separado: los controles viven integrados en

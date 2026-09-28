@@ -54,6 +54,11 @@ export interface FilaAtlas {
   color: string;
   colorContorno: string;
   esSinDato: boolean;
+  /** `true` cuando NO hay ningún indicador que pintar (municipio sin cargar,
+   *  sin indicador seleccionado o sin periodo): el polígono se dibuja SOLO con
+   *  su contorno, sin relleno ni trama. Es distinto de ND: ND es ausencia
+   *  acreditada de valor para un indicador concreto y SÍ lleva trama. */
+  sinRelleno: boolean;
   esAgregadoDistrito: boolean;
   /** Por qué no hay dato, cuando el motivo no es el propio estado de la fuente
    *  (por ejemplo: el municipio no tiene indicadores publicados por sección). */
@@ -332,6 +337,19 @@ export default function SeccionesAtlasMap({
     if (!fila) {
       return { color: COLOR_CONTORNO_SIN_DATO, weight: 1, fillColor: COLOR_SIN_DATO, fillOpacity: 0.35 * p.opacidad };
     }
+    // Sin indicador cargado: plano de contornos, sin relleno ni trama. No se
+    // disfraza de ND porque no hay ND: no hay nada que representar.
+    if (fila.sinRelleno) {
+      const peso = key === seleccionRef.current ? 3 : 1;
+      return {
+        color: fila.colorContorno,
+        weight: peso,
+        opacity: 1,
+        fillColor: "transparent",
+        fillOpacity: 0,
+        lineJoin: "round",
+      };
+    }
     const peso = key === seleccionRef.current ? 3 : p.mostrarBordes ? 1 : 0;
     return {
       color: fila.colorContorno,
@@ -437,7 +455,7 @@ export default function SeccionesAtlasMap({
         style: (feat) => {
           const key = String((feat as { properties?: { CUSEC?: string } })?.properties?.CUSEC ?? "");
           const fila = porClaveRef.current.get(key);
-          if (!fila || !fila.esSinDato) return { opacity: 0, fillOpacity: 0, stroke: false, color: "transparent", fillColor: "transparent" };
+          if (!fila || !fila.esSinDato || fila.sinRelleno) return { opacity: 0, fillOpacity: 0, stroke: false, color: "transparent", fillColor: "transparent" };
           return {
             color: "transparent",
             weight: 0,
@@ -835,27 +853,39 @@ function dibujarSecciones(
 
   for (const f of features) {
     const fila = porClave.get(f.key);
+    const plano = Boolean(fila?.sinRelleno);
     const { anillos, tipo } = anillosDeGeometria(f.geometry);
     if (anillos.length && (tipo === "Polygon" || tipo === "MultiPolygon")) {
       // `evenodd` para que los anillos internos (agujeros) no se rellenen.
-      ctx.save();
-      ctx.globalAlpha = opacidad;
-      ctx.beginPath();
-      for (const anillo of anillos) {
-        trazarAnillo(ctx, anillo, aPx);
-      }
-      ctx.fillStyle = fila?.color ?? COLOR_SIN_DATO;
-      ctx.fill("evenodd");
-      if (fila?.esSinDato) {
-        ctx.fillStyle = trama;
+      // En modo plano (sin indicador cargado) no se rellena ni se traman los
+      // polígonos: solo contorno, para que el callejero y los límites se lean.
+      if (!plano) {
+        ctx.save();
+        ctx.globalAlpha = opacidad;
+        ctx.beginPath();
+        for (const anillo of anillos) {
+          trazarAnillo(ctx, anillo, aPx);
+        }
+        ctx.fillStyle = fila?.color ?? COLOR_SIN_DATO;
         ctx.fill("evenodd");
+        if (fila?.esSinDato) {
+          ctx.fillStyle = trama;
+          ctx.fill("evenodd");
+        }
+        ctx.restore();
       }
-      ctx.restore();
-      if (opciones.mostrarBordes || (opciones.seleccion && f.key === opciones.seleccion)) {
+      if (!plano && (opciones.mostrarBordes || (opciones.seleccion && f.key === opciones.seleccion))) {
         ctx.beginPath();
         for (const anillo of anillos) trazarAnillo(ctx, anillo, aPx);
         ctx.strokeStyle = f.key === opciones.seleccion ? t.texto : (fila?.colorContorno ?? COLOR_CONTORNO_SIN_DATO);
         ctx.lineWidth = f.key === opciones.seleccion ? 2.5 : 0.8;
+        ctx.lineJoin = "round";
+        ctx.stroke();
+      } else if (plano) {
+        ctx.beginPath();
+        for (const anillo of anillos) trazarAnillo(ctx, anillo, aPx);
+        ctx.strokeStyle = f.key === opciones.seleccion ? t.texto : (fila?.colorContorno ?? COLOR_CONTORNO_SIN_DATO);
+        ctx.lineWidth = f.key === opciones.seleccion ? 2.5 : 1;
         ctx.lineJoin = "round";
         ctx.stroke();
       }

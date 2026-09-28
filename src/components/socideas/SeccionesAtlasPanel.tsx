@@ -42,6 +42,11 @@ export interface SeccionesAtlasPanelProps {
   presentacion: PresentacionAtlas;
   /** `true` si no hay ningún indicador con dato para este municipio. */
   sinIndicadores: boolean;
+  /** `true` si NO hay valores observados que colorear (sin atlas, sin indicador,
+   *  sin periodo o todo ND). Desactiva clasificación, paleta y opacidad —no son
+   *  herramientas operativas sobre un mapa vacío— y convierte la exportación en
+   *  un «plano de secciones» en vez de una coropleta. */
+  plano: boolean;
   avisoCortes: string | null;
   exporting: boolean;
   exportError: string | null;
@@ -53,6 +58,8 @@ export interface SeccionesAtlasPanelProps {
   onPresentacion: (patch: Partial<PresentacionAtlas>) => void;
   onRestablecer: () => void;
   onExportarPng: () => void;
+  /** Descarga del PLANO de secciones (solo contornos) cuando no hay coropleta. */
+  onExportarPlano: () => void;
   /** URL de la descarga de DATOS seccionales (XLSX). `null` si el municipio no
    *  tiene atlas publicado. El PNG es una imagen; este fichero es la tabla. */
   urlXlsx?: string | null;
@@ -68,6 +75,7 @@ export default function SeccionesAtlasPanel({
   clases,
   presentacion,
   sinIndicadores,
+  plano,
   avisoCortes,
   exporting,
   exportError,
@@ -79,9 +87,14 @@ export default function SeccionesAtlasPanel({
   onPresentacion,
   onRestablecer,
   onExportarPng,
+  onExportarPlano,
   urlXlsx,
 }: SeccionesAtlasPanelProps) {
   const opciones = periodos.length > 0;
+  // Clasificación, clases, paleta y opacidad solo tienen sentido con valores
+  // observados. Sin ellos se ocultan como herramientas, en vez de dejarlas
+  // manipulando una escala que no existe.
+  const sinClasificar = sinIndicadores || plano;
   return (
     <div className="flex flex-col gap-5">
       <fieldset disabled={sinIndicadores} className="flex flex-col gap-2">
@@ -133,7 +146,7 @@ export default function SeccionesAtlasPanel({
         </p>
       </fieldset>
 
-      <fieldset disabled={sinIndicadores} className="flex flex-col gap-2">
+      <fieldset disabled={sinClasificar} className="flex flex-col gap-2">
         <legend className="text-sm font-bold text-[var(--color-text-primary)]">Clasificación</legend>
         <div role="radiogroup" aria-label="Método de clasificación" className="flex flex-col gap-2">
           {MODOS.map((m) => (
@@ -162,14 +175,14 @@ export default function SeccionesAtlasPanel({
         </div>
         <CortesManuales
           activo={modo === "cortes_manuales"}
-          disabled={sinIndicadores}
+          disabled={sinClasificar}
           cortes={presentacion.cortesManuales}
           aviso={avisoCortes}
           onChange={(cortes) => onPresentacion({ cortesManuales: cortes })}
         />
       </fieldset>
 
-      <fieldset disabled={sinIndicadores} className="flex flex-col gap-2">
+      <fieldset disabled={sinClasificar} className="flex flex-col gap-2">
         <legend className="text-sm font-bold text-[var(--color-text-primary)]">Número de clases</legend>
         <div role="radiogroup" aria-label="Número de clases" className="flex flex-wrap gap-2">
           {CLASES.map((n) => (
@@ -202,7 +215,7 @@ export default function SeccionesAtlasPanel({
       <fieldset className="flex flex-col gap-3">
         <legend className="text-sm font-bold text-[var(--color-text-primary)]">Presentación</legend>
 
-        <fieldset>
+        <fieldset disabled={sinClasificar}>
           <legend className={ETIQUETA}>Paleta</legend>
           <div role="radiogroup" aria-label="Paleta de color" className="flex flex-col gap-2">
             <OpcionInterruptor
@@ -254,6 +267,7 @@ export default function SeccionesAtlasPanel({
             min={20}
             max={100}
             step={5}
+            disabled={sinClasificar}
             value={Math.round(presentacion.opacidad * 100)}
             onChange={(e) => onPresentacion({ opacidad: Number(e.target.value) / 100 })}
             className="w-full accent-[var(--color-secondary)]"
@@ -282,9 +296,25 @@ export default function SeccionesAtlasPanel({
       </fieldset>
 
       <div className="flex flex-col gap-2 border-t border-[var(--color-border-subtle)] pt-4">
-        <button type="button" onClick={onExportarPng} disabled={exporting} className={BOTON}>
-          {exporting ? "Componiendo el PNG…" : "Descargar mapa PNG"}
-        </button>
+        {plano ? (
+          <>
+            <button type="button" onClick={onExportarPlano} disabled={exporting} className={BOTON}>
+              {exporting ? "Componiendo el plano…" : "Descargar plano de secciones"}
+            </button>
+            <button
+              type="button"
+              disabled
+              title="No hay valores observados que colorear. Elija un indicador o un año con datos; hasta entonces la coropleta estaría vacía."
+              className={BOTON}
+            >
+              Descargar mapa coroplético PNG
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={onExportarPng} disabled={exporting} className={BOTON}>
+            {exporting ? "Componiendo el PNG…" : "Descargar mapa coroplético PNG"}
+          </button>
+        )}
         {/* El PNG es una IMAGEN de la vista. Los datos verificables van en el
             XLSX, que es un fichero distinto con una fila por sección, indicador
             y año. Conviven sin confundirse. */}
@@ -301,6 +331,11 @@ export default function SeccionesAtlasPanel({
             <span className="socideas-error-text">{exportError}</span>
           ) : exportNotice ? (
             <span>{exportNotice}</span>
+          ) : plano ? (
+            <span>
+              El plano se compone con el encabezado, el pie con fuente y atribuciones. No lleva escala
+              de color: no hay valores que repartir.
+            </span>
           ) : (
             <span>
               El PNG se compone con el encabezado, la leyenda completa (incluido «Sin dato / ND»), el pie
@@ -311,13 +346,21 @@ export default function SeccionesAtlasPanel({
       </div>
 
       <section aria-label="Alcance de la descarga" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-3">
-        <p className="text-xs font-bold text-[var(--color-text-primary)]">Sobre XLSX y CSV</p>
-        <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-          Esta capa no genera XLSX ni CSV por sección: la única descarga disponible aquí es el PNG del
-          mapa. Los libros XLSX municipales cubren los bloques con descarga propia (Demografía,
-          Economía) y no incluyen el seccionado. Los datos de cada sección se pueden copiar o leer
-          desde la tabla de este atlas, que expone los mismos valores que el mapa.
-        </p>
+        <p className="text-xs font-bold text-[var(--color-text-primary)]">Sobre la descarga de datos</p>
+        {urlXlsx ? (
+          <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+            «Descargar datos seccionales (XLSX)» entrega una fila por sección, indicador y año: la clave
+            CUSEC como texto (conserva los ceros), el valor, la unidad, el estado (observado o ND), la
+            operación y la tabla del INE, el periodo estadístico, el año de geometría, la fecha de
+            consulta y la URL de la fuente. El PNG es una imagen: no sustituye a este fichero.
+          </p>
+        ) : (
+          <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+            Este municipio todavía no tiene indicadores cargados, así que no hay tabla de datos que
+            descargar: la única exportación disponible es el plano de secciones (geometría), que no es
+            una estadística. Cuando se carguen los indicadores aparecerá aquí la descarga XLSX.
+          </p>
+        )}
         <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">
           Municipio INE <span className="font-mono tabular-nums">{codigoINE}</span>.
         </p>

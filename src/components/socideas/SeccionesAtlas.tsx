@@ -304,88 +304,102 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
     return false;
   }, []);
 
-  const exportarPng = useCallback(async () => {
-    setExportError(null);
-    setExportNotice("Componiendo el mapa…");
-    setExportando(true);
-    try {
-      // Si el usuario está en la vista de tabla el mapa no está montado: se
-      // vuelve a la vista de mapa y se espera a que Leaflet esté listo.
-      if (vista !== "mapa") setVista("mapa");
-      await new Promise<void>((r) => window.setTimeout(r, 0));
-      if (!(await esperarMapa())) {
-        throw new Error("El mapa no ha podido inicializarse a tiempo. Vuelva a la vista de mapa e inténtelo de nuevo.");
-      }
-      const handle = mapaRef.current;
-      if (!handle) throw new Error("El mapa todavía no está listo.");
+  const exportarVista = useCallback(
+    async (plano: boolean) => {
+      setExportError(null);
+      setExportNotice(plano ? "Componiendo el plano de secciones…" : "Componiendo el mapa…");
+      setExportando(true);
+      try {
+        // Si el usuario está en la vista de tabla el mapa no está montado: se
+        // vuelve a la vista de mapa y se espera a que Leaflet esté listo.
+        if (vista !== "mapa") setVista("mapa");
+        await new Promise<void>((r) => window.setTimeout(r, 0));
+        if (!(await esperarMapa())) {
+          throw new Error("El mapa no ha podido inicializarse a tiempo. Vuelva a la vista de mapa e inténtelo de nuevo.");
+        }
+        const handle = mapaRef.current;
+        if (!handle) throw new Error("El mapa todavía no está listo.");
 
-      const escalaPng = presentacion.escalaPng as EscalaPng;
-      const captura = await handle.capturarParaPng(escalaPng);
-      const enlazado = await componerPngMapa({
-        base: captura.canvas,
-        indicador: indicador?.etiqueta ?? "Sin indicadores cargados",
-        municipio: nombre,
-        provincia: atlas?.provinceName ?? null,
-        anio: params.anio,
-        unidad: indicador?.unidad ?? "",
-        modoClasificacion: etiquetaModo(params.modo),
-        clasificacion: vista_.clasificacion,
-        entradasLeyenda: vista_.entradasLeyenda.map((e) => ({
-          etiqueta: e.etiqueta,
-          color: e.color,
-          secciones: e.secciones,
-          esSinDato: Boolean(e.esSinDato),
-        })),
-        colorSinDato: COLOR_SIN_DATO,
-        colorContornoSinDato: COLOR_CONTORNO_SIN_DATO,
-        fuente: atlas?.geometrySource ?? datos?.fuente ?? SECCIONES_ATRIBUCION,
-        // `operationLabel` ya incluye el rótulo de la operación con su ID, así
-        // que aquí solo se antepone la tabla: concatenarlo dos veces duplicaba
-        // "(operación …) (operación …)" en el pie del PNG.
-        tabla: indicador
-          ? `${indicador.sourceTable} · ${indicador.operationLabel}`
-          : "No consta: el municipio no tiene indicadores publicados por sección",
-        anioGeometria: atlas?.geometryYear ?? datos?.anio_delimitacion ?? null,
-        coleccionGeometria: atlas?.geometryCollection ?? null,
-        periodo: params.anio,
-        fechaGeometria: atlas?.geometryRetrievedAt ?? null,
-        fechaEstadistica: atlas?.statsRetrievedAt ?? null,
-        seccionesRepresentadas: vista_.nConDato,
-        seccionesTotales: vista_.nSecciones,
-        seccionesSinDato: vista_.nSinDato,
-        coberturaPct: vista_.coberturaPct,
-        escala: escalaPng,
-        baseOmitida: captura.baseOmitida,
-        avisos: vista_.avisos,
-      });
-      const blob = await blobDeLienzo(enlazado);
-      if (!blob) throw new Error("El navegador no ha podido generar el archivo PNG.");
-      const archivo = nombreArchivoPngSecciones(codigoINE, params.indicatorId ?? "sin-indicador", params.anio);
-      descargar(blob, archivo);
-      setExportNotice(
-        captura.baseOmitida
-          ? `${archivo} descargado SIN cartografía de fondo. ${captura.motivoBaseOmitida ?? ""} Se conservan seccionado, escala, leyenda, fuente y atribuciones.`
-          : `${archivo} descargado con la leyenda completa y las atribuciones del INE y de OpenStreetMap.`,
-      );
-    } catch (err) {
-      setExportError(err instanceof Error ? err.message : "No se ha podido generar el PNG.");
-    } finally {
-      setExportando(false);
-    }
-  }, [
-    atlas,
-    codigoINE,
-    datos,
-    esperarMapa,
-    indicador,
-    nombre,
-    params.anio,
-    params.indicatorId,
-    params.modo,
-    presentacion.escalaPng,
-    vista,
-    vista_,
-  ]);
+        const escalaPng = presentacion.escalaPng as EscalaPng;
+        const captura = await handle.capturarParaPng(escalaPng);
+        const enlazado = await componerPngMapa({
+          base: captura.canvas,
+          indicador: plano
+            ? "Plano de secciones · sin indicadores cargados"
+            : (indicador?.etiqueta ?? "Sin indicadores cargados"),
+          municipio: nombre,
+          provincia: atlas?.provinceName ?? null,
+          anio: plano ? null : params.anio,
+          unidad: plano ? "" : (indicador?.unidad ?? ""),
+          modoClasificacion: plano ? "Sin clasificación" : etiquetaModo(params.modo),
+          clasificacion: plano ? null : vista_.clasificacion,
+          entradasLeyenda: vista_.entradasLeyenda.map((e) => ({
+            etiqueta: e.etiqueta,
+            color: e.color,
+            secciones: e.secciones,
+            esSinDato: Boolean(e.esSinDato),
+          })),
+          colorSinDato: COLOR_SIN_DATO,
+          colorContornoSinDato: COLOR_CONTORNO_SIN_DATO,
+          fuente: atlas?.geometrySource ?? datos?.fuente ?? SECCIONES_ATRIBUCION,
+          // `operationLabel` ya incluye el rótulo de la operación con su ID, así
+          // que aquí solo se antepone la tabla: concatenarlo dos veces duplicaba
+          // "(operación …) (operación …)" en el pie del PNG.
+          tabla: plano
+            ? "Sin indicadores cargados en SOCideas: solo geometría oficial del INE"
+            : indicador
+              ? `${indicador.sourceTable} · ${indicador.operationLabel}`
+              : "No consta: el municipio no tiene indicadores publicados por sección",
+          anioGeometria: atlas?.geometryYear ?? datos?.anio_delimitacion ?? null,
+          coleccionGeometria: atlas?.geometryCollection ?? null,
+          periodo: plano ? null : params.anio,
+          fechaGeometria: atlas?.geometryRetrievedAt ?? null,
+          fechaEstadistica: atlas?.statsRetrievedAt ?? null,
+          seccionesRepresentadas: vista_.nConDato,
+          seccionesTotales: vista_.nSecciones,
+          seccionesSinDato: vista_.nSinDato,
+          coberturaPct: vista_.coberturaPct,
+          escala: escalaPng,
+          baseOmitida: captura.baseOmitida,
+          avisos: vista_.avisos,
+        });
+        const blob = await blobDeLienzo(enlazado);
+        if (!blob) throw new Error("El navegador no ha podido generar el archivo PNG.");
+        const archivo = plano
+          ? nombreArchivoPngSecciones(codigoINE, "plano-secciones", atlas?.geometryYear ?? null)
+          : nombreArchivoPngSecciones(codigoINE, params.indicatorId ?? "sin-indicador", params.anio);
+        descargar(blob, archivo);
+        setExportNotice(
+          plano
+            ? `${archivo} descargado: plano del seccionado, sin valores. No es una coropleta.`
+            : captura.baseOmitida
+              ? `${archivo} descargado SIN cartografía de fondo. ${captura.motivoBaseOmitida ?? ""} Se conservan seccionado, escala, leyenda, fuente y atribuciones.`
+              : `${archivo} descargado con la leyenda completa y las atribuciones del INE y de OpenStreetMap.`,
+        );
+      } catch (err) {
+        setExportError(err instanceof Error ? err.message : "No se ha podido generar el PNG.");
+      } finally {
+        setExportando(false);
+      }
+    },
+    [
+      atlas,
+      codigoINE,
+      datos,
+      esperarMapa,
+      indicador,
+      nombre,
+      params.anio,
+      params.indicatorId,
+      params.modo,
+      presentacion.escalaPng,
+      vista,
+      vista_,
+    ],
+  );
+
+  const exportarPng = useCallback(() => exportarVista(false), [exportarVista]);
+  const exportarPlano = useCallback(() => exportarVista(true), [exportarVista]);
 
   const restablecer = useCallback(() => {
     setPresentacion({ ...PRESENTACION_POR_DEFECTO });
@@ -461,6 +475,9 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
 
   const sinAtlas = !atlas;
   const sinPeriodos = sinAtlas || params.periodos.length === 0;
+  // Sin valores observados no hay coropleta que dibujar ni exportar: el mapa es
+  // un plano de contornos y los controles de escala se retiran.
+  const sinValoresObservados = vista_.modoMapa === "plano" || vista_.nConDato === 0;
   const filaSeleccionada = seleccion ? (vista_.filas.find((f) => f.key === seleccion) ?? null) : null;
 
   return (
@@ -480,21 +497,24 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
         anio={params.anio}
         avisos={vista_.avisos}
         sinAtlas={sinAtlas}
+        plano={sinValoresObservados}
         validacion={validacion}
       />
 
       {sinAtlas && (
         <div className="ideas-status" data-state="pending" role="status">
           <div className="ideas-status__head">
-            <p className="ideas-status__title">No hay indicadores cargados para este municipio</p>
-            <span className="ideas-status__badge">Sin coropleta</span>
+            <p className="ideas-status__title">Todavía no hemos cargado los indicadores de {nombre}</p>
+            <span className="ideas-status__badge">Solo contornos</span>
           </div>
           <div className="ideas-status__body">
             <p>
-              La geometría oficial está disponible, pero no hay ningún indicador con dato por sección
-              para {nombre}. Se muestran los contornos del seccionado y su clave oficial. No se pinta
-              ninguna escala de color porque no hay valores que repartir: una coropleta sin dato sería
-              una imagen inventada.
+              La geometría oficial del INE está disponible ({vista_.nSecciones} secciones). Lo que falta
+              es la estadística por sección: aún no se ha cargado en SOCideas para este municipio. Es un
+              estado de carga, no una afirmación de que el INE no publique el indicador a escala de
+              sección. Se muestran los contornos y las claves oficiales; no se pinta ninguna escala de
+              color porque no hay valores que repartir, y una coropleta sin dato sería una imagen
+              inventada.
             </p>
           </div>
         </div>
@@ -592,7 +612,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
         <aside
           id="atlas-panel"
           aria-label="Controles del atlas"
-          className={`premium-card p-4 sm:p-5 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto ${
+          className={`premium-card p-4 sm:p-5 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto ${
             panelAbierto ? "block" : "hidden lg:block"
           }`}
         >
@@ -606,6 +626,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
             clases={params.clases}
             presentacion={presentacion}
             sinIndicadores={sinPeriodos}
+            plano={sinValoresObservados}
             avisoCortes={avisoDeCortes(
               presentacion.cortesManuales ? presentacion.cortesManuales.join(", ") : "",
               params.modo === "cortes_manuales",
@@ -620,6 +641,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
             onPresentacion={(patch) => setPresentacion((p) => ({ ...p, ...patch }))}
             onRestablecer={restablecer}
             onExportarPng={exportarPng}
+            onExportarPlano={exportarPlano}
             urlXlsx={
               atlas
                 ? `/api/socideas/secciones-descarga/${codigoINE}` +
@@ -701,9 +723,13 @@ interface VistaAtlas {
   subtituloLeyenda: string;
   descripcionMapa: string;
   avisos: string[];
+  /** `coropleta`: hay valores observados que pintar. `plano`: solo contornos,
+   *  sin relleno ni trama porque no hay nada que representar. */
+  modoMapa: "coropleta" | "plano";
 }
 
-const MOTIVO_SIN_INDICADOR = "Sin indicadores publicados a nivel de sección";
+const MOTIVO_NO_CARGADO = "Todavía no cargado en SOCideas";
+const MOTIVO_SIN_SELECCION = "Sin indicador seleccionado";
 const MOTIVO_SIN_PERIODO = "Sin periodo publicado para este indicador";
 
 function construirVista(
@@ -722,9 +748,20 @@ function construirVista(
   const unidad = indicador?.unidad ?? "";
   const avisos: string[] = [];
 
-  const sinValores = (motivo: string, titulo: string, subtitulo: string, descripcion: string, aviso: string): VistaAtlas => ({
-    filas: secciones.map((f) => filaVacia(f, motivo)),
-    entradasLeyenda: [{ etiqueta: ETIQUETA_SIN_DATO, color: COLOR_SIN_DATO, secciones: nSecciones, esSinDato: true }],
+  // Estado «plano»: no hay NADA que pintar (municipio sin cargar, sin indicador
+  // o sin periodo). Se dibujan solo los contornos —sin relleno ni trama— y la
+  // leyenda no finge una escala. Es distinto de ND, que es ausencia acreditada
+  // de valor para un indicador concreto y sí lleva trama por polígono.
+  const plano = (
+    motivo: string,
+    textoFila: string,
+    titulo: string,
+    subtitulo: string,
+    descripcion: string,
+    aviso: string,
+  ): VistaAtlas => ({
+    filas: secciones.map((f) => filaVacia(f, motivo, textoFila)),
+    entradasLeyenda: [],
     clasificacion: null,
     valoresDistintos: 0,
     escalaSimple: true,
@@ -737,34 +774,38 @@ function construirVista(
     subtituloLeyenda: subtitulo,
     descripcionMapa: descripcion,
     avisos: [aviso],
+    modoMapa: "plano",
   });
 
   if (!atlas) {
-    return sinValores(
-      MOTIVO_SIN_INDICADOR,
-      "Sin indicadores cargados · seccionado sin valor",
-      "Solo contornos. No hay ningún indicador con dato por sección para este municipio.",
-      `Mapa de los contornos de las ${nSecciones} secciones censales de ${municipioNombre}. No se representa ningún valor: este municipio no tiene indicadores cargados con dato por sección. La lista completa de claves está en la tabla.`,
-      "Sin indicadores cargados: el mapa no representa ningún valor.",
+    return plano(
+      MOTIVO_NO_CARGADO,
+      "Sin indicadores cargados",
+      "Seccionado sin indicadores cargados",
+      "Solo contornos. Los indicadores de este municipio todavía no se han cargado en SOCideas.",
+      `Plano de los contornos de las ${nSecciones} secciones censales de ${municipioNombre}. No se representa ningún valor porque los indicadores aún no se han cargado en SOCideas para este municipio. Es un estado de CARGA, no una afirmación de que el INE no los publique.`,
+      "Indicadores todavía no cargados en SOCideas: el mapa muestra solo los contornos, sin valores.",
     );
   }
 
   if (!indicador) {
-    return sinValores(
-      MOTIVO_SIN_INDICADOR,
-      "Sin indicador seleccionado · seccionado sin valor",
+    return plano(
+      MOTIVO_SIN_SELECCION,
+      "Sin indicador seleccionado",
+      "Seccionado sin indicador seleccionado",
       "Elija un indicador del catálogo para ver la escala.",
-      `Mapa de los contornos de las ${nSecciones} secciones censales de ${municipioNombre}. No hay indicador seleccionado, así que no se representa ningún valor.`,
-      "Sin indicador seleccionado: el mapa no representa ningún valor.",
+      `Plano de los contornos de las ${nSecciones} secciones censales de ${municipioNombre}. No hay indicador seleccionado, así que no se representa ningún valor.`,
+      "Sin indicador seleccionado: el mapa muestra solo los contornos, sin valores.",
     );
   }
 
   if (anio === null) {
-    return sinValores(
+    return plano(
       MOTIVO_SIN_PERIODO,
+      "Sin periodo publicado",
       `${indicador.etiqueta} · sin periodo publicado`,
       "La fuente no publica este indicador con periodo para este municipio.",
-      `Mapa de los contornos de las ${nSecciones} secciones censales de ${municipioNombre}. El indicador «${indicador.etiqueta}» no tiene ningún periodo publicado para este municipio, así que no se representa ningún valor.`,
+      `Plano de los contornos de las ${nSecciones} secciones censales de ${municipioNombre}. El indicador «${indicador.etiqueta}» no tiene ningún periodo publicado para este municipio, así que no se representa ningún valor.`,
       `El indicador «${indicador.etiqueta}» no tiene periodos publicados a nivel de sección para este municipio.`,
     );
   }
@@ -895,6 +936,7 @@ function construirVista(
     subtituloLeyenda,
     descripcionMapa,
     avisos,
+    modoMapa: "coropleta",
   };
 }
 
@@ -905,16 +947,19 @@ const STATUS_SIN_NUMERO: ReadonlySet<SeccionValorStatus> = new Set<SeccionValorS
   "error_ingesta",
 ]);
 
-function filaVacia(feature: SeccionFeature, motivo: string): FilaAtlas {
+function filaVacia(feature: SeccionFeature, motivo: string, texto = "Sin dato"): FilaAtlas {
   return {
     key: feature.properties.CUSEC,
     value: null,
     status: "sin_cobertura",
-    texto: "Sin dato",
+    texto,
     clase: -1,
     color: COLOR_SIN_DATO,
-    colorContorno: COLOR_CONTORNO_SIN_DATO,
+    // Contorno legible sobre el mapa base: en modo plano es lo único que se
+    // dibuja, así que no puede quedar tenue.
+    colorContorno: tokenIma("--carbon-600"),
     esSinDato: true,
+    sinRelleno: true,
     esAgregadoDistrito: false,
     motivoSinDato: motivo,
     centroide: centroideGeometria(feature.geometry),
@@ -980,6 +1025,7 @@ function construirFila(
     // clase más clara se separe del fondo hueso del mapa y del PNG.
     colorContorno: esSinDato ? COLOR_CONTORNO_SIN_DATO : tokenIma("--carbon-600"),
     esSinDato,
+    sinRelleno: false,
     esAgregadoDistrito: esPoligonoDistrito(key),
     motivoSinDato: null,
     centroide: centroideGeometria(geometry),
@@ -1059,6 +1105,7 @@ function CabeceraAtlas({
   anio,
   avisos,
   sinAtlas,
+  plano,
   validacion,
 }: {
   municipioNombre: string;
@@ -1075,6 +1122,7 @@ function CabeceraAtlas({
   anio: number | null;
   avisos: string[];
   sinAtlas: boolean;
+  plano: boolean;
   validacion: ResultadoValidacion | null;
 }) {
   return (
@@ -1083,13 +1131,21 @@ function CabeceraAtlas({
         <DatoCabecera etiqueta="Municipio" valor={municipioNombre} detalle={provincia ?? undefined} />
         <DatoCabecera
           etiqueta="Secciones con dato"
-          valor={`${nConDato} de ${nSecciones}`}
-          detalle={`${nSinDato} sin dato`}
+          valor={plano ? "—" : `${nConDato} de ${nSecciones}`}
+          detalle={plano ? "Sin valores observados" : `${nSinDato} sin dato`}
         />
         <DatoCabecera
           etiqueta="Cobertura del indicador"
-          valor={`${coberturaPct.toLocaleString("es-ES", { maximumFractionDigits: 1 })} %`}
-          detalle={indicadorEtiqueta && anio !== null ? `${indicadorEtiqueta} · ${anio}` : "Sin indicador cargado"}
+          valor={plano ? "—" : `${coberturaPct.toLocaleString("es-ES", { maximumFractionDigits: 1 })} %`}
+          detalle={
+            plano
+              ? sinAtlas
+                ? "Indicadores sin cargar"
+                : "Sin valores observados"
+              : indicadorEtiqueta && anio !== null
+                ? `${indicadorEtiqueta} · ${anio}`
+                : "Sin indicador cargado"
+          }
         />
         <DatoCabecera
           etiqueta="Seccionado (geometría)"

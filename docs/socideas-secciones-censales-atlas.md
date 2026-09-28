@@ -16,7 +16,8 @@ y §7 planteaba esta misma ingesta como trabajo futuro). Fecha: 2026-09-28.
 **Estadística.** INE, Atlas de Distribución de Renta de los Hogares (ADRH),
 operación `1254736177088`. Descargas `jaxiT3/files/t/csv_bd/{tabla}.csv`, una tabla
 provincial de renta y otra de Gini/P80-P20 (mapa en `src/lib/adrh-province-tables.json`,
-52 provincias). Formato verificado, separador TSV con BOM:
+52 provincias). Formato verificado, separador TSV, **codificación UTF-8 con BOM** (no
+latin1: la `Í` de «Índice» se corrompía a `Ã` y el indicador se descartaba en silencio):
 
 ```
 Municipios \t Distritos \t Secciones \t Indicadores… \t Periodo \t Total
@@ -49,7 +50,7 @@ No se publica ningún indicador que el INE no difunda a ese grano. Un municipio 
 datos por sección se sirve con geometría y un estado vacío explícito, nunca con una
 coropleta inventada.
 
-## 3. Tres fallos del diseño anterior que esta versión corrige
+## 3. Fallos del diseño anterior que esta versión corrige
 
 1. **Truncamiento silencioso.** La ruta anterior pedía `limit=1000` sin paginar.
    Madrid devuelve 2483 features: se perdían 1462 secciones sin ningún aviso. Ahora
@@ -69,6 +70,14 @@ coropleta inventada.
    publicable antes de publicarse. `scripts/verify-secciones-proyeccion.ts` comprueba
    un round-trip con error de 0,32 mm y seis municipios reales.
 
+4. **CSV leído como latin1 en vez de UTF-8 (indicadores descartados en silencio).** Las
+   descargas `jaxiT3` son UTF-8 con BOM. Al decodificarlas como latin1, «Índice de Gini»
+   llegaba como `Ãndice de Gini` y «Distribución de la renta P80/P20» como
+   `DistribuciÃ³n…`, de modo que `normalizarEtiquetaIne` no casaba con la etiqueta del
+   catálogo y **`indice_gini` y `p80_p20` se marcaban `publicadoPorSeccion: false`**
+   aunque el INE los publica a nivel de sección (Alcalá del Júcar: 72 observaciones con
+   los 8 indicadores; antes 54 sin ellos). Se decodifica UTF-8 y se retira el BOM.
+
 ## 4. Estados de dato y reglas que no se rompen
 
 - Un ND, un secreto estadístico o una celda vacía son `no_difundido` con
@@ -83,23 +92,29 @@ coropleta inventada.
 
 ## 5. Cobertura publicada
 
-Piloto de 9 municipios, verificado con read-back independiente desde la URL pública
-de R2 (`scripts/verify-secciones-r2.ts`, 137 comprobaciones):
+10 municipios, verificado con read-back independiente desde la URL pública de R2
+(`scripts/verify-secciones-r2.ts`) y por HTTP contra producción
+(`scripts/verify-secciones-produccion.mjs`). Los 8 indicadores, Gini y P80/P20
+incluidos, tienen valores observados desde la corrección de codificación (§3.4):
 
 | Municipio | Secciones | Observaciones | ND |
 |---|---|---|---|
-| 02007 Alcalá del Júcar | 1 | 54 | 0 |
-| 16016 Almendros (Cuenca) | 1 | 54 | 0 |
-| 16211 Torrejoncillo del Rey | 1 | 54 | 0 |
-| 45090 Manzaneque | 1 | 54 | 0 |
-| 28079 Madrid | 2462 | 131 922 | 1884 |
-| 41091 Sevilla | 522 | 28 134 | 1164 |
-| 46250 València | 588 | 31 698 | 216 |
-| 51001 Ceuta | 56 | 3024 | 24 |
-| 52001 Melilla | 44 | 2376 | 0 |
+| 02003 Albacete | 117 | 8424 | 176 |
+| 02007 Alcalá del Júcar | 1 | 72 | 0 |
+| 16016 Almendros (Cuenca) | 1 | 72 | 0 |
+| 16211 Torrejoncillo del Rey | 1 | 72 | 0 |
+| 28079 Madrid | 2462 | 175 896 | 2583 |
+| 41091 Sevilla | 522 | 37 512 | 1559 |
+| 45090 Manzaneque | 1 | 72 | 0 |
+| 46250 València | 588 | 42 264 | 293 |
+| 51001 Ceuta | 56 | 4032 | 32 |
+| 52001 Melilla | 44 | 3168 | 5 |
 
 Prefijo: `socideas/secciones/v1/municipal/{INE-5}.json`, manifiesto en
 `socideas/secciones/v1/manifests/`. Escritura solo con `--confirm-r2-write`.
+`latest-successful.json` es la cobertura **acumulada** entre corridas (se fusiona por
+INE, no se reemplaza), de modo que una ingesta por provincia no borra del manifiesto
+los municipios ya publicados.
 
 ## 6. Almacenamiento: por qué el objeto es compacto
 
@@ -116,15 +131,20 @@ del CSV antes de publicar.
 
 ## 7. Límites conocidos
 
-- Cobertura nacional **no** publicada: 9 municipios piloto, no los 8130. La ingesta
-  está preparada (`--provincias=`, `--lote=`, reanudable) pero no se ha ejecutado a
-  escala nacional.
+- Cobertura nacional **no** publicada: 10 municipios, no los 8130. La ingesta está
+  preparada (`--provincias=`, `--lote=`, reanudable) pero no se ha ejecutado a escala
+  nacional. «Todavía no ingerido» y «no publicado por el INE a escala de sección» son
+  estados distintos y la interfaz los muestra por separado.
 - Solo ADRH renta/desigualdad. Educación, actividad y vivienda **no** están porque no
-  se ha verificado una tabla seccional del INE con definición y cobertura suitable.
-- `indice_gini` y `p80_p20` llegan en el catálogo pero con `publicadoPorSeccion`
-  deducido de la presencia real en el CSV; en los pilotos el INE los difunde a nivel
-  municipal/distrito, no de sección.
+  se ha verificado una tabla seccional del INE con definición y cobertura suficiente.
+- `indice_gini` y `p80_p20` **sí** se publican a nivel de sección: lo confirma la propia
+  columna `Secciones` de las tablas 30656/37678 (Albacete: 2160 filas de sección,
+  2080 observadas). Los pilotos los mostraban sin dato por el fallo de codificación de
+  §3.4, ya corregido; ya no hay indicadores en el catálogo marcados «no publicado por
+  sección».
 - El seccionado cambia cada año: los códigos de sección no son estables en el tiempo.
+  Las claves estadísticas sin polígono en la geometría vigente se cuentan y se informan
+  (`filasSinPoligono`), no se inventan ni se unen con ceros a ciegas.
 - Los límites son estadísticos, sin validez jurídica.
 
 ## 8. Comandos

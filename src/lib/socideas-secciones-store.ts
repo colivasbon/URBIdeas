@@ -22,6 +22,11 @@ import {
 export const SECCIONES_R2_MANIFEST_KEY = 'socideas/secciones/v1/manifests/latest-successful.json'
 
 class AtlasInvalido extends Error {}
+class AtlasNoPublicado extends Error {
+  /** Marca serializable: un error lanzado dentro de `unstable_cache` puede
+   *  cruzar el límite sin conservar el prototipo; se comprueba por propiedad. */
+  readonly noPublicado = true as const
+}
 
 export function seccionesR2Key(codigoIne: string): string {
   return `${SECCIONES_R2_PREFIX}/${codigoIne}.json`
@@ -187,12 +192,29 @@ export async function leerAtlasParaApi(
 
   // `unstable_cache` solo puede cachear funciones sin argumentos no serializables;
   // el tag se fija en la clave de caché.
+  //
+  // Un municipio SIN atlas publicado NO debe quedar cacheado como «null» durante
+  // una hora: si la ingesta llega después, Vercel seguiría sirviendo la ausencia
+  // (y el usuario leería «no publicado» en vez de «todavía no cargado»). Por eso
+  // la ausencia se lanza como error marcado: `unstable_cache` no almacena
+  // resultados de una función que lanza, así que la próxima petición vuelve a
+  // comprobar R2 y recoge el objeto en cuanto exista. Solo el atlas presente se
+  // cachea (y se puede invalidar por tag tras una ingesta).
   const cached = unstable_cache(
-    async () => leer(),
+    async () => {
+      const atlas = await leer()
+      if (!atlas) throw new AtlasNoPublicado(`Sin atlas publicado para ${codigoIne}`)
+      return atlas
+    },
     [codigoIne, String(anio), inds],
     { revalidate: 3600, tags: [tag] },
   )
-  return cached()
+  try {
+    return await cached()
+  } catch (e) {
+    if (e instanceof AtlasNoPublicado || (e as { noPublicado?: boolean })?.noPublicado) return null
+    throw e
+  }
 }
 
 /** Manifiesto de la última corrida con éxito, para mostrar cobertura real. */

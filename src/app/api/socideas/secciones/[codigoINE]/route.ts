@@ -10,10 +10,13 @@ import { leerAtlasParaApi } from '@/lib/socideas-secciones-store'
 
 export const dynamic = 'force-dynamic'
 
-/** La geometría del INE es INMUTABLE por colección, así que puede cachearse un
- *  día. La estadística (atlas) se cachea aparte, en la capa de R2 con
- *  `unstable_cache`, y solo se sirve el año pedido. */
-const CACHE_GEOMETRIA = 'public, max-age=86400, stale-while-revalidate=604800'
+/** La respuesta se sirve SIEMPRE fresca. El atlas de un municipio cambia con
+ *  cada ingesta y una caché CDN de un día dejaba visible el estado «sin cargar»
+ *  (o «sin indicadores») después de haberlo corregido en R2, porque
+ *  `revalidateTag` purga la Data Cache del servidor pero no la copia CDN de
+ *  esta respuesta. La caché real vive en `unstable_cache`, en el servidor, y se
+ *  invalida por tag; aquí no se añade una segunda capa que pueda quedar obsoleta. */
+const CACHE_GEOMETRIA = 'private, no-store'
 
 const TOLERANCIA_SIMPLIFICACION = 8
 

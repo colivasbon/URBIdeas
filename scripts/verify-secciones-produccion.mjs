@@ -3,11 +3,11 @@
 //   node scripts/verify-secciones-produccion.mjs [base] [ine...]
 const base = process.argv[2] ?? 'https://urb-ideas.vercel.app'
 const ines = process.argv.slice(3)
-const lista = ines.length ? ines : ['02007', '16016', '16211', '45090', '28079', '41091', '46250', '51001', '52001']
+const lista = ines.length ? ines : ['02003', '02007', '16016', '16211', '45090', '28079', '41091', '46250', '51001', '52001']
 
 // Secciones reales publicadas (los agregados CSEC=000 quedan fuera por diseño).
 const esperado = {
-  '02007': 1, '16016': 1, '16211': 1, '45090': 1,
+  '02003': 117, '02007': 1, '16016': 1, '16211': 1, '45090': 1,
   '28079': 2462, '41091': 522, '46250': 588, '51001': 56, '52001': 44,
 }
 
@@ -39,16 +39,21 @@ for (const ine of lista) {
   ok(![...deGeom].some(c => c.endsWith('000')), 'ningún agregado de distrito (CSEC=000) publicado')
 
   // 3. Un ND es value null con estado propio: jamás un 0 silencioso.
-  let nd = 0, ndComoCero = 0, cerosReales = 0
+  let nd = 0, ndComoCero = 0, cerosReales = 0, observados = 0
   for (const porIndicador of Object.values(a.observations)) {
     for (const porAnio of Object.values(porIndicador)) {
       for (const o of Object.values(porAnio)) {
         if (esND(o)) { nd++; if (o.value === 0) ndComoCero++ }
-        else if (o.value === 0) cerosReales++
+        else { observados++; if (o.value === 0) cerosReales++ }
       }
     }
   }
   ok(ndComoCero === 0, `ND nunca como 0 (${nd} ND, ${ndComoCero} como 0, ${cerosReales} ceros reales)`)
+  // Gate de la P0: un municipio cuya fuente SÍ publica secciones no puede salir
+  // con cero valores observados. Ese estado es «no ingerido» o un fallo de
+  // ingesta, no «la fuente no publica», y debe hacer fallar la verificación.
+  ok(observados > 0, `valores observados=${observados} (cero = sin ingerir o ingesta rota, nunca un municipio con datos en la fuente)`)
+  ok(observados > nd, `más observados que ND (${observados} > ${nd})`)
 
   // 4. Cada indicador declara su procedencia y unidad, y el valor por defecto
   //    está cubierto: sin eso un ND o un 0 no se podría ni explicar.

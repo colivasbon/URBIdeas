@@ -180,9 +180,12 @@ async function csvProvincial(provincia: string): Promise<CsvProvincia> {
       const res = await fetch(url, { signal: ctl.signal, headers: UA })
       if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`)
       const buf = Buffer.from(await res.arrayBuffer())
-      // El CSV provincial lleva una línea de metadatos ("Fuente:...") antes de
-      // la cabecera; se conserva tal cual porque el parser detecta cabeceras.
-      partes.push(buf.toString('latin1'))
+      // Los CSV de jaxiT3 son UTF-8 con BOM. Decodificarlos como latin1 convierte
+      // "Índice de Gini" en "Ãndice de Gini", no casa con la etiqueta del
+      // catálogo y el indicador se descarta EN SILENCIO como «no publicado por
+      // sección» aunque la fuente SÍ lo publique a ese grano. Se decodifica
+      // UTF-8 y se retira el BOM (el parser también lo limpia por si acaso).
+      partes.push(buf.toString('utf8').replace(/^\uFEFF/, ''))
       checksums.push(sha256(buf))
       bytes += buf.byteLength
     } finally {
@@ -693,20 +696,55 @@ async function main(): Promise<void> {
 
   if (escribir && r2) {
     const json = JSON.stringify(manifiesto)
-    // Dos fases: run-<id> y, solo si todo salió bien, latest-successful.
+    // Fase 1: el registro de ESTA corrida, tal cual (solo sus municipios).
     await putObject(r2, `${SECCIONES_MANIFESTS_PREFIX}/run-${runId}.json`, json, {
       schemaversion: 'secciones-atlas-manifest-v1',
       runid: runId,
       sha256: sha256(json),
     })
     if (err.length === 0) {
+      // Fase 2: `latest-successful` es la cobertura ACUMULADA del atlas, no la
+      // de la última corrida. Si una ingesta por provincia vuelca 40 municipios,
+      // no debe borrar del manifiesto los 1.000 ya publicados en otra corrida.
+      // Se fusiona por INE: el resultado nuevo manda; un municipio en `error`
+      // no pisa un objeto bueno anterior (el objeto sigue en R2).
+      const existente = await getObjectText(`${SECCIONES_MANIFESTS_PREFIX}/latest-successful.json`)
+      const previo = existente ? (JSON.parse(existente) as { items?: typeof manifiesto.items }) : null
+      const porIne = new Map<string, (typeof manifiesto.items)[number]>()
+      for (const it of previo?.items ?? []) porIne.set(it.ine, it)
+      for (const it of manifiesto.items) {
+        if (it.estado === 'error' && porIne.has(it.ine)) continue
+        porIne.set(it.ine, it)
+      }
+      const items = [...porIne.values()].sort((a, b) => a.ine.localeCompare(b.ine))
+      const acumulado = {
+        ...manifiesto,
+        runId,
+        generatedAt: new Date().toISOString(),
+        counts: {
+          municipios: items.length,
+          ok: items.filter((i) => i.estado === 'ok').length,
+          sinEstadistica: items.filter((i) => i.estado === 'sin_estadistica').length,
+          error: items.filter((i) => i.estado === 'error').length,
+          secciones: items.reduce((s, i) => s + i.secciones, 0),
+          observaciones: items.reduce((s, i) => s + i.observaciones, 0),
+          noDifundidas: items.reduce((s, i) => s + i.noDifundidas, 0),
+          bytesTotal: items.reduce((s, i) => s + i.bytes, 0),
+        },
+        items,
+        errors: items.filter((i) => i.estado === 'error').map((i) => `${i.ine}: ${i.detalle}`),
+      }
+      const jsonAcumulado = JSON.stringify(acumulado)
       await putObject(
         r2,
         `${SECCIONES_MANIFESTS_PREFIX}/latest-successful.json`,
-        json,
-        { schemaversion: 'secciones-atlas-manifest-v1', runid: runId, sha256: sha256(json) },
+        jsonAcumulado,
+        { schemaversion: 'secciones-atlas-manifest-v1', runid: runId, sha256: sha256(jsonAcumulado) },
       )
-      log('manifiesto', 'publicado latest-successful.json (sin errores)')
+      log(
+        'manifiesto',
+        `publicado latest-successful.json acumulado: ${items.length} municipios (${ok.length} de esta corrida)`,
+      )
     } else {
       log('manifiesto', `con ${err.length} errores: NO se publica latest-successful.json`)
     }

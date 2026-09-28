@@ -1049,6 +1049,13 @@
 /* Atlas de secciones censales: zoom táctil ≥ 44 px (WCAG 2.2 AA, 2.5.8).
    Acotado a `.socideas-atlas-map` para no alterar el visor de URBideas, que
    comparte los estilos globales de Leaflet. */
+.socideas-atlas-map {
+  /* Contexto de apilamiento propio: los controles de Leaflet tienen z-index
+     hasta 1000 y, sin esto, se dibujaban por encima de la cabecera sticky de la
+     página (z-index 100) al hacer scroll. `isolation` los confina al mapa. */
+  isolation: isolate;
+  z-index: 0;
+}
 .socideas-atlas-map .leaflet-control-zoom a {
   width: 44px !important;
   height: 44px !important;
@@ -1085,6 +1092,11 @@
 /* ---------------------------------------------------------------------------
    13. Cabecera y pie
    --------------------------------------------------------------------------- */
+/* La cabecera sticky mide 56 px (móvil) y 64 px (desktop): un salto por ancla
+   dentro de la página no debe quedar escondido debajo de ella. */
+html {
+  scroll-padding-top: 5rem;
+}
 @layer components {
   .site-header {
     position: sticky;

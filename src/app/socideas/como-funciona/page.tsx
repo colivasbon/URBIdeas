@@ -2,11 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
-import EditorialParallaxHero from "@/components/ui/EditorialParallaxHero";
-import TerritorialBackground from "@/components/ui/TerritorialBackground";
 import PageShell from "@/components/ui/PageShell";
-import SectionEyebrow from "@/components/ui/SectionEyebrow";
-import SourcePill from "@/components/ui/SourcePill";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
+import Badge from "@/components/ui/Badge";
 
 export const metadata: Metadata = {
   title: "Cómo funciona SOCideas",
@@ -14,23 +12,171 @@ export const metadata: Metadata = {
     "Metodología, fuentes oficiales y arquitectura de consulta municipal de SOCideas: qué consulta el usuario, de dónde vienen los datos y cuáles son sus límites.",
 };
 
+// Anclas estables: #fuentes y #actualizacion-calidad se enlazan desde la navegación.
 const INDICE = [
   { id: "vision-general", label: "Visión general" },
   { id: "que-consulta-el-usuario", label: "Qué consulta el usuario" },
   { id: "arquitectura", label: "Arquitectura" },
-  { id: "datos-y-fuentes", label: "Datos y fuentes" },
+  { id: "fuentes", label: "Fuentes y cobertura" },
   { id: "flujo-de-datos", label: "Flujo de datos" },
   { id: "herramientas-de-consulta", label: "Herramientas de consulta" },
   { id: "descargas", label: "Descargas" },
   { id: "actualizacion-y-control", label: "Actualización y control" },
-  { id: "actualizacion-calidad", label: "Actualización y calidad" },
+  { id: "actualizacion-calidad", label: "Controles de calidad" },
   { id: "cobertura-limitaciones", label: "Cobertura y limitaciones" },
   { id: "rendimiento", label: "Rendimiento" },
   { id: "privacidad-seguridad", label: "Privacidad y seguridad" },
   { id: "alcance-futuro", label: "Alcance futuro" },
 ];
 
-function Callout({
+type Estado = "Disponible" | "Disponible parcial" | "En preparación" | "Pendiente" | "Sin cobertura";
+
+const ESTADO_BADGE: Record<Estado, "success" | "secondary" | "primary" | "muted"> = {
+  Disponible: "success",
+  "Disponible parcial": "secondary",
+  "En preparación": "primary",
+  Pendiente: "muted",
+  "Sin cobertura": "muted",
+};
+
+const FUENTES: {
+  bloque: string;
+  indicadores: string;
+  fuente: string;
+  periodicidad: string;
+  cobertura: string;
+  periodo: string;
+  estado: Estado;
+}[] = [
+  {
+    bloque: "Demografía",
+    indicadores: "Población, evolución anual, estructura por edad y sexo",
+    fuente: "INE",
+    periodicidad: "Anual",
+    cobertura: "Todos los municipios; comparativas de provincia, comunidad y Estado",
+    periodo: "Serie anual disponible por municipio",
+    estado: "Disponible",
+  },
+  {
+    bloque: "Renta de los hogares",
+    indicadores: "Renta neta y bruta media por persona y hogar; Gini; P80/P20",
+    fuente: "INE, Atlas de Distribución de Renta de los Hogares",
+    periodicidad: "Anual",
+    cobertura: "Rentas medias en todos los municipios; desigualdad solo en municipios de 100 o más residentes",
+    periodo: "2023 (serie 2015–2023)",
+    estado: "En preparación",
+  },
+  {
+    bloque: "Renta por declaración",
+    indicadores: "Número de declaraciones; renta bruta y disponible media por declaración",
+    fuente: "AEAT, Estadística de declarantes del IRPF por municipios",
+    periodicidad: "Anual",
+    cobertura: "Municipios de más de 1.000 habitantes en territorio fiscal común (excluye País Vasco y Navarra)",
+    periodo: "2023",
+    estado: "En preparación",
+  },
+  {
+    bloque: "Tejido empresarial",
+    indicadores: "Número de empresas total y por sector",
+    fuente: "INE, DIRCE",
+    periodicidad: "Anual",
+    cobertura: "Total en todos los municipios; desglose por sector según tamaño del municipio",
+    periodo: "2025 (referencia 1 de enero)",
+    estado: "En preparación",
+  },
+  {
+    bloque: "Estructura agraria y ganadería",
+    indicadores: "Superficie agraria, explotaciones y cabaña ganadera",
+    fuente: "INE, Censo Agrario 2020",
+    periodicidad: "Estructural",
+    cobertura: "Todos los municipios, con umbral de explotación y secreto estadístico",
+    periodo: "2020",
+    estado: "Disponible parcial",
+  },
+  {
+    bloque: "Empleo registrado",
+    indicadores: "Paro registrado por municipio",
+    fuente: "SEPE",
+    periodicidad: "Mensual",
+    cobertura: "Todos los municipios",
+    periodo: "—",
+    estado: "Pendiente",
+  },
+  {
+    bloque: "Afiliación",
+    indicadores: "Afiliación a la Seguridad Social por municipio",
+    fuente: "TGSS / Seguridad Social",
+    periodicidad: "Mensual",
+    cobertura: "Todos los municipios, con secreto estadístico",
+    periodo: "—",
+    estado: "Pendiente",
+  },
+  {
+    bloque: "Finanzas locales y ayudas",
+    indicadores: "Presupuestos, liquidaciones y subvenciones",
+    fuente: "Ministerio de Hacienda y otras",
+    periodicidad: "Variable",
+    cobertura: "Heterogénea, sin fuente nacional homogénea verificada",
+    periodo: "—",
+    estado: "Pendiente",
+  },
+  {
+    bloque: "Precios",
+    indicadores: "IPC municipal homogéneo",
+    fuente: "—",
+    periodicidad: "—",
+    cobertura: "Sin cobertura: no existe un IPC municipal homogéneo",
+    periodo: "—",
+    estado: "Sin cobertura",
+  },
+  {
+    bloque: "Secciones censales",
+    indicadores: "Geometría e indicadores por sección",
+    fuente: "INE",
+    periodicidad: "Según operación",
+    cobertura: "Geometría oficial bajo demanda; indicadores solo con fuente a ese nivel",
+    periodo: "—",
+    estado: "En preparación",
+  },
+];
+
+const CAPAS = [
+  { nombre: "Usuario", texto: "Busca y consulta fichas municipales." },
+  { nombre: "Aplicación web", texto: "Navegación, búsqueda y fichas." },
+  { nombre: "Catálogo territorial y trazabilidad", texto: "Municipios, fuentes, periodos y estados." },
+  { nombre: "Datos municipales estructurados", texto: "Bloque principal de indicadores." },
+  { nombre: "Fuentes oficiales", texto: "Descarga, validación y normalización previas a la publicación." },
+];
+
+const FLUJO = [
+  { titulo: "Fuente oficial", texto: "Publicación del organismo estadístico." },
+  { titulo: "Descarga controlada", texto: "Obtención del fichero o tabla correspondiente al periodo." },
+  { titulo: "Validación", texto: "Periodo, código municipal, formato, rango y cobertura." },
+  { titulo: "Normalización", texto: "Unidades, dimensiones y trazabilidad homogéneas." },
+  { titulo: "Documento municipal", texto: "El bloque actualizado se integra en el documento del municipio." },
+  { titulo: "Ficha SOCideas", texto: "Presentación con fuente, periodo y estado." },
+];
+
+const HOJA_DE_RUTA = [
+  {
+    fase: "En evaluación",
+    items: [
+      "Ampliación de indicadores económicos",
+      "Mejor diferenciación de datos provisionales",
+      "Nuevas capas territoriales con cobertura y revisión metodológica",
+    ],
+  },
+  {
+    fase: "Preparado técnicamente",
+    items: ["Conectores de empleo registrado y afiliación", "Actualizaciones focalizadas autorizadas por municipio"],
+  },
+  {
+    fase: "Futuro",
+    items: ["Mejora de visualizaciones y comparativas", "Finanzas locales y ayudas con fuente homogénea"],
+  },
+];
+
+function Nota({
   kind,
   title,
   children,
@@ -39,33 +185,76 @@ function Callout({
   title: string;
   children: React.ReactNode;
 }) {
-  const bar =
-    kind === "principio"
-      ? "border-l-[var(--musgo)]"
-      : kind === "limitacion"
-        ? "border-l-[var(--rupestre-400)]"
-        : "border-l-[var(--conifera-700)]";
-  const tag =
-    kind === "principio" ? "Principio" : kind === "limitacion" ? "Limitación" : "Trazabilidad";
+  const tag = kind === "principio" ? "Principio" : kind === "limitacion" ? "Limitación" : "Trazabilidad";
   return (
-    <div className={`card my-5 border-l-4 ${bar} p-4 shadow-none sm:p-5`} role="note" aria-label={`${tag}: ${title}`}>
-      <p className="type-overline text-[var(--text-muted)]">{tag}</p>
-      <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">{title}</p>
-      <div className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{children}</div>
+    <div className="note my-6 max-w-[68ch]" role="note" aria-label={`${tag}: ${title}`}>
+      <p className="font-semibold text-[var(--text-primary)]">
+        {tag}: {title}
+      </p>
+      <div className="mt-1">{children}</div>
     </div>
   );
 }
 
-function H2({ children }: { children: React.ReactNode }) {
+function Seccion({
+  id,
+  headingId,
+  title,
+  first = false,
+  children,
+}: {
+  id: string;
+  headingId: string;
+  title: string;
+  first?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <h2 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-2xl">
+    <section
+      id={id}
+      aria-labelledby={headingId}
+      className={[
+        "scroll-mt-24",
+        first ? "" : "mt-14 border-t border-[var(--border-subtle)] pt-10",
+      ].join(" ")}
+    >
+      <h2 id={headingId} className="type-h2 max-w-[32ch] scroll-mt-24 text-[var(--text-primary)]">
+        {title}
+      </h2>
       {children}
-    </h2>
+    </section>
+  );
+}
+
+function IndiceLista() {
+  return (
+    <ol>
+      {INDICE.map((s) => (
+        <li key={s.id}>
+          <a
+            href={`#${s.id}`}
+            className="flex min-h-11 items-center text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:rounded-[6px] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none lg:-ml-px lg:min-h-0 lg:border-l-2 lg:border-transparent lg:py-1.5 lg:pl-3 lg:hover:border-[var(--border-strong)]"
+          >
+            {s.label}
+          </a>
+        </li>
+      ))}
+    </ol>
   );
 }
 
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">{children}</p>;
+  return <p className="type-body mt-4 max-w-[68ch] text-[var(--text-secondary)]">{children}</p>;
+}
+
+function Lista({ items }: { items: React.ReactNode[] }) {
+  return (
+    <ul className="type-body mt-4 max-w-[68ch] list-disc space-y-2 pl-5 text-[var(--text-secondary)] marker:text-[var(--border-strong)]">
+      {items.map((item, i) => (
+        <li key={i}>{item}</li>
+      ))}
+    </ul>
+  );
 }
 
 export default function ComoFuncionaSocideas() {
@@ -74,63 +263,53 @@ export default function ComoFuncionaSocideas() {
       <SocideasHeader />
 
       <main id="contenido" className="flex-1">
-        <EditorialParallaxHero decor={<TerritorialBackground variant="grid" />}>
-          <div className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 sm:pt-14 lg:px-8 pb-10">
-            <PageShell
-              eyebrow="SOCideas · Datos y metodología"
-              title="Cómo funciona SOCideas"
-              lede="Metodología, fuentes oficiales y arquitectura de consulta municipal."
-              meta={
-                <SourcePill title="Demografía disponible con trazabilidad INE; economía en desarrollo por subbloques">
-                  Demografía disponible · INE · Economía en desarrollo
-                </SourcePill>
-              }
-            />
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/socideas"
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-hueso bg-musgo rounded-[6px] hover:bg-musgo-hover transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
-              >
-                Ir al buscador municipal
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
+        <div className="container-ima pb-16">
+          <PageShell
+            breadcrumbs={
+              <Breadcrumbs
+                items={[
+                  { label: "IDEAS Sostenibilidad", href: "/" },
+                  { label: "SOCideas", href: "/socideas" },
+                  { label: "Cómo funciona" },
+                ]}
+              />
+            }
+            title="Cómo funciona SOCideas"
+            lede="Metodología, fuentes oficiales y arquitectura de la consulta municipal: qué se consulta, de dónde vienen los datos y cuáles son sus límites."
+            meta={
+              <>
+                <Badge variant="success" dot>
+                  Demografía disponible (INE)
+                </Badge>
+                <Badge variant="primary">Economía en desarrollo por subbloques</Badge>
+              </>
+            }
+            actions={
+              <Link href="/socideas" className="btn btn-primary">
+                Consultar un municipio
               </Link>
-            </div>
-          </div>
-        </EditorialParallaxHero>
+            }
+          />
 
-        <div className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
-          <div className="lg:grid lg:grid-cols-[240px_1fr] lg:gap-10">
-            {/* Índice */}
-            <nav aria-label="Índice de la página" className="lg:sticky lg:top-20 lg:self-start">
-              <div className="premium-card p-4 lg:mt-8">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Índice</p>
-                <ol className="mt-2 flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
-                  {INDICE.map((s, i) => (
-                    <li key={s.id} className="shrink-0 lg:shrink">
-                      <a
-                        href={`#${s.id}`}
-                        className="block whitespace-nowrap rounded-[6px] px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-input-bg)] hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] lg:whitespace-normal"
-                      >
-                        <span aria-hidden="true" className="mr-2 text-xs font-bold tabular-nums text-[var(--text-link)]">
-                          {String(i + 1).padStart(2, "0")}
-                        </span>
-                        {s.label}
-                      </a>
-                    </li>
-                  ))}
-                </ol>
+          <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-14">
+            {/* Índice: plegable en móvil, fijo en escritorio. */}
+            <details className="mb-10 rounded-[6px] border border-[var(--border-subtle)] lg:hidden">
+              <summary className="flex min-h-11 cursor-pointer items-center px-4 text-sm font-medium text-[var(--text-primary)] focus-visible:rounded-[6px] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none">
+                En esta página
+              </summary>
+              <nav aria-label="Índice de la página" className="border-t border-[var(--border-subtle)] px-4 py-2">
+                <IndiceLista />
+              </nav>
+            </details>
+            <nav aria-label="Índice de la página" className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
+              <p className="type-label text-[var(--text-muted)]">En esta página</p>
+              <div className="mt-3 border-l border-[var(--border-subtle)]">
+                <IndiceLista />
               </div>
             </nav>
 
-            <article className="mt-8 min-w-0 lg:mt-8">
-              {/* 1 */}
-              <section id="vision-general" aria-labelledby="h-vision-general" className="scroll-mt-24">
-                <SectionEyebrow>Visión general</SectionEyebrow>
-                <h2 id="h-vision-general" className="editorial-display mt-2 text-2xl text-[var(--color-text-primary)] sm:text-3xl">
-                  Una ficha por municipio, con fuente y periodo
-                </h2>
+            <article className="min-w-0">
+              <Seccion id="vision-general" headingId="h-vision-general" title="Una ficha por municipio, con fuente y periodo" first>
                 <P>
                   SOCideas permite consultar una ficha demográfica y económica por municipio a partir de
                   fuentes oficiales. Su propósito es apoyar la caracterización territorial y el análisis
@@ -143,62 +322,67 @@ export default function ComoFuncionaSocideas() {
                   —por umbral de población, secreto estadístico o falta de cobertura—, se muestra como no
                   disponible con su nota metodológica.
                 </P>
-                <Callout kind="principio" title="Ausencia explícita, nunca cero inventado">
+                <Nota kind="principio" title="ausencia explícita, nunca cero inventado">
                   <p>
                     Los valores bajo secreto estadístico o fuera de cobertura se conservan como ausencia
                     con trazabilidad. Ningún proceso sustituye un valor no disponible por cero.
                   </p>
-                </Callout>
-              </section>
+                </Nota>
+              </Seccion>
 
-              {/* 2 */}
-              <section id="que-consulta-el-usuario" aria-labelledby="h-que-consulta" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
-                <SectionEyebrow>Uso</SectionEyebrow>
-                <H2><span id="h-que-consulta">Qué consulta el usuario</span></H2>
+              <Seccion id="que-consulta-el-usuario" headingId="h-que-consulta" title="Qué consulta el usuario">
                 <P>
                   El punto de partida es el buscador municipal: selección de comunidad autónoma, provincia
                   y municipio, o búsqueda directa por nombre. Desde el resultado se accede a la ficha del
                   municipio, organizada en categorías.
                 </P>
-                <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
-                  <li>
-                    <strong className="text-[var(--color-text-primary)]">Demografía</strong> (disponible):
-                    población municipal, evolución anual y estructura por edad y sexo, con comparativas de
-                    provincia, comunidad autónoma y conjunto nacional.
-                  </li>
-                  <li>
-                    <strong className="text-[var(--color-text-primary)]">Economía</strong> (en desarrollo):
-                    renta, desigualdad, tejido empresarial y sector agrario. Cada subbloque declara su
-                    cobertura y su año de referencia; los subbloques sin cobertura se muestran como
-                    pendientes, no como vacíos.
-                  </li>
-                  <li>
-                    <strong className="text-[var(--color-text-primary)]">Secciones censales</strong> (en
-                    preparación): divisiones estadísticas internas del municipio. La geometría oficial se
-                    carga únicamente bajo demanda, y los indicadores por sección solo se incorporan cuando
-                    existe una fuente oficial que los publique a ese nivel.
-                  </li>
-                </ul>
+                <dl className="mt-6 max-w-[68ch] border-t border-[var(--border-strong)]">
+                  {[
+                    {
+                      nombre: "Demografía",
+                      estado: <Badge variant="success">Disponible</Badge>,
+                      texto:
+                        "Población municipal, evolución anual y estructura por edad y sexo, con comparativas de provincia, comunidad autónoma y conjunto nacional.",
+                    },
+                    {
+                      nombre: "Economía",
+                      estado: <Badge variant="primary">En desarrollo</Badge>,
+                      texto:
+                        "Renta, desigualdad, tejido empresarial y sector agrario. Cada subbloque declara su cobertura y su año de referencia; los subbloques sin cobertura se muestran como pendientes, no como vacíos.",
+                    },
+                    {
+                      nombre: "Secciones censales",
+                      estado: <Badge variant="primary">En preparación</Badge>,
+                      texto:
+                        "Divisiones estadísticas internas del municipio. La geometría oficial se carga únicamente bajo demanda, y los indicadores por sección solo se incorporan cuando existe una fuente oficial que los publique a ese nivel.",
+                    },
+                  ].map((c) => (
+                    <div key={c.nombre} className="border-b border-[var(--border-subtle)] py-4">
+                      <dt className="flex flex-wrap items-center gap-3">
+                        <span className="type-h4 text-[var(--text-primary)]">{c.nombre}</span>
+                        {c.estado}
+                      </dt>
+                      <dd className="type-body-sm mt-2 text-[var(--text-secondary)]">{c.texto}</dd>
+                    </div>
+                  ))}
+                </dl>
                 <P>
                   Una vez cargada la información municipal, los filtros de la ficha —año de referencia,
                   ventana de evolución, año de pirámide y ámbitos de comparación— se aplican localmente
                   sobre los datos ya disponibles, sin nuevas consultas a las fuentes oficiales.
                 </P>
-              </section>
+              </Seccion>
 
-              {/* 3 */}
-              <section id="arquitectura" aria-labelledby="h-arquitectura" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
-                <SectionEyebrow>Arquitectura</SectionEyebrow>
-                <H2><span id="h-arquitectura">De la fuente oficial a la ficha</span></H2>
+              <Seccion id="arquitectura" headingId="h-arquitectura" title="De la fuente oficial a la ficha">
                 <P>
                   La arquitectura separa tres responsabilidades: la aplicación web que presenta la
                   navegación, la búsqueda y las fichas; el catálogo territorial y la trazabilidad que
                   respaldan la selección de municipios y la referencia de cada dato; y los documentos
                   municipales estructurados que contienen el bloque principal de indicadores.
                 </P>
-                <figure className="premium-card mt-5 max-w-3xl p-4 sm:p-5" aria-labelledby="fig-arquitectura">
-                  <figcaption id="fig-arquitectura" className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-                    Diagrama de arquitectura
+                <figure className="mt-6 max-w-[68ch]" aria-labelledby="fig-arquitectura">
+                  <figcaption id="fig-arquitectura" className="type-label text-[var(--text-muted)]">
+                    Capas de la arquitectura, de la consulta a la fuente
                   </figcaption>
                   <p className="sr-only">
                     El usuario consulta la aplicación web; la aplicación se apoya en el catálogo
@@ -206,47 +390,41 @@ export default function ComoFuncionaSocideas() {
                     estructurados; y estos, de las fuentes oficiales, que se descargan, validan y
                     normalizan antes de publicarse.
                   </p>
-                  <ol aria-hidden="false" className="mt-3 space-y-1 text-sm font-medium text-[var(--color-text-primary)]">
-                    {[
-                      "Usuario: busca y consulta fichas municipales",
-                      "Aplicación web: navegación, búsqueda y fichas",
-                      "Catálogo territorial y trazabilidad: municipios, fuentes, periodos y estados",
-                      "Datos municipales estructurados: bloque principal de indicadores",
-                      "Fuentes oficiales: descarga, validación y normalización previas a la publicación",
-                    ].map((paso, i, arr) => (
-                      <li key={paso}>
-                        <span className="flex items-center gap-3 rounded-[6px] bg-[var(--color-input-bg)] px-3 py-2.5">
-                          <span aria-hidden="true" className="text-xs font-bold tabular-nums text-[var(--musgo)]">
-                            {String(i + 1).padStart(2, "0")}
-                          </span>
-                          {paso}
+                  <ol className="mt-3 border-l-2 border-[var(--border-strong)]">
+                    {CAPAS.map((capa, i) => (
+                      <li
+                        key={capa.nombre}
+                        className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-4 gap-y-1 border-b border-[var(--border-subtle)] py-3 pl-4 last:border-b-0 sm:grid-cols-[1.5rem_16rem_minmax(0,1fr)]"
+                      >
+                        <span aria-hidden="true" className="tnum type-body-sm text-[var(--text-muted)]">
+                          {i + 1}
                         </span>
-                        {i < arr.length - 1 && (
-                          <span aria-hidden="true" className="block py-0.5 text-center text-[var(--color-text-muted)]">â†“</span>
-                        )}
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">{capa.nombre}</span>
+                        <span className="type-body-sm col-start-2 text-[var(--text-secondary)] sm:col-start-3">{capa.texto}</span>
                       </li>
                     ))}
                   </ol>
                 </figure>
-                <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
-                  <li>La aplicación y el renderizado se sirven sobre una arquitectura web moderna (Next.js).</li>
-                  <li>Los documentos municipales de gran volumen se almacenan como objetos para consulta repetida.</li>
-                  <li>El catálogo territorial y la trazabilidad residen en una base de datos relacional.</li>
-                  <li>Las fuentes oficiales se descargan, validan y normalizan antes de publicarse.</li>
-                  <li>Las operaciones de actualización están protegidas y no existen como función pública de consulta.</li>
-                </ul>
-                <Callout kind="trazabilidad" title="Cada indicador conserva su referencia">
+                <Lista
+                  items={[
+                    "La aplicación y el renderizado se sirven sobre una arquitectura web moderna (Next.js).",
+                    "Los documentos municipales de gran volumen se almacenan como objetos para consulta repetida.",
+                    "El catálogo territorial y la trazabilidad residen en una base de datos relacional.",
+                    "Las fuentes oficiales se descargan, validan y normalizan antes de publicarse.",
+                    "Las operaciones de actualización están protegidas y no existen como función pública de consulta.",
+                  ]}
+                />
+                <Nota kind="trazabilidad" title="cada indicador conserva su referencia">
                   <p>
                     Fuente, bloque, periodo de referencia y estado (consolidado o provisional) viajan con
                     el dato desde su incorporación hasta su visualización en la ficha.
                   </p>
-                </Callout>
-              </section>
+                </Nota>
+              </Seccion>
 
-              {/* 4 */}
-              <section id="datos-y-fuentes" aria-labelledby="h-datos" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
-                <SectionEyebrow>Datos y fuentes</SectionEyebrow>
-                <h2 id="fuentes" className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-2xl">
+              {/* #datos-y-fuentes se conserva como ancla de compatibilidad. */}
+              <section id="datos-y-fuentes" aria-labelledby="fuentes" className="mt-14 scroll-mt-24 border-t border-[var(--border-subtle)] pt-10">
+                <h2 id="fuentes" className="type-h2 max-w-[32ch] scroll-mt-24 text-[var(--text-primary)]">
                   <span id="h-datos">Fuentes oficiales, cobertura y estado</span>
                 </h2>
                 <P>
@@ -254,8 +432,13 @@ export default function ComoFuncionaSocideas() {
                   el estado a fecha de redacción: lo disponible, lo que está en preparación técnica y lo
                   que permanece pendiente o sin cobertura.
                 </P>
-                <div className="mt-5 overflow-x-auto rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-                  <table className="ideas-table min-w-[880px]">
+                <div
+                  className="data-table-wrap mt-6 rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
+                  role="region"
+                  aria-label="Tabla de fuentes oficiales (desplazable)"
+                  tabIndex={0}
+                >
+                  <table className="data-table min-w-[880px]">
                     <caption className="sr-only">Fuentes oficiales de SOCideas con cobertura, periodo y estado</caption>
                     <thead>
                       <tr>
@@ -269,219 +452,133 @@ export default function ComoFuncionaSocideas() {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr>
-                        <td>Demografía</td>
-                        <td>Población, evolución anual, estructura por edad y sexo</td>
-                        <td>INE</td>
-                        <td>Anual</td>
-                        <td>Todos los municipios; comparativas de provincia, comunidad y Estado</td>
-                        <td>Serie anual disponible por municipio</td>
-                        <td>Disponible</td>
-                      </tr>
-                      <tr>
-                        <td>Renta de los hogares</td>
-                        <td>Renta neta y bruta media por persona y hogar; Gini; P80/P20</td>
-                        <td>INE · Atlas de Distribución de Renta de los Hogares</td>
-                        <td>Anual</td>
-                        <td>Rentas medias en todos los municipios; desigualdad solo en municipios de 100 o más residentes</td>
-                        <td>2023 (serie 2015–2023)</td>
-                        <td>En preparación</td>
-                      </tr>
-                      <tr>
-                        <td>Renta por declaración</td>
-                        <td>Número de declaraciones; renta bruta y disponible media por declaración</td>
-                        <td>AEAT · Estadística de declarantes del IRPF por municipios</td>
-                        <td>Anual</td>
-                        <td>Municipios de más de 1.000 habitantes en territorio fiscal común (excluye País Vasco y Navarra)</td>
-                        <td>2023</td>
-                        <td>En preparación</td>
-                      </tr>
-                      <tr>
-                        <td>Tejido empresarial</td>
-                        <td>Número de empresas total y por sector</td>
-                        <td>INE · DIRCE</td>
-                        <td>Anual</td>
-                        <td>Total en todos los municipios; desglose por sector según tamaño del municipio</td>
-                        <td>2025 (referencia 1 de enero)</td>
-                        <td>En preparación</td>
-                      </tr>
-                      <tr>
-                        <td>Estructura agraria y ganadería</td>
-                        <td>Superficie agraria, explotaciones y cabaña ganadera</td>
-                        <td>INE · Censo Agrario 2020</td>
-                        <td>Estructural</td>
-                        <td>Todos los municipios, con umbral de explotación y secreto estadístico</td>
-                        <td>2020</td>
-                        <td>Disponible parcial</td>
-                      </tr>
-                      <tr>
-                        <td>Empleo registrado</td>
-                        <td>Paro registrado por municipio</td>
-                        <td>SEPE</td>
-                        <td>Mensual</td>
-                        <td>Todos los municipios</td>
-                        <td>—</td>
-                        <td>Pendiente</td>
-                      </tr>
-                      <tr>
-                        <td>Afiliación</td>
-                        <td>Afiliación a la Seguridad Social por municipio</td>
-                        <td>TGSS / Seguridad Social</td>
-                        <td>Mensual</td>
-                        <td>Todos los municipios, con secreto estadístico</td>
-                        <td>—</td>
-                        <td>Pendiente</td>
-                      </tr>
-                      <tr>
-                        <td>Finanzas locales y ayudas</td>
-                        <td>Presupuestos, liquidaciones y subvenciones</td>
-                        <td>Ministerio de Hacienda y otras</td>
-                        <td>Variable</td>
-                        <td>Heterogénea, sin fuente nacional homogénea verificada</td>
-                        <td>—</td>
-                        <td>Pendiente</td>
-                      </tr>
-                      <tr>
-                        <td>Precios</td>
-                        <td>IPC municipal homogéneo</td>
-                        <td>—</td>
-                        <td>—</td>
-                        <td>Sin cobertura: no existe un IPC municipal homogéneo</td>
-                        <td>—</td>
-                        <td>Sin cobertura</td>
-                      </tr>
-                      <tr>
-                        <td>Secciones censales</td>
-                        <td>Geometría e indicadores por sección</td>
-                        <td>INE</td>
-                        <td>Según operación</td>
-                        <td>Geometría oficial bajo demanda; indicadores solo con fuente a ese nivel</td>
-                        <td>—</td>
-                        <td>En preparación</td>
-                      </tr>
+                      {FUENTES.map((f) => (
+                        <tr key={f.bloque} className="align-top">
+                          <td className="py-3 font-semibold">{f.bloque}</td>
+                          <td className="py-3">{f.indicadores}</td>
+                          <td className="meta py-3">{f.fuente}</td>
+                          <td className="meta py-3">{f.periodicidad}</td>
+                          <td className="meta py-3">{f.cobertura}</td>
+                          <td className="meta tnum py-3">{f.periodo}</td>
+                          <td className="py-3">
+                            <Badge variant={ESTADO_BADGE[f.estado]}>{f.estado}</Badge>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
-                <Callout kind="limitacion" title="Renta por declaración no es renta por habitante">
+                <Nota kind="limitacion" title="renta por declaración no es renta por habitante">
                   <p>
                     Los importes medios por declaración de la AEAT dependen de la tributación individual o
                     conjunta y no equivalen a la renta por habitante ni por hogar del Atlas del INE. Ambas
                     familias se presentan por separado y nunca se mezclan.
                   </p>
-                </Callout>
-                <Callout kind="limitacion" title="Rezagos de publicación">
+                </Nota>
+                <Nota kind="limitacion" title="rezagos de publicación">
                   <p>
                     Las estadísticas oficiales se publican con retraso natural: la renta y las empresas
                     pueden referirse a uno o dos años anteriores. Cada indicador muestra siempre su año de
                     referencia para evitar lecturas anacrónicas.
                   </p>
-                </Callout>
+                </Nota>
               </section>
 
-              {/* 5 */}
-              <section id="flujo-de-datos" aria-labelledby="h-flujo" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
-                <SectionEyebrow>Flujo de datos</SectionEyebrow>
-                <H2><span id="h-flujo">De la descarga controlada a la ficha</span></H2>
-                <ol className="mt-4 max-w-3xl space-y-2 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
-                  {[
-                    "Fuente oficial: publicación del organismo estadístico.",
-                    "Descarga controlada: obtención del fichero o tabla correspondiente al periodo.",
-                    "Validación de periodo, código municipal, formato, rango y cobertura.",
-                    "Normalización: unidades, dimensiones y trazabilidad homogéneas.",
-                    "Documento municipal: el bloque actualizado se integra en el documento del municipio.",
-                    "Ficha SOCideas: presentación con fuente, periodo y estado.",
-                  ].map((paso, i) => (
-                    <li key={paso} className="flex gap-3">
-                      <span aria-hidden="true" className="text-xs font-bold tabular-nums text-[var(--musgo)] mt-1">
-                        {String(i + 1).padStart(2, "0")}
+              <Seccion id="flujo-de-datos" headingId="h-flujo" title="De la descarga controlada a la ficha">
+                <ol className="mt-6 max-w-[68ch] border-t border-[var(--border-strong)]">
+                  {FLUJO.map((paso, i) => (
+                    <li
+                      key={paso.titulo}
+                      className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 border-b border-[var(--border-subtle)] py-3"
+                    >
+                      <span aria-hidden="true" className="tnum text-sm font-semibold text-[var(--moss-ink)]">
+                        {i + 1}
                       </span>
-                      <span>{paso}</span>
+                      <p className="type-body-sm text-[var(--text-secondary)]">
+                        <span className="font-semibold text-[var(--text-primary)]">{paso.titulo}.</span> {paso.texto}
+                      </p>
                     </li>
                   ))}
                 </ol>
-                <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
-                  <li>El código INE de cinco dígitos es la clave municipal en todo el flujo.</li>
-                  <li>Se diferencia siempre entre dato consolidado y dato provisional: un provisional no sustituye al consolidado.</li>
-                  <li>Cada indicador conserva su fuente y su fecha de referencia.</li>
-                  <li>Las actualizaciones se limitan al bloque correspondiente del municipio y no sustituyen sin control otros bloques de la ficha.</li>
-                  <li>Tras una actualización autorizada, los documentos se revalidan de forma selectiva.</li>
-                </ul>
-              </section>
+                <Lista
+                  items={[
+                    "El código INE de cinco dígitos es la clave municipal en todo el flujo.",
+                    "Se diferencia siempre entre dato consolidado y dato provisional: un provisional no sustituye al consolidado.",
+                    "Cada indicador conserva su fuente y su fecha de referencia.",
+                    "Las actualizaciones se limitan al bloque correspondiente del municipio y no sustituyen sin control otros bloques de la ficha.",
+                    "Tras una actualización autorizada, los documentos se revalidan de forma selectiva.",
+                  ]}
+                />
+              </Seccion>
 
-              {/* 5b */}
-              <section id="herramientas-de-consulta" aria-labelledby="h-herramientas" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
-                <SectionEyebrow>Herramientas de consulta</SectionEyebrow>
-                <H2><span id="h-herramientas">Herramientas de consulta</span></H2>
+              <Seccion id="herramientas-de-consulta" headingId="h-herramientas" title="Herramientas de consulta">
                 <P>
                   La ficha permite revisar los datos disponibles por bloque. Los filtros actúan sobre la
                   información ya cargada, sin nuevas consultas a las fuentes oficiales. Las comparativas
                   —por nivel territorial o por periodo— solo se muestran cuando hay cobertura y periodos
-                  compatibles; en caso contrario la herramienta se oculta o indica “No comparable”.
+                  compatibles; en caso contrario la herramienta se oculta o indica «No comparable».
                 </P>
-                <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
-                  <li>Selector de nivel territorial (municipio, provincia, comunidad autónoma, España) solo con niveles y periodos homogéneos.</li>
-                  <li>Comparador de periodos con variación absoluta y porcentual, con años exactos.</li>
-                  <li>Filtros de tabla (búsqueda, año, restablecer) sobre datos ya cargados, accesibles con teclado.</li>
-                  <li>Vista de metodología “Ver definición y fuente” con definición, fuente, periodo, cobertura, estado y limitación.</li>
-                  <li>Copia de tabla visible con encabezados, fuente y periodo.</li>
-                  <li>Enlace “Consultar fuente oficial” solo cuando existe una URL pública verificada.</li>
-                </ul>
+                <Lista
+                  items={[
+                    "Selector de nivel territorial (municipio, provincia, comunidad autónoma, España) solo con niveles y periodos homogéneos.",
+                    "Comparador de periodos con variación absoluta y porcentual, con años exactos.",
+                    "Filtros de tabla (búsqueda, año, restablecer) sobre datos ya cargados, accesibles con teclado.",
+                    "Vista de metodología «Ver definición y fuente» con definición, fuente, periodo, cobertura, estado y limitación.",
+                    "Copia de tabla visible con encabezados, fuente y periodo.",
+                    "Enlace «Consultar fuente oficial» solo cuando existe una URL pública verificada.",
+                  ]}
+                />
                 <P>
                   La ausencia de un dato se comunica como ausencia, no como cero. La trazabilidad indica
                   fuente, periodo y cobertura de cada valor.
                 </P>
-              </section>
+              </Seccion>
 
-              {/* 5c */}
-              <section id="descargas" aria-labelledby="h-descargas" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
-                <SectionEyebrow>Descargas</SectionEyebrow>
-                <H2><span id="h-descargas">Descargas</span></H2>
+              <Seccion id="descargas" headingId="h-descargas" title="Descargas">
                 <P>
                   Demografía y Economía disponen de páginas separadas de tablas, contextuales al municipio
                   (con su código INE en la URL). Solo se incluyen indicadores disponibles; cada exportación
                   incorpora fuente, periodo y limitaciones. Las tablas no cubiertas se documentan en la hoja
                   de trazabilidad, pero no se rellenan con valores.
                 </P>
-                <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
-                  <li>Libro XLSX combinado por municipio (acceso principal desde la cabecera de la ficha): hojas de resumen con trazabilidad, demografía y economía, solo con tablas reales y estética corporativa.</li>
-                  <li>CSV individual por tabla (UTF-8 con BOM, separador compatible con Excel español).</li>
-                  <li>Informe HTML imprimible por bloque con identidad corporativa y hoja inicial de trazabilidad.</li>
-                  <li>Descarga completa del bloque actual (nunca de toda la plataforma ni hojas vacías).</li>
-                </ul>
+                <Lista
+                  items={[
+                    "Libro XLSX combinado por municipio (acceso principal desde la cabecera de la ficha): hojas de resumen con trazabilidad, demografía y economía, solo con tablas reales y estética corporativa.",
+                    "CSV individual por tabla (UTF-8 con BOM, separador compatible con Excel español).",
+                    "Informe HTML imprimible por bloque con identidad corporativa y hoja inicial de trazabilidad.",
+                    "Descarga completa del bloque actual (nunca de toda la plataforma ni hojas vacías).",
+                  ]}
+                />
                 <P>
                   Los archivos pueden descargarse individualmente o por bloque. Las descargas son
                   idempotentes: no modifican datos ni registran actualizaciones.
                 </P>
-              </section>
+              </Seccion>
 
-              {/* 5d */}
-              <section id="actualizacion-y-control" aria-labelledby="h-act-control" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
-                <SectionEyebrow>Actualización y control</SectionEyebrow>
-                <H2><span id="h-act-control">Actualización y control</span></H2>
+              <Seccion id="actualizacion-y-control" headingId="h-act-control" title="Actualización y control">
                 <P>
                   Las actualizaciones se realizan por bloque y municipio: actualizar Demografía nunca
                   sobrescribe Economía, ni a la inversa. Los datos consolidados y provisionales se
                   diferencian siempre; si no existe una fuente provisional válida, se conserva el último
                   dato consolidado y se comunica la ausencia de forma explícita.
                 </P>
-                <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
-                  <li>Cada actualización valida cobertura, periodo, código municipal y coherencia.</li>
-                  <li>Las operaciones internas están restringidas a personal autorizado.</li>
-                  <li>La consulta pública no permite modificar datos.</li>
-                  <li>Tras una actualización autorizada solo se revalida la ficha afectada.</li>
-                </ul>
-              </section>
+                <Lista
+                  items={[
+                    "Cada actualización valida cobertura, periodo, código municipal y coherencia.",
+                    "Las operaciones internas están restringidas a personal autorizado.",
+                    "La consulta pública no permite modificar datos.",
+                    "Tras una actualización autorizada solo se revalida la ficha afectada.",
+                  ]}
+                />
+              </Seccion>
 
-              {/* 6 */}
-              <section id="actualizacion-calidad" aria-labelledby="h-actualizacion" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
-                <SectionEyebrow>Actualización y calidad</SectionEyebrow>
-                <H2><span id="h-actualizacion">Actualización y controles de calidad</span></H2>
+              <Seccion id="actualizacion-calidad" headingId="h-actualizacion" title="Actualización y controles de calidad">
                 <P>
                   Cada fuente tiene su propia periodicidad —anual la demografía y la renta, mensual el
                   empleo cuando se incorpore, estructural el censo agrario—, por lo que la ficha combina
                   periodos distintos según el bloque. Antes de publicar, cada lote supera controles de
                   plausibilidad: códigos INE válidos, periodos coherentes, valores no negativos cuando
-                  corresponda, rentas positivas e Índices dentro de rango.
+                  corresponda, rentas positivas e índices dentro de rango.
                 </P>
                 <P>
                   El secreto estadístico recibe un tratamiento estricto: los valores inferiores al umbral
@@ -494,102 +591,74 @@ export default function ComoFuncionaSocideas() {
                   ficha y a los bloques implicados. Si la interfaz informa de la falta de un valor
                   provisional, muestra la ausencia; jamás fabrica un valor provisional.
                 </P>
-              </section>
+              </Seccion>
 
-              {/* 7 */}
-              <section id="cobertura-limitaciones" aria-labelledby="h-cobertura" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
-                <SectionEyebrow>Cobertura y limitaciones</SectionEyebrow>
-                <H2><span id="h-cobertura">Lo que SOCideas no puede prometer</span></H2>
-                <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
-                  <li>Las estadísticas oficiales tienen un rezago natural de uno o más años.</li>
-                  <li>La cobertura es desigual por fuente y tamaño de municipio: no todo indicador existe para los 8.130 municipios.</li>
-                  <li>Municipio, provincia, comunidad autónoma y sección censal son niveles distintos con fuentes distintas; sus cifras no siempre son comparables entre sí.</li>
-                  <li>Los umbrales de secreto estadístico dejan huecos explícitos en municipios pequeños.</li>
-                  <li>La ausencia de datos es una ausencia explícita, nunca un cero.</li>
-                  <li>Los datos consolidados y los provisionales conviven identificados; no deben leerse como equivalentes.</li>
-                  <li>Las secciones censales se cargan bajo demanda por su peso y por la disponibilidad de geometría.</li>
-                </ul>
-                <Callout kind="limitacion" title="Apoyo técnico, no verificación normativa">
+              <Seccion id="cobertura-limitaciones" headingId="h-cobertura" title="Lo que SOCideas no puede prometer">
+                <Lista
+                  items={[
+                    "Las estadísticas oficiales tienen un rezago natural de uno o más años.",
+                    "La cobertura es desigual por fuente y tamaño de municipio: no todo indicador existe para los 8.130 municipios.",
+                    "Municipio, provincia, comunidad autónoma y sección censal son niveles distintos con fuentes distintas; sus cifras no siempre son comparables entre sí.",
+                    "Los umbrales de secreto estadístico dejan huecos explícitos en municipios pequeños.",
+                    "La ausencia de datos es una ausencia explícita, nunca un cero.",
+                    "Los datos consolidados y los provisionales conviven identificados; no deben leerse como equivalentes.",
+                    "Las secciones censales se cargan bajo demanda por su peso y por la disponibilidad de geometría.",
+                  ]}
+                />
+                <Nota kind="limitacion" title="apoyo técnico, no verificación normativa">
                   <p>
                     Los resultados apoyan el análisis técnico, pero no sustituyen una verificación
                     normativa, jurídica, estadística o territorial específica del caso.
                   </p>
-                </Callout>
-              </section>
+                </Nota>
+              </Seccion>
 
-              {/* 8 */}
-              <section id="rendimiento" aria-labelledby="h-rendimiento" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
-                <SectionEyebrow>Rendimiento</SectionEyebrow>
-                <H2><span id="h-rendimiento">Rápido porque prepara, no porque improvisa</span></H2>
-                <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
-                  <li>El catálogo municipal está optimizado para la consulta repetida.</li>
-                  <li>La ficha utiliza el documento municipal ya estructurado y una caché selectiva.</li>
-                  <li>Los datos pesados, como la geometría de secciones censales, se cargan únicamente cuando se solicitan.</li>
-                  <li>La actualización de un municipio invalida solo la ficha afectada.</li>
-                </ul>
-              </section>
+              <Seccion id="rendimiento" headingId="h-rendimiento" title="Rápido porque prepara, no porque improvisa">
+                <Lista
+                  items={[
+                    "El catálogo municipal está optimizado para la consulta repetida.",
+                    "La ficha utiliza el documento municipal ya estructurado y una caché selectiva.",
+                    "Los datos pesados, como la geometría de secciones censales, se cargan únicamente cuando se solicitan.",
+                    "La actualización de un municipio invalida solo la ficha afectada.",
+                  ]}
+                />
+              </Seccion>
 
-              {/* 9 */}
-              <section id="privacidad-seguridad" aria-labelledby="h-privacidad" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
-                <SectionEyebrow>Privacidad y seguridad</SectionEyebrow>
-                <H2><span id="h-privacidad">Estadística agregada y funciones separadas</span></H2>
-                <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--color-text-secondary)] sm:text-base">
-                  <li>SOCideas se basa en estadísticas públicas y agregadas; no está diseñado para mostrar datos personales.</li>
-                  <li>Las funciones internas de mantenimiento están protegidas y separadas de la consulta pública.</li>
-                  <li>Las credenciales y los mecanismos internos no se exponen al navegador.</li>
-                  <li>El acceso de consulta está separado de los procesos de actualización.</li>
-                  <li>La trazabilidad contiene referencias metodológicas, nunca datos sensibles.</li>
-                </ul>
-              </section>
+              <Seccion id="privacidad-seguridad" headingId="h-privacidad" title="Estadística agregada y funciones separadas">
+                <Lista
+                  items={[
+                    "SOCideas se basa en estadísticas públicas y agregadas; no está diseñado para mostrar datos personales.",
+                    "Las funciones internas de mantenimiento están protegidas y separadas de la consulta pública.",
+                    "Las credenciales y los mecanismos internos no se exponen al navegador.",
+                    "El acceso de consulta está separado de los procesos de actualización.",
+                    "La trazabilidad contiene referencias metodológicas, nunca datos sensibles.",
+                  ]}
+                />
+              </Seccion>
 
-              {/* 10 */}
-              <section id="alcance-futuro" aria-labelledby="h-alcance" className="mt-12 scroll-mt-24 border-t border-[var(--color-border-subtle)] pt-8">
-                <SectionEyebrow>Alcance futuro</SectionEyebrow>
-                <H2><span id="h-alcance">Hoja de ruta prudente</span></H2>
-                <P>Sin fechas y sin llamar «disponible» a nada que no esté publicado:</P>
-                <div className="mt-4 grid max-w-4xl gap-4 sm:grid-cols-3">
-                  <div className="premium-card p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">En evaluación</p>
-                    <ul className="mt-2 list-disc space-y-1.5 pl-4 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                      <li>Ampliación de indicadores económicos</li>
-                      <li>Mejor diferenciación de datos provisionales</li>
-                      <li>Nuevas capas territoriales con cobertura y revisión metodológica</li>
-                    </ul>
-                  </div>
-                  <div className="premium-card p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Preparado técnicamente</p>
-                    <ul className="mt-2 list-disc space-y-1.5 pl-4 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                      <li>Conectores de empleo registrado y afiliación</li>
-                      <li>Actualizaciones focalizadas autorizadas por municipio</li>
-                    </ul>
-                  </div>
-                  <div className="premium-card p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Futuro</p>
-                    <ul className="mt-2 list-disc space-y-1.5 pl-4 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-                      <li>Mejora de visualizaciones y comparativas</li>
-                      <li>Finanzas locales y ayudas con fuente homogénea</li>
-                    </ul>
-                  </div>
+              <Seccion id="alcance-futuro" headingId="h-alcance" title="Hoja de ruta prudente">
+                <P>Sin fechas y sin llamar «disponible» a nada que no esté publicado.</P>
+                <div className="mt-6 grid gap-8 sm:grid-cols-3 sm:gap-6">
+                  {HOJA_DE_RUTA.map((col) => (
+                    <div key={col.fase} className="border-t-2 border-[var(--border-strong)] pt-4">
+                      <h3 className="type-h4 text-[var(--text-primary)]">{col.fase}</h3>
+                      <ul className="type-body-sm mt-3 list-disc space-y-1.5 pl-4 text-[var(--text-secondary)] marker:text-[var(--border-strong)]">
+                        {col.items.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <Link
-                    href="/socideas"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-hueso bg-musgo rounded-[6px] hover:bg-musgo-hover transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
-                  >
-                    Ir al buscador municipal
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                    </svg>
+                <div className="mt-12 flex flex-wrap gap-3 border-t border-[var(--border-subtle)] pt-8">
+                  <Link href="/socideas" className="btn btn-primary">
+                    Consultar un municipio
                   </Link>
-                  <Link
-                    href="/"
-                    style={{ backgroundColor: 'var(--color-card-bg)', color: 'var(--color-text-primary)', borderWidth: '2px', borderStyle: 'solid', borderColor: 'var(--color-primary)' }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-[6px] hover:opacity-80 transition-opacity duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
-                  >
+                  <Link href="/" className="btn btn-secondary">
                     Volver a la plataforma
                   </Link>
                 </div>
-              </section>
+              </Seccion>
             </article>
           </div>
         </div>

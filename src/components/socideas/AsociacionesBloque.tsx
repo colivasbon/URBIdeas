@@ -61,9 +61,9 @@ function Aviso({ texto }: { texto: string }) {
     <p
       role="note"
       aria-label="Aviso de verificación del registro de asociaciones"
-      className="mt-4 max-w-4xl rounded-[6px] border border-[var(--color-border-subtle)] border-l-4 border-l-[var(--color-secondary)] bg-[var(--color-input-bg)] px-4 py-3 text-xs font-medium leading-relaxed text-[var(--color-text-primary)]"
+      className="note mt-6 max-w-[70ch]"
     >
-      <strong>Aviso de verificación. </strong>
+      <strong className="font-semibold text-[var(--text-primary)]">Aviso de verificación. </strong>
       {texto}
     </p>
   );
@@ -76,36 +76,36 @@ export function AsociacionesBloque({ data, municipio }: AsociacionesBloqueProps)
   const buscador = data.buscadorCcaa ? httpSegura(data.buscadorCcaa.url) : null;
 
   return (
-    <section aria-label="Asociaciones inscritas en el registro autonómico" className="mb-10">
-      <h2 className="ideas-h2">Asociaciones</h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Registro autonómico de asociaciones
-        {municipio ? ` · ${municipio}` : ""}
-        {data.fuenteFecha ? ` · descarga del ${fmtFecha(data.fuenteFecha)}` : ""}
+    <section aria-label="Asociaciones inscritas en el registro autonómico" className="border-t border-[var(--border-subtle)] py-10">
+      <h2 className="type-h3 text-[var(--text-primary)]">Asociaciones</h2>
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        Entidades inscritas en el registro autonómico de asociaciones
+        {municipio ? ` con domicilio en ${municipio}` : ""}
+        {data.fuenteFecha ? `. Descarga del ${fmtFecha(data.fuenteFecha)}` : ""}.
       </p>
 
       {!conDatos ? (
         <div className="mt-4">
           <p
             role="status"
-            className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-primary)]"
+            className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-primary)]"
           >
             Sin datos publicados para este municipio.
           </p>
-          <p className="mt-3 max-w-3xl text-xs leading-relaxed text-[var(--color-text-muted)]">
+          <p className="mt-3 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
             SOCideas no ha recuperado registros de este municipio en los registros
             autonómicos con descarga estructurada. Esto no significa que aquí no haya
             asociaciones: significa que no hay datos publicados y comprobables para
             mostrarlos. No se muestra «0» porque no es un hecho verificado.
           </p>
           {buscador && data.buscadorCcaa && (
-            <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+            <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
               Puede consultarlas en el{" "}
               <a
                 href={buscador}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-[var(--color-secondary)]"
+                className="text-[var(--text-link)] underline underline-offset-2 hover:text-[var(--text-link-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
               >
                 registro de asociaciones de {data.buscadorCcaa.nombre}
               </a>{" "}
@@ -115,7 +115,7 @@ export function AsociacionesBloque({ data, municipio }: AsociacionesBloqueProps)
         </div>
       ) : (
         <>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-3">
             <StatCard
               etiqueta="Total de asociaciones"
               valor={fmtNumero(data.total)}
@@ -133,26 +133,26 @@ export function AsociacionesBloque({ data, municipio }: AsociacionesBloqueProps)
             />
           </div>
 
-          <div className="premium-card mt-4 p-4 sm:p-5">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+          <div className="mt-10">
+            <h3 className="type-h4 text-[var(--text-primary)]">
               Distribución por tipo
             </h3>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[16rem] text-xs">
+            <div className="socideas-table-shell__scroll max-w-[40rem] overflow-x-auto">
+              <table className="socideas-table min-w-[16rem]">
                 <caption className="sr-only">
                   Número de asociaciones por tipo en {municipio ?? "este municipio"}
                 </caption>
                 <thead>
-                  <tr className="text-left text-[var(--color-text-muted)]">
-                    <th scope="col" className="py-1 pr-4 font-semibold">Tipo</th>
-                    <th scope="col" className="py-1 text-right font-semibold">Total</th>
+                  <tr>
+                    <th scope="col" className="socideas-table__text">Tipo</th>
+                    <th scope="col" className="socideas-table__numeric">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.porTipo.map((t) => (
-                    <tr key={t.tipo} className="border-t border-[var(--color-border-subtle)]">
-                      <td className="py-1 pr-4 text-[var(--color-text-primary)]">{t.tipo}</td>
-                      <td className="py-1 text-right tabular-nums text-[var(--color-text-primary)]">
+                    <tr key={t.tipo}>
+                      <td className="socideas-table__text">{t.tipo}</td>
+                      <td className="socideas-table__numeric">
                         {fmtNumero(t.total)}
                       </td>
                     </tr>
@@ -162,48 +162,47 @@ export function AsociacionesBloque({ data, municipio }: AsociacionesBloqueProps)
             </div>
           </div>
 
-          <div className="premium-card mt-4 p-4 sm:p-5">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+          <div className="mt-10">
+            <h3 className="type-h4 text-[var(--text-primary)]">
               Listado de asociaciones
             </h3>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[32rem] text-sm">
+            <div className="socideas-table-shell__scroll overflow-x-auto">
+              <table className="socideas-table min-w-[32rem]">
                 <caption className="sr-only">
                   Asociaciones inscritas en {municipio ?? "este municipio"}, con tipo,
                   estado y fecha de inscripción
                 </caption>
                 <thead>
-                  <tr className="text-left text-xs text-[var(--color-text-muted)]">
-                    <th scope="col" className="py-2 pr-4 font-medium">Nombre</th>
-                    <th scope="col" className="py-2 pr-4 font-medium">Tipo</th>
-                    <th scope="col" className="py-2 pr-4 font-medium">Estado</th>
-                    <th scope="col" className="py-2 pr-4 font-medium">Fecha de inscripción</th>
-                    <th scope="col" className="py-2 font-medium">Enlace</th>
+                  <tr>
+                    <th scope="col" className="socideas-table__text">Nombre</th>
+                    <th scope="col" className="socideas-table__text">Tipo</th>
+                    <th scope="col" className="socideas-table__text">Estado</th>
+                    <th scope="col" className="socideas-table__year">Fecha de inscripción</th>
+                    <th scope="col" className="socideas-table__text">Enlace</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibles.map((it, i) => (
                     <tr
                       key={`${it.nombre}__${it.fecha_inscripcion ?? ""}__${i}`}
-                      className="border-t border-[var(--color-border-subtle)]"
                     >
-                      <td className="py-2 pr-4 text-[var(--color-text-primary)]">{it.nombre}</td>
-                      <td className="py-2 pr-4 text-[var(--color-text-secondary)]">
+                      <td className="socideas-table__text">{it.nombre}</td>
+                      <td className="text-[var(--text-secondary)]">
                         {it.tipo || "—"}
                       </td>
-                      <td className="py-2 pr-4 text-[var(--color-text-secondary)]">
+                      <td className="text-[var(--text-secondary)]">
                         {it.estado || "—"}
                       </td>
-                      <td className="py-2 pr-4 tabular-nums text-[var(--color-text-secondary)]">
+                      <td className="socideas-table__year text-[var(--text-secondary)]">
                         {fmtFecha(it.fecha_inscripcion)}
                       </td>
-                      <td className="py-2 text-[var(--color-text-secondary)]">
+                      <td className="text-[var(--text-secondary)]">
                         {it.enlace_estado === "verificado" && it.web_verificada ? (
                           <a
                             href={it.web_verificada}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="underline underline-offset-2 hover:text-[var(--color-secondary)]"
+                            className="text-[var(--text-link)] underline underline-offset-2 hover:text-[var(--text-link-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
                           >
                             Web
                           </a>
@@ -212,12 +211,12 @@ export function AsociacionesBloque({ data, municipio }: AsociacionesBloqueProps)
                             href={it.social_verificada}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="underline underline-offset-2 hover:text-[var(--color-secondary)]"
+                            className="text-[var(--text-link)] underline underline-offset-2 hover:text-[var(--text-link-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
                           >
                             Social
                           </a>
                         ) : (
-                          <span className="text-[var(--color-text-muted)]">
+                          <span className="text-[var(--text-muted)]">
                             Sin enlace individual verificado
                           </span>
                         )}
@@ -228,7 +227,7 @@ export function AsociacionesBloque({ data, municipio }: AsociacionesBloqueProps)
               </table>
             </div>
             {data.total > visibles.length && (
-              <p className="mt-3 text-xs text-[var(--color-text-muted)]">
+              <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
                 Se muestran las primeras {fmtNumero(visibles.length)} de{" "}
                 {fmtNumero(data.total)} asociaciones. El listado completo está disponible
                 en la exportación XLSX de la ficha.
@@ -238,21 +237,21 @@ export function AsociacionesBloque({ data, municipio }: AsociacionesBloqueProps)
         </>
       )}
 
-      <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+      <p className="mt-6 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
         Fuente:{" "}
         {fuenteUrl ? (
           <a
             href={fuenteUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline underline-offset-2 hover:text-[var(--color-secondary)]"
+            className="text-[var(--text-link)] underline underline-offset-2 hover:text-[var(--text-link-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
           >
             registro autonómico de asociaciones
           </a>
         ) : (
           "registro autonómico de asociaciones"
         )}
-        {data.fuenteFecha ? ` · fecha de descarga: ${fmtFecha(data.fuenteFecha)}` : ""}
+        {data.fuenteFecha ? `, fecha de descarga: ${fmtFecha(data.fuenteFecha)}` : ""}
         . La ausencia de dato se muestra como «—»; nunca como 0.
       </p>
 
@@ -267,13 +266,13 @@ export function AsociacionesSkeleton() {
     <section
       aria-label="Asociaciones inscritas en el registro autonómico"
       aria-busy="true"
-      className="mb-10"
+      className="border-t border-[var(--border-subtle)] py-10"
     >
-      <h2 className="ideas-h2">Asociaciones</h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+      <h2 className="type-h3 text-[var(--text-primary)]">Asociaciones</h2>
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
         Registro autonómico de asociaciones
       </p>
-      <div className="premium-card mt-4 p-4 sm:p-5">
+      <div className="mt-6">
         <div className="premium-skeleton h-4 w-1/3" />
         <div className="mt-4 space-y-3">
           <div className="premium-skeleton h-3 w-full" />

@@ -3,8 +3,8 @@
 import { useCallback, useState } from "react";
 
 /**
- * Cabecera operativa de la ficha municipal: banda destacada y propia (no
- * comparte fila con la navegación de hojas), con el recuento de tablas
+ * Barra operativa de la ficha municipal, bajo la cabecera y separada por un
+ * filete (no comparte fila con la navegación de hojas), con el recuento de tablas
  * disponibles y el botón principal de descarga del libro XLSX. El menú interno
  * llega por `children` (ActualizacionMenu); sin él, la banda muestra solo
  * resumen + XLSX. No genera archivos: el XLSX lo sirve el API route.
@@ -33,7 +33,7 @@ export default function FichaToolbar({
   const detalle = [
     `Demografía: ${demoCount} tabla${demoCount === 1 ? "" : "s"}${demoPeriodo ? ` (${demoPeriodo})` : ""}`,
     `Economía: ${ecoCount} tabla${ecoCount === 1 ? "" : "s"}${ecoPeriodo ? ` (${ecoPeriodo})` : ""}`,
-  ].join(" · ");
+  ].join("; ");
 
   const handleDownload = useCallback(async () => {
     if (downloading) return;
@@ -42,11 +42,11 @@ export default function FichaToolbar({
     try {
       const res = await fetch(`/api/socideas/exportar/${encodeURIComponent(codigoINE)}`);
       if (!res.ok) {
-        let msg = "No se ha podido generar el Excel.";
+        let msg = "No se ha podido generar el Excel. Inténtelo de nuevo en unos segundos.";
         try {
           const body = await res.json();
           if (body?.error && typeof body.error === "string") msg = body.error;
-          if (body?.ref && typeof body.ref === "string") msg += ` — Ref: ${body.ref}`;
+          if (body?.ref && typeof body.ref === "string") msg += ` Referencia del error: ${body.ref}`;
         } catch {
           /* respuesta no-JSON: usar mensaje genérico */
         }
@@ -66,33 +66,26 @@ export default function FichaToolbar({
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setError("No se pudo conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.");
+      setError("No se ha podido conectar con el servidor. Compruebe su conexión e inténtelo de nuevo.");
     } finally {
       setDownloading(false);
     }
   }, [codigoINE, downloading]);
 
   return (
-    <div className="min-w-0" aria-label="Acciones de la ficha municipal">
-      <div className="flex flex-col gap-4 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-4 shadow-[var(--shadow-sm)] sm:p-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 items-center gap-4" role="status" title={detalle}>
-          <span
-            aria-hidden="true"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[6px] bg-[var(--color-input-bg)] text-xl font-bold tabular-nums text-[var(--color-primary)]"
-          >
-            {total}
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-[var(--color-text-primary)]">
-              {total} tabla{total === 1 ? "" : "s"} disponible{total === 1 ? "" : "s"} en el libro
-            </p>
-            <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
-              Demografía: {demoCount} tabla{demoCount === 1 ? "" : "s"}
-              {demoPeriodo ? ` (${demoPeriodo})` : ""} · Economía: {ecoCount} tabla
-              {ecoCount === 1 ? "" : "s"}
-              {ecoPeriodo ? ` (${ecoPeriodo})` : ""}
-            </p>
-          </div>
+    <div className="mt-8 min-w-0 border-t border-[var(--border-subtle)] pt-5" aria-label="Acciones de la ficha municipal">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0" role="status" title={detalle}>
+          <p className="text-sm text-[var(--text-primary)]">
+            <span className="font-semibold tabular-nums">{total}</span> tabla{total === 1 ? "" : "s"} disponible
+            {total === 1 ? "" : "s"} en el libro XLSX
+          </p>
+          <p className="mt-1 text-[13px] text-[var(--text-muted)]">
+            Demografía: <span className="tabular-nums">{demoCount}</span> tabla{demoCount === 1 ? "" : "s"}
+            {demoPeriodo ? <span className="tabular-nums"> ({demoPeriodo})</span> : ""}; Economía:{" "}
+            <span className="tabular-nums">{ecoCount}</span> tabla{ecoCount === 1 ? "" : "s"}
+            {ecoPeriodo ? <span className="tabular-nums"> ({ecoPeriodo})</span> : ""}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {children}
@@ -100,22 +93,27 @@ export default function FichaToolbar({
             type="button"
             onClick={handleDownload}
             disabled={downloading}
+            aria-busy={downloading || undefined}
             title={
               downloading
                 ? "Generando Excel…"
                 : `Descargar libro XLSX combinado de este municipio. ${detalle}.`
             }
-            className="inline-flex shrink-0 items-center gap-2 rounded-[6px] bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn btn-secondary shrink-0"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
+            {downloading ? (
+              <span aria-hidden="true" className="spinner h-4 w-4" />
+            ) : (
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+            )}
             {downloading ? "Generando Excel…" : "Descargar libro XLSX"}
           </button>
         </div>
       </div>
       {error && (
-        <div role="alert" className="mt-2 w-full socideas-error-text break-words text-xs">
+        <div role="alert" className="mt-3 w-full socideas-error-text break-words text-sm">
           <span>{error}</span>
           {error.includes("XLSX-") && (
             <button
@@ -126,7 +124,7 @@ export default function FichaToolbar({
               }}
               className="ml-2 socideas-error-btn"
             >
-              Copiar ref
+              Copiar referencia
             </button>
           )}
         </div>

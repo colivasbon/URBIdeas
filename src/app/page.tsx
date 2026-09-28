@@ -2,11 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PlatformHeader, { CORPORATE_URL } from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
-import ModuleCard from "@/components/platform/ModuleCard";
-import SectionEyebrow from "@/components/ui/SectionEyebrow";
-import SectionReveal from "@/components/ui/SectionReveal";
-import KpiNumber from "@/components/ui/KpiNumber";
-import TopographicContours from "@/components/ui/TopographicContours";
+import MapSheet from "@/components/platform/MapSheet";
+import Badge from "@/components/ui/Badge";
 
 export const metadata: Metadata = {
   title: "IDEAS Sostenibilidad | Ideas Medioambientales",
@@ -14,17 +11,80 @@ export const metadata: Metadata = {
     "Plataforma del Área de Sostenibilidad de Ideas Medioambientales para el análisis territorial, la consulta municipal y el apoyo técnico a proyectos.",
 };
 
-const KPIS = [
-  { value: "8.130", label: "Municipios con ficha territorial" },
-  { value: "INE · AEAT · SEPE", label: "Fuentes oficiales trazables" },
-  { value: "2 + 1", label: "Módulos activos y área en preparación" },
+type Entrada = { nombre: string; descripcion: string; href?: string };
+
+const URBIDEAS: Entrada[] = [
+  {
+    nombre: "Mapa y dictamen",
+    href: "/urbideas/mapa",
+    descripcion: "Dibuje un ámbito, cruce sus afecciones y descargue el expediente con el dictamen.",
+  },
+  {
+    nombre: "Municipios",
+    href: "/urbideas/municipios",
+    descripcion: "Planeamiento urbanístico de cualquier municipio de España.",
+  },
+  {
+    nombre: "Legislación",
+    href: "/urbideas/legislacion",
+    descripcion: "Normativa urbanística estatal, autonómica y municipal.",
+  },
+  {
+    nombre: "API",
+    href: "/urbideas/api-docs",
+    descripcion: "Los mismos datos, para consulta programática desde sus herramientas.",
+  },
 ];
 
-const COBERTURA = [
-  { label: "Municipios", value: "8.130" },
-  { label: "Fuentes", value: "INE · AEAT · SEPE · DIRCE" },
-  { label: "Trazabilidad", value: "Por indicador y año" },
+const SOCIDEAS: Entrada[] = [
+  {
+    nombre: "Demografía",
+    descripcion: "Población, evolución anual y estructura por edad y sexo, con comparativa provincial y autonómica.",
+  },
+  {
+    nombre: "Economía",
+    descripcion: "Renta de los hogares y por declaración, desigualdad, tejido empresarial y estructura agraria.",
+  },
+  {
+    nombre: "Secciones censales",
+    descripcion: "Indicadores por sección censal sobre la geometría oficial del INE.",
+  },
+  {
+    nombre: "Descargas",
+    descripcion: "Tablas de cada bloque con fuente y periodo, listas para anexar a un informe.",
+  },
 ];
+
+const FUENTES = [
+  { fuente: "INE, Padrón municipal", aporta: "Población y estructura por edad y sexo", modulo: "SOCideas" },
+  { fuente: "INE, Atlas de Distribución de Renta de los Hogares", aporta: "Renta por persona y hogar, Gini, P80/P20", modulo: "SOCideas" },
+  { fuente: "AEAT, declarantes del IRPF por municipio", aporta: "Renta bruta y disponible por declaración", modulo: "SOCideas" },
+  { fuente: "INE, DIRCE", aporta: "Empresas totales y por sector", modulo: "SOCideas" },
+  { fuente: "INE, Censo Agrario 2020", aporta: "Superficie agraria, explotaciones y cabaña ganadera", modulo: "SOCideas" },
+  { fuente: "Boletines oficiales estatal y autonómicos", aporta: "Normativa urbanística y planeamiento publicado", modulo: "URBideas" },
+  { fuente: "Servicios WMS de las administraciones", aporta: "Capas de afecciones para el cruce de ámbitos", modulo: "URBideas" },
+];
+
+function IndiceModulo({ entradas }: { entradas: Entrada[] }) {
+  return (
+    <dl className="module-index mt-6">
+      {entradas.map((e) => (
+        <div key={e.nombre} className="module-index__row">
+          <dt>
+            {e.href ? (
+              <Link href={e.href} className="module-index__name">
+                {e.nombre}
+              </Link>
+            ) : (
+              <span className="module-index__name">{e.nombre}</span>
+            )}
+          </dt>
+          <dd className="module-index__desc">{e.descripcion}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 export default function PlatformHome() {
   return (
@@ -32,149 +92,123 @@ export default function PlatformHome() {
       <PlatformHeader />
 
       <main id="contenido" className="flex-1">
-        {/* Hero — sin animación de entrada (no penalizar LCP) */}
-        <section className="relative overflow-hidden border-b border-[var(--border-subtle)] bg-[var(--bg-canvas)]">
-          <div
-            className="pointer-events-none absolute inset-y-0 right-0 hidden w-[54%] lg:block"
-            aria-hidden="true"
-          >
-            <TopographicContours className="text-[var(--musgo)] opacity-[0.28]" />
-          </div>
-          <div className="container-ima relative">
-            <div className="py-16 sm:py-20 lg:py-28">
-              <div className="max-w-3xl">
-                <p className="editorial-eyebrow">
-                  <span>IDEAS Sostenibilidad · Ideas Medioambientales</span>
-                </p>
-                <h1 className="type-display mt-5 max-w-[16ch] text-[var(--text-primary)]">
-                  Conocimiento territorial para decisiones sostenibles
-                </h1>
-                <p className="measure mt-6 text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-secondary)]">
-                  Análisis territorial, diagnóstico municipal con fuentes oficiales y apoyo técnico
-                  a proyectos, en una sola plataforma.
-                </p>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <Link href="/urbideas" className="btn btn-primary btn-lg">
-                    Acceder a URBideas
-                    <svg
-                      className="btn-arrow h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3" />
-                    </svg>
-                  </Link>
-                  <Link href="/socideas" className="btn btn-secondary btn-lg">
-                    Buscar un municipio
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Franja de KPIs */}
-        <section aria-label="Cobertura de la plataforma" className="border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-          <div className="container-ima">
-            <div className="grid grid-cols-1 gap-8 py-10 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-[var(--border-subtle)]">
-              {KPIS.map((kpi, i) => (
-                <div key={kpi.label} className={i === 0 ? "sm:pr-8" : "sm:px-8"}>
-                  <KpiNumber value={kpi.value} label={kpi.label} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Módulos */}
-        <SectionReveal className="border-b border-[var(--border-subtle)]">
-          <div className="container-ima section-ima">
-            <div className="mb-10 max-w-3xl">
-              <SectionEyebrow>Módulos</SectionEyebrow>
-              <h2 className="type-h2 mt-3 text-[var(--text-primary)]">
-                Dos módulos de consulta, un área en preparación
-              </h2>
-              <p className="measure mt-3 text-[var(--text-secondary)]">
-                URBideas para el análisis territorial y SOCideas para el diagnóstico municipal.
-                Mismo lenguaje de datos, misma trazabilidad.
+        {/* Hoja de portada: sin animación de entrada (no penalizar LCP) */}
+        <section className="container-ima pt-6 pb-12 sm:pt-10 sm:pb-16">
+          <MapSheet>
+            <div className="max-w-[44rem]">
+              <p className="type-label text-[var(--moss-ink)]">
+                Área de Sostenibilidad de Ideas Medioambientales
               </p>
+              <h1 className="type-display mt-4 max-w-[18ch] text-[var(--text-primary)]">
+                Diagnóstico territorial de cualquier municipio de España
+              </h1>
+              <p className="mt-6 max-w-[34rem] text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-secondary)]">
+                Planeamiento, afecciones y normativa en URBideas. Demografía y economía con fuente
+                y año en SOCideas. Cada dato remite a su fuente oficial.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link href="/socideas#buscador" className="btn btn-primary btn-lg">
+                  Buscar un municipio
+                </Link>
+                <Link href="/urbideas/mapa" className="btn btn-secondary btn-lg">
+                  Dibujar un ámbito en el mapa
+                </Link>
+              </div>
             </div>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              <ModuleCard
-                kicker="Módulo disponible"
-                title="URBideas"
-                description="Análisis territorial, urbanístico y geoespacial. Dictamen de ámbito con cruce de afecciones y expediente descargable."
-                href="/urbideas"
-                cta="Acceder a URBideas"
-              />
-              <ModuleCard
-                kicker="Beta interna"
-                title="SOCideas"
-                description="Diagnóstico demográfico y económico municipal con fuentes oficiales: población, renta, desigualdad, empresas y sector agrario."
-                href="/socideas"
-                cta="Buscar un municipio"
-                badge="Demografía disponible"
-              />
-              <ModuleCard
-                kicker="Área en preparación"
-                title="Asistencias de sostenibilidad"
-                description="Apoyo técnico para caracterización territorial, comunicación, participación, responsabilidad social y seguimiento de proyectos."
-                href="/asistencias"
-                cta="En preparación"
-                badge="En preparación"
-                pending
-              />
-            </div>
-          </div>
-        </SectionReveal>
+          </MapSheet>
+        </section>
 
-        {/* La plataforma + Cobertura — bloque invertido */}
-        <SectionReveal>
-          <div className="bg-[var(--bg-inverse)] text-[var(--text-inverse)]">
-            <div className="container-ima section-ima">
-              <div className="grid gap-10 lg:grid-cols-[1fr_360px] lg:items-start">
-                <div>
-                  <p className="type-overline text-[var(--retama)]">La plataforma</p>
-                  <p className="measure mt-5 text-[1.375rem] font-semibold leading-snug text-[var(--text-inverse)] sm:text-2xl">
-                    Información, análisis y herramientas aplicadas a la sostenibilidad territorial,
-                    con sede en Albacete y proyección nacional.
-                  </p>
-                  <p className="measure mt-4 text-[var(--text-inverse-secondary)]">
-                    Desarrollada por Ideas Medioambientales para interlocución senior a senior:
-                    criterios fundamentales, conclusiones importantes y decisiones clave, sin ruido.
-                  </p>
-                  <a
-                    href={CORPORATE_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-inverse mt-6 link-external"
-                  >
-                    Visitar Ideas Medioambientales
+        {/* Contenido por módulo */}
+        <section aria-labelledby="modulos" className="border-t border-[var(--border-subtle)]">
+          <div className="container-ima section-ima">
+            <h2 id="modulos" className="type-h2 max-w-[24ch] text-[var(--text-primary)]">
+              Qué puede consultar
+            </h2>
+            <div className="mt-10 grid gap-12 lg:grid-cols-2 lg:gap-16">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h3 className="type-h3">
+                    <Link href="/urbideas" className="text-[var(--text-primary)]">
+                      URBideas
+                    </Link>
+                  </h3>
+                  <Badge variant="secondary" dot>
+                    Disponible
+                  </Badge>
+                </div>
+                <p className="mt-2 text-[var(--text-secondary)]">
+                  Análisis territorial, urbanístico y geoespacial.
+                </p>
+                <IndiceModulo entradas={URBIDEAS} />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h3 className="type-h3">
+                    <Link href="/socideas" className="text-[var(--text-primary)]">
+                      SOCideas
+                    </Link>
+                  </h3>
+                  <Badge variant="muted">Beta interna</Badge>
+                </div>
+                <p className="mt-2 text-[var(--text-secondary)]">
+                  Ficha municipal demográfica y económica. Se abre buscando el municipio.
+                </p>
+                <IndiceModulo entradas={SOCIDEAS} />
+              </div>
+            </div>
+            <p className="mt-12 max-w-[60ch] text-sm text-[var(--text-muted)]">
+              Las asistencias técnicas de sostenibilidad (caracterización territorial, comunicación,
+              participación y seguimiento de proyectos) se incorporarán como tercer módulo.
+            </p>
+          </div>
+        </section>
+
+        {/* Fuentes */}
+        <section aria-labelledby="fuentes" className="border-t border-[var(--border-subtle)] bg-[var(--bg-surface-sunken)]">
+          <div className="container-ima section-ima">
+            <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+              <div>
+                <h2 id="fuentes" className="type-h2 text-[var(--text-primary)]">
+                  De dónde salen los datos
+                </h2>
+                <p className="mt-4 max-w-[46ch] text-[var(--text-secondary)]">
+                  Los datos se sincronizan de forma controlada desde fuentes oficiales; la
+                  plataforma no consulta a la fuente en cada visita. Cada cifra conserva su fuente
+                  y su periodo de referencia para citarla en un informe.
+                </p>
+                <p className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                  <Link href="/socideas/como-funciona" className="link">
+                    Metodología de SOCideas
+                  </Link>
+                  <a href={CORPORATE_URL} target="_blank" rel="noopener noreferrer" className="link link-external">
+                    Ideas Medioambientales
                   </a>
-                </div>
-                <div className="rounded-[6px] border border-white/15 p-6">
-                  <p className="type-overline text-[var(--retama)]">Cobertura</p>
-                  <dl className="mt-4">
-                    {COBERTURA.map((row) => (
-                      <div
-                        key={row.label}
-                        className="flex items-baseline justify-between gap-4 border-t border-white/15 py-3 first:border-t-0 first:pt-0"
-                      >
-                        <dt className="text-sm text-[var(--text-inverse-secondary)]">{row.label}</dt>
-                        <dd className="tnum text-right text-sm font-semibold text-[var(--retama)]">
-                          {row.value}
-                        </dd>
-                      </div>
+                </p>
+              </div>
+              <div className="data-table-wrap rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+                <table className="data-table">
+                  <caption className="sr-only">Fuentes oficiales por módulo</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Fuente</th>
+                      <th scope="col">Qué aporta</th>
+                      <th scope="col">Módulo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {FUENTES.map((f) => (
+                      <tr key={f.fuente}>
+                        <td className="font-medium">{f.fuente}</td>
+                        <td className="meta">{f.aporta}</td>
+                        <td className="meta whitespace-nowrap">{f.modulo}</td>
+                      </tr>
                     ))}
-                  </dl>
-                </div>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
-        </SectionReveal>
+        </section>
       </main>
 
       <PlatformFooter />

@@ -13,6 +13,7 @@
 // años mensuales nunca se igualan a los bloques anuales. Ausencia = ND,
 // nunca 0.
 import StatCard from "./StatCard";
+import { CHART } from "./ficha-ui";
 import type {
   AfiliacionPresentationData,
   ParoPresentationData,
@@ -24,15 +25,15 @@ function fmt(n: number | null): string {
 
 function Trace({ label, tableId, period }: { label: string; tableId: string; period: string }) {
   return (
-    <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-      Fuente: {label} · Tabla {tableId} · {period}
+    <p className="mt-4 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
+      Fuente: {label}, tabla {tableId}. Periodo: <span className="tabular-nums">{period}</span>.
     </p>
   );
 }
 
 function NotaMensual({ nota }: { nota: string }) {
   return (
-    <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+    <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
       {nota}
     </p>
   );
@@ -41,21 +42,21 @@ function NotaMensual({ nota }: { nota: string }) {
 function EstadoLinea({ estado }: { estado: string }) {
   if (estado === "suppressed") {
     return (
-      <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
-        Dato no publicado por secreto estadístico.
+      <p role="status" className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+        Dato no publicado por secreto estadístico: la fuente no lo difunde para este municipio.
       </p>
     );
   }
   if (estado === "missing") {
     return (
-      <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
-        Información no disponible para este municipio.
+      <p role="status" className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+        La fuente no publica este dato para este municipio.
       </p>
     );
   }
   return (
-    <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
-      Cobertura parcial; consultar fuente y período.
+    <p role="status" className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+      Cobertura parcial: consulte la fuente y el período antes de usar el dato.
     </p>
   );
 }
@@ -63,12 +64,12 @@ function EstadoLinea({ estado }: { estado: string }) {
 function WarningList({ warnings }: { warnings: { regla: string; detalle: string }[] }) {
   if (warnings.length === 0) return null;
   return (
-    <div className="mt-3 rounded-[6px] border border-amber-300 bg-amber-50 px-4 py-3" role="alert">
-      <p className="text-xs font-semibold text-amber-800">Advertencias de reconciliación</p>
+    <div className="note mt-6 max-w-[70ch]" role="alert">
+      <p className="font-medium text-[var(--text-primary)]">Advertencias de reconciliación</p>
       <ul className="mt-1 space-y-1">
         {warnings.map((w, i) => (
-          <li key={i} className="text-xs text-amber-700">
-            <span className="font-medium">{w.regla}:</span> {w.detalle}
+          <li key={i}>
+            <span className="font-medium text-[var(--text-primary)]">{w.regla}:</span> {w.detalle}
           </li>
         ))}
       </ul>
@@ -80,11 +81,11 @@ function Barra({ etiqueta, valor, pct, color }: { etiqueta: string; valor: strin
   return (
     <div>
       <div className="flex justify-between gap-3 text-sm">
-        <span className="font-medium text-[var(--color-text-primary)]">{etiqueta}</span>
-        <span className="tabular-nums text-[var(--color-text-secondary)]">{valor}</span>
+        <span className="font-medium text-[var(--text-primary)]">{etiqueta}</span>
+        <span className="tabular-nums text-[var(--text-secondary)]">{valor}</span>
       </div>
-      <div className="mt-1 h-3 overflow-hidden rounded bg-[var(--color-input-bg)]" role="img" aria-label={`${etiqueta}: ${valor}`}>
-        <div className="h-full rounded" style={{ width: `${pct ?? 0}%`, background: color }} />
+      <div className="mt-1 h-3 overflow-hidden bg-[var(--bg-surface-sunken)]" role="img" aria-label={`${etiqueta}: ${valor}`}>
+        <div className="h-full" style={{ width: `${pct ?? 0}%`, background: color }} />
       </div>
     </div>
   );
@@ -118,65 +119,65 @@ export function ParoRegistradoBlock({ data }: { data: ParoPresentationData }) {
   const ok = (data.status === "observed" || data.status === "partial") && data.total !== null;
   const denomHM = (data.hombres.total ?? 0) + (data.mujeres.total ?? 0);
   return (
-    <section aria-label="Paro registrado" className="mb-10">
-      <h2 className="ideas-h2">Paro registrado</h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Demandantes parados · SEPE · {data.etiquetaPeriodo}
+    <section aria-label="Paro registrado" className="border-t border-[var(--border-subtle)] py-10">
+      <h2 className="type-h3 text-[var(--text-primary)]">Paro registrado</h2>
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        Demandantes parados registrados en las oficinas de empleo, dato mensual.
       </p>
       <NotaMensual nota={data.notaTemporal} />
       {!ok ? (
         <div className="mt-4"><EstadoLinea estado={data.status} /></div>
       ) : (
         <div className="mt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard etiqueta="Total" valor={fmt(data.total)} detalle={`SEPE · ${data.tableId} · ${data.etiquetaPeriodo}`} />
-            <StatCard etiqueta="Hombres" valor={fmt(data.hombres.total)} detalle={`SEPE · ${data.tableId} · ${data.etiquetaPeriodo}`} />
-            <StatCard etiqueta="Mujeres" valor={fmt(data.mujeres.total)} detalle={`SEPE · ${data.tableId} · ${data.etiquetaPeriodo}`} />
+          <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-3">
+            <StatCard etiqueta="Total" valor={fmt(data.total)} detalle={`SEPE, ${data.tableId}, ${data.etiquetaPeriodo}`} />
+            <StatCard etiqueta="Hombres" valor={fmt(data.hombres.total)} detalle={`SEPE, ${data.tableId}, ${data.etiquetaPeriodo}`} />
+            <StatCard etiqueta="Mujeres" valor={fmt(data.mujeres.total)} detalle={`SEPE, ${data.tableId}, ${data.etiquetaPeriodo}`} />
           </div>
-          <div className="mt-4 grid grid-cols-1 gap-3">
+          <div className="mt-8 grid max-w-[48rem] grid-cols-1 gap-3">
             <Barra
               etiqueta="Hombres"
-              valor={`${fmt(data.hombres.total)}${pctOf(data.hombres.total, denomHM) !== null ? ` · ${pctOf(data.hombres.total, denomHM)} %` : ""}`}
+              valor={`${fmt(data.hombres.total)}${pctOf(data.hombres.total, denomHM) !== null ? ` (${pctOf(data.hombres.total, denomHM)} %)` : ""}`}
               pct={pctOf(data.hombres.total, denomHM)}
-              color="var(--color-primary)"
+              color={CHART.hombres}
             />
             <Barra
               etiqueta="Mujeres"
-              valor={`${fmt(data.mujeres.total)}${pctOf(data.mujeres.total, denomHM) !== null ? ` · ${pctOf(data.mujeres.total, denomHM)} %` : ""}`}
+              valor={`${fmt(data.mujeres.total)}${pctOf(data.mujeres.total, denomHM) !== null ? ` (${pctOf(data.mujeres.total, denomHM)} %)` : ""}`}
               pct={pctOf(data.mujeres.total, denomHM)}
-              color="var(--color-secondary)"
+              color={CHART.mujeres}
             />
           </div>
-          <h3 className="mt-6 text-sm font-semibold text-[var(--color-text-primary)]">Por sector de actividad</h3>
-          <div className="mt-3 grid grid-cols-1 gap-3">
+          <h3 className="type-h4 mt-10 text-[var(--text-primary)]">Por sector de actividad</h3>
+          <div className="mt-4 grid max-w-[48rem] grid-cols-1 gap-3">
             {SECTOR_LABELS.map((s) => {
               const v = data.sectores[s.clave as keyof typeof data.sectores] ?? null;
               return (
                 <Barra
                   key={s.clave}
                   etiqueta={s.etiqueta}
-                  valor={`${fmt(v)}${pctOf(v, data.total) !== null ? ` · ${pctOf(v, data.total)} %` : ""}`}
+                  valor={`${fmt(v)}${pctOf(v, data.total) !== null ? ` (${pctOf(v, data.total)} %)` : ""}`}
                   pct={pctOf(v, data.total)}
-                  color="var(--color-primary)"
+                  color={CHART.municipio}
                 />
               );
             })}
           </div>
-          <h3 className="mt-6 text-sm font-semibold text-[var(--color-text-primary)]">Por sexo y tramo de edad</h3>
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <h3 className="type-h4 mt-10 text-[var(--text-primary)]">Por sexo y tramo de edad</h3>
+          <div className="mt-4 grid max-w-[64rem] grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2">
             <div>
-              <p className="text-xs font-medium text-[var(--color-text-secondary)]">Hombres</p>
+              <p className="text-sm font-medium text-[var(--text-secondary)]">Hombres</p>
               <div className="mt-2 grid grid-cols-1 gap-3">
                 {TRAMO_LABELS.map((t, i) => (
-                  <Barra key={t} etiqueta={t} valor={fmt(data.hombres.tramos[i] ?? null)} pct={pctOf(data.hombres.tramos[i] ?? null, data.hombres.total)} color="var(--color-primary)" />
+                  <Barra key={t} etiqueta={t} valor={fmt(data.hombres.tramos[i] ?? null)} pct={pctOf(data.hombres.tramos[i] ?? null, data.hombres.total)} color={CHART.hombres} />
                 ))}
               </div>
             </div>
             <div>
-              <p className="text-xs font-medium text-[var(--color-text-secondary)]">Mujeres</p>
+              <p className="text-sm font-medium text-[var(--text-secondary)]">Mujeres</p>
               <div className="mt-2 grid grid-cols-1 gap-3">
                 {TRAMO_LABELS.map((t, i) => (
-                  <Barra key={t} etiqueta={t} valor={fmt(data.mujeres.tramos[i] ?? null)} pct={pctOf(data.mujeres.tramos[i] ?? null, data.mujeres.total)} color="var(--color-secondary)" />
+                  <Barra key={t} etiqueta={t} valor={fmt(data.mujeres.tramos[i] ?? null)} pct={pctOf(data.mujeres.tramos[i] ?? null, data.mujeres.total)} color={CHART.mujeres} />
                 ))}
               </div>
             </div>
@@ -185,7 +186,7 @@ export function ParoRegistradoBlock({ data }: { data: ParoPresentationData }) {
       )}
       <WarningList warnings={data.warnings} />
       <Trace label="Servicio Público de Empleo Estatal" tableId={data.tableId} period={data.etiquetaPeriodo} />
-      <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+      <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
         La ausencia de dato se muestra como ND; nunca como 0.
       </p>
     </section>
@@ -195,31 +196,31 @@ export function ParoRegistradoBlock({ data }: { data: ParoPresentationData }) {
 export function AfiliacionBlock({ data }: { data: AfiliacionPresentationData }) {
   const ok = (data.status === "observed" || data.status === "partial") && data.total !== null;
   return (
-    <section aria-label="Afiliación a la Seguridad Social" className="mb-10">
-      <h2 className="ideas-h2">Afiliación a la Seguridad Social</h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Afiliados el último día del mes · TGSS · {data.etiquetaPeriodo}
+    <section aria-label="Afiliación a la Seguridad Social" className="border-t border-[var(--border-subtle)] py-10">
+      <h2 className="type-h3 text-[var(--text-primary)]">Afiliación a la Seguridad Social</h2>
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        Afiliados a la Seguridad Social el último día del mes, dato mensual.
       </p>
       <NotaMensual nota={data.notaTemporal} />
       {!ok ? (
         <div className="mt-4"><EstadoLinea estado={data.status} /></div>
       ) : (
         <div className="mt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <StatCard etiqueta="Total afiliados" valor={fmt(data.total)} detalle={`TGSS · ${data.tableId} · ${data.etiquetaPeriodo}`} />
-            <StatCard etiqueta="Régimen General" valor={fmt(data.regimenes.general)} detalle={`TGSS · ${data.tableId} · ${data.etiquetaPeriodo}`} />
+          <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
+            <StatCard etiqueta="Total afiliados" valor={fmt(data.total)} detalle={`TGSS, ${data.tableId}, ${data.etiquetaPeriodo}`} />
+            <StatCard etiqueta="Régimen General" valor={fmt(data.regimenes.general)} detalle={`TGSS, ${data.tableId}, ${data.etiquetaPeriodo}`} />
           </div>
-          <h3 className="mt-6 text-sm font-semibold text-[var(--color-text-primary)]">Por régimen</h3>
-          <div className="mt-3 grid grid-cols-1 gap-3">
+          <h3 className="type-h4 mt-10 text-[var(--text-primary)]">Por régimen</h3>
+          <div className="mt-4 grid max-w-[48rem] grid-cols-1 gap-3">
             {REGIMEN_LABELS.map((r) => {
               const v = data.regimenes[r.clave as keyof typeof data.regimenes] ?? null;
               return (
                 <Barra
                   key={r.clave}
                   etiqueta={r.etiqueta}
-                  valor={`${fmt(v)}${pctOf(v, data.total) !== null ? ` · ${pctOf(v, data.total)} %` : ""}`}
+                  valor={`${fmt(v)}${pctOf(v, data.total) !== null ? ` (${pctOf(v, data.total)} %)` : ""}`}
                   pct={pctOf(v, data.total)}
-                  color="var(--color-primary)"
+                  color={CHART.municipio}
                 />
               );
             })}
@@ -228,7 +229,7 @@ export function AfiliacionBlock({ data }: { data: AfiliacionPresentationData }) 
       )}
       <WarningList warnings={data.warnings} />
       <Trace label="Tesorería General de la Seguridad Social" tableId={data.tableId} period={data.etiquetaPeriodo} />
-      <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+      <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
         La ausencia de dato se muestra como ND; nunca como 0.
       </p>
     </section>

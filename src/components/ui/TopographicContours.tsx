@@ -142,15 +142,17 @@ interface Props {
   /** Profundidad de parallax en px para scroll completo del hero. 0 = estático. */
   depth?: number;
   className?: string;
+  /** Anclaje del recorte (preserveAspectRatio). Por defecto centrado. */
+  align?: "xMidYMid" | "xMaxYMid";
 }
 
-export default function TopographicContours({ depth = 0, className = "" }: Props) {
+export default function TopographicContours({ depth = 0, className = "", align = "xMidYMid" }: Props) {
   return (
     <svg
       className={`topographic-contours ${className}`}
       data-depth={depth}
       viewBox="0 0 1600 900"
-      preserveAspectRatio="xMidYMid slice"
+      preserveAspectRatio={`${align} slice`}
       aria-hidden="true"
       role="presentation"
       focusable="false"

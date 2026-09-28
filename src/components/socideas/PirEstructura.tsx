@@ -3,11 +3,17 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { EstructuraView, EstructuraViewRow } from "@/lib/socideas-population-presentation";
 import { formatInt, formatNumber, formatSigned, shortBandLabel } from "@/lib/socideas-population-presentation";
+import { CHART } from "./ficha-ui";
 
-const HATCH_STYLE: CSSProperties = {
-  backgroundImage:
-    "repeating-linear-gradient(45deg, var(--color-text-muted) 0, var(--color-text-muted) 1px, transparent 1px, transparent 4px)",
-};
+const SEX_COLOR = { male: CHART.hombres, female: CHART.mujeres } as const;
+
+/** Barra negativa (por debajo de la referencia): contorno del color del sexo y tinte claro, sin trama. */
+function negativeStyle(sex: "male" | "female"): CSSProperties {
+  return {
+    border: `1px solid ${SEX_COLOR[sex]}`,
+    background: `color-mix(in srgb, ${SEX_COLOR[sex]} 18%, transparent)`,
+  };
+}
 
 const ROW_GRID =
   "group relative grid grid-cols-[minmax(0,1fr)_4.75rem_minmax(0,1fr)] items-center gap-x-1.5 sm:grid-cols-[3.5rem_minmax(0,1fr)_7rem_minmax(0,1fr)_3.5rem]";
@@ -29,16 +35,16 @@ function SexoDetalle({
   const difference = sex === "male" ? row.maleDiffPp : row.femaleDiffPp;
   return (
     <p>
-      <span className="font-semibold text-[var(--color-text-primary)]">
+      <span className="font-semibold text-[var(--text-primary)]">
         {sex === "male" ? "Hombres" : "Mujeres"}:
       </span>{" "}
-      {people === null ? "ND (no disponible; no equivale a 0)" : `${formatInt(people)} personas`} ·{" "}
+      {people === null ? "ND (no disponible; no equivale a 0)" : `${formatInt(people)} personas`},{" "}
       {shareValue === null ? "% del municipio: ND" : `${formatNumber(shareValue, 1)} % del municipio`}
       {hasReference && (
         <>
-          {" "}
-          · {refShare === null ? `% en ${refName}: ND` : `% en ${refName}: ${formatNumber(refShare, 1)} %`} ·{" "}
-          {difference === null ? "Diferencia: ND" : `Diferencia: ${formatSigned(difference, 1)} pp`}
+          {"; "}
+          {refShare === null ? `% en ${refName}: ND` : `${formatNumber(refShare, 1)} % en ${refName}`};{" "}
+          {difference === null ? "diferencia: ND" : `diferencia: ${formatSigned(difference, 1)} pp`}
         </>
       )}
     </p>
@@ -85,24 +91,22 @@ export default function PirEstructura({
     const isLeft = sex === "male";
     return (
       <span
-        className={`relative flex h-4 w-full items-center overflow-hidden bg-[var(--color-input-bg)] ${
-          isLeft ? "justify-end rounded-l" : "justify-start rounded-r"
+        className={`relative flex h-4 w-full items-center overflow-hidden bg-[var(--bg-surface-sunken)] ${
+          isLeft ? "justify-end" : "justify-start"
         }`}
       >
         {!isDifference && hasReference && reference !== null && (
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 z-10 border border-dashed border-[var(--color-text-secondary)]"
+            className="pointer-events-none absolute inset-y-0 z-10 border border-dashed border-[var(--text-primary)]"
             style={{ width: `${width(reference)}%`, ...(isLeft ? { right: 0 } : { left: 0 }) }}
           />
         )}
         {value !== null && (
           <span
             aria-hidden="true"
-            className={`h-full ${isLeft ? "rounded-l" : "rounded-r"} ${
-              negative ? "border border-[var(--color-text-secondary)]" : "bg-[var(--color-primary)]"
-            }`}
-            style={{ width: `${width(value)}%`, ...(negative ? HATCH_STYLE : {}) }}
+            className="h-full"
+            style={{ width: `${width(value)}%`, ...(negative ? negativeStyle(sex) : { background: SEX_COLOR[sex] }) }}
           />
         )}
       </span>
@@ -111,7 +115,7 @@ export default function PirEstructura({
 
   const valueCell = (value: number | null, align: "right" | "left"): ReactNode => (
     <span
-      className={`hidden text-[11px] tabular-nums text-[var(--color-text-secondary)] sm:block ${
+      className={`hidden text-xs tabular-nums text-[var(--text-muted)] sm:block ${
         align === "right" ? "text-right" : "text-left"
       }`}
     >
@@ -123,9 +127,10 @@ export default function PirEstructura({
   return (
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-xs font-semibold text-[var(--color-text-primary)]">{title}</p>
-        <p className="text-[11px] text-[var(--color-text-muted)]">
-          Escala simétrica · máx. {formatNumber(scale, 1)} {unit} · Hombres a la izquierda · Mujeres a la derecha
+        <p className="text-sm font-semibold text-[var(--text-primary)]">{title}</p>
+        <p className="text-xs text-[var(--text-muted)]">
+          Escala simétrica, máximo <span className="tabular-nums">{formatNumber(scale, 1)}</span> {unit}. Hombres a la
+          izquierda, mujeres a la derecha.
         </p>
       </div>
 
@@ -135,7 +140,7 @@ export default function PirEstructura({
             {valueCell(barValue(row, "male"), "right")}
             {bar(row, "male")}
             <span
-              className="text-center text-[10px] font-semibold tabular-nums text-[var(--color-text-secondary)] sm:text-[11px]"
+              className="text-center text-[11px] font-medium tabular-nums text-[var(--text-secondary)] sm:text-xs"
               title={row.band}
             >
               {shortBandLabel(row.band)}
@@ -144,10 +149,10 @@ export default function PirEstructura({
             {valueCell(barValue(row, "female"), "left")}
             <span
               role="tooltip"
-              className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 hidden w-[min(21rem,82vw)] -translate-x-1/2 rounded-[6px] border border-[var(--color-border)] bg-[var(--color-card-bg)] p-3 text-left text-[11px] leading-relaxed text-[var(--color-text-secondary)] shadow-lg group-hover:block group-focus-within:block"
+              className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 hidden w-[min(21rem,82vw)] -translate-x-1/2 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-left text-xs leading-relaxed text-[var(--text-secondary)] shadow-[var(--shadow-2)] group-hover:block group-focus-within:block"
             >
-              <span className="block text-xs font-bold text-[var(--color-text-primary)]">
-                {row.band} · {period}
+              <span className="block text-xs font-semibold text-[var(--text-primary)]">
+                {row.band}, {period}
               </span>
               <SexoDetalle row={row} sex="male" refName={refName} hasReference={hasReference} />
               <SexoDetalle row={row} sex="female" refName={refName} hasReference={hasReference} />
@@ -157,16 +162,20 @@ export default function PirEstructura({
         ))}
       </ul>
 
-      <ul className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-[var(--color-text-muted)]">
+      <ul className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-[var(--text-secondary)]">
         <li className="inline-flex items-center gap-1.5">
-          <span aria-hidden="true" className="h-2.5 w-4 rounded-[2px] bg-[var(--color-primary)]" />
-          Municipio: {municipalName}
+          <span aria-hidden="true" className="h-2.5 w-4" style={{ background: CHART.hombres }} />
+          Hombres, {municipalName}
+        </li>
+        <li className="inline-flex items-center gap-1.5">
+          <span aria-hidden="true" className="h-2.5 w-4" style={{ background: CHART.mujeres }} />
+          Mujeres, {municipalName}
         </li>
         {hasReference && !isDifference && (
           <li className="inline-flex items-center gap-1.5">
             <span
               aria-hidden="true"
-              className="h-2.5 w-4 rounded-[2px] border border-dashed border-[var(--color-text-secondary)]"
+              className="h-2.5 w-4 border border-dashed border-[var(--text-primary)]"
             />
             Referencia (contorno discontinuo): {refName}
           </li>
@@ -174,20 +183,22 @@ export default function PirEstructura({
         {hasReference && isDifference && (
           <>
             <li className="inline-flex items-center gap-1.5">
-              <span aria-hidden="true" className="h-2.5 w-4 rounded-[2px] bg-[var(--color-primary)]" />
-              Por encima de {refName}
+              <span aria-hidden="true" className="h-2.5 w-4" style={{ background: CHART.hombres }} />
+              Relleno: por encima de {refName}
             </li>
             <li className="inline-flex items-center gap-1.5">
-              <span aria-hidden="true" className="h-2.5 w-4 rounded-[2px] border border-[var(--color-text-secondary)]" style={HATCH_STYLE} />
-              Por debajo de {refName}
+              <span aria-hidden="true" className="h-2.5 w-4" style={negativeStyle("male")} />
+              Contorno: por debajo de {refName}
             </li>
           </>
         )}
-        <li>Eje central {isDifference ? "= 0 pp" : "simétrico"} · Valor 0 observado se rotula «0»; ND nunca es 0.</li>
+        <li className="text-[var(--text-muted)]">
+          Eje central {isDifference ? "en 0 pp" : "simétrico"}. Un 0 observado se rotula «0»; ND nunca es 0.
+        </li>
       </ul>
 
       {ndBands > 0 && (
-        <p className="mt-2 text-[11px] text-[var(--color-text-muted)]" role="note">
+        <p className="mt-2 text-xs text-[var(--text-muted)]" role="note">
           {ndBands} {ndBands === 1 ? "grupo presenta" : "grupos presentan"} dato no disponible (ND) en la fuente; no se
           representa como 0.
         </p>

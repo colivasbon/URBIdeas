@@ -14,34 +14,31 @@ export default function IndicatorAvailabilityPanel({
 }) {
   if (entries.length === 0) return null;
   const groups = groupCoverage(entries);
-  const resumen = groups.map((g) => `${COVERAGE_GROUP_LABEL[g.estado]}: ${g.items.length}`).join(" · ");
+  const resumen = groups.map((g) => `${COVERAGE_GROUP_LABEL[g.estado]}: ${g.items.length}`).join("; ");
   return (
-    <section aria-label={heading} className="ideas-section">
-      <h2 className="ideas-h2">{heading}</h2>
-      <p className="mt-2 text-xs text-[var(--color-text-muted)]" role="status">
+    <section aria-label={heading} className="border-t border-[var(--border-subtle)] py-10">
+      <h2 className="type-h3 text-[var(--text-primary)]">{heading}</h2>
+      <p className="mt-2 max-w-[70ch] text-sm text-[var(--text-secondary)]" role="status">
         {resumen}. La ausencia de dato nunca equivale a cero.
       </p>
-      <details className="premium-card mt-3 p-5" open={entries.length <= 3}>
-        <summary className="cursor-pointer text-sm font-semibold text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]">
+      <details className="mt-5" open={entries.length <= 3}>
+        <summary className="cursor-pointer text-sm font-medium text-[var(--text-link)] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]">
           Ver detalle de cobertura ({entries.length})
         </summary>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mt-5 grid grid-cols-1 gap-x-10 gap-y-8 lg:grid-cols-2">
           {groups.map((g) => (
             <div key={g.estado}>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+              <p className="text-sm font-semibold text-[var(--text-primary)]">
                 {COVERAGE_GROUP_LABEL[g.estado]}
               </p>
-              <ul className="mt-2 space-y-2">
+              <ul className="mt-2">
                 {g.items.map((e) => (
-                  <li
-                    key={e.titulo}
-                    className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-3.5 py-3"
-                  >
-                    <p className="text-sm font-semibold text-[var(--color-text-primary)]">{e.titulo}</p>
-                    <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">{e.detalle}</p>
+                  <li key={e.titulo} className="border-t border-[var(--border-subtle)] py-3">
+                    <p className="text-sm font-medium text-[var(--text-primary)]">{e.titulo}</p>
+                    <p className="mt-1 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-secondary)]">{e.detalle}</p>
                     {(e.fuente || e.periodo) && (
-                      <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
-                        {[e.fuente, e.periodo].filter(Boolean).join(" · ")}
+                      <p className="mt-1 text-xs text-[var(--text-muted)]">
+                        {[e.fuente, e.periodo].filter(Boolean).join(", ")}
                       </p>
                     )}
                   </li>

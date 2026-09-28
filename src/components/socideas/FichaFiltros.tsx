@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import StatCard from "./StatCard";
 import EvolutionChart, { type SerieEvo } from "./EvolutionChart";
-import PyramidChart from "./PyramidChart";
 import Traceability from "./Traceability";
 import AvailabilitySummary from "./AvailabilitySummary";
 import IndicatorAvailabilityPanel from "./IndicatorAvailabilityPanel";
@@ -38,6 +37,17 @@ import {
   Metodologia,
 } from "./ConsultaTools";
 import type { CoverageEntry } from "@/lib/socideas-availability";
+import {
+  BLOCK,
+  BLOCK_TITLE,
+  CHART,
+  DISCLOSURE,
+  FIELD_LABEL,
+  FIGURE_ROW,
+  NOTE,
+  PENDING_NOTE,
+  SELECT,
+} from "./ficha-ui";
 import type { AmbitoTerritorial, PerfilDemografico, IndicatorValue } from "@/lib/socideas";
 import { AMBITOS } from "@/lib/socideas";
 
@@ -66,10 +76,10 @@ const AMBITO_LABEL: Record<AmbitoTerritorial, string> = {
 };
 
 const SERIE_COLOR: Record<AmbitoTerritorial, string> = {
-  municipio: "var(--color-secondary)",
-  provincia: "var(--color-primary)",
-  ccaa: "#b7791f",
-  espana: "var(--color-text-muted)",
+  municipio: CHART.municipio,
+  provincia: CHART.provincia,
+  ccaa: CHART.ccaa,
+  espana: CHART.espana,
 };
 
 function esAnioValido(v: string | null, lista: number[]): number | null {
@@ -131,9 +141,8 @@ function fmt(n: number | null): string {
   return n === null ? "ND" : n.toLocaleString("es-ES");
 }
 
-const selectCls =
-  "rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]";
-const labelCls = "mb-1 block text-xs font-semibold text-[var(--color-text-muted)]";
+const selectCls = SELECT;
+const labelCls = FIELD_LABEL;
 
 export default function FichaFiltros({
   codigoINE,
@@ -215,12 +224,12 @@ export default function FichaFiltros({
     list.filter((v) => v.valor_numerico !== null).map((v) => ({ anio: v.anio_referencia ?? 0, valor: v.valor_numerico as number }));
   const series: SerieEvo[] = [];
   if (filtros.comparar.includes("municipio")) {
-    series.push({ clave: "municipio", etiqueta: `${perfil.municipio.nombre} · Municipio`, color: SERIE_COLOR.municipio, puntos: evoPuntos(perfil.evolucion) });
+    series.push({ clave: "municipio", etiqueta: `${perfil.municipio.nombre} (municipio)`, color: SERIE_COLOR.municipio, puntos: evoPuntos(perfil.evolucion) });
   }
   const comp = (amb: AmbitoTerritorial, lista: PerfilDemografico["evolucion"]) => {
     if (!filtros.comparar.includes(amb)) return;
     const nombre = lista[0]?.dimensiones?.nombre ?? AMBITO_LABEL[amb];
-    series.push({ clave: amb, etiqueta: `${nombre} · ${AMBITO_LABEL[amb]}`, color: SERIE_COLOR[amb], puntos: evoPuntos(lista) });
+    series.push({ clave: amb, etiqueta: `${nombre} (${amb === "ccaa" ? "CCAA" : AMBITO_LABEL[amb].toLowerCase()})`, color: SERIE_COLOR[amb], puntos: evoPuntos(lista) });
   };
   comp("provincia", perfil.comparativas.provincia);
   comp("ccaa", perfil.comparativas.ccaa);
@@ -236,7 +245,7 @@ export default function FichaFiltros({
   const vista: string[] = [
     `Período de evolución: ${filtros.evoDesde ?? d.anios_evolucion[0] ?? "—"}–${filtros.evoHasta ?? d.anios_evolucion[d.anios_evolucion.length - 1] ?? "—"}`,
     `Ámbitos: ${filtros.comparar.map((a) => AMBITO_LABEL[a]).join(", ") || "ninguno"}`,
-    `Población: ${perfil.total?.anio_referencia ?? "—"} · Pirámide: ${perfil.piramide.anio ?? "—"}`,
+    `Población: ${perfil.total?.anio_referencia ?? "—"}; pirámide: ${perfil.piramide.anio ?? "—"}`,
   ];
   if (perfil.piramide.anio !== null && refAnio !== null && perfil.piramide.anio !== refAnio) {
     vista.push(`Aviso: la estructura de la población (Censo Anual 2025) y la población actual (Padrón ${refAnio}) son operaciones distintas del INE con universos y fechas de referencia diferentes.`);
@@ -273,9 +282,9 @@ export default function FichaFiltros({
   return (
     <div>
       {/* Bloque 1: población actual */}
-      <section aria-label="Población actual" className="mb-10">
-        <div className="mb-4 flex flex-wrap items-end gap-3">
-          <h2 className="ideas-h2">Población actual</h2>
+      <section aria-label="Población actual" className={BLOCK}>
+        <div className="mb-6 flex flex-wrap items-end gap-3">
+          <h2 className={BLOCK_TITLE}>Población actual</h2>
           <div className="ml-auto flex flex-wrap gap-3">
             <div>
               <label htmlFor="f-anio" className={labelCls}>Año</label>
@@ -299,10 +308,10 @@ export default function FichaFiltros({
         {filtros.sexo === "comparar" ? (
           <SexoBarras hombres={hombres} mujeres={mujeres} anio={refAnio} />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard etiqueta="Población total" valor={fmt(total)} detalle={`INE · ${refAnio ?? "—"}`} />
-            <StatCard etiqueta="Hombres" valor={fmt(hombres)} detalle={`INE · ${perfil.hombres?.anio_referencia ?? "—"}`} />
-            <StatCard etiqueta="Mujeres" valor={fmt(mujeres)} detalle={`INE · ${perfil.mujeres?.anio_referencia ?? "—"}`} />
+          <div className={`${FIGURE_ROW} sm:grid-cols-3`}>
+            <StatCard etiqueta="Población total" valor={fmt(total)} detalle={`INE, ${refAnio ?? "—"}`} />
+            <StatCard etiqueta="Hombres" valor={fmt(hombres)} detalle={`INE, ${perfil.hombres?.anio_referencia ?? "—"}`} />
+            <StatCard etiqueta="Mujeres" valor={fmt(mujeres)} detalle={`INE, ${perfil.mujeres?.anio_referencia ?? "—"}`} />
           </div>
         )}
         <AvailabilitySummary
@@ -347,9 +356,9 @@ export default function FichaFiltros({
       </section>
 
       {/* Bloque 2: evolución + comparativas */}
-      <section aria-label="Evolución demográfica" className="premium-card mb-10 p-5 sm:p-6">
+      <section aria-label="Evolución demográfica" className={BLOCK}>
         <div className="flex flex-wrap items-end gap-3">
-          <h2 className="ideas-h2">Evolución demográfica</h2>
+          <h2 className={BLOCK_TITLE}>Evolución demográfica</h2>
           <div className="ml-auto flex flex-wrap items-end gap-3">
             <div>
               <label htmlFor="f-desde" className={labelCls}>Desde</label>
@@ -381,10 +390,10 @@ export default function FichaFiltros({
             El año inicial no puede ser posterior al final. Ajuste el rango.
           </p>
         )}
-        <fieldset className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
+        <fieldset className="mt-5 flex flex-wrap gap-x-6 gap-y-1">
           <legend className="sr-only">Comparativas territoriales</legend>
           {AMBITOS.map((a) => (
-            <label key={a} className="inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+            <label key={a} className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 text-sm text-[var(--text-secondary)] sm:min-h-[32px]">
               <input
                 type="checkbox"
                 checked={filtros.comparar.includes(a)}
@@ -395,10 +404,10 @@ export default function FichaFiltros({
                       : filtros.comparar.filter((x) => x !== a),
                   })
                 }
-                className="h-4 w-4 accent-[var(--color-secondary)]"
+                className="h-4 w-4 accent-[var(--musgo)]"
               />
               {AMBITO_LABEL[a]}
-              {d.ambitos[a].puntos === 0 && <span className="text-xs text-[var(--color-text-muted)]">(sin datos)</span>}
+              {d.ambitos[a].puntos === 0 && <span className="text-xs text-[var(--text-muted)]">(sin datos)</span>}
             </label>
           ))}
         </fieldset>
@@ -410,9 +419,9 @@ export default function FichaFiltros({
               narrow={filtros.comparar.length <= 3}
               series={filasTabla.length > SERIES_SCROLL_THRESHOLD}
               meta={{
-                fuente: "INE · Tempus3",
+                fuente: "INE, Tempus3",
                 periodo: filasTabla.length > 0 ? `${filasTabla[0].anio}–${filasTabla[filasTabla.length - 1].anio}` : null,
-                cobertura: filtros.comparar.map((a) => AMBITO_LABEL[a]).join(" · ") || null,
+                cobertura: filtros.comparar.map((a) => AMBITO_LABEL[a]).join(", ") || null,
                 estado: "consolidado",
               }}
               toolbar={<DataTableToolbar tableId={`tabla-evo-${codigoINE}`} />}
@@ -445,9 +454,9 @@ export default function FichaFiltros({
           }
           visual={
             <div>
-              <h3 className="socideas-table-shell__title">Evolución anual</h3>
+              <h3 className="text-[15px] font-semibold leading-snug text-[var(--text-primary)]">Evolución anual</h3>
               <div className="mt-2">
-                <DataTableMeta meta={{ fuente: "INE · Tempus3", periodo: filasTabla.length > 0 ? `${filasTabla[0].anio}–${filasTabla[filasTabla.length - 1].anio}` : null, unidad: "habitantes" }} />
+                <DataTableMeta meta={{ fuente: "INE, Tempus3", periodo: filasTabla.length > 0 ? `${filasTabla[0].anio}–${filasTabla[filasTabla.length - 1].anio}` : null, unidad: "habitantes" }} />
               </div>
               <div className="mt-3">
                 <EvolutionChart series={series} id={`evo-${codigoINE}`} />
@@ -457,12 +466,12 @@ export default function FichaFiltros({
           visualLabel="Gráfico de evolución anual de la población"
         />
         {filtros.comparar.some((a) => ambitoSinDatos(a)) && (
-          <p className="mt-3 text-xs text-[var(--color-text-muted)]">
+          <p className={NOTE}>
             Algún ámbito activado no tiene datos en este período: no se muestra como equivalente.
             CCAA y España llegan a 2021; municipio y provincia, a 2025.
           </p>
         )}
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="mt-8 grid grid-cols-1 gap-x-10 gap-y-6 lg:grid-cols-2">
           <ComparadorPeriodos
             serie={perfil.evolucion.filter((v) => v.valor_numerico !== null).map((v) => ({ anio: v.anio_referencia ?? 0, valor: v.valor_numerico as number }))}
             unidad="hab."
@@ -471,7 +480,7 @@ export default function FichaFiltros({
           <Metodologia
             nombre="Población y evolución (DPOP, INE)"
             definicion="Cifras oficiales de población municipal y serie anual de evolución, con comparativas de provincia, comunidad autónoma y conjunto nacional."
-            fuente="INE · Tempus3 (DPOP provincial + tabla CCAA 70)"
+            fuente="INE, Tempus3 (DPOP provincial y tabla CCAA 70)"
             periodo={`${d.anios_evolucion[0] ?? "—"}–${d.anios_evolucion[d.anios_evolucion.length - 1] ?? "—"}`}
             cobertura="Municipio, provincia, CCAA y España (CCAA/España con rezago a 2021)"
             estado="Consolidado"
@@ -485,11 +494,11 @@ export default function FichaFiltros({
 
       {/* Bloque 3: Serie histórica del Padrón Continuo (2003–2022) - apartado secundario plegado */}
       {perfil.piramide.anio && pirGrupos.length > 0 && (
-        <details className="mb-10 rounded-[6px] border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5 sm:p-6">
-          <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)]">
+        <details className="border-t border-[var(--border-subtle)] py-8">
+          <summary className={DISCLOSURE}>
             Serie histórica del Padrón Continuo (2003–2022)
           </summary>
-          <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+          <p className={NOTE}>
             Datos históricos del Padrón Continuo (INE). La estructura principal de la ficha es el Censo Anual de Población 2025.
           </p>
           <div className="mt-4">
@@ -505,7 +514,7 @@ export default function FichaFiltros({
               title="Tabla por grupos del Padrón Continuo"
               narrow
               series={pirGrupos.length > SERIES_SCROLL_THRESHOLD}
-              meta={{ fuente: "INE · Padrón Continuo", periodo: perfil.piramide.anio ? String(perfil.piramide.anio) : null, cobertura: `Municipio ${perfil.municipio.nombre}`, estado: "consolidado" }}
+              meta={{ fuente: "INE, Padrón Continuo", periodo: perfil.piramide.anio ? String(perfil.piramide.anio) : null, cobertura: `Municipio ${perfil.municipio.nombre}`, estado: "consolidado" }}
               toolbar={<DataTableToolbar tableId={`tabla-pir-${codigoINE}`} />}
               maxHeight={pirGrupos.length > SERIES_SCROLL_THRESHOLD ? SERIES_MAX_HEIGHT : undefined}
             >
@@ -556,24 +565,19 @@ export default function FichaFiltros({
           }}
         />
       ) : (
-      <section aria-label="Densidad y lectura territorial" className="premium-card mb-10 p-5 sm:p-6">
-        <h2 className="ideas-h2">Densidad y lectura territorial</h2>
-          <div className="ideas-status mt-3" data-state="pending" role="status">
-            <div className="ideas-status__head">
-              <p className="ideas-status__title">Densidad no disponible</p>
-              <span className="ideas-status__badge">Pendiente</span>
-            </div>
-            <div className="ideas-status__body">
-              <p>{perfil.densidad.pendiente ?? "Pendiente de integración de fuente de superficie"}. El detalle figura en el panel de cobertura final; nada se estima.</p>
-            </div>
+      <section aria-label="Densidad y lectura territorial" className={BLOCK}>
+        <h2 className={BLOCK_TITLE}>Densidad y lectura territorial</h2>
+          <div className={`${PENDING_NOTE} mt-4`} data-state="pending" role="status">
+            <p className="font-medium text-[var(--text-primary)]">Densidad no disponible</p>
+            <p className="mt-1">{perfil.densidad.pendiente ?? "Pendiente de integración de fuente de superficie"}. Consulte el detalle en el panel de cobertura, al final de la hoja; nada se estima.</p>
           </div>
       </section>
       )}
 
       {/* Bloque 5: derivados */}
-      <section aria-label="Indicadores derivados" className="mb-10">
-        <h2 className="ideas-h2 mb-4">Variaciones del período</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <section aria-label="Indicadores derivados" className={BLOCK}>
+        <h2 className={`${BLOCK_TITLE} mb-6`}>Variaciones del período</h2>
+        <div className={`${FIGURE_ROW} sm:grid-cols-2`}>
           {perfil.derivados.cambio_5y !== null ? (
             <StatCard
               etiqueta="Variación 5 años"
@@ -581,7 +585,7 @@ export default function FichaFiltros({
               detalle="Cálculo propio sobre serie oficial"
             />
           ) : (
-            <p className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
+            <p className={PENDING_NOTE} role="status">
               Variación 5 años: no disponible para el período seleccionado (sin año comparable; no se muestra 0 %).
             </p>
           )}
@@ -592,14 +596,14 @@ export default function FichaFiltros({
               detalle="Cálculo propio sobre serie oficial"
             />
           ) : (
-            <p className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
+            <p className={PENDING_NOTE} role="status">
               Variación 10 años: no disponible para el período seleccionado (sin año comparable; no se muestra 0 %).
             </p>
           )}
         </div>
-        <details className="mt-3">
-          <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)]">Cómo se calcula</summary>
-          <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
+        <details className="mt-6">
+          <summary className={DISCLOSURE}>Cómo se calcula</summary>
+          <p className={NOTE}>
             Variación = (población del año de referencia − población de 5/10 años antes) /
             población de entonces, por 100. El año de referencia es el año seleccionado
             o el último del período visible. Si falta el año comparable, no se muestra 0 %:
@@ -630,17 +634,17 @@ export default function FichaFiltros({
         vista={vista}
       />
 
-      <div className="mt-8 flex flex-wrap gap-3">
+      <div className="mt-10 flex flex-wrap gap-3 border-t border-[var(--border-subtle)] pt-6">
         <Link
           href={`/socideas/${codigoINE}/descargas/demografia`}
-          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-[6px] hover:bg-[var(--color-primary-light)] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+          className="btn btn-secondary"
         >
-          Descargar tablas de Demografía →
+          Descargar tablas de demografía
         </Link>
         <button
           type="button"
           onClick={restablecer}
-          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+          className="btn btn-ghost"
         >
           Restablecer filtros
         </button>
@@ -779,30 +783,30 @@ function tablaComparada(perfil: PerfilDemografico, ambitos: AmbitoTerritorial[])
 
 function SexoBarras({ hombres, mujeres, anio }: { hombres: number | null; mujeres: number | null; anio: number | null }) {
   if (hombres === null || mujeres === null || hombres + mujeres === 0) {
-    return <p className="text-sm text-[var(--color-text-muted)]">Comparativa no disponible para {anio ?? "este año"}.</p>;
+    return <p className={PENDING_NOTE}>Comparativa por sexo no disponible para {anio ?? "este año"}: falta el dato de hombres o de mujeres en la fuente.</p>;
   }
   const total = hombres + mujeres;
   const pH = Math.round((hombres / total) * 1000) / 10;
   const pM = Math.round((mujeres / total) * 1000) / 10;
   return (
-    <div className="premium-card p-5">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
-        Comparativa por sexo · {anio}
+    <div className="max-w-[48rem]">
+      <p className="text-sm font-medium text-[var(--text-secondary)]">
+        Comparativa por sexo, <span className="tabular-nums">{anio}</span>
       </p>
       <div className="mt-3 flex flex-col gap-3">
         {[
-          { e: "Hombres", v: hombres, p: pH, cls: "bg-[var(--color-primary)]" },
-          { e: "Mujeres", v: mujeres, p: pM, cls: "bg-[var(--color-secondary)]" },
+          { e: "Hombres", v: hombres, p: pH, color: CHART.hombres },
+          { e: "Mujeres", v: mujeres, p: pM, color: CHART.mujeres },
         ].map((r) => (
           <div key={r.e}>
             <div className="flex justify-between text-sm">
-              <span className="font-medium text-[var(--color-text-primary)]">{r.e}</span>
-              <span className="tabular-nums text-[var(--color-text-secondary)]">
-                {r.v.toLocaleString("es-ES")} · {r.p.toLocaleString("es-ES")} %
+              <span className="font-medium text-[var(--text-primary)]">{r.e}</span>
+              <span className="tabular-nums text-[var(--text-secondary)]">
+                {r.v.toLocaleString("es-ES")} ({r.p.toLocaleString("es-ES")} %)
               </span>
             </div>
-            <div className="mt-1 h-3 overflow-hidden rounded bg-[var(--color-input-bg)]">
-              <div className={`h-full rounded ${r.cls}`} style={{ width: `${r.p}%` }} />
+            <div className="mt-1 h-3 overflow-hidden bg-[var(--bg-surface-sunken)]">
+              <div className="h-full" style={{ width: `${r.p}%`, background: r.color }} />
             </div>
           </div>
         ))}
@@ -816,7 +820,7 @@ function RangoBtn({ etiqueta, onClick }: { etiqueta: string; onClick: () => void
     <button
       type="button"
       onClick={onClick}
-      className="px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+      className="btn btn-secondary btn-sm"
     >
       {etiqueta}
     </button>

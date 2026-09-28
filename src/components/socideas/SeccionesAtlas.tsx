@@ -47,11 +47,14 @@ import type {
   SeccionFeature,
   SeccionIndicador,
   SeccionPorPeriodo,
+  SeccionTema,
   SeccionValorStatus,
   SeccionesAtlasV1,
 } from "@/lib/socideas-secciones";
 import { componerPngMapa, nombreArchivoPngSecciones, tokenIma, type EscalaPng } from "@/lib/socideas-secciones-png";
 import SeccionesAtlasMap, {
+  COLOR_CONTORNO_CLASE,
+  LeyendaAtlas,
   centroideGeometria,
   type EntradaLeyendaAtlas,
   type FilaAtlas,
@@ -69,6 +72,13 @@ const CLASES_POR_DEFECTO = 5;
 const MODO_POR_DEFECTO: ModoClasificacion = "cuantil";
 const ETIQUETA_SIN_DATO = "Sin dato / ND";
 const MS_ESPERA_MAPA = 4000;
+
+/** Agrupación de los indicadores en pestañas. Cada grupo reúne temas completos
+ *  de una misma operación estadística para no mezclar unidades ni años. */
+const GRUPOS_TEMA: ReadonlyArray<{ id: string; etiqueta: string; temas: SeccionTema[] }> = [
+  { id: "economico", etiqueta: "Económico", temas: ["renta", "desigualdad"] },
+  { id: "demografia", etiqueta: "Demografía", temas: ["demografia"] },
+];
 
 interface RespuestaApi {
   data: {
@@ -140,21 +150,40 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
 
   // ── Catálogo y valores por defecto ──────────────────────────────────────
   const atlas = datos?.atlas ?? null;
-  const indicadores = useMemo<ReadonlyArray<SeccionIndicador>>(() => {
+  const todosLosIndicadores = useMemo<ReadonlyArray<SeccionIndicador>>(() => {
     if (!atlas) return [];
     return [...atlas.indicators].sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es"));
   }, [atlas]);
 
+  // ── Pestañas por tema ───────────────────────────────────────────────────
+  // El atlas agrupa varias operaciones (ADRH de renta/desigualdad y Censo
+  // anual de población). Cada pestaña muestra SOLO los indicadores de su tema:
+  // así el selector no mezcla unidades ni años de fuentes distintas.
+  const gruposDisponibles = useMemo(
+    () => GRUPOS_TEMA.filter((g) => todosLosIndicadores.some((i) => g.temas.includes(i.tema))),
+    [todosLosIndicadores],
+  );
+  const grupoActivo = useMemo(() => {
+    const g = searchParams.get("g");
+    if (g && gruposDisponibles.some((x) => x.id === g)) return g;
+    return gruposDisponibles[0]?.id ?? "economico";
+  }, [searchParams, gruposDisponibles]);
+  const indicadores = useMemo<ReadonlyArray<SeccionIndicador>>(() => {
+    const temas = GRUPOS_TEMA.find((g) => g.id === grupoActivo)?.temas ?? [];
+    return todosLosIndicadores.filter((i) => temas.includes(i.tema));
+  }, [todosLosIndicadores, grupoActivo]);
+
   const indicadorPorDefecto = useMemo(() => {
-    // Indicador inicial: renta neta media por persona (el de referencia del
-    // producto y mejor cobertura), no el primero alfabético. Si no existe, el
-    // primer indicador publicado por sección; en su defecto, el primero.
+    // Indicador inicial por tema: renta neta media por persona en económico y
+    // población total en demografía (los de referencia del producto), no el
+    // primero alfabético.
+    const preferidoId = grupoActivo === "demografia" ? "poblacion_total" : "renta_neta_media_persona";
     const preferido = indicadores.find(
-      (i) => i.id === "renta_neta_media_persona" && i.publicadoPorSeccion,
+      (i) => i.id === preferidoId && i.publicadoPorSeccion,
     );
     const publicado = indicadores.find((i) => i.publicadoPorSeccion);
     return (preferido ?? publicado ?? indicadores[0])?.id ?? null;
-  }, [indicadores]);
+  }, [indicadores, grupoActivo]);
 
   const periodosDe = useCallback(
     (indicatorId: string | null): number[] => {
@@ -193,6 +222,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
       modo: searchParams.get("modo"),
       clases: searchParams.get("clases"),
       sec: searchParams.get("sec"),
+      g: searchParams.get("g"),
     };
     const indicatorId = indicadores.some((i) => i.id === bruto.ind) ? (bruto.ind as string) : indicadorPorDefecto;
     const periodos = periodosDe(indicatorId);
@@ -221,9 +251,10 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
         anio: bruto.anio !== null && String(anio) !== bruto.anio,
         modo: bruto.modo !== null && bruto.modo !== modo,
         clases: bruto.clases !== null && String(clases) !== bruto.clases,
+        g: bruto.g !== null && bruto.g !== grupoActivo,
       },
     };
-  }, [searchParams, indicadores, indicadorPorDefecto, periodosDe, anioPorDefecto]);
+  }, [searchParams, indicadores, indicadorPorDefecto, periodosDe, anioPorDefecto, grupoActivo]);
 
   const urlDesde = useCallback(
     (parche: {
@@ -232,6 +263,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
       modo?: ModoClasificacion;
       clases?: number | null;
       sec?: string | null;
+      g?: string | null;
     }) => {
       const p = new URLSearchParams();
       const ind = parche.ind !== undefined ? parche.ind : params.indicatorId;
@@ -239,6 +271,8 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
       const modo = parche.modo !== undefined ? parche.modo : params.modo;
       const clases = parche.clases !== undefined ? parche.clases : params.clases;
       const sec = parche.sec !== undefined ? parche.sec : params.sec;
+      const g = parche.g !== undefined ? parche.g : grupoActivo;
+      if (g) p.set("g", g);
       if (ind) p.set("ind", ind);
       if (anio !== null && anio !== undefined) p.set("anio", String(anio));
       if (modo !== MODO_POR_DEFECTO) p.set("modo", modo);
@@ -247,7 +281,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
       const qs = p.toString();
       return qs ? `${pathname}?${qs}` : pathname;
     },
-    [params, pathname],
+    [params, pathname, grupoActivo],
   );
 
   const escribirParams = useCallback(
@@ -436,11 +470,8 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   // ── Estados previos a la carga ──────────────────────────────────────────
   if (estado === "idle") {
     return (
-      <div className="ideas-status premium-card" data-state="pending">
+      <div className="ideas-status" data-state="pending">
         <div className="ideas-status__head">
-          <p className="editorial-eyebrow">Secciones censales · INE</p>
-        </div>
-        <div className="ideas-status__head mt-2">
           <p className="ideas-status__title">Geometría bajo demanda</p>
           <span className="ideas-status__badge">Pendiente</span>
         </div>
@@ -450,7 +481,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
             ese grano se cargan solo para este municipio cuando usted lo solicita. No se descarga
             ninguna capa nacional.
           </p>
-          <button type="button" onClick={cargar} className="ideas-btn-primary mt-4">
+          <button type="button" onClick={cargar} className={`${BOTON_PRINCIPAL} mt-4`}>
             Cargar secciones de {nombre}
           </button>
         </div>
@@ -460,22 +491,26 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
 
   if (estado === "cargando") {
     return (
-      <p role="status" className="text-sm font-semibold text-[var(--color-secondary)]">
-        Cargando secciones oficiales de {nombre}…
-      </p>
+      <div role="status" className="ideas-status flex items-center gap-3" data-state="pending">
+        <span
+          aria-hidden="true"
+          className="inline-block h-4 w-4 flex-none animate-spin rounded-full border-2 border-[var(--border-subtle)] border-t-[var(--moss-ink)] motion-reduce:animate-none"
+        />
+        <p className="type-body-sm text-[var(--text-secondary)]">Cargando secciones oficiales de {nombre}…</p>
+      </div>
     );
   }
 
   if (estado === "error") {
     return (
-      <div className="ideas-status premium-card" data-state="error" role="alert">
+      <div className="ideas-status" data-state="error" role="alert">
         <div className="ideas-status__head">
           <p className="ideas-status__title">No se pudieron cargar las secciones</p>
           <span className="ideas-status__badge">No disponible</span>
         </div>
         <div className="ideas-status__body">
           <p>{error}</p>
-          <button type="button" onClick={cargar} className="ideas-btn-primary mt-4">
+          <button type="button" onClick={cargar} className={`${BOTON_PRINCIPAL} mt-4`}>
             Reintentar
           </button>
         </div>
@@ -491,7 +526,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   const filaSeleccionada = seleccion ? (vista_.filas.find((f) => f.key === seleccion) ?? null) : null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <CabeceraAtlas
         municipioNombre={nombre}
         provincia={atlas?.provinceName ?? null}
@@ -546,85 +581,69 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_23rem]">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <div role="radiogroup" aria-label="Vista principal" className="flex flex-wrap gap-2">
+      {!sinAtlas && gruposDisponibles.length > 1 && (
+        <div
+          role="radiogroup"
+          aria-label="Tema de los datos"
+          className="inline-flex flex-wrap overflow-hidden rounded-[6px] border border-[var(--border-default)]"
+        >
+          {gruposDisponibles.map((g, i) => (
+            <BotonVista
+              key={g.id}
+              activo={grupoActivo === g.id}
+              separado={i > 0}
+              onClick={() => escribirParams({ g: g.id, ind: null, anio: null })}
+            >
+              {g.etiqueta}
+            </BotonVista>
+          ))}
+        </div>
+      )}
+
+      {/* Maquetación: el mapa manda. En escritorio, mapa y tabla a la izquierda
+          y panel lateral fijo a la derecha; en móvil, el panel se apila bajo el
+          mapa y la tabla queda al final. */}
+      <div className="grid grid-cols-1 gap-x-8 gap-y-8 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div
+              role="radiogroup"
+              aria-label="Vista principal"
+              className="inline-flex overflow-hidden rounded-[6px] border border-[var(--border-default)]"
+            >
               <BotonVista activo={vista === "mapa"} onClick={() => setVista("mapa")}>
                 Mapa
               </BotonVista>
-              <BotonVista activo={vista === "tabla"} onClick={() => setVista("tabla")}>
+              <BotonVista activo={vista === "tabla"} onClick={() => setVista("tabla")} separado>
                 Tabla de secciones
               </BotonVista>
             </div>
-            <button
-              type="button"
-              onClick={() => setPanelAbierto((v) => !v)}
-              aria-expanded={panelAbierto}
-              aria-controls="atlas-panel"
-              className="min-h-[44px] rounded-[6px] border border-[var(--color-border)] bg-[var(--color-card-bg)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] lg:hidden"
-            >
-              {panelAbierto ? "Ocultar controles" : "Controles"}
-            </button>
           </div>
 
-          <div className="mt-4 flex flex-col gap-4">
-            {vista === "mapa" ? (
-              <SeccionesAtlasMap
-                ref={mapaRef}
-                features={featuresGeo}
-                filas={vista_.filas}
-                municipioNombre={nombre}
-                tituloLeyenda={vista_.tituloLeyenda}
-                subtituloLeyenda={vista_.subtituloLeyenda}
-                entradasLeyenda={vista_.entradasLeyenda}
-                descripcion={vista_.descripcionMapa}
-                presentacion={presentacion}
-                seleccion={seleccion}
-                hovered={hovered}
-                onSeleccionar={(key) => escribirParams({ sec: key })}
-                onHover={setHovered}
-              />
-            ) : null}
-
-            <SeccionesAtlasDetalle
-              fila={filaSeleccionada}
-              indicador={indicador}
-              municipioNombre={nombre}
-              anio={params.anio}
-              unidad={indicador?.unidad ?? ""}
-              geometryYear={atlas?.geometryYear ?? datos?.anio_delimitacion ?? null}
-              referenciaMunicipal={vista_.referenciaMunicipal}
-              escalaSimple={vista_.escalaSimple}
-              valoresDistintos={vista_.valoresDistintos}
-              onAcercar={irASeccion}
-              onQuitar={() => escribirParams({ sec: null })}
-            />
-
-            <SeccionesAtlasTable
+          {vista === "mapa" ? (
+            <SeccionesAtlasMap
+              ref={mapaRef}
+              features={featuresGeo}
               filas={vista_.filas}
-              entradasLeyenda={vista_.entradasLeyenda}
-              indicadorEtiqueta={indicador?.etiqueta ?? "Sin indicadores cargados"}
               municipioNombre={nombre}
-              anio={params.anio}
-              unidad={indicador?.unidad ?? ""}
-              coberturaPct={vista_.coberturaPct}
-              referenciaMunicipal={vista_.referenciaMunicipal}
+              tituloLeyenda={vista_.tituloLeyenda}
+              subtituloLeyenda={vista_.subtituloLeyenda}
+              entradasLeyenda={vista_.entradasLeyenda}
+              descripcion={vista_.descripcionMapa}
+              presentacion={presentacion}
               seleccion={seleccion}
               hovered={hovered}
               onSeleccionar={(key) => escribirParams({ sec: key })}
               onHover={setHovered}
-              onAcercar={irASeccion}
+              sinLeyenda
             />
-          </div>
+          ) : null}
         </div>
 
         <aside
           id="atlas-panel"
           aria-label="Controles del atlas"
-          className={`premium-card p-4 sm:p-5 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto ${
-            panelAbierto ? "block" : "hidden lg:block"
-          }`}
+          className="min-w-0 border-t border-[var(--border-strong)] pt-5 lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-1"
         >
           <SeccionesAtlasPanel
             codigoINE={codigoINE}
@@ -652,6 +671,8 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
             onRestablecer={restablecer}
             onExportarPng={exportarPng}
             onExportarPlano={exportarPlano}
+            ajustesAbiertos={panelAbierto}
+            onAlternarAjustes={() => setPanelAbierto((v) => !v)}
             urlXlsx={
               atlas
                 ? `/api/socideas/secciones-descarga/${codigoINE}` +
@@ -659,8 +680,55 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
                   (params.anio ? `&anio=${params.anio}` : '')
                 : null
             }
+            lectura={
+              <>
+                <div className="border-t border-[var(--border-subtle)] pt-5">
+                  <LeyendaAtlas
+                    titulo={vista_.tituloLeyenda}
+                    subtitulo={vista_.subtituloLeyenda}
+                    entradas={vista_.entradasLeyenda}
+                    fuente={
+                      indicador && params.anio !== null && !sinValoresObservados
+                        ? `Fuente: ${indicador.operationLabel}, tabla ${indicador.sourceTable}. Periodo ${params.anio}.`
+                        : null
+                    }
+                  />
+                </div>
+                <SeccionesAtlasDetalle
+                  fila={filaSeleccionada}
+                  indicador={indicador}
+                  municipioNombre={nombre}
+                  anio={params.anio}
+                  unidad={indicador?.unidad ?? ""}
+                  geometryYear={atlas?.geometryYear ?? datos?.anio_delimitacion ?? null}
+                  referenciaMunicipal={vista_.referenciaMunicipal}
+                  escalaSimple={vista_.escalaSimple}
+                  valoresDistintos={vista_.valoresDistintos}
+                  onAcercar={irASeccion}
+                  onQuitar={() => escribirParams({ sec: null })}
+                />
+              </>
+            }
           />
         </aside>
+
+        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+          <SeccionesAtlasTable
+            filas={vista_.filas}
+            entradasLeyenda={vista_.entradasLeyenda}
+            indicadorEtiqueta={indicador?.etiqueta ?? "Sin indicadores cargados"}
+            municipioNombre={nombre}
+            anio={params.anio}
+            unidad={indicador?.unidad ?? ""}
+            coberturaPct={vista_.coberturaPct}
+            referenciaMunicipal={vista_.referenciaMunicipal}
+            seleccion={seleccion}
+            hovered={hovered}
+            onSeleccionar={(key) => escribirParams({ sec: key })}
+            onHover={setHovered}
+            onAcercar={irASeccion}
+          />
+        </div>
       </div>
     </div>
   );
@@ -894,9 +962,12 @@ function construirVista(
       `${nSinDato} de ${nSecciones} secciones no tienen dato en la fuente para este indicador y este periodo. Se muestran con trama diagonal y fuera de la escala: no son cero.`,
     );
   }
-  if (atlas.quality?.hayDesfaseTemporal) {
+  if (atlas.quality?.hayDesfaseTemporal && anio !== atlas.geometryYear) {
+    // El aviso se refiere al indicador y año SELECCIONADOS, no a un flag
+    // global: el ADRH llega a 2023 y el censo a 2025, así que un desfase
+    // global producía mensajes sin sentido («geometría 2025 y dato 2025»).
     avisos.push(
-      `Desfase temporal declarado por la fuente: la geometría es de ${atlas.geometryYear} y el dato es de ${anio}. No son contemporáneos.`,
+      `Desfase temporal: la geometría es de ${atlas.geometryYear} y el dato de «${indicador.etiqueta}» es de ${anio}. No son contemporáneos.`,
     );
   }
   // Los avisos internos de ingestión (tolerancia de simplificación, páginas
@@ -1035,9 +1106,10 @@ function construirFila(
     texto: formatearValor(bruto, status, observacion?.unit || unidad),
     clase,
     color,
-    // El contorno de una clase observada es el carbón del sistema, para que la
-    // clase más clara se separe del fondo hueso del mapa y del PNG.
-    colorContorno: esSinDato ? COLOR_CONTORNO_SIN_DATO : tokenIma("--carbon-600"),
+    // Filete hueso entre secciones con dato: separa clases contiguas sin
+    // competir con el relleno. El ND conserva su contorno limo oscuro, así que
+    // se distingue también por la línea, no solo por la trama.
+    colorContorno: esSinDato ? COLOR_CONTORNO_SIN_DATO : COLOR_CONTORNO_CLASE,
     esSinDato,
     sinRelleno: false,
     esAgregadoDistrito: esPoligonoDistrito(key),
@@ -1087,16 +1159,31 @@ function descargar(blob: Blob, nombre: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
-function BotonVista({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: ReactNode }) {
+const BOTON_PRINCIPAL =
+  "inline-flex min-h-[44px] items-center justify-center rounded-[6px] bg-[var(--action-primary-bg)] px-5 py-2 text-sm font-semibold text-[var(--action-primary-fg)] transition-colors hover:bg-[var(--action-primary-hover)]";
+
+function BotonVista({
+  activo,
+  onClick,
+  separado = false,
+  children,
+}: {
+  activo: boolean;
+  onClick: () => void;
+  separado?: boolean;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={activo}
-      className={`min-h-[44px] rounded-[6px] border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] ${
+      className={`min-h-[44px] px-4 py-2 text-sm transition-colors focus-visible:outline-offset-[-2px] ${
+        separado ? "border-l border-[var(--border-default)]" : ""
+      } ${
         activo
-          ? "border-[var(--color-secondary)] bg-[var(--color-input-bg-hover)] text-[var(--color-text-primary)]"
-          : "border-[var(--color-border)] bg-[var(--color-card-bg)] text-[var(--color-text-secondary)]"
+          ? "bg-[var(--musgo)] font-semibold text-[var(--hueso)]"
+          : "bg-[var(--bg-surface)] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-sunken)] hover:text-[var(--text-primary)]"
       }`}
     >
       {children}
@@ -1140,8 +1227,8 @@ function CabeceraAtlas({
   validacion: ResultadoValidacion | null;
 }) {
   return (
-    <section aria-label="Resumen del atlas" className="premium-card p-4 sm:p-5">
-      <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <section aria-label="Resumen del atlas">
+      <dl className="grid grid-cols-2 gap-px border-y border-[var(--border-subtle)] bg-[var(--border-subtle)] sm:grid-cols-4">
         <DatoCabecera etiqueta="Municipio" valor={municipioNombre} detalle={provincia ?? undefined} />
         <DatoCabecera
           etiqueta="Secciones con dato"
@@ -1169,7 +1256,7 @@ function CabeceraAtlas({
       </dl>
 
       {(nAgregados > 0 || nDescartadas > 0) && (
-        <p className="mt-3 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+        <p className="mt-3 max-w-[80ch] text-xs leading-relaxed text-[var(--text-muted)]">
           {nAgregados > 0 ? (
             <>
               Se han excluido {nAgregados} polígonos agregados de distrito (clave de sección terminada
@@ -1189,14 +1276,14 @@ function CabeceraAtlas({
 
       {validacion && !validacion.ok && (
         <div
-          className="mt-4 rounded-[6px] border border-[var(--color-error)] bg-[var(--color-input-bg)] p-3"
+          className="mt-4 rounded-[6px] border border-[var(--danger-ink)] bg-[var(--status-danger-bg)] p-4"
           role="alert"
         >
-          <p className="text-xs font-bold text-[var(--color-text-primary)]">
+          <p className="text-sm font-semibold text-[var(--status-danger-fg)]">
             La validación de la fuente no pasa ({validacion.errores.length}{" "}
             {validacion.errores.length === 1 ? "error" : "errores"})
           </p>
-          <ul className="mt-1 flex list-disc flex-col gap-0.5 pl-5 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+          <ul className="mt-1.5 flex list-disc flex-col gap-0.5 pl-5 text-xs leading-relaxed text-[var(--text-secondary)]">
             {validacion.errores.slice(0, 8).map((e) => (
               <li key={e}>{e}</li>
             ))}
@@ -1205,9 +1292,9 @@ function CabeceraAtlas({
       )}
 
       {!sinAtlas && avisos.length > 0 && (
-        <div className="mt-4 border-t border-[var(--color-border-subtle)] pt-3">
-          <h3 className="text-xs font-bold text-[var(--color-text-primary)]">Avisos de lectura</h3>
-          <ul className="mt-1 flex list-disc flex-col gap-1 pl-5 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+        <div className="mt-4 rounded-[6px] bg-[var(--bg-surface-sunken)] px-4 py-3">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Avisos de lectura</h2>
+          <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-5 text-xs leading-relaxed text-[var(--text-secondary)]">
             {avisos.map((a) => (
               <li key={a}>{a}</li>
             ))}
@@ -1219,11 +1306,13 @@ function CabeceraAtlas({
 }
 
 function DatoCabecera({ etiqueta, valor, detalle }: { etiqueta: string; valor: string; detalle?: string }) {
+  // Casilla del cajetín: el filete entre casillas es el hueco de 1 px de la
+  // rejilla sobre el color de borde, como en el cajetín de una hoja impresa.
   return (
-    <div>
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">{etiqueta}</dt>
-      <dd className="mt-0.5 text-lg font-bold tabular-nums text-[var(--color-text-primary)]">{valor}</dd>
-      {detalle ? <dd className="text-[11px] text-[var(--color-text-muted)]">{detalle}</dd> : null}
+    <div className="min-w-0 bg-[var(--bg-canvas)] px-4 py-4 max-sm:odd:pl-0 sm:first:pl-0">
+      <dt className="type-label text-[var(--text-muted)]">{etiqueta}</dt>
+      <dd className="type-h4 tnum mt-1 text-[var(--text-primary)]">{valor}</dd>
+      {detalle ? <dd className="mt-0.5 break-words text-xs leading-snug text-[var(--text-muted)]">{detalle}</dd> : null}
     </div>
   );
 }

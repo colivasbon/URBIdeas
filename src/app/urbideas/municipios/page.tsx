@@ -5,6 +5,8 @@ import dynamic from "next/dynamic"
 import UrbideasHeader from "@/components/platform/UrbideasHeader"
 import PlatformFooter from "@/components/platform/PlatformFooter"
 import { Badge } from "@/components/ui/Badge"
+import PageShell from "@/components/ui/PageShell"
+import Breadcrumbs from "@/components/ui/Breadcrumbs"
 import FiltroCascada from "@/components/filtros/FiltroCascada"
 import SelectorMultiMunicipio from "@/components/filtros/SelectorMultiMunicipio"
 
@@ -94,6 +96,15 @@ function getEstadoBadge(estado: string) {
     default:
       return `${base} badge-pending`
   }
+}
+
+function Cargando({ texto }: { texto: string }) {
+  return (
+    <div className="flex items-center gap-3 py-4" role="status" aria-live="polite">
+      <span className="spinner text-[var(--moss-ink)]" aria-hidden="true" />
+      <span className="text-sm text-[var(--text-muted)]">{texto}</span>
+    </div>
+  )
 }
 
 export default function MunicipiosPage() {
@@ -331,7 +342,7 @@ export default function MunicipiosPage() {
 
       setMunicipiosComparados(enriched)
     } catch {
-      setErrorComparacion("Error al cargar los datos de comparación")
+      setErrorComparacion("No se pudieron cargar los datos de la comparativa.")
       setMunicipiosComparados([])
     }
 
@@ -344,73 +355,100 @@ export default function MunicipiosPage() {
     }
   }, [comparando, municipiosComparados])
 
+  const cerrarComparativa = () => {
+    setComparando(false)
+    setMunicipiosComparados([])
+    setErrorComparacion(null)
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <UrbideasHeader />
 
       <main id="contenido" className="flex-1">
-        <div className="container-ima py-8 sm:py-10">
-          <section className="mb-8 border-b border-[var(--border-subtle)] pb-6">
-            <p className="type-overline text-[var(--moss-ink)]">Exploración · URBideas</p>
-            <h1 className="type-h1 mt-3 text-[var(--text-primary)]">Municipios</h1>
-            <p className="measure mt-3 text-[var(--text-secondary)]">
-              Busca, filtra y compara el planeamiento urbanístico de municipios de toda España.
-            </p>
-          </section>
+        <div className="container-ima pb-16">
+          <PageShell
+            breadcrumbs={
+              <Breadcrumbs
+                items={[
+                  { label: "IDEAS Sostenibilidad", href: "/" },
+                  { label: "URBideas", href: "/urbideas" },
+                  { label: "Municipios" },
+                ]}
+              />
+            }
+            title="Municipios"
+            lede="Seleccione un municipio para consultar su planeamiento, la legislación aplicable y las capas disponibles, o compare hasta diez municipios de una misma provincia."
+          />
 
-          <div className="flex flex-col gap-6 lg:flex-row">
-            {/* Left sidebar — distinct background panel */}
-            <div className="w-full shrink-0 lg:w-80">
-              <div className="premium-card p-5">
-                <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">
-                  Filtro por ubicación
+          <div className="grid gap-12 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-16">
+            <aside className="flex flex-col gap-10">
+              <section aria-labelledby="filtro-ubicacion">
+                <h2 id="filtro-ubicacion" className="type-h4 mb-5 text-[var(--text-primary)]">
+                  Ubicación
                 </h2>
                 <FiltroCascada onMunicipioSeleccionado={handleMunicipioSeleccionado} onProvinciaSeleccionada={setProvinciaId} />
-              </div>
+              </section>
 
-              <div className="premium-card p-5 mt-4">
-                <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">
-                  Comparación múltiple
+              <section aria-labelledby="comparacion-multiple" className="border-t border-[var(--border-subtle)] pt-8">
+                <h2 id="comparacion-multiple" className="type-h4 text-[var(--text-primary)]">
+                  Comparar municipios
                 </h2>
-                <p className="mb-4 text-sm text-[var(--color-text-secondary)]">
-                  Busca y selecciona hasta 10 municipios para comparar.
+                <p className="type-body-sm mt-2 mb-5 text-[var(--text-secondary)]">
+                  Elija hasta diez municipios de la provincia seleccionada.
                 </p>
                 <SelectorMultiMunicipio onCompare={handleCompare} provinciaId={provinciaId} />
-              </div>
-            </div>
+              </section>
+            </aside>
 
-            {/* Right content area */}
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0">
+              {!selectedMunicipio && !comparando && (
+                <div>
+                  <p className="type-h4 text-[var(--text-primary)]">Ningún municipio seleccionado</p>
+                  <p className="type-body-sm mt-2 max-w-[60ch] text-[var(--text-secondary)]">
+                    Elija comunidad autónoma, provincia y municipio en el filtro de ubicación para ver su
+                    ficha urbanística.
+                  </p>
+                </div>
+              )}
+
               {selectedMunicipio && (
-                <div className="animate-fade-in">
-                  {/* Municipality header */}
-                  <div className="mb-6">
-                    <h2 className="type-h2 text-[var(--text-primary)]">
+                <article aria-labelledby="municipio-titulo">
+                  <header>
+                    <h2 id="municipio-titulo" className="type-h2 text-[var(--text-primary)]">
                       {selectedMunicipio.nombre}
                     </h2>
-                    <div className="tnum mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--text-secondary)]">
+                    <dl className="tnum mt-5 flex flex-wrap gap-x-10 gap-y-4">
                       {selectedMunicipio.provincia?.comunidad_autonoma?.nombre && (
-                        <span>{selectedMunicipio.provincia.comunidad_autonoma.nombre}</span>
+                        <div>
+                          <dt className="type-label text-[var(--text-muted)]">Comunidad autónoma</dt>
+                          <dd className="mt-1 text-sm text-[var(--text-primary)]">
+                            {selectedMunicipio.provincia.comunidad_autonoma.nombre}
+                          </dd>
+                        </div>
                       )}
                       {selectedMunicipio.provincia?.nombre && (
-                        <span className="text-[var(--color-text-muted)]">·</span>
+                        <div>
+                          <dt className="type-label text-[var(--text-muted)]">Provincia</dt>
+                          <dd className="mt-1 text-sm text-[var(--text-primary)]">{selectedMunicipio.provincia.nombre}</dd>
+                        </div>
                       )}
-                      {selectedMunicipio.provincia?.nombre && (
-                        <span>{selectedMunicipio.provincia.nombre}</span>
-                      )}
-                      <span className="text-[var(--color-text-muted)]">·</span>
-                      <span>INE {selectedMunicipio.codigo_ine}</span>
+                      <div>
+                        <dt className="type-label text-[var(--text-muted)]">Código INE</dt>
+                        <dd className="mt-1 text-sm text-[var(--text-primary)]">{selectedMunicipio.codigo_ine}</dd>
+                      </div>
                       {selectedMunicipio.poblacion != null && (
-                        <>
-                          <span className="text-[var(--color-text-muted)]">·</span>
-                          <span>{selectedMunicipio.poblacion.toLocaleString("es-ES")} habitantes</span>
-                        </>
+                        <div>
+                          <dt className="type-label text-[var(--text-muted)]">Población</dt>
+                          <dd className="mt-1 text-sm text-[var(--text-primary)]">
+                            {selectedMunicipio.poblacion.toLocaleString("es-ES")} habitantes
+                          </dd>
+                        </div>
                       )}
-                    </div>
-                  </div>
+                    </dl>
+                  </header>
 
-                  {/* Map */}
-                  <div className="rounded-[6px] overflow-hidden mb-8">
+                  <div className="mt-8 overflow-hidden rounded-[6px] border border-[var(--border-subtle)]">
                     <MunicipioMapa
                       lat={nominatimCoords?.lat ?? selectedMunicipio.lat ?? null}
                       lng={nominatimCoords?.lng ?? selectedMunicipio.lng ?? null}
@@ -418,382 +456,333 @@ export default function MunicipiosPage() {
                     />
                   </div>
 
-                  {/* Planning instruments */}
+                  {/* Instrumentos de planeamiento */}
                   {(loadingPlaneamiento || instrumentos.length > 0) && (
-                    <div className="mb-8">
-                      <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
-                        Instrumentos de Planeamiento
+                    <section aria-labelledby="sec-planeamiento" className="mt-12">
+                      <h3 id="sec-planeamiento" className="type-h3 text-[var(--text-primary)]">
+                        Instrumentos de planeamiento
                       </h3>
                       {loadingPlaneamiento ? (
-                        <div className="flex items-center gap-2 py-4">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
-                          <span className="text-sm text-[var(--color-text-muted)]">Cargando...</span>
-                        </div>
+                        <Cargando texto="Cargando planeamiento…" />
                       ) : instrumentos.length === 0 ? (
-                        <p className="text-sm text-[var(--color-text-muted)] italic">
-                          Sin datos de planeamiento verificados para este municipio
+                        <p className="mt-3 text-sm text-[var(--text-muted)]">
+                          Sin datos de planeamiento verificados para este municipio.
                         </p>
                       ) : (
-                        <div className="space-y-3">
+                        <ul className="mt-4 border-t border-[var(--border-subtle)]">
                           {instrumentos.map((inst) => (
-                            <div
+                            <li
                               key={inst.id}
-                              className="flex items-start justify-between gap-4 p-4 bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[6px]"
+                              className="flex flex-col gap-3 border-b border-[var(--border-subtle)] py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6"
                             >
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-sm font-semibold text-[var(--color-text-primary)]">{inst.tipo}</span>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-sm font-semibold text-[var(--text-primary)]">{inst.tipo}</span>
                                   <span className={getEstadoBadge(inst.estado)}>{inst.estado}</span>
                                 </div>
-                                {inst.fecha_aprobacion_definitiva && (
-                                  <p className="text-xs text-[var(--color-text-muted)]">
-                                    Aprobación definitiva: {inst.fecha_aprobacion_definitiva}
-                                  </p>
-                                )}
-                                {inst.fecha_aprobacion_inicial && !inst.fecha_aprobacion_definitiva && (
-                                  <p className="text-xs text-[var(--color-text-muted)]">
-                                    Aprobación inicial: {inst.fecha_aprobacion_inicial}
-                                  </p>
-                                )}
-                                {inst.fuente && (
-                                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                                    Fuente: {inst.fuente}
-                                  </p>
-                                )}
+                                <div className="tnum mt-1.5 flex flex-col gap-0.5 text-xs text-[var(--text-secondary)]">
+                                  {inst.fecha_aprobacion_definitiva && (
+                                    <span>Aprobación definitiva: {inst.fecha_aprobacion_definitiva}</span>
+                                  )}
+                                  {inst.fecha_aprobacion_inicial && !inst.fecha_aprobacion_definitiva && (
+                                    <span>Aprobación inicial: {inst.fecha_aprobacion_inicial}</span>
+                                  )}
+                                  {inst.fuente && <span className="text-[var(--text-muted)]">Fuente: {inst.fuente}</span>}
+                                </div>
                               </div>
-                              <div className="flex gap-3 shrink-0 mt-0.5">
-                                {inst.enlace_documento_oficial && (
-                                  <a
-                                    href={inst.enlace_documento_oficial}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
-                                  >
-                                    Documento oficial
-                                  </a>
-                                )}
-                                {inst.enlace_geoportal && (
-                                  <a
-                                    href={inst.enlace_geoportal}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
-                                  >
-                                    Geoportal
-                                  </a>
-                                )}
-                              </div>
-                            </div>
+                              {(inst.enlace_documento_oficial || inst.enlace_geoportal) && (
+                                <div className="flex shrink-0 flex-wrap gap-x-5 gap-y-2 text-sm">
+                                  {inst.enlace_documento_oficial && (
+                                    <a
+                                      href={inst.enlace_documento_oficial}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="link link-external"
+                                    >
+                                      Documento oficial
+                                    </a>
+                                  )}
+                                  {inst.enlace_geoportal && (
+                                    <a
+                                      href={inst.enlace_geoportal}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="link link-external"
+                                    >
+                                      Geoportal
+                                    </a>
+                                  )}
+                                </div>
+                              )}
+                            </li>
                           ))}
-                        </div>
+                        </ul>
                       )}
-                    </div>
+                    </section>
                   )}
 
-                  {/* Applicable legislation */}
+                  {/* Legislación aplicable */}
                   {(loadingNormativa || normativa.length > 0) && (
-                    <div className="mb-8">
-                      <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
-                        Legislación Aplicable
+                    <section aria-labelledby="sec-legislacion" className="mt-12">
+                      <h3 id="sec-legislacion" className="type-h3 text-[var(--text-primary)]">
+                        Legislación aplicable
                       </h3>
                       {loadingNormativa ? (
-                        <div className="flex items-center gap-2 py-4">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
-                          <span className="text-sm text-[var(--color-text-muted)]">Cargando...</span>
-                        </div>
+                        <Cargando texto="Cargando legislación…" />
                       ) : (
-                        <div className="space-y-2">
+                        <div className="mt-4 border-t border-[var(--border-subtle)]">
                           {(["estatal", "autonomica", "municipal"] as const).map((ambito) => {
                             const items = normativa.filter((n) => n.ambito === ambito)
                             if (items.length === 0) return null
                             const isOpen = openNormativa === ambito
                             const labels: Record<string, string> = {
-                              estatal: "Normativa Estatal",
-                              autonomica: "Normativa Autonómica",
-                              municipal: "Instrumento Municipal",
+                              estatal: "Normativa estatal",
+                              autonomica: "Normativa autonómica",
+                              municipal: "Instrumento municipal",
                             }
                             return (
-                              <div
-                                key={ambito}
-                                className="bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[6px] overflow-hidden"
-                              >
+                              <div key={ambito} className="border-b border-[var(--border-subtle)]">
                                 <button
                                   type="button"
                                   onClick={() => setOpenNormativa(isOpen ? "" : ambito)}
-                                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg-hover)] transition-colors"
+                                  aria-expanded={isOpen}
+                                  className="flex min-h-11 w-full items-center justify-between gap-4 py-3 text-left text-sm font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-link)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                                 >
                                   <span>{labels[ambito]}</span>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[var(--color-text-muted)] text-xs">
+                                  <span className="flex items-center gap-3">
+                                    <span className="tnum text-xs text-[var(--text-muted)]">
                                       {items.length} {items.length === 1 ? "norma" : "normas"}
                                     </span>
                                     <svg
-                                      className={`w-4 h-4 text-[var(--color-text-muted)] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                                      className={`h-4 w-4 text-[var(--text-muted)] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                                       fill="none"
                                       viewBox="0 0 24 24"
                                       stroke="currentColor"
+                                      aria-hidden="true"
                                     >
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
-                                  </div>
+                                  </span>
                                 </button>
                                 {isOpen && (
-                                  <div className="px-4 pb-4 space-y-2">
+                                  <ul className="pb-3">
                                     {items.map((norm) => (
-                                      <div
-                                        key={norm.id}
-                                        className="p-3 border-t border-[var(--color-border-subtle)]"
-                                      >
-                                        <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                                      <li key={norm.id} className="border-t border-[var(--border-subtle)] py-3 pl-4">
+                                        <p className="max-w-[70ch] text-sm font-medium text-[var(--text-primary)]">
                                           {norm.titulo}
                                         </p>
-                                        {norm.referencia_legal && (
-                                          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                                            Ref: {norm.referencia_legal}
-                                          </p>
-                                        )}
-                                        {norm.fecha_publicacion && (
-                                          <p className="text-xs text-[var(--color-text-muted)]">
-                                            Publicación: {norm.fecha_publicacion}
-                                          </p>
-                                        )}
-                                        <div className="flex items-center gap-3 mt-2">
-                                          <span className={`inline-flex items-center text-xs font-semibold px-1.5 py-0.5 rounded-[6px] border ${
-                                            norm.estado_vigencia === "vigente"
-                                              ? "bg-musgo text-white border-musgo"
-                                              : norm.estado_vigencia === "derogada"
-                                                ? "bg-rupestre text-hueso border-rupestre"
-                                                : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] border-[var(--color-border)]"
-                                          }`}>
+                                        <div className="tnum mt-1 flex flex-col gap-0.5 text-xs text-[var(--text-secondary)]">
+                                          {norm.referencia_legal && <span>Referencia: {norm.referencia_legal}</span>}
+                                          {norm.fecha_publicacion && <span>Publicación: {norm.fecha_publicacion}</span>}
+                                        </div>
+                                        <div className="mt-2 flex flex-wrap items-center gap-3">
+                                          <Badge
+                                            variant={
+                                              norm.estado_vigencia === "vigente"
+                                                ? "success"
+                                                : norm.estado_vigencia === "derogada"
+                                                  ? "danger"
+                                                  : "muted"
+                                            }
+                                          >
                                             {norm.estado_vigencia}
-                                          </span>
+                                          </Badge>
                                           {norm.enlace_boe_boletin && (
                                             <a
                                               href={norm.enlace_boe_boletin}
                                               target="_blank"
                                               rel="noopener noreferrer"
-                                              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
+                                              className="link link-external text-sm"
                                             >
                                               Ver boletín
                                             </a>
                                           )}
                                         </div>
-                                      </div>
+                                      </li>
                                     ))}
-                                  </div>
+                                  </ul>
                                 )}
                               </div>
                             )
                           })}
                         </div>
                       )}
-                    </div>
+                    </section>
                   )}
 
-                  {/* Applicable layers */}
+                  {/* Capas aplicables */}
                   {(loadingCapas || capas.length > 0) && (
-                    <div className="mb-8">
-                      <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+                    <section aria-labelledby="sec-capas" className="mt-12">
+                      <h3 id="sec-capas" className="type-h3 text-[var(--text-primary)]">
                         Capas disponibles para informe
                       </h3>
                       {loadingCapas ? (
-                        <div className="flex items-center gap-2 py-4">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
-                          <span className="text-sm text-[var(--color-text-muted)]">Cargando...</span>
-                        </div>
+                        <Cargando texto="Cargando capas…" />
                       ) : (
-                        <div className="space-y-2">
+                        <div className="mt-4 border-t border-[var(--border-subtle)]">
                           {Object.entries(groupedCapas).map(([categoria, capasGrupo]) => {
                             const isOpen = openCapaCategoria.includes(categoria)
                             return (
-                              <div
-                                key={categoria}
-                                className="bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[6px] overflow-hidden"
-                              >
+                              <div key={categoria} className="border-b border-[var(--border-subtle)]">
                                 <button
                                   type="button"
                                   onClick={() => toggleCapaCategoria(categoria)}
-                                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg-hover)] transition-colors"
+                                  aria-expanded={isOpen}
+                                  className="flex min-h-11 w-full items-center justify-between gap-4 py-3 text-left text-sm font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-link)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                                 >
                                   <span>{categoria}</span>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[var(--color-text-muted)] text-xs">
+                                  <span className="flex items-center gap-3">
+                                    <span className="tnum text-xs text-[var(--text-muted)]">
                                       {capasGrupo.length} {capasGrupo.length === 1 ? "capa" : "capas"}
                                     </span>
                                     <svg
-                                      className={`w-4 h-4 text-[var(--color-text-muted)] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                                      className={`h-4 w-4 text-[var(--text-muted)] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                                       fill="none"
                                       viewBox="0 0 24 24"
                                       stroke="currentColor"
+                                      aria-hidden="true"
                                     >
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
-                                  </div>
+                                  </span>
                                 </button>
                                 {isOpen && (
-                                  <div className="px-4 pb-4 space-y-2">
+                                  <ul className="pb-3">
                                     {capasGrupo.map((capa) => (
-                                      <div
+                                      <li
                                         key={capa.id}
-                                        className="flex items-center justify-between p-3 border-t border-[var(--color-border-subtle)]"
+                                        className="flex items-center justify-between gap-4 border-t border-[var(--border-subtle)] py-3 pl-4"
                                       >
-                                        <div className="flex flex-col min-w-0">
-                                          <span className="text-sm text-[var(--color-text-primary)] truncate">
-                                            {capa.nombre_capa}
-                                          </span>
-                                          <span className="text-xs text-[var(--color-text-muted)]">
-                                            {capa.tipo_servicio}
-                                          </span>
+                                        <div className="flex min-w-0 flex-col">
+                                          <span className="truncate text-sm text-[var(--text-primary)]">{capa.nombre_capa}</span>
+                                          <span className="text-xs text-[var(--text-muted)]">{capa.tipo_servicio}</span>
                                         </div>
                                         <a
                                           href={`/urbideas/mapa?layers=${capa.id}&center=${selectedMunicipio?.lng || 0},${selectedMunicipio?.lat || 0}&zoom=12`}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="shrink-0 ml-3 inline-flex min-h-[36px] items-center gap-1 text-xs font-semibold px-2.5 py-1 bg-musgo text-hueso rounded-[6px] hover:bg-musgo-hover transition-colors"
+                                          className="btn btn-secondary btn-sm shrink-0"
                                         >
-                                          Ver en mapa
+                                          Ver en el mapa
                                         </a>
-                                      </div>
+                                      </li>
                                     ))}
-                                  </div>
+                                  </ul>
                                 )}
                               </div>
                             )
                           })}
                         </div>
                       )}
-                    </div>
+                    </section>
                   )}
 
                   {!loadingPlaneamiento && !loadingNormativa && !loadingCapas &&
                     instrumentos.length === 0 && normativa.length === 0 && capas.length === 0 && (
-                    <p className="text-sm text-[var(--color-text-muted)] italic">
-                      Cargando datos del municipio...
+                    <p className="mt-10 text-sm text-[var(--text-muted)]">
+                      Cargando datos del municipio…
                     </p>
                   )}
-                </div>
+                </article>
               )}
 
-              {/* Comparison Table */}
+              {/* Comparativa */}
               {comparando && (
-                <div ref={comparisonRef} className="mt-6 animate-fade-in">
-                  <div className="bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[6px] overflow-hidden">
-                    <div className="px-6 py-4 border-b border-[var(--color-border-subtle)]">
-                      <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Comparativa de municipios</h3>
-                    </div>
-
-                    {loadingComparacion ? (
-                      <div className="flex items-center justify-center py-12">
-                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-secondary)] border-t-transparent" />
-                        <span className="ml-3 text-sm text-[var(--color-text-muted)]">
-                          Cargando datos...
-                        </span>
-                      </div>
-                    ) : errorComparacion ? (
-                      <div className="py-8 text-center px-6">
-                        <p className="text-sm font-semibold text-[var(--danger-ink)] mb-3" role="alert">{errorComparacion}</p>
-                        <button
-                          onClick={() => {
-                            setComparando(false)
-                            setMunicipiosComparados([])
-                            setErrorComparacion(null)
-                          }}
-                          className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] rounded-[6px] transition-colors hover:bg-[var(--color-input-bg)]"
-                        >
-                          Cerrar
-                        </button>
-                      </div>
-                    ) : municipiosComparados.length === 0 ? (
-                      <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
-                        No se encontraron datos para los municipios seleccionados.
-                      </p>
-                    ) : (
-                      <>
-                        <div className="m-6 rounded-[6px] overflow-hidden">
-                          <MunicipioMapa
-                            municipios={municipiosComparados
-                              .filter((m) => m.lat != null && m.lng != null)
-                              .map((m) => ({
-                                id: m.id,
-                                nombre: m.nombre,
-                                lat: m.lat!,
-                                lng: m.lng!,
-                              }))}
-                          />
-                        </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm min-w-[600px]">
-                            <thead>
-                              <tr className="border-b border-[var(--color-border-subtle)]">
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Municipio</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Provincia</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">CCAA</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Tipo</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Estado</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Fecha</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Enlace</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {municipiosComparados.map((m) => (
-                                <tr
-                                  key={m.id}
-                                  className="border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-input-bg)]"
-                                >
-                                  <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{m.nombre}</td>
-                                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">{m.provincia}</td>
-                                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">{m.ccaa}</td>
-                                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">{m.tipo_planeamiento}</td>
-                                  <td className="px-4 py-3">
-                                    {m.estado ? (
-                                      <Badge variant={estadoBadgeVariant[m.estado] ?? "primary"}>
-                                        {m.estado}
-                                      </Badge>
-                                    ) : (
-                                      <span className="text-[var(--color-text-muted)]">—</span>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">
-                                    {m.fecha_aprobacion
-                                      ? new Date(m.fecha_aprobacion).toLocaleDateString("es-ES")
-                                      : "—"}
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    {m.enlace ? (
-                                      <a
-                                        href={m.enlace}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors font-medium"
-                                      >
-                                        Ver documento
-                                      </a>
-                                    ) : (
-                                      <span className="text-[var(--color-text-muted)]">—</span>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="px-6 py-4 flex justify-end border-t border-[var(--color-border-subtle)]">
-                      <button
-                        onClick={() => {
-                          setComparando(false)
-                          setMunicipiosComparados([])
-                          setErrorComparacion(null)
-                        }}
-                        className="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] rounded-lg transition-colors hover:bg-[var(--color-input-bg)]"
-                      >
-                        Cerrar comparativa
-                      </button>
-                    </div>
+                <section
+                  ref={comparisonRef}
+                  aria-labelledby="comparativa-titulo"
+                  className={selectedMunicipio ? "mt-16 border-t border-[var(--border-strong)] pt-6" : undefined}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <h2 id="comparativa-titulo" className="type-h2 text-[var(--text-primary)]">
+                      Comparativa de municipios
+                    </h2>
+                    <button type="button" onClick={cerrarComparativa} className="btn btn-ghost btn-sm">
+                      Cerrar comparativa
+                    </button>
                   </div>
-                </div>
+
+                  {loadingComparacion ? (
+                    <div className="mt-4">
+                      <Cargando texto="Cargando la comparativa…" />
+                    </div>
+                  ) : errorComparacion ? (
+                    <div className="note note-danger mt-6" role="alert">
+                      <p className="font-medium text-[var(--text-primary)]">{errorComparacion}</p>
+                      <p className="mt-1">Revise la selección de municipios y vuelva a compararlos.</p>
+                    </div>
+                  ) : municipiosComparados.length === 0 ? (
+                    <p className="mt-6 text-sm text-[var(--text-muted)]">
+                      No hay datos de planeamiento para los municipios seleccionados. Pruebe con otra selección.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="mt-6 overflow-hidden rounded-[6px] border border-[var(--border-subtle)]">
+                        <MunicipioMapa
+                          municipios={municipiosComparados
+                            .filter((m) => m.lat != null && m.lng != null)
+                            .map((m) => ({
+                              id: m.id,
+                              nombre: m.nombre,
+                              lat: m.lat!,
+                              lng: m.lng!,
+                            }))}
+                        />
+                      </div>
+                      <div className="data-table-wrap mt-8 rounded-[6px] border border-[var(--border-subtle)]">
+                        <table className="data-table min-w-[640px]">
+                          <thead>
+                            <tr>
+                              <th scope="col">Municipio</th>
+                              <th scope="col">Provincia</th>
+                              <th scope="col">Comunidad autónoma</th>
+                              <th scope="col">Planeamiento</th>
+                              <th scope="col">Estado</th>
+                              <th scope="col" className="num">Aprobación</th>
+                              <th scope="col">Documento</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {municipiosComparados.map((m) => (
+                              <tr key={m.id}>
+                                <td className="font-medium">{m.nombre}</td>
+                                <td className="meta">{m.provincia}</td>
+                                <td className="meta">{m.ccaa}</td>
+                                <td className="meta">{m.tipo_planeamiento}</td>
+                                <td>
+                                  {m.estado ? (
+                                    <Badge variant={estadoBadgeVariant[m.estado] ?? "primary"}>{m.estado}</Badge>
+                                  ) : (
+                                    <span className="text-[var(--text-muted)]">—</span>
+                                  )}
+                                </td>
+                                <td className="num meta">
+                                  {m.fecha_aprobacion
+                                    ? new Date(m.fecha_aprobacion).toLocaleDateString("es-ES")
+                                    : "—"}
+                                </td>
+                                <td>
+                                  {m.enlace ? (
+                                    <a
+                                      href={m.enlace}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="link link-external"
+                                    >
+                                      Ver documento
+                                    </a>
+                                  ) : (
+                                    <span className="text-[var(--text-muted)]">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </section>
               )}
             </div>
           </div>

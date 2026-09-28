@@ -97,59 +97,54 @@ export default function TablaComparativa({ municipioIds }: TablaComparativaProps
 
   if (municipioIds.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-[var(--color-text-secondary)]">
-        Selecciona municipios para generar la tabla comparativa.
+      <p className="border-t border-[var(--border-subtle)] py-6 text-sm text-[var(--text-secondary)]">
+        Seleccione municipios para generar la tabla comparativa.
       </p>
     )
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-secondary)] border-t-transparent" />
-        <span className="ml-3 text-sm text-[var(--color-text-secondary)]">
-          Cargando comparativa...
-        </span>
+      <div className="flex items-center gap-3 py-8" role="status" aria-live="polite">
+        <span className="spinner text-[var(--moss-ink)]" aria-hidden="true" />
+        <span className="text-sm text-[var(--text-secondary)]">Cargando la comparativa…</span>
       </div>
     )
   }
 
   if (error) {
     return (
-      <p className="py-8 text-center text-sm text-[var(--color-error-light)]">
-        Error al cargar datos: {error}
-      </p>
+      <div className="note note-danger" role="alert">
+        <p className="font-medium text-[var(--text-primary)]">No se pudo cargar la comparativa.</p>
+        <p className="mt-1">{error}. Revise la selección y vuelva a intentarlo.</p>
+      </div>
     )
   }
 
   if (filas.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-[var(--color-text-secondary)]">
-        No se encontraron datos para los municipios seleccionados.
+      <p className="border-t border-[var(--border-subtle)] py-6 text-sm text-[var(--text-secondary)]">
+        No hay datos para los municipios seleccionados. Pruebe con otra selección.
       </p>
     )
   }
 
+  const totalInstrumentos = filas.reduce((acc, f) => acc + f.instrumentos.length, 0)
+
   return (
     <div>
-      <div className="overflow-x-auto rounded-[var(--border-radius)] border border-[var(--color-border)]">
-        <table className="w-full min-w-[800px] text-sm">
+      <div className="data-table-wrap rounded-[6px] border border-[var(--border-subtle)]">
+        <table className="data-table min-w-[800px]">
           <thead>
-            <tr className="border-b border-[var(--color-border)] bg-[var(--color-input-bg)]">
-              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Municipio</th>
-              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Provincia</th>
-              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">CCAA</th>
-              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Tipo Planeamiento</th>
-              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Estado</th>
-              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">
-                Fecha Aprobación
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">
-                Enlace al Documento
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">
-                Enlace al Geoportal
-              </th>
+            <tr>
+              <th scope="col">Municipio</th>
+              <th scope="col">Provincia</th>
+              <th scope="col">Comunidad autónoma</th>
+              <th scope="col">Planeamiento</th>
+              <th scope="col">Estado</th>
+              <th scope="col" className="num">Aprobación</th>
+              <th scope="col">Documento</th>
+              <th scope="col">Geoportal</th>
             </tr>
           </thead>
           <tbody>
@@ -160,88 +155,55 @@ export default function TablaComparativa({ municipioIds }: TablaComparativaProps
               return (
                 <tr
                   key={fila.municipio.id}
-                  className={
-                    !tieneVigente
-                      ? "border-b border-[var(--color-border)] bg-[var(--color-accent)]/5 transition-colors hover:bg-[var(--color-accent)]/10"
-                      : "border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-input-bg)]"
-                  }
+                  className={!tieneVigente ? "[&>td]:bg-[var(--bg-surface-sunken)]" : undefined}
                 >
-                  <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{fila.municipio.nombre}</td>
-                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">
-                    {fila.provincia?.nombre || "—"}
+                  <td className="font-medium">
+                    {fila.municipio.nombre}
+                    {!tieneVigente && <span className="sr-only"> (sin planeamiento vigente)</span>}
                   </td>
-                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">
-                    {fila.ccaa?.nombre || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">
-                    {inst?.tipo || "No registrado"}
-                  </td>
-                  <td className="px-4 py-3">
+                  <td className="meta">{fila.provincia?.nombre || "—"}</td>
+                  <td className="meta">{fila.ccaa?.nombre || "—"}</td>
+                  <td className="meta">{inst?.tipo || "No registrado"}</td>
+                  <td>
                     {inst?.estado ? (
                       <Badge variant={estadoBadgeVariant[inst.estado] ?? "primary"}>
                         {inst.estado}
                       </Badge>
                     ) : (
-                      <span className="text-[var(--color-text-secondary)]">—</span>
+                      <span className="text-[var(--text-muted)]">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">
+                  <td className="num meta">
                     {inst?.fecha_aprobacion_definitiva
                       ? new Date(inst.fecha_aprobacion_definitiva).toLocaleDateString("es-ES")
                       : "—"}
                   </td>
-                  <td className="px-4 py-3">
+                  <td>
                     {inst?.enlace_documento_oficial ? (
                       <a
                         href={inst.enlace_documento_oficial}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-[var(--color-secondary)] transition-colors hover:text-[var(--color-accent)]"
+                        className="link link-external"
                       >
-                        <svg
-                          className="h-4 w-4 shrink-0"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
-                          />
-                        </svg>
-                        <span className="text-xs underline underline-offset-2">Documento</span>
+                        Documento
                       </a>
                     ) : (
-                      <span className="text-[var(--color-text-secondary)]">—</span>
+                      <span className="text-[var(--text-muted)]">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td>
                     {inst?.enlace_geoportal ? (
                       <a
                         href={inst.enlace_geoportal}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-[var(--color-secondary)] transition-colors hover:text-[var(--color-accent)]"
+                        className="link link-external"
                       >
-                        <svg
-                          className="h-4 w-4 shrink-0"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934a2.999 2.999 0 0 1-2.502 0L5.998 3.412c-.349-.174-.751-.174-1.1.001L4.5 3.42"
-                          />
-                        </svg>
-                        <span className="text-xs underline underline-offset-2">Geoportal</span>
+                        Geoportal
                       </a>
                     ) : (
-                      <span className="text-[var(--color-text-secondary)]">—</span>
+                      <span className="text-[var(--text-muted)]">—</span>
                     )}
                   </td>
                 </tr>
@@ -251,17 +213,11 @@ export default function TablaComparativa({ municipioIds }: TablaComparativaProps
         </table>
       </div>
 
-      <div className="mt-4 flex items-center justify-between text-sm text-[var(--color-text-secondary)]">
+      <div className="tnum mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm text-[var(--text-secondary)]">
         <span>
-          Mostrando <strong className="text-[var(--color-text-primary)]">{filas.length}</strong>{" "}
-          {filas.length === 1 ? "municipio" : "municipios"}
+          {filas.length} {filas.length === 1 ? "municipio" : "municipios"}
         </span>
-        <span>
-Total instrumentos:{" "}
-           <strong className="text-[var(--color-text-primary)]">
-            {filas.reduce((acc, f) => acc + f.instrumentos.length, 0)}
-          </strong>
-        </span>
+        <span>Instrumentos registrados: {totalInstrumentos}</span>
       </div>
     </div>
   )

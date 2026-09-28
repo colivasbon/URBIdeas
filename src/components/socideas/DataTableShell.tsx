@@ -1,9 +1,9 @@
 import DataTableMeta, { type TableMeta } from "./DataTableMeta";
 
 /**
- * Superficie corporativa común de tabla SOCideas:
- * título + toolbar / metadata rail / tabla con scroll-x / nota metodológica.
- * Radio 6px, ritmo título→meta 8–12px, meta→tabla 12–16px, tabla→nota 10–14px.
+ * Bloque común de tabla SOCideas, sin caja: título + toolbar / metadata rail
+ * (fuente, periodo, cobertura, estado siempre visibles) / tabla entre filetes
+ * con scroll-x propio / nota metodológica al pie.
  * Presentacional: no toca datos, lógica ni semántica de la tabla hija.
  *
  * v2.3 — responsividad y accesibilidad:
@@ -44,20 +44,20 @@ export default function DataTableShell({
   series?: boolean;
   children?: React.ReactNode;
 }) {
-  const cls = `socideas-table-shell${narrow ? " socideas-table-shell--narrow" : ""}${series ? " socideas-table-shell--series" : ""}`;
+  const cls = `min-w-0${narrow ? " socideas-table-shell--narrow" : ""}${series ? " socideas-table-shell--series" : ""}`;
   const nombreTabla = tableLabel ?? title;
   return (
     <div className="socideas-table-block min-w-0">
       <div className={cls}>
-        <div className="socideas-table-shell__head">
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
-            <h3 className="socideas-table-shell__title">{title}</h3>
-            {subtitle && <p className="socideas-table-shell__subtitle">{subtitle}</p>}
+            <h3 className="text-[15px] font-semibold leading-snug text-[var(--text-primary)]">{title}</h3>
+            {subtitle && <p className="mt-0.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">{subtitle}</p>}
           </div>
           {toolbar}
         </div>
         {meta && (
-          <div className="socideas-table-shell__meta">
+          <div className="mt-1.5">
             <DataTableMeta meta={meta} />
           </div>
         )}
@@ -78,7 +78,9 @@ export default function DataTableShell({
           </p>
           {children}
         </div>
-        {footnote && <div className="socideas-table__footnote">{footnote}</div>}
+        {footnote && (
+          <div className="mt-2.5 max-w-[70ch] text-xs leading-relaxed text-[var(--text-muted)]">{footnote}</div>
+        )}
       </div>
     </div>
   );

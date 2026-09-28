@@ -74,7 +74,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="flex h-11 w-11 items-center justify-center rounded-[6px] text-[var(--text-muted)] transition-colors hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+              className="flex h-11 w-11 items-center justify-center rounded-[6px] text-[var(--text-muted)] transition-colors hover:bg-[var(--action-secondary-hover-bg)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               aria-label="Cerrar"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">

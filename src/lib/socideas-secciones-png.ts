@@ -326,8 +326,8 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
 
   // Cabecera -------------------------------------------------------------
   ctx.fillStyle = t.musgoOscuro;
-  ctx.font = `600 11px ${FAMILIA}`;
-  ctx.fillText("SOCIDEAS · SECCIONES CENSALES", M, y + 11);
+  ctx.font = `600 12px ${FAMILIA}`;
+  ctx.fillText("SOCideas, secciones censales", M, y + 11);
   y += 20;
 
   ctx.fillStyle = t.textoFuerte;

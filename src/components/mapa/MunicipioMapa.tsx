@@ -8,12 +8,15 @@ import "leaflet/dist/leaflet.css"
 interface MunicipioMarker { id: string; nombre: string; lat: number; lng: number }
 interface MunicipioMapaProps { lat?: number | null; lng?: number | null; nombre?: string; municipios?: MunicipioMarker[] }
 
-const MARKER_COLORS = ["var(--color-primary)","#D4543B","#2563EB","var(--color-warning)","#7C3AED","var(--color-success)","#DC2626","#0891B2","#C026D3","#65A30D"]
+// Marcadores numerados en tonos oscuros de la paleta: todos sostienen el número en hueso.
+const MARKER_COLORS = ["#3E665C", "#643335", "#3C403E", "#527C00", "#21463D", "#966162", "#5B5F5D", "#355B00", "#688F85", "#491E21"]
+const HUESO = "#F1F1F1"
+const SOMBRA = "0 2px 6px rgba(60,64,62,0.35)"
 
 function createNumberIcon(num: number, color: string) {
   return L.divIcon({
     className: "",
-    html: `<div style="background:${color};width:28px;height:28px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:bold;line-height:1">${num}</div>`,
+    html: `<div style="background:${color};width:28px;height:28px;border-radius:50%;border:2px solid ${HUESO};box-shadow:${SOMBRA};display:flex;align-items:center;justify-content:center;color:${HUESO};font-family:var(--font-family);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1">${num}</div>`,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
     popupAnchor: [0, -16],
@@ -24,8 +27,8 @@ function createPinIcon() {
   return L.divIcon({
     className: "",
     html: `<div style="position:relative;width:24px;height:36px">
-      <div style="width:24px;height:24px;background:var(--color-primary);border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>
-      <div style="position:absolute;top:6px;left:6px;width:12px;height:12px;background:white;border-radius:50%"></div>
+      <div style="width:24px;height:24px;background:#3E665C;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid ${HUESO};box-shadow:${SOMBRA}"></div>
+      <div style="position:absolute;top:6px;left:6px;width:12px;height:12px;background:${HUESO};border-radius:50%"></div>
     </div>`,
     iconSize: [24, 36],
     iconAnchor: [12, 36],
@@ -73,10 +76,10 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
   if (isMulti) {
     const valid = municipios.filter(m => typeof m.lat === "number" && typeof m.lng === "number" && !isNaN(m.lat) && !isNaN(m.lng))
     if (valid.length === 0) {
-      return <div className="flex items-center justify-center h-[300px] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] text-sm text-[var(--color-text-secondary)]">No hay coordenadas disponibles</div>
+      return <div className="flex h-[300px] items-center justify-center rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface-sunken)] text-sm text-[var(--text-secondary)]">No hay coordenadas disponibles para estos municipios</div>
     }
   } else if (!lat || !lng) {
-    return <div className="flex items-center justify-center h-[300px] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[var(--border-radius)] text-sm text-[var(--color-text-secondary)]">No hay coordenadas verificadas</div>
+    return <div className="flex h-[300px] items-center justify-center rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface-sunken)] text-sm text-[var(--text-secondary)]">No hay coordenadas verificadas</div>
   }
 
   const validMunicipios = isMulti
@@ -92,12 +95,12 @@ export default function MunicipioMapa({ lat, lng, nombre, municipios }: Municipi
     : [[lat!, lng!]]
 
   return (
-    <div style={{ width: "100%", height: "300px", borderRadius: "var(--border-radius)", border: "1px solid var(--color-border)", overflow: "hidden" }}>
+    <div style={{ width: "100%", height: "300px", borderRadius: 6, border: "1px solid var(--border-subtle)", overflow: "hidden" }}>
       <MapContainer
         key={`${center[0].toFixed(4)},${center[1].toFixed(4)}`}
         center={center}
         zoom={isMulti ? 6 : 12}
-        style={{ width: "100%", height: "100%", background: "#e5e3df" }}
+        style={{ width: "100%", height: "100%", background: "var(--bg-surface-sunken)" }}
         zoomControl={true}
         scrollWheelZoom={false}
       >

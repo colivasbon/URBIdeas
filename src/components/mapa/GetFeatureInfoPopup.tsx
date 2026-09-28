@@ -12,16 +12,23 @@ interface GetFeatureInfoPopupProps {
   coordenadas: { lat: number; lng: number }
 }
 
+// El popup de Leaflet ya lleva superficie, borde, radio y sombra del sistema
+// (globals.css). Se usan <div> y no <p> porque leaflet.css, sin capa,
+// impone márgenes a los párrafos por encima de las utilidades.
 export function GetFeatureInfoPopup({ features, coordenadas }: GetFeatureInfoPopupProps) {
+  const coords = (
+    <div className="tnum text-[11px] text-[var(--text-muted)]">
+      {coordenadas.lat.toFixed(5)}, {coordenadas.lng.toFixed(5)}
+    </div>
+  )
+
   if (!features.length) {
     return (
-      <div style={{ fontFamily: 'var(--font-family)', minWidth: 200 }}>
-        <p style={{ color: 'var(--color-text-secondary)', margin: 0, fontSize: 13 }}>
-          Selecciona una capa activa en el panel lateral y haz clic en el mapa para consultar sus datos.
-        </p>
-        <p style={{ color: 'var(--color-text-secondary)', margin: '6px 0 0', fontSize: 11 }}>
-          {coordenadas.lat.toFixed(5)}, {coordenadas.lng.toFixed(5)}
-        </p>
+      <div className="min-w-[200px]">
+        <div className="m-0 text-[13px] text-[var(--text-secondary)]">
+          Active una capa en el panel lateral y pulse sobre el mapa para consultar sus datos.
+        </div>
+        <div className="mt-1.5">{coords}</div>
       </div>
     )
   }
@@ -30,46 +37,22 @@ export function GetFeatureInfoPopup({ features, coordenadas }: GetFeatureInfoPop
   const withErrors = features.filter(f => f.error)
 
   return (
-    <div style={{ fontFamily: 'var(--font-family)', minWidth: 240, maxWidth: 360, maxHeight: 300, overflowY: 'auto' }}>
-      <p style={{
-        margin: '0 0 8px',
-        fontSize: 11,
-        color: 'var(--color-text-secondary)',
-      }}>
-        {coordenadas.lat.toFixed(5)}, {coordenadas.lng.toFixed(5)}
-      </p>
+    <div className="max-h-[300px] min-w-[240px] max-w-[360px] overflow-y-auto">
+      {coords}
 
       {withData.map((feature, i) => (
-        <div key={i} style={{ marginBottom: withData.length > 1 ? 10 : 0 }}>
-          <div style={{
-            background: 'var(--color-primary)',
-            color: 'var(--color-white)',
-            padding: '3px 8px',
-            borderRadius: 'var(--border-radius)',
-            fontSize: 12,
-            fontWeight: 600,
-            marginBottom: 4,
-          }}>
+        <div key={i} className="mt-2.5">
+          <div className="m-0 border-b border-[var(--border-subtle)] pb-1 text-[13px] font-semibold text-[var(--text-primary)]">
             {feature.capa}
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <table className="mt-1 w-full border-collapse text-xs">
             <tbody>
               {Object.entries(feature.atributos).map(([key, value]) => (
                 <tr key={key}>
-                  <td style={{
-                    padding: '2px 6px 2px 0',
-                    color: 'var(--color-text-secondary)',
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                    verticalAlign: 'top',
-                  }}>
+                  <td className="whitespace-nowrap py-0.5 pr-2 align-top font-medium text-[var(--text-muted)]">
                     {key}
                   </td>
-                  <td style={{
-                    padding: '2px 0',
-                    color: 'var(--color-text-primary)',
-                    wordBreak: 'break-word',
-                  }}>
+                  <td className="break-words py-0.5 text-[var(--text-primary)]">
                     {value || '—'}
                   </td>
                 </tr>
@@ -80,27 +63,27 @@ export function GetFeatureInfoPopup({ features, coordenadas }: GetFeatureInfoPop
       ))}
 
       {withErrors.length > 0 && withData.length === 0 && (
-        <div style={{ padding: '4px 0' }}>
+        <div className="mt-2">
           {withErrors.map((feature, i) => (
-            <p key={i} style={{ color: 'var(--color-text-muted)', fontSize: 11, margin: '2px 0' }}>
-              <strong>{feature.capa}:</strong> {feature.error}
-            </p>
+            <div key={i} className="my-0.5 text-[11px] text-[var(--text-secondary)]">
+              <span className="font-medium text-[var(--text-primary)]">{feature.capa}:</span> {feature.error}
+            </div>
           ))}
-          <p style={{ color: 'var(--color-text-muted)', fontSize: 10, margin: '6px 0 0', fontStyle: 'italic' }}>
-            Muchos servidores WMS no permiten consultas desde el navegador (CORS). Para datos completos, consulta el servicio directamente.
-          </p>
+          <div className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+            Muchos servidores WMS no admiten consultas desde el navegador (CORS). Para obtener los datos completos, consulte el servicio directamente.
+          </div>
         </div>
       )}
 
       {withErrors.length > 0 && withData.length > 0 && (
-        <details style={{ marginTop: 8 }}>
-          <summary style={{ fontSize: 11, color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+        <details className="mt-2">
+          <summary className="cursor-pointer text-[11px] text-[var(--text-muted)]">
             {withErrors.length} capa{withErrors.length > 1 ? 's' : ''} sin respuesta
           </summary>
           {withErrors.map((feature, i) => (
-            <p key={i} style={{ color: 'var(--color-text-muted)', fontSize: 10, margin: '2px 0' }}>
+            <div key={i} className="my-0.5 text-[11px] text-[var(--text-muted)]">
               {feature.capa}: {feature.error}
-            </p>
+            </div>
           ))}
         </details>
       )}

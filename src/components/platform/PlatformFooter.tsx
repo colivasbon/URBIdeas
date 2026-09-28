@@ -12,7 +12,7 @@ export default function PlatformFooter() {
                 Se usa wordmark tipográfico hasta disponer de ella (ver informe). */}
             <p className="text-base font-bold text-[var(--text-inverse)]">IDEAS Sostenibilidad</p>
             <p className="mt-1 text-xs text-[var(--text-inverse-secondary)]">
-              Área de Sostenibilidad de Ideas Medioambientales · Albacete
+              Área de Sostenibilidad de Ideas Medioambientales, Albacete
             </p>
             <p className="mt-4 text-sm leading-relaxed text-[var(--text-inverse-secondary)]">
               Conocimiento territorial para decisiones sostenibles. Análisis, diagnóstico municipal
@@ -36,7 +36,7 @@ export default function PlatformFooter() {
             </div>
             <div className="col-span-2 max-w-xs sm:col-span-1">
               <p className="type-overline text-[var(--retama)]">Fuentes y aviso</p>
-              <p className="mt-2 text-sm text-[var(--text-inverse)]">INE · AEAT · SEPE · DIRCE</p>
+              <p className="mt-2 text-sm text-[var(--text-inverse)]">INE, AEAT, SEPE y boletines oficiales</p>
               <p className="mt-2 text-xs leading-relaxed text-[var(--text-inverse-secondary)]">
                 Información orientativa procedente de fuentes oficiales. Para validez jurídica,
                 acuda al texto publicado en sede electrónica.
@@ -47,7 +47,7 @@ export default function PlatformFooter() {
 
         <div className="mt-10 flex flex-col items-center justify-between gap-2 border-t border-white/15 pt-5 sm:flex-row">
           <p className="text-xs text-[var(--text-inverse-secondary)]">
-            &copy; {year} IDEAS Sostenibilidad · Ideas Medioambientales
+            &copy; {year} Ideas Medioambientales, S.L.
           </p>
           <a
             href={CORPORATE_URL}

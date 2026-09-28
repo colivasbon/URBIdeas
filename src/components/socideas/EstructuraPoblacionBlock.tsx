@@ -74,31 +74,33 @@ export default function EstructuraPoblacionBlock({
       <section
         id="estructura-poblacion"
         aria-label="Estructura de la población"
-        className="premium-card mb-10 scroll-mt-24 p-5 sm:p-6"
+        className="scroll-mt-24 border-t border-[var(--border-subtle)] py-10"
       >
-        <h2 className="ideas-h2">Estructura de la población</h2>
-        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Censo Anual de Población 2025</p>
-        <div className="ideas-status mt-3" data-state="pending" role="status">
-          <div className="ideas-status__head">
-            <p className="ideas-status__title">Sin estructura 2025 publicada para este municipio</p>
-            <span className="ideas-status__badge">Pendiente</span>
+        <h2 className="type-h3 text-[var(--text-primary)]">Estructura de la población</h2>
+        <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">Censo Anual de Población 2025</p>
+        <div className="mt-4 rounded-[6px] border border-dashed border-[var(--border-default)] px-5 py-4" data-state="pending" role="status">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="type-h4 text-[var(--text-primary)]">Sin estructura 2025 publicada para este municipio</p>
+            <span className="socideas-badge" data-tone="draft">
+              <span aria-hidden="true" className="socideas-badge__dot" />
+              Pendiente
+            </span>
           </div>
-          <div className="ideas-status__body">
-            <p>
-              El objeto municipal de estructura de población aún no está disponible en el runtime. No se sustituye por
-              una pirámide de otro año ni se rellena con estimaciones.
-            </p>
-          </div>
-          <p className="ideas-status__source">
+          <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+            El objeto municipal de estructura de población aún no está disponible. No se sustituye por una pirámide de
+            otro año ni se rellena con estimaciones.
+          </p>
+          <p className="mt-3 text-[13px] text-[var(--text-muted)]">
             Fuente prevista: INE,{" "}
             <a
               href="https://www.ine.es/jaxiT3/Tabla.htm?t=68535"
               target="_blank"
               rel="noreferrer"
-              className="font-semibold text-[var(--color-secondary)]"
+              className="font-medium text-[var(--text-link)] underline underline-offset-2 hover:text-[var(--text-link-hover)]"
             >
-              tabla 68535 ·
+              tabla 68535
             </a>
+            .
           </p>
         </div>
       </section>
@@ -117,49 +119,49 @@ export default function EstructuraPoblacionBlock({
     <section
       id="estructura-poblacion"
       aria-label="Estructura de la población"
-      className="premium-card mb-10 scroll-mt-24 p-5 sm:p-6"
+      className="scroll-mt-24 border-t border-[var(--border-subtle)] py-10"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="ideas-h2">Estructura de la población</h2>
-          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            Censo Anual de Población 2025 · {municipioNombre} (INE {data.ineCode})
+          <h2 className="type-h3 text-[var(--text-primary)]">Estructura de la población</h2>
+          <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+            Población por sexo y grupos quinquenales de edad de {municipioNombre}, Censo Anual de Población 2025.
           </p>
         </div>
         <div className="flex flex-col items-start gap-1 sm:items-end">
           <DataStatusBadge estado={validationEstado} />
-          <p className="text-[11px] text-[var(--color-text-muted)]">Validación del objeto: {validation}</p>
+          <p className="text-xs text-[var(--text-muted)]">Validación del objeto: {validation}</p>
         </div>
       </div>
 
-      <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
+      <p className="mt-3 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
         Referencia temporal: 1 de enero de {data.period}. Fuente: INE, tabla {data.source.table} (municipio) y tabla
         68521 (territorios de comparación). <FuenteOficial url={data.source.url} etiqueta="Consultar en INE" />
-        {consultado !== null ? ` · Consultado: ${consultado}` : ""}
+        {consultado !== null ? `. Consultado el ${consultado}.` : ""}
       </p>
-      <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-        Reconciliaciones sin tolerancia: total = hombres + mujeres ({data.quality.totalBySexReconciled ? "OK" : "revisar"}) ·
-        suma de los 21 grupos = total ({data.quality.totalByAgeReconciled ? "OK" : "revisar"}) · correspondencia territorial:{" "}
+      <p className="mt-1 max-w-[70ch] text-xs leading-relaxed text-[var(--text-muted)]">
+        Reconciliaciones sin tolerancia: total = hombres + mujeres ({data.quality.totalBySexReconciled ? "OK" : "revisar"});
+        suma de los 21 grupos = total ({data.quality.totalByAgeReconciled ? "OK" : "revisar"}); correspondencia territorial:{" "}
         {data.quality.territoryMatch}.
       </p>
-      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+      <p className="mt-4 text-sm text-[var(--text-secondary)]">
         Población total a 1 de enero de {data.period}:{" "}
-        <strong className="tabular-nums">{formatInt(view.municipalTotal)}</strong> personas (hombres{" "}
-        <span className="tabular-nums">{formatInt(view.municipalMale)}</span> · mujeres{" "}
+        <strong className="font-semibold tabular-nums text-[var(--text-primary)]">{formatInt(view.municipalTotal)}</strong> personas (hombres{" "}
+        <span className="tabular-nums">{formatInt(view.municipalMale)}</span>, mujeres{" "}
         <span className="tabular-nums">{formatInt(view.municipalFemale)}</span>).
       </p>
 
-      <div className="mt-4 flex flex-col gap-4 border-t border-[var(--color-border-subtle)] pt-4 lg:flex-row lg:items-start lg:gap-10">
+      <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-10">
         <fieldset>
-          <legend className="mb-1.5 block text-xs font-semibold text-[var(--color-text-muted)]">Comparar con</legend>
+          <legend className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Comparar con</legend>
           <div className="flex flex-wrap gap-2">
             {options.map((option) => (
               <label
                 key={option.key}
-                className={`inline-flex min-h-[34px] items-center gap-2 rounded-[6px] border px-3 text-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--moss-ink)] ${
+                className={`inline-flex min-h-[44px] items-center gap-2 rounded-[6px] border px-3 text-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--border-focus)] sm:min-h-[36px] ${
                   refKey === option.key
-                    ? "border-[var(--color-secondary)] bg-[var(--color-input-bg)] font-semibold text-[var(--color-text-primary)]"
-                    : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
+                    ? "border-[var(--color-secondary)] bg-[var(--bg-surface)] font-semibold text-[var(--text-primary)]"
+                    : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-default)]"
                 } ${option.available ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
               >
                 <input
@@ -169,32 +171,32 @@ export default function EstructuraPoblacionBlock({
                   checked={refKey === option.key}
                   disabled={!option.available}
                   onChange={() => onRefChange(option.key)}
-                  className="h-3.5 w-3.5 accent-[var(--color-secondary)]"
+                  className="h-3.5 w-3.5 accent-[var(--musgo)]"
                 />
                 <span>
                   {option.label === option.name ? option.name : `${option.label}: ${option.name}`}
                 </span>
                 {option.total !== null && (
-                  <span className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
+                  <span className="text-xs tabular-nums text-[var(--text-muted)]">
                     {formatInt(option.total)} hab.
                   </span>
                 )}
-                {!option.available && <span className="text-[11px] text-[var(--color-text-muted)]">(sin dato)</span>}
+                {!option.available && <span className="text-xs text-[var(--text-muted)]">(sin dato)</span>}
               </label>
             ))}
           </div>
         </fieldset>
 
         <fieldset>
-          <legend className="mb-1.5 block text-xs font-semibold text-[var(--color-text-muted)]">Modo</legend>
+          <legend className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Modo</legend>
           <div className="flex flex-wrap gap-2">
             {ESTRUCTURA_MODOS.map((value) => (
               <label
                 key={value}
-                className={`inline-flex min-h-[34px] cursor-pointer items-center gap-2 rounded-[6px] border px-3 text-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--moss-ink)] ${
+                className={`inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-[6px] border px-3 text-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--border-focus)] sm:min-h-[36px] ${
                   modo === value
-                    ? "border-[var(--color-secondary)] bg-[var(--color-input-bg)] font-semibold text-[var(--color-text-primary)]"
-                    : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
+                    ? "border-[var(--color-secondary)] bg-[var(--bg-surface)] font-semibold text-[var(--text-primary)]"
+                    : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-default)]"
                 }`}
               >
                 <input
@@ -203,7 +205,7 @@ export default function EstructuraPoblacionBlock({
                   value={value}
                   checked={modo === value}
                   onChange={() => onModoChange(value)}
-                  className="h-3.5 w-3.5 accent-[var(--color-secondary)]"
+                  className="h-3.5 w-3.5 accent-[var(--musgo)]"
                 />
                 <span>{value === "perfil" ? "Perfil" : "Diferencia"}</span>
               </label>
@@ -212,19 +214,19 @@ export default function EstructuraPoblacionBlock({
         </fieldset>
       </div>
 
-      <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+      <p className="mt-4 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-secondary)]">
         {modo === "perfil"
           ? "Modo Perfil: cuánto pesa cada grupo de edad y sexo sobre el total de la población del territorio. La referencia elegida se dibuja como contorno, nunca como relleno."
           : "Modo Diferencia: distancia entre el peso del municipio y el de la referencia, en puntos porcentuales (pp). No es ganancia ni pérdida de habitantes: mide composición, no volumen."}
       </p>
       {!view.hasReference && (
-        <p className="mt-2 text-xs text-[var(--color-text-muted)]" role="note">
+        <p className="mt-2 max-w-[70ch] text-[13px] text-[var(--text-muted)]" role="note">
           La referencia seleccionada ({refLabel}) no tiene objeto publicado: se muestran solo los datos del municipio y
           no se calculan diferencias.
         </p>
       )}
 
-      <figure className="mt-4">
+      <figure className="mt-6">
         <figcaption className="sr-only">
           Pirámide de población de {municipioNombre} en {data.period} por grupos quinquenales y sexo, con{" "}
           {view.hasReference ? `referencia ${refLabel}` : "sin referencia territorial disponible"}. La tabla equivalente
@@ -233,52 +235,52 @@ export default function EstructuraPoblacionBlock({
         <PirEstructura view={view} municipalName={municipioNombre} />
       </figure>
 
-      <h3 className="mt-6 text-sm font-bold text-[var(--color-text-primary)]">Indicadores comparados</h3>
-      <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <h3 className="type-h4 mt-10 text-[var(--text-primary)]">Indicadores comparados</h3>
+      <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-8 sm:grid-cols-2 xl:grid-cols-3">
         {view.cards.map((card) => (
-          <div key={card.key} className="data-card">
-            <p className="data-card__label">{card.label}</p>
-            <p className="data-card__value">{cardValue(card, card.municipal)}</p>
-            <p className="data-card__detail">
-              {card.municipalCount !== null ? `${formatInt(card.municipalCount)} personas · ` : ""}
-              Referencia · {refLabel}: {cardValue(card, card.reference)}
+          <div key={card.key} className="min-w-0 border-t border-[var(--border-strong)] pt-3">
+            <p className="type-h3 tnum font-semibold text-[var(--text-primary)]">{cardValue(card, card.municipal)}</p>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">{card.label}</p>
+            <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
+              {card.municipalCount !== null ? <><span className="tabular-nums">{formatInt(card.municipalCount)}</span> personas. </> : ""}
+              {refLabel}: <span className="tabular-nums">{cardValue(card, card.reference)}</span>. Diferencia:{" "}
+              <span className="tabular-nums">
+                {card.difference === null ? "ND" : `${formatSigned(card.difference, card.precision)} ${card.differenceUnit}`}
+              </span>
             </p>
-            <p className="data-card__detail">
-              Diferencia: {card.difference === null ? "ND" : `${formatSigned(card.difference, card.precision)} ${card.differenceUnit}`}
-            </p>
-            <p className="data-card__detail">{card.definition}</p>
-            <p className="data-card__detail">
-              Período: {card.period} · Unidad: {card.unit}
+            <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">{card.definition}</p>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
+              Período: {card.period}. Unidad: {card.unit}.
             </p>
           </div>
         ))}
       </div>
 
       {view.narrative.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Lectura descriptiva</h3>
-          <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+        <div className="mt-10">
+          <h3 className="type-h4 text-[var(--text-primary)]">Lectura descriptiva</h3>
+          <ul className="mt-3 max-w-[70ch] list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-[var(--text-secondary)] marker:text-[var(--text-muted)]">
             {view.narrative.map((line) => (
               <li key={line.ruleId} data-rule-id={line.ruleId}>
                 {line.text}
               </li>
             ))}
           </ul>
-          <p className="mt-1.5 text-[11px] text-[var(--color-text-muted)]">
+          <p className="mt-2 text-xs text-[var(--text-muted)]">
             Lectura determinista sobre los datos publicados; describe composición, sin atribuir causas.
           </p>
         </div>
       )}
 
-      <div className="mt-6">
+      <div className="mt-10">
         <DataTableShell
           title="Tabla de estructura por edad y sexo"
           meta={{
-            fuente: `INE · Censo Anual de Población 2025 (${data.source.table} / 68521)`,
+            fuente: `INE, Censo Anual de Población 2025 (tablas ${data.source.table} y 68521)`,
             periodo: data.period,
-            cobertura: `Municipio ${municipioNombre} · Referencia ${refLabel}`,
+            cobertura: `Municipio ${municipioNombre}; referencia ${refLabel}`,
             estado: "consolidado",
-            unidad: "personas · % · pp",
+            unidad: "personas, % y pp",
           }}
           toolbar={<DataTableToolbar tableId={tableId} />}
           footnote="ND: dato no disponible en la fuente (supresión o ausencia); no equivale a 0. pp: puntos porcentuales de peso sobre el total. Un 0 publicado es un valor observado."
@@ -306,23 +308,23 @@ export default function EstructuraPoblacionBlock({
                   Mujeres (%)
                 </th>
                 <th scope="col" className="socideas-table__numeric">
-                  {refLabel} · Hombres (%)
+                  {refLabel}, hombres (%)
                 </th>
                 <th scope="col" className="socideas-table__numeric">
-                  {refLabel} · Mujeres (%)
+                  {refLabel}, mujeres (%)
                 </th>
                 <th scope="col" className="socideas-table__numeric">
-                  Dif. Hombres (pp)
+                  Dif. hombres (pp)
                 </th>
                 <th scope="col" className="socideas-table__numeric">
-                  Dif. Mujeres (pp)
+                  Dif. mujeres (pp)
                 </th>
               </tr>
             </thead>
             <tbody>
               {view.rows.map((row) => (
                 <tr key={row.band}>
-                  <th scope="row" className="socideas-table__text">
+                  <th scope="row" className="socideas-table__text border-t border-[var(--border-subtle)] px-[14px] py-3 font-medium text-[var(--text-primary)]">
                     {row.band}
                   </th>
                   <td className="socideas-table__numeric">{formatInt(row.male)}</td>
@@ -344,9 +346,9 @@ export default function EstructuraPoblacionBlock({
                 </tr>
               ))}
             </tbody>
-            <tfoot>
+            <tfoot className="font-semibold [&_td]:border-t [&_td]:border-[var(--border-default)] [&_td]:px-[14px] [&_td]:py-3">
               <tr>
-                <th scope="row" className="socideas-table__text">
+                <th scope="row" className="socideas-table__text border-t border-[var(--border-default)] px-[14px] py-3 font-semibold text-[var(--text-primary)]">
                   Todas las edades
                 </th>
                 <td className="socideas-table__numeric">{formatInt(view.municipalMale)}</td>

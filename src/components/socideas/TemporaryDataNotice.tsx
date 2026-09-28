@@ -20,7 +20,7 @@ export interface ConsolidadoComparable {
 function fmtPrimitive(value: unknown): string {
   if (value === null || value === undefined) return "ND";
   if (typeof value === "number") return value.toLocaleString("es-ES");
-  if (typeof value === "boolean") return value ? "SÍ" : "No";
+  if (typeof value === "boolean") return value ? "Sí" : "No";
   return String(value);
 }
 
@@ -37,53 +37,53 @@ export default function TemporaryDataNotice({
   return (
     <section
       aria-label="Actualización temporal"
-      className="mb-6 rounded-[6px] border border-[color-mix(in_srgb,var(--color-secondary)_45%,transparent)] bg-[var(--color-input-bg)] p-3"
+      className="border-t border-[var(--border-subtle)] py-6"
     >
       <div className="flex flex-wrap items-center gap-2">
         <DataStatusBadge estado="provisional" />
-        <span className="text-xs font-semibold text-[var(--color-text-primary)]">{data.label}</span>
-        <span className="text-xs text-[var(--color-text-muted)]">
-          Actualización temporal disponible · Fuente: {data.source} · {data.period}
+        <span className="text-sm font-medium text-[var(--text-primary)]">{data.label}</span>
+        <span className="text-[13px] text-[var(--text-muted)]">
+          Actualización temporal disponible. Fuente: {data.source}, {data.period}
         </span>
       </div>
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
         aria-expanded={abierto}
-        className="mt-2 text-xs font-semibold text-[var(--color-secondary)] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+        className="mt-2 inline-flex min-h-[44px] items-center text-sm font-medium text-[var(--text-link)] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:min-h-0"
       >
         {abierto ? "Ocultar actualización temporal" : "Ver actualización temporal"}
       </button>
       {abierto && (
         <div className="mt-3 overflow-x-auto">
-          <table className="w-full min-w-[18rem] text-xs">
+          <table className="socideas-table min-w-[18rem]">
             <caption className="sr-only">
               Comparativa entre dato consolidado y dato provisional de {data.period}
             </caption>
             <thead>
-              <tr className="text-left text-[var(--color-text-muted)]">
-                <th scope="col" className="py-1 pr-3 font-semibold">Indicador</th>
-                <th scope="col" className="py-1 pr-3 text-right font-semibold">Dato provisional</th>
-                {consolidated && <th scope="col" className="py-1 text-right font-semibold">Dato consolidado</th>}
+              <tr>
+                <th scope="col" className="socideas-table__text">Indicador</th>
+                <th scope="col" className="socideas-table__numeric">Dato provisional</th>
+                {consolidated && <th scope="col" className="socideas-table__numeric">Dato consolidado</th>}
               </tr>
             </thead>
             <tbody>
               {entries.map(([key, value]) => (
-                <tr key={key} className="border-t border-[var(--color-border-subtle)]">
-                  <td className="py-1 pr-3">{key}</td>
-                  <td className="py-1 pr-3 text-right tabular-nums">{fmtPrimitive(value)}</td>
+                <tr key={key}>
+                  <td className="socideas-table__text">{key}</td>
+                  <td className="socideas-table__numeric">{fmtPrimitive(value)}</td>
                   {consolidated && (
-                    <td className="py-1 text-right tabular-nums">{consolidated.value}</td>
+                    <td className="socideas-table__numeric">{consolidated.value}</td>
                   )}
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">
-            Provisional: {data.source} · {data.period}
-            {consolidated ? ` · Consolidado: ${consolidated.source} · ${consolidated.period}` : " · Sin dato consolidado comparable"}
+          <p className="mt-3 text-xs text-[var(--text-muted)]">
+            Provisional: {data.source}, {data.period}.
+            {consolidated ? ` Consolidado: ${consolidated.source}, ${consolidated.period}.` : " Sin dato consolidado comparable."}
           </p>
-          <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
             El dato provisional no sustituye al consolidado y no se suma con él.
           </p>
         </div>

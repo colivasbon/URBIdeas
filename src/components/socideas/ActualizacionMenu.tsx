@@ -98,7 +98,7 @@ export default function ActualizacionMenu({
   };
 
   const itemCls =
-    "flex w-full flex-col gap-0.5 rounded-[6px] px-3 py-2 text-left text-xs hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:opacity-50";
+    "flex min-h-[44px] w-full flex-col justify-center gap-0.5 rounded-[6px] px-3 py-2 text-left text-sm hover:bg-[var(--bg-surface-sunken)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--border-focus)] disabled:opacity-50";
 
   const municipio = capasPreview?.municipalityName ?? codigoINE;
 
@@ -111,28 +111,30 @@ export default function ActualizacionMenu({
         aria-expanded={abierto}
         onClick={() => { setAbierto((v) => !v); setMsg(null); setConfirmandoCapas(false); }}
         title="Acciones internas de actualización (dry-run, sin escrituras)"
-        className="inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--color-border)] bg-[var(--color-card-bg)] px-4 py-2 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+        className="btn btn-ghost"
       >
         Actualizar datos
-        <span aria-hidden="true" className={`transition-transform ${abierto ? "rotate-180" : ""}`}>▾</span>
+        <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className={`h-4 w-4 transition-transform ${abierto ? "rotate-180" : ""}`}>
+          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+        </svg>
       </button>
       {abierto && (
         <div
           role="menu"
           aria-label={`Acciones internas · ${codigoINE}`}
-          className="premium-card absolute right-0 z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] p-2"
+          className="absolute right-0 z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-2 shadow-[var(--shadow-2)]"
         >
           {capasPreview && (
-            <div className="rounded-[6px] bg-[var(--color-input-bg)] p-3 text-[11px] text-[var(--color-text-secondary)]">
-              <p className="font-semibold text-[var(--color-text-primary)]">Qué puede actualizar · {municipio}</p>
+            <div className="border-b border-[var(--border-subtle)] px-3 pb-3 pt-2 text-xs text-[var(--text-secondary)]">
+              <p className="font-semibold text-[var(--text-primary)]">Qué puede actualizar en {municipio}</p>
               <p className="mt-1">Última carga: {capasPreview.lastLoadedAt ?? "—"}</p>
               <ul className="mt-2 flex flex-col gap-1">
                 {capasPreview.layers.length === 0 && <li>Sin capas INE laterales cargadas.</li>}
                 {capasPreview.layers.map((l) => (
                   <li key={l.id} className="flex flex-wrap justify-between gap-1">
                     <span>{l.label}</span>
-                    <span className="tabular-nums text-[var(--color-text-muted)]">
-                      {l.period ?? "—"} · {l.provisional ? "provisional" : l.definitive ? "definitivo" : "no consolidado"}
+                    <span className="tabular-nums text-[var(--text-muted)]">
+                      {l.period ?? "—"}, {l.provisional ? "provisional" : l.definitive ? "definitivo" : "no consolidado"}
                     </span>
                   </li>
                 ))}
@@ -140,23 +142,23 @@ export default function ActualizacionMenu({
             </div>
           )}
           <button type="button" role="menuitem" disabled={busy} onClick={() => { setConfirmandoCapas(true); setMsg(null); }} className={itemCls}>
-            <span className="font-semibold text-[var(--color-text-primary)]">Actualizar capas INE (este municipio)</span>
-            <span className="text-[var(--color-text-muted)]">Dry-run · solo el municipio abierto · sin escrituras</span>
+            <span className="font-semibold text-[var(--text-primary)]">Actualizar capas INE (este municipio)</span>
+            <span className="text-xs text-[var(--text-muted)]">Dry-run, solo el municipio abierto, sin escrituras</span>
           </button>
           <button type="button" role="menuitem" disabled={busy} onClick={() => accionar("demografia")} className={itemCls}>
-            <span className="font-semibold text-[var(--color-text-primary)]">Actualizar Demografía (dry-run)</span>
-            <span className="text-[var(--color-text-muted)]">Alcance: este municipio · Última ref.: {ultimaDemografia ?? "—"}</span>
+            <span className="font-semibold text-[var(--text-primary)]">Actualizar Demografía (dry-run)</span>
+            <span className="text-xs text-[var(--text-muted)]">Alcance: este municipio. Última referencia: {ultimaDemografia ?? "—"}</span>
           </button>
           <button type="button" role="menuitem" disabled={busy} onClick={() => accionar("economia")} className={itemCls}>
-            <span className="font-semibold text-[var(--color-text-primary)]">{busy ? "Comprobando…" : "Actualizar Economía (dry-run)"}</span>
-            <span className="text-[var(--color-text-muted)]">Alcance: este municipio · Última ref.: {ultimaEconomia ?? "—"}</span>
+            <span className="font-semibold text-[var(--text-primary)]">{busy ? "Comprobando…" : "Actualizar Economía (dry-run)"}</span>
+            <span className="text-xs text-[var(--text-muted)]">Alcance: este municipio. Última referencia: {ultimaEconomia ?? "—"}</span>
           </button>
           <button type="button" role="menuitem" disabled={busy} onClick={() => accionar("provisional")} className={itemCls}>
-            <span className="font-semibold text-[var(--color-text-primary)]">Comprobar provisionales</span>
-            <span className="text-[var(--color-text-muted)]">Nunca sobrescribe el consolidado</span>
+            <span className="font-semibold text-[var(--text-primary)]">Comprobar provisionales</span>
+            <span className="text-xs text-[var(--text-muted)]">Nunca sobrescribe el consolidado</span>
           </button>
           {confirmandoCapas ? (
-            <div className="m-2 rounded-[6px] border border-[var(--color-border)] p-3 text-[11px] text-[var(--color-text-secondary)]">
+            <div className="m-2 rounded-[6px] border border-[var(--border-default)] p-3 text-xs text-[var(--text-secondary)]">
               <p>
                 Actualizar los datos de {municipio} ({codigoINE}) desde las fuentes configuradas.
                 No se sobrescribirán datos publicados sin crear una versión de rollback.
@@ -165,26 +167,26 @@ export default function ActualizacionMenu({
                 <button
                   type="button"
                   onClick={() => { setConfirmandoCapas(false); void accionar("capas"); }}
-                  className="rounded-[6px] bg-[var(--color-primary)] px-3 py-1.5 text-[11px] font-semibold text-white"
+                  className="btn btn-primary btn-sm"
                 >
-                  Confirmar
+                  Confirmar actualización
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmandoCapas(false)}
-                  className="rounded-[6px] border border-[var(--color-border)] px-3 py-1.5 text-[11px] font-semibold"
+                  className="btn btn-ghost btn-sm"
                 >
                   Cancelar
                 </button>
               </div>
             </div>
           ) : (
-            <p className="px-3 pb-1 pt-2 text-[11px] text-[var(--color-text-muted)]">
+            <p className="px-3 pb-1 pt-2 text-xs text-[var(--text-muted)]">
               Escritura real: no activada en esta versión. Dry-run por defecto.
             </p>
           )}
           {msg && (
-            <p role="status" className="m-2 rounded-[6px] bg-[var(--color-input-bg)] p-3 text-xs text-[var(--color-text-secondary)]">
+            <p role="status" className="m-2 rounded-[6px] bg-[var(--bg-surface-sunken)] p-3 text-xs text-[var(--text-secondary)]">
               {msg}
             </p>
           )}

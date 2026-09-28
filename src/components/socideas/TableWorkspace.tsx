@@ -21,7 +21,7 @@ export default function TableWorkspace({
 }) {
   // El reparto 44–50/50–56 solo tiene sentido con gráfico real: sin visual,
   // la tabla ancha (p. ej. renta de un solo año) ocupa todo el ancho disponible.
-  const cls = `socideas-workspace${visual ? "" : " socideas-workspace--bare"}${layout === "half" && visual ? " socideas-workspace--half" : ""}${uncapped ? " socideas-workspace--uncapped" : ""}`;
+  const cls = `mt-8 socideas-workspace${visual ? "" : " socideas-workspace--bare"}${layout === "half" && visual ? " socideas-workspace--half" : ""}${uncapped ? " socideas-workspace--uncapped" : ""}`;
   return (
     <div className={cls}>
       <div className="socideas-workspace__table">{table}</div>

@@ -15,9 +15,13 @@ export interface FileLayer {
   borderColor: string
 }
 
+// Paleta corporativa en pares relleno/borde: createLayer pide dos colores
+// seguidos (relleno y borde), así que cada capa recibe un par coherente.
 const LAYER_COLORS = [
-  "#3E665C", "#86B73D", "#E07B39", "#3B82F6",
-  "#8B5CF6", "#EC4899", "#14B8A6", "#F59E0B",
+  "#C2E189", "#3E665C", // crisopa / musgo
+  "#86B73D", "#21463D", // conífera / musgo-700
+  "#B0BDB0", "#3C403E", // limo / carbón
+  "#E1B7B6", "#643335", // rupestre-200 / rupestre
 ]
 
 let colorIndex = 0

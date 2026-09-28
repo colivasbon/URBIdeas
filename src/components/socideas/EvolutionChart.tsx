@@ -10,6 +10,16 @@ export interface SerieEvo {
   puntos: Punto[];
 }
 
+/** Trazo por clave: la serie principal continua; las comparativas, discontinuas. */
+const DASH: Record<string, string | undefined> = {
+  provincia: "6 3",
+  ccaa: "2 3",
+  espana: "8 3 2 3",
+};
+
+/** Series principales (municipio y equivalentes) dibujadas con más peso. */
+const esPrincipal = (clave: string) => !(clave in DASH);
+
 // Gráfico de línea SVG propio (sin dependencias) con varias series.
 // Incluye tabla de datos asociada en el componente padre (accesibilidad).
 export interface ChartPointMeta {
@@ -22,14 +32,14 @@ export default function EvolutionChart({ series, id, pointMeta }: { series: Seri
   const activas = series.filter((s) => s.puntos.length > 0);
   if (activas.length === 0) {
     return (
-      <p className="text-sm text-[var(--color-text-muted)]">
-        Sin datos para el período y los ámbitos seleccionados.
+      <p className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm text-[var(--text-secondary)]">
+        Sin datos para el período y los ámbitos seleccionados. Amplíe el período o active otro ámbito.
       </p>
     );
   }
   const W = 640;
   const H = 220;
-  const PAD = { l: 48, r: 12, t: 12, b: 28 };
+  const PAD = { l: 56, r: 12, t: 12, b: 30 };
   const todos = activas.flatMap((s) => s.puntos.map((p) => p.valor));
   const min = Math.min(...todos);
   const max = Math.max(...todos);
@@ -55,8 +65,8 @@ export default function EvolutionChart({ series, id, pointMeta }: { series: Seri
         </title>
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} stroke="var(--color-border-subtle)" strokeWidth={1} />
-            <text x={PAD.l - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--color-text-muted)">
+            <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} stroke="var(--border-subtle)" strokeWidth={1} />
+            <text x={PAD.l - 8} y={y(t) + 4} textAnchor="end" fontSize={12} fill="var(--text-muted)" style={{ fontVariantNumeric: "tabular-nums" }}>
               {Math.round(t).toLocaleString("es-ES")}
             </text>
           </g>
@@ -67,10 +77,10 @@ export default function EvolutionChart({ series, id, pointMeta }: { series: Seri
             .join(" ");
           return (
             <g key={s.clave}>
-              <path d={path} fill="none" stroke={s.color} strokeWidth={s.clave === "municipio" ? 2.5 : 1.8} strokeLinejoin="round" />
-              {s.puntos.map((p) => (
-                <circle key={`${s.clave}-${p.anio}`} cx={x(p.anio)} cy={y(p.valor)} r={s.clave === "municipio" ? 3.5 : 2.5} fill={s.color}>
-                  <title>{`${s.etiqueta} ${p.anio}: ${p.valor.toLocaleString("es-ES")}${pointMeta?.unidad ? ` ${pointMeta.unidad}` : ""}${pointMeta?.fuente ? ` · ${pointMeta.fuente}` : ""}${pointMeta?.estado ? ` · ${pointMeta.estado}` : ""}`}</title>
+              <path d={path} fill="none" stroke={s.color} strokeWidth={esPrincipal(s.clave) ? 2.25 : 1.5} strokeDasharray={DASH[s.clave]} strokeLinejoin="round" />
+              {s.puntos.map((p, i) => (
+                <circle key={`${s.clave}-${p.anio}-${i}`} cx={x(p.anio)} cy={y(p.valor)} r={esPrincipal(s.clave) ? 3 : 2} fill={s.color}>
+                  <title>{`${s.etiqueta} ${p.anio}: ${p.valor.toLocaleString("es-ES")}${pointMeta?.unidad ? ` ${pointMeta.unidad}` : ""}${pointMeta?.fuente ? `. Fuente: ${pointMeta.fuente}` : ""}${pointMeta?.estado ? `. ${pointMeta.estado}` : ""}`}</title>
                 </circle>
               ))}
             </g>
@@ -79,15 +89,17 @@ export default function EvolutionChart({ series, id, pointMeta }: { series: Seri
         {anios
           .filter((_, i) => i === 0 || i === anios.length - 1 || i % Math.ceil(anios.length / 6) === 0)
           .map((a) => (
-            <text key={a} x={x(a)} y={H - 8} textAnchor="middle" fontSize={11} fill="var(--color-text-muted)">
+            <text key={a} x={x(a)} y={H - 8} textAnchor="middle" fontSize={12} fill="var(--text-muted)" style={{ fontVariantNumeric: "tabular-nums" }}>
               {a}
             </text>
           ))}
       </svg>
-      <figcaption className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+      <figcaption className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5">
         {activas.map((s) => (
-          <span key={s.clave} className="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
-            <span aria-hidden="true" className="inline-block h-0.5 w-4" style={{ background: s.color }} />
+          <span key={s.clave} className="inline-flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+            <svg aria-hidden="true" width="20" height="6" viewBox="0 0 20 6" className="shrink-0">
+              <line x1="0" x2="20" y1="3" y2="3" stroke={s.color} strokeWidth={esPrincipal(s.clave) ? 2.25 : 1.5} strokeDasharray={DASH[s.clave]} />
+            </svg>
             {s.etiqueta}
           </span>
         ))}

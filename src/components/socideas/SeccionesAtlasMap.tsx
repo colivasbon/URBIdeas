@@ -33,6 +33,12 @@ export const TILE_URL_OSM = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 export const ATRIBUCION_TILES_OSM =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors (ODbL)';
 
+/** Filete entre secciones con dato (hueso): separa clases contiguas sin
+ *  competir con el relleno. Lo usan el mapa y el PNG a través de `colorContorno`. */
+export const COLOR_CONTORNO_CLASE = "#F1F1F1";
+/** Contorno de la sección seleccionada (carbón), igual en mapa y PNG. */
+export const COLOR_SELECCION = "#3C403E";
+
 const VISTA_INICIAL: [number, number] = [40.4, -3.7];
 const MS_ESPERA_TESELAS = 7000;
 
@@ -127,6 +133,8 @@ export interface SeccionesAtlasMapProps {
   hovered: string | null;
   onSeleccionar: (key: string) => void;
   onHover: (key: string | null) => void;
+  /** `true` si la leyenda se pinta fuera del mapa (en el panel lateral). */
+  sinLeyenda?: boolean;
   ref?: React.Ref<HandleAtlas>;
 }
 
@@ -289,6 +297,7 @@ export default function SeccionesAtlasMap({
   hovered,
   onSeleccionar,
   onHover,
+  sinLeyenda = false,
   ref,
 }: SeccionesAtlasMapProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -297,7 +306,6 @@ export default function SeccionesAtlasMap({
   const capaRef = useRef<Leaflet.GeoJSON | null>(null);
   const tramaRef = useRef<Leaflet.GeoJSON | null>(null);
   const teselasRef = useRef<Leaflet.TileLayer | null>(null);
-  const uidLeyenda = `atlas${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const [etiquetasVisibles, setEtiquetasVisibles] = useState<Array<{ key: string; x: number; y: number; texto: string }>>([]);
   const [listo, setListo] = useState(false);
 
@@ -339,10 +347,11 @@ export default function SeccionesAtlasMap({
     }
     // Sin indicador cargado: plano de contornos, sin relleno ni trama. No se
     // disfraza de ND porque no hay ND: no hay nada que representar.
+    const seleccionada = key === seleccionRef.current;
     if (fila.sinRelleno) {
-      const peso = key === seleccionRef.current ? 3 : 1;
+      const peso = seleccionada ? 2 : 1;
       return {
-        color: fila.colorContorno,
+        color: seleccionada ? COLOR_SELECCION : fila.colorContorno,
         weight: peso,
         opacity: 1,
         fillColor: "transparent",
@@ -350,9 +359,10 @@ export default function SeccionesAtlasMap({
         lineJoin: "round",
       };
     }
-    const peso = key === seleccionRef.current ? 3 : p.mostrarBordes ? 1 : 0;
+    // Filete fino entre secciones; la seleccionada, en carbón a 2 px.
+    const peso = seleccionada ? 2 : p.mostrarBordes ? 0.8 : 0;
     return {
-      color: fila.colorContorno,
+      color: seleccionada ? COLOR_SELECCION : fila.colorContorno,
       weight: peso,
       opacity: peso === 0 ? 0 : 1,
       fillColor: fila.color,
@@ -685,27 +695,25 @@ export default function SeccionesAtlasMap({
   const haySeleccion = Boolean(seleccion);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={ajustarVistaMunicipio}
-          className="min-h-[44px] rounded-[6px] border border-[var(--color-border)] bg-[var(--color-card-bg)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
-        >
-          Zoom al municipio
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (seleccion) ajustarVistaSeccion(seleccion);
-          }}
-          disabled={!haySeleccion}
-          className="min-h-[44px] rounded-[6px] border border-[var(--color-border)] bg-[var(--color-card-bg)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Zoom a sección seleccionada
-        </button>
-        <p className="text-xs text-[var(--color-text-muted)]">
-          {features.length} {features.length === 1 ? "sección representada" : "secciones representadas"} ·{" "}
+    <div className="flex flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-3">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={ajustarVistaMunicipio} className={BOTON_MAPA}>
+            Zoom al municipio
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (seleccion) ajustarVistaSeccion(seleccion);
+            }}
+            disabled={!haySeleccion}
+            className={BOTON_MAPA}
+          >
+            Zoom a sección seleccionada
+          </button>
+        </div>
+        <p className="type-body-sm tnum text-[var(--text-muted)]">
+          {features.length} {features.length === 1 ? "sección representada" : "secciones representadas"} en{" "}
           {municipioNombre}
         </p>
       </div>
@@ -714,7 +722,7 @@ export default function SeccionesAtlasMap({
         ref={hostRef}
         role="img"
         aria-label={descripcion}
-        className="relative h-[62vh] min-h-[22rem] w-full overflow-hidden rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--hueso)] sm:min-h-[28rem] lg:h-[30rem]"
+        className="relative h-[62vh] min-h-[22rem] w-full overflow-hidden rounded-[6px] border border-[var(--border-default)] bg-[var(--hueso)] sm:min-h-[28rem] lg:h-[36rem]"
       >
         {presentacion.mostrarEtiquetas && etiquetasVisibles.length > 0 && (
           <ul aria-hidden="true" className="pointer-events-none absolute inset-0 z-[400] m-0 list-none p-0">
@@ -723,13 +731,15 @@ export default function SeccionesAtlasMap({
               return (
                 <li
                   key={e.key}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 rounded-[6px] px-1 py-0.5 font-mono text-[10px] font-semibold tabular-nums"
+                  className="tnum absolute -translate-x-1/2 -translate-y-1/2 px-1 py-px text-[10px] font-semibold leading-tight"
                   style={{
                     left: `${e.x}px`,
                     top: `${e.y}px`,
-                    background: activa ? "var(--color-text-primary)" : "var(--color-card-bg)",
-                    color: activa ? "var(--hueso)" : "var(--color-text-primary)",
-                    border: "1px solid var(--color-border)",
+                    // Rótulo cartográfico: colores fijos de la paleta, porque el
+                    // soporte es el mapa (claro) y no el tema de la interfaz.
+                    background: activa ? COLOR_SELECCION : COLOR_CONTORNO_CLASE,
+                    color: activa ? COLOR_CONTORNO_CLASE : COLOR_SELECCION,
+                    border: `1px solid ${COLOR_SELECCION}`,
                   }}
                 >
                   {e.texto}
@@ -740,37 +750,45 @@ export default function SeccionesAtlasMap({
         )}
       </div>
 
-      <LeyendaAtlas
-        uid={uidLeyenda}
-        titulo={tituloLeyenda}
-        subtitulo={subtituloLeyenda}
-        entradas={entradasLeyenda}
-      />
+      {sinLeyenda ? null : (
+        <div className="mt-4">
+          <LeyendaAtlas titulo={tituloLeyenda} subtitulo={subtituloLeyenda} entradas={entradasLeyenda} />
+        </div>
+      )}
     </div>
   );
 }
+
+const BOTON_MAPA =
+  "min-h-[44px] rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-sunken)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-[var(--border-default)] disabled:hover:bg-[var(--bg-surface)]";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Leyenda: lista de texto. Nunca solo color.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LeyendaAtlas({
-  uid,
+/**
+ * Leyenda del atlas: símbolos escalonados (cuadros de 14 px) con los límites de
+ * clase en cifras tabulares y el recuento de secciones. La entrada de ND usa la
+ * misma trama que el mapa y el PNG. Se exporta para que el panel lateral la
+ * coloque junto al selector de indicador.
+ */
+export function LeyendaAtlas({
   titulo,
   subtitulo,
   entradas,
+  fuente,
 }: {
-  uid: string;
   titulo: string;
   subtitulo: string;
   entradas: ReadonlyArray<EntradaLeyendaAtlas>;
+  /** Fuente y periodo del indicador, al pie de la leyenda. */
+  fuente?: string | null;
 }) {
-  const idTrama = `${uid}-trama`;
+  const idTrama = `atlas${useId().replace(/[^a-zA-Z0-9]/g, "")}-trama`;
   const hayND = entradas.some((e) => e.esSinDato);
   return (
-    <section aria-label="Leyenda del mapa" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-3 sm:p-4">
-      <p className="text-xs font-bold text-[var(--color-text-primary)]">{titulo}</p>
-      <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">{subtitulo}</p>
+    <section aria-label="Leyenda del mapa">
+      <p className="type-body-sm font-semibold text-[var(--text-primary)]">{titulo}</p>
       <svg width="0" height="0" aria-hidden="true" focusable="false" className="absolute">
         <defs>
           <pattern id={idTrama} width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -779,31 +797,48 @@ function LeyendaAtlas({
           </pattern>
         </defs>
       </svg>
-      <ul className="mt-3 flex flex-col gap-1.5">
-        {entradas.map((e, i) => (
-          <li
-            key={`${e.etiqueta}-${e.esSinDato ? "nd" : i}`}
-            className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]"
-          >
-            <span
-              aria-hidden="true"
-              className="inline-block h-3.5 w-7 flex-none rounded-[2px] border border-[var(--color-text-primary)]"
-              style={e.esSinDato ? { background: `url(#${idTrama})` } : { background: e.color }}
-            />
-            <span className="min-w-0">
-              {e.etiqueta}
+      {entradas.length > 0 ? (
+        <ul className="tnum mt-3 flex flex-col">
+          {entradas.map((e, i) => (
+            <li
+              key={`${e.etiqueta}-${e.esSinDato ? "nd" : i}`}
+              className={`grid grid-cols-[14px_minmax(0,1fr)_auto] items-center gap-x-3 py-1 text-[13px] leading-snug text-[var(--text-secondary)] ${
+                e.esSinDato ? "mt-1.5 border-t border-[var(--border-subtle)] pt-2.5" : ""
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false" className="block">
+                <rect
+                  x="0.5"
+                  y="0.5"
+                  width="13"
+                  height="13"
+                  fill={e.esSinDato ? `url(#${idTrama})` : e.color}
+                  stroke={e.esSinDato ? COLOR_CONTORNO_SIN_DATO : undefined}
+                  style={e.esSinDato ? undefined : { stroke: "var(--border-default)" }}
+                  strokeWidth="1"
+                />
+              </svg>
+              <span className="min-w-0 text-[var(--text-primary)]">{e.etiqueta}</span>
               {e.secciones !== null ? (
-                <span className="tabular-nums text-[var(--color-text-muted)]"> · {e.secciones} secciones</span>
-              ) : null}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-3 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+                <span className="text-right text-[var(--text-muted)]">
+                  {e.secciones} {e.secciones === 1 ? "sección" : "secciones"}
+                </span>
+              ) : (
+                <span />
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">{subtitulo}</p>
+      <p className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">
         {hayND
           ? "Las secciones con trama diagonal no tienen dato en la fuente: se muestran como «Sin dato / ND», nunca como cero y fuera de la escala de colores."
-          : "No hay secciones sin dato para este indicador y este periodo."}
+          : entradas.length > 0
+            ? "No hay secciones sin dato para este indicador y este periodo."
+            : "Sin escala de color: no hay valores observados que representar."}
       </p>
+      {fuente ? <p className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">{fuente}</p> : null}
     </section>
   );
 }
@@ -883,14 +918,14 @@ function dibujarSecciones(
         ctx.beginPath();
         for (const anillo of anillos) trazarAnillo(ctx, anillo, aPx);
         ctx.strokeStyle = f.key === opciones.seleccion ? t.texto : (fila?.colorContorno ?? COLOR_CONTORNO_SIN_DATO);
-        ctx.lineWidth = f.key === opciones.seleccion ? 2.5 : 0.8;
+        ctx.lineWidth = f.key === opciones.seleccion ? 2 : 0.8;
         ctx.lineJoin = "round";
         ctx.stroke();
       } else if (plano) {
         ctx.beginPath();
         for (const anillo of anillos) trazarAnillo(ctx, anillo, aPx);
         ctx.strokeStyle = f.key === opciones.seleccion ? t.texto : (fila?.colorContorno ?? COLOR_CONTORNO_SIN_DATO);
-        ctx.lineWidth = f.key === opciones.seleccion ? 2.5 : 1;
+        ctx.lineWidth = f.key === opciones.seleccion ? 2 : 1;
         ctx.lineJoin = "round";
         ctx.stroke();
       }
@@ -903,6 +938,21 @@ function dibujarSecciones(
         ctx.lineWidth = 1;
         ctx.stroke();
       }
+    }
+  }
+
+  // La sección seleccionada se repasa al final: si no, el filete hueso de las
+  // vecinas, dibujadas después, taparía la mitad de su contorno carbón.
+  if (opciones.seleccion) {
+    const sel = features.find((f) => f.key === opciones.seleccion);
+    const { anillos, tipo } = sel ? anillosDeGeometria(sel.geometry) : { anillos: [], tipo: "" };
+    if (anillos.length && (tipo === "Polygon" || tipo === "MultiPolygon")) {
+      ctx.beginPath();
+      for (const anillo of anillos) trazarAnillo(ctx, anillo, aPx);
+      ctx.strokeStyle = t.texto;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = "round";
+      ctx.stroke();
     }
   }
 

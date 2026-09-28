@@ -34,7 +34,7 @@ export default function DescargasBloque({
   const fecha = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const periodoGlobal = useMemo(() => {
     const ps = tablas.map((t) => t.periodo).filter(Boolean);
-    return ps.length > 0 ? [...new Set(ps)].join(" · ") : "—";
+    return ps.length > 0 ? [...new Set(ps)].join(", ") : "—";
   }, [tablas]);
   const fuentes = useMemo(() => [...new Set(tablas.map((t) => t.fuente))], [tablas]);
 
@@ -95,7 +95,7 @@ export default function DescargasBloque({
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setXlsxError("No se pudo conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.");
+      setXlsxError("No se ha podido conectar con el servidor. Compruebe su conexión e inténtelo de nuevo.");
     } finally {
       setXlsxDownloading(false);
     }
@@ -104,37 +104,44 @@ export default function DescargasBloque({
   return (
     <div>
       {/* Resumen de disponibilidad */}
-      <div className="premium-card p-5 sm:p-6" role="status" aria-label="Resumen de disponibilidad">
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="inline-flex items-center gap-1.5 rounded-[6px] bg-[var(--color-input-bg)] px-3 py-1 font-semibold text-[var(--color-text-secondary)]">
-            <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-[6px] bg-[var(--color-success)]" />
-            {tablas.length} tabla{tablas.length === 1 ? "" : "s"} disponible{tablas.length === 1 ? "" : "s"} · Periodo: {periodoGlobal}
+      <div role="status" aria-label="Resumen de disponibilidad">
+        <p className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm text-[var(--text-secondary)]">
+          <span className="inline-flex items-center gap-2 font-medium text-[var(--text-primary)]">
+            <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--status-success-fg)]" />
+            <span className="tabular-nums">{tablas.length}</span> tabla{tablas.length === 1 ? "" : "s"} disponible{tablas.length === 1 ? "" : "s"}
           </span>
-          {fuentes.map((f) => (
-            <span key={f} className="inline-flex items-center rounded-[6px] border border-[var(--color-border-subtle)] px-3 py-1 text-[var(--color-text-muted)]">{f}</span>
-          ))}
-        </div>
+          <span>
+            Periodo: <span className="tabular-nums text-[var(--text-primary)]">{periodoGlobal}</span>
+          </span>
+          {fuentes.length > 0 && (
+            <span>
+              Fuentes: <span className="text-[var(--text-primary)]">{fuentes.join(", ")}</span>
+            </span>
+          )}
+        </p>
         {excluidas.length > 0 && (
-          <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+          <p className="mt-2 max-w-[70ch] text-[13px] text-[var(--text-muted)]">
             {excluidas.length} bloque{excluidas.length === 1 ? "" : "s"} no incluido{excluidas.length === 1 ? "" : "s"} por falta de cobertura
             (documentado en trazabilidad, sin rellenar con valores).
           </p>
         )}
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="button"
             onClick={handleXlsxDownload}
             disabled={xlsxDownloading}
             title={xlsxDownloading ? "Generando Excel…" : "Libro XLSX combinado del municipio (resumen con trazabilidad, demografía y economía)"}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[var(--color-primary)] rounded-[6px] hover:bg-[var(--color-primary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:opacity-60 disabled:cursor-not-allowed"
+            aria-busy={xlsxDownloading || undefined}
+            className="btn btn-primary"
           >
+            {xlsxDownloading && <span aria-hidden="true" className="spinner h-4 w-4" />}
             {xlsxDownloading ? "Generando Excel…" : "Descargar libro XLSX combinado"}
           </button>
           <button
             type="button"
             onClick={descargarTodo}
             disabled={tablas.length === 0}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+            className="btn btn-secondary"
           >
             Descargar todas las tablas (CSV)
           </button>
@@ -142,42 +149,45 @@ export default function DescargasBloque({
             type="button"
             onClick={imprimir}
             disabled={tablas.length === 0}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+            className="btn btn-ghost"
           >
             Descargar informe imprimible
           </button>
         </div>
-        {aviso && <p role="status" className="mt-3 text-sm text-[var(--color-text-secondary)]">{aviso}</p>}
+        {aviso && <p role="status" className="mt-3 text-sm text-[var(--text-secondary)]">{aviso}</p>}
         {xlsxError && <p role="alert" className="mt-3 text-sm socideas-error-text">{xlsxError}</p>}
-        <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">
-          Archivo base: {nombreBloque(municipio, codigoINE, bloque)}_*.csv · Excel estilizado (.xlsx corporativo) no disponible en
-          esta versión — documentado en la auditoría; CSV + informe imprimible con identidad corporativa.
+        <p className="mt-3 max-w-[70ch] text-xs text-[var(--text-muted)]">
+          Los CSV se descargan como <span className="break-all">{nombreBloque(municipio, codigoINE, bloque)}_*.csv</span>; cada
+          uno incluye fuente y periodo. El informe imprimible usa la vista de impresión del navegador.
         </p>
       </div>
 
       {/* Índice de tablas */}
-      <div className="mt-6 grid grid-cols-1 gap-4">
+      <div className="mt-10">
         {tablas.map((t) => (
-          <article key={t.id} className={`premium-card p-5${t.columnas.length <= 2 ? " socideas-narrow-card" : ""}`} aria-label={`Tabla ${t.titulo}`}>
+          <article key={t.id} className={`border-t border-[var(--border-subtle)] py-8${t.columnas.length <= 2 ? " socideas-narrow-card" : ""}`} aria-label={`Tabla ${t.titulo}`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="text-base font-bold text-[var(--color-text-primary)]">{t.titulo}</h2>
-                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  {t.filas.length} fila{t.filas.length === 1 ? "" : "s"} · Fuente: {t.fuente} · Periodo: {t.periodo} · {t.cobertura} · {t.estado}
+                <h2 className="type-h4 text-[var(--text-primary)]">{t.titulo}</h2>
+                <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-[var(--text-muted)]">
+                  <span>
+                    <span className="tabular-nums">{t.filas.length}</span> fila{t.filas.length === 1 ? "" : "s"}
+                  </span>
+                  <span>
+                    Fuente: <span className="text-[var(--text-secondary)]">{t.fuente}</span>
+                  </span>
+                  <span>
+                    Periodo: <span className="tabular-nums text-[var(--text-secondary)]">{t.periodo}</span>
+                  </span>
+                  <span>{t.cobertura}</span>
+                  <span>{t.estado}</span>
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <a
-                  href={`#tabla-${t.id}`}
-                  className="socideas-btn"
-                >
+                <a href={`#tabla-${t.id}`} className="btn btn-ghost btn-sm">
                   Ver tabla
                 </a>
-                <button
-                  type="button"
-                  onClick={() => csvTabla(t)}
-                  className="socideas-btn socideas-btn--primary"
-                >
+                <button type="button" onClick={() => csvTabla(t)} className="btn btn-secondary btn-sm">
                   Descargar CSV
                 </button>
               </div>
@@ -201,18 +211,24 @@ export default function DescargasBloque({
           </article>
         ))}
         {tablas.length === 0 && (
-          <div className="ideas-status" data-state="pending" role="status">
-            <div className="ideas-status__head">
-              <p className="ideas-status__title">Sin tablas exportables en este bloque</p>
-              <span className="ideas-status__badge">Sin datos</span>
+          <div className="rounded-[6px] border border-dashed border-[var(--border-default)] px-5 py-4" data-state="pending" role="status">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="type-h4 text-[var(--text-primary)]">Sin tablas exportables en este bloque</p>
+              <span className="socideas-badge" data-tone="draft">
+                <span aria-hidden="true" className="socideas-badge__dot" />
+                Sin datos
+              </span>
             </div>
-            <div className="ideas-status__body"><p>Este municipio aún no tiene indicadores con valor real en este bloque. Nada se rellena con ceros.</p></div>
+            <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+              Este municipio aún no tiene indicadores con valor real en este bloque. Nada se rellena con ceros; consulte
+              el panel de cobertura de la ficha para ver qué fuente está pendiente.
+            </p>
           </div>
         )}
       </div>
 
       {/* Informe imprimible (pantalla + print) */}
-      <div className="print-report mt-8" aria-label="Informe imprimible">
+      <div className="print-report mt-12 border-t border-[var(--border-strong)] pt-10" aria-label="Informe imprimible">
         <style>{`@media print {
           body * { visibility: hidden; }
           .print-report, .print-report * { visibility: visible; }
@@ -220,25 +236,25 @@ export default function DescargasBloque({
           .print-report table { width: 100%; border-collapse: collapse; }
           .print-report th { background: #3E665C !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .print-report th, .print-report td { border: 1px solid #B0BDB0; padding: 6px 8px; font-size: 11px; }
-          .print-report tbody tr:nth-child(even) { background: #F1F1F1 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }`}</style>
-        <div className="overflow-hidden rounded-[6px] border border-[var(--color-border-subtle)]">
-          <div className="bg-[var(--color-primary)] px-6 py-5 text-white">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/80">Ideas Sostenibilidad · SOCideas</p>
-            <h2 className="mt-1 text-xl font-bold">Tablas de {bloque === "Demografia" ? "Demografía" : "Economía"} — {municipio} ({codigoINE})</h2>
-            <p className="mt-1 text-xs text-white/80">Generado el {fecha} · Tablas generadas a partir de los indicadores disponibles en la ficha municipal, con fuente y periodo de referencia.</p>
+        <div>
+          <div className="border-b border-[var(--border-subtle)] pb-5">
+            <p className="text-xs font-medium text-[var(--text-muted)]">IDEAS Sostenibilidad, SOCideas. Vista previa del informe imprimible</p>
+            <h2 className="type-h3 mt-1 text-[var(--text-primary)]">Tablas de {bloque === "Demografia" ? "demografía" : "economía"}: {municipio} ({codigoINE})</h2>
+            <p className="mt-1 max-w-[70ch] text-[13px] text-[var(--text-muted)]">Generado el {fecha}. Tablas generadas a partir de los indicadores disponibles en la ficha municipal, con fuente y periodo de referencia.</p>
           </div>
-          <div className="bg-[var(--color-card-bg)] px-6 py-5">
-            <h3 className="text-sm font-bold text-[var(--color-text-primary)]">00_Resumen_y_trazabilidad</h3>
-            <ul className="mt-2 space-y-1 text-xs text-[var(--color-text-secondary)]">
+          <div className="pt-5">
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">00_Resumen_y_trazabilidad</h3>
+            <ul className="mt-2 max-w-[70ch] space-y-1 text-xs text-[var(--text-secondary)]">
               {traceabilityRows({ municipio, codigoINE, bloque: bloque === "Demografia" ? "Demografía" : "Economía", fechaGeneracion: fecha, tablas, excluidas }).map((r, i) => (
-                <li key={i}>{r.join(" · ")}</li>
+                <li key={i}>{r.length > 1 ? `${r[0]}: ${r.slice(1).join(", ")}` : r[0]}</li>
               ))}
             </ul>
             {tablas.map((t) => (
               <div key={t.id} className="mt-5">
-                <h4 className="text-sm font-bold text-[var(--color-text-primary)]">{t.titulo}</h4>
-                <p className="text-[11px] text-[var(--color-text-muted)]">Fuente: {t.fuente} · Periodo: {t.periodo} · {t.estado}</p>
+                <h4 className="text-sm font-semibold text-[var(--text-primary)]">{t.titulo}</h4>
+                <p className="text-xs text-[var(--text-muted)]">Fuente: {t.fuente}. Periodo: {t.periodo}. {t.estado}.</p>
+                <div className="overflow-x-auto">
                 <table className="ideas-table mt-2">
                   <thead><tr>{t.columnas.map((c) => (<th key={c}>{c}</th>))}</tr></thead>
                   <tbody>
@@ -247,6 +263,7 @@ export default function DescargasBloque({
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             ))}
           </div>

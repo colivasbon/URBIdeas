@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useId } from "react"
 
 interface MunicipioResult { id: string; nombre: string; codigo_ine: string; provincia_id: string; provincia_nombre: string }
 interface SelectedMunicipio { id: string; nombre: string; codigo_ine: string; provincia_nombre: string }
@@ -19,8 +19,11 @@ export default function SelectorMultiMunicipio({ onCompare, provinciaId }: Selec
   const [loading, setLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const inputId = useId()
 
   useEffect(() => {
+    // Limpia la lista al deseleccionar la provincia para no mostrar municipios obsoletos.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!provinciaId) { setAllMunicipios([]); return }
     setLoading(true)
     fetch(`/api/municipios?provincia_id=${provinciaId}&limit=500`)
@@ -65,74 +68,78 @@ export default function SelectorMultiMunicipio({ onCompare, provinciaId }: Selec
   function remove(id: string) { setSelected(prev => prev.filter(s => s.id !== id)) }
 
   return (
-    <div ref={wrapperRef} className="flex flex-col gap-3 relative">
+    <div ref={wrapperRef} className="relative flex flex-col gap-4">
       <div className="relative">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </div>
-        <input type="text" value={query}
+        <label htmlFor={inputId} className="field-label">
+          Municipios a comparar
+          <span className="tnum ml-2 font-normal text-[var(--text-muted)]">
+            {selected.length} de {MAX_SELECTIONS}
+          </span>
+        </label>
+        <input id={inputId} type="text" value={query}
           onChange={e => { setQuery(e.target.value); if (!isOpen) setIsOpen(true) }}
           onFocus={() => { if (allMunicipios.length > 0) setIsOpen(true) }}
-          placeholder={!provinciaId ? "Primero selecciona una provincia" : maxReached ? `Máximo ${MAX_SELECTIONS} alcanzado` : `Buscar municipio... (${selected.length}/${MAX_SELECTIONS})`}
+          placeholder={!provinciaId ? "Seleccione antes una provincia" : maxReached ? "Límite alcanzado" : "Escriba el nombre del municipio"}
           disabled={!provinciaId || maxReached}
-          className="w-full pl-9 pr-3 py-2 text-sm text-[var(--color-text-primary)] bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] transition-all duration-[var(--duration-normal)] hover:border-[var(--color-border)] hover:bg-[var(--color-input-bg-hover)] focus:outline-none focus:border-[var(--color-secondary)] focus:ring-2 focus:ring-[var(--color-secondary)]/20 disabled:opacity-50 placeholder:text-[var(--color-text-muted)]"
+          className="input disabled:cursor-not-allowed disabled:opacity-45"
         />
+
+        {isOpen && !loading && filtered.length > 0 && (
+          <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-2)]">
+            {filtered.slice(0, 50).map(mun => (
+              <button key={mun.id} type="button" onClick={() => toggle(mun)} disabled={isSelected(mun.id) || maxReached}
+                className={`flex min-h-11 w-full items-center gap-3 border-b border-[var(--border-subtle)] px-3 py-2 text-left text-sm transition-colors last:border-b-0 ${
+                  isSelected(mun.id)
+                    ? "cursor-default bg-[var(--status-info-bg)] text-[var(--text-primary)]"
+                    : "text-[var(--text-primary)] hover:bg-[var(--action-secondary-hover-bg)] disabled:opacity-45"
+                }`}>
+                <span aria-hidden="true" className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[6px] border ${
+                  isSelected(mun.id) ? "border-[var(--moss-ink)] bg-[var(--moss-ink)] text-[var(--bg-surface)]" : "border-[var(--border-default)]"
+                }`}>
+                  {isSelected(mun.id) && (
+                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  )}
+                </span>
+                <span>{mun.nombre}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isOpen && !loading && allMunicipios.length > 0 && filtered.length === 0 && query.trim() && (
+          <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-sm text-[var(--text-muted)] shadow-[var(--shadow-2)]">
+            Ningún municipio de la provincia coincide con «{query.trim()}».
+          </div>
+        )}
       </div>
 
-      {maxReached && <p className="text-xs text-[var(--color-accent)] font-medium">LÍmite de {MAX_SELECTIONS} alcanzado.</p>}
-
-      {isOpen && !loading && filtered.length > 0 && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-[var(--color-card-bg-solid)] border border-[var(--color-border)] rounded-[var(--border-radius)] shadow-[var(--shadow-lg)]">
-          {filtered.slice(0, 50).map(mun => (
-            <button key={mun.id} onClick={() => toggle(mun)} disabled={isSelected(mun.id) || maxReached}
-              className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 border-b border-[var(--color-border-subtle)] last:border-b-0 transition-colors duration-[var(--duration-fast)] ${
-                isSelected(mun.id) ? "bg-[var(--color-primary)] text-white cursor-default" : "hover:bg-[var(--color-input-bg)] text-[var(--color-text-primary)] disabled:opacity-50"
-              }`}>
-              <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                isSelected(mun.id) ? "bg-white border-white" : "border-[var(--color-border)]"
-              }`}>
-                {isSelected(mun.id) && (
-                  <svg className="h-3 w-3 text-[var(--color-primary)]" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                  </svg>
-                )}
-              </span>
-              <span className="font-medium">{mun.nombre}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {isOpen && !loading && allMunicipios.length > 0 && filtered.length === 0 && query.trim() && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 p-3 text-sm text-[var(--color-text-muted)] bg-[var(--color-card-bg-solid)] border border-[var(--color-border)] rounded-[var(--border-radius)] shadow-[var(--shadow-md)]">
-          No se encontraron municipios
-        </div>
+      {maxReached && (
+        <p className="text-xs text-[var(--text-secondary)]">
+          Ha alcanzado el límite de {MAX_SELECTIONS} municipios. Quite alguno para añadir otro.
+        </p>
       )}
 
       {selected.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <ul className="flex flex-wrap gap-2" aria-label="Municipios seleccionados">
           {selected.map(mun => (
-            <span key={mun.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-crisopa text-carbon border border-conifera rounded-[6px]">
+            <li key={mun.id} className="inline-flex items-center rounded-[6px] border border-[var(--crisopa-400)] bg-[var(--crisopa-200)] pl-2.5 text-xs font-medium text-[var(--carbon-900)]">
               {mun.nombre}
-              <button onClick={() => remove(mun.id)} className="rounded-[6px] p-0.5 hover:bg-conifera/40 transition-colors" aria-label={`Eliminar ${mun.nombre}`}>
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+              <button type="button" onClick={() => remove(mun.id)}
+                className="ml-0.5 inline-flex h-11 w-11 items-center justify-center rounded-[6px] transition-colors hover:bg-[var(--crisopa-400)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] sm:h-7 sm:w-7"
+                aria-label={`Eliminar ${mun.nombre}`}>
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-            </span>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       {selected.length > 0 && onCompare && (
-        <button onClick={() => onCompare(selected.map(s => s.id))}
-          className="self-start inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[var(--color-primary)] rounded-[var(--border-radius)] transition-all duration-[var(--duration-normal)] hover:bg-[var(--color-primary-light)] hover:shadow-[var(--shadow-glow-primary)] active:scale-[0.98]">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-          </svg>
+        <button type="button" onClick={() => onCompare(selected.map(s => s.id))} className="btn btn-primary self-start">
           Comparar {selected.length} municipio{selected.length !== 1 ? "s" : ""}
         </button>
       )}

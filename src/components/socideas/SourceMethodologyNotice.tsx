@@ -27,9 +27,9 @@ export default function SourceMethodologyNotice({
         <p
           key={e.slug}
           role="note"
-          className="max-w-3xl rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-secondary)]"
+          className="note max-w-[70ch]"
         >
-          <strong>{e.label} · {e.sourceName}.</strong>{" "}
+          <span className="font-medium text-[var(--text-primary)]">{e.label}, {e.sourceName}.</span>{" "}
           {e.coverageNotes ?? e.missingReason}
           {e.period ? <> Periodo: {e.period}.</> : null}
         </p>

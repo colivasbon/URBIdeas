@@ -9,6 +9,7 @@
 // publicados, el saldo intermunicipal como indicador DERIVADO explícitamente
 // etiquetado como cálculo SOCideas (nunca como dato oficial).
 import StatCard from "./StatCard";
+import { CHART } from "./ficha-ui";
 import type {
   MigrationFlowGroup,
   MigrationPresentationData,
@@ -25,8 +26,8 @@ function signed(n: number): string {
 
 function Trace({ label, tableId, period }: { label: string; tableId: string; period: string }) {
   return (
-    <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-      Fuente: {label} · Tabla {tableId} · {period}
+    <p className="mt-4 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
+      Fuente: {label}, tabla {tableId}. Periodo: <span className="tabular-nums">{period}</span>.
     </p>
   );
 }
@@ -34,21 +35,21 @@ function Trace({ label, tableId, period }: { label: string; tableId: string; per
 function EstadoLinea({ estado }: { estado: string }) {
   if (estado === "suppressed") {
     return (
-      <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
-        Dato no publicado por secreto estadístico.
+      <p role="status" className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+        Dato no publicado por secreto estadístico: la fuente no lo difunde para este municipio.
       </p>
     );
   }
   if (estado === "missing") {
     return (
-      <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
-        Información no disponible para este municipio.
+      <p role="status" className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+        La fuente no publica este dato para este municipio.
       </p>
     );
   }
   return (
-    <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
-      Cobertura parcial; consultar fuente y período.
+    <p role="status" className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+      Cobertura parcial: consulte la fuente y el período antes de usar el dato.
     </p>
   );
 }
@@ -71,27 +72,27 @@ function SexBar({
   return (
     <div className="min-w-0">
       <div
-        className="flex h-3.5 w-full overflow-hidden rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)]"
+        className="flex h-3 w-full gap-px overflow-hidden bg-[var(--bg-surface-sunken)]"
         role="img"
         aria-label={aria}
       >
         {male !== null && male > 0 && (
-          <div className="h-full bg-[var(--color-primary)]" style={{ width: `${pMale}%` }} />
+          <div className="h-full" style={{ width: `${pMale}%`, background: CHART.hombres }} />
         )}
         {female !== null && female > 0 && (
-          <div className="h-full bg-[var(--color-secondary)]" style={{ width: `${pFemale}%` }} />
+          <div className="h-full" style={{ width: `${pFemale}%`, background: CHART.mujeres }} />
         )}
       </div>
       <dl className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-[var(--color-primary)]" />
-          <dt className="text-[var(--color-text-muted)]">Hombres</dt>
-          <dd className="font-semibold tabular-nums text-[var(--color-text-primary)]">{fmt(male)}</dd>
+          <span aria-hidden="true" className="h-2.5 w-2.5" style={{ background: CHART.hombres }} />
+          <dt className="text-[var(--text-muted)]">Hombres</dt>
+          <dd className="font-semibold tabular-nums text-[var(--text-primary)]">{fmt(male)}</dd>
         </div>
         <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-[var(--color-secondary)]" />
-          <dt className="text-[var(--color-text-muted)]">Mujeres</dt>
-          <dd className="font-semibold tabular-nums text-[var(--color-text-primary)]">{fmt(female)}</dd>
+          <span aria-hidden="true" className="h-2.5 w-2.5" style={{ background: CHART.mujeres }} />
+          <dt className="text-[var(--text-muted)]">Mujeres</dt>
+          <dd className="font-semibold tabular-nums text-[var(--text-primary)]">{fmt(female)}</dd>
         </div>
       </dl>
     </div>
@@ -101,10 +102,10 @@ function SexBar({
 function FlowCard({ group }: { group: MigrationFlowGroup }) {
   const hasAny = group.total !== null || group.male !== null || group.female !== null;
   return (
-    <article className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-4 shadow-[var(--shadow-premium-sm)]">
+    <article className="min-w-0 border-t border-[var(--border-strong)] pt-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">{group.label}</h3>
-        <span className="font-mono text-xs tabular-nums text-[var(--color-text-muted)]">
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">{group.label}</h3>
+        <span className="text-xs tabular-nums text-[var(--text-muted)]">
           {group.period}
         </span>
       </div>
@@ -115,8 +116,8 @@ function FlowCard({ group }: { group: MigrationFlowGroup }) {
       ) : (
         <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3">
           <div className="shrink-0">
-            <p className="data-card__value leading-none">{fmt(group.total)}</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+            <p className="type-h3 tnum font-semibold text-[var(--text-primary)]">{fmt(group.total)}</p>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">
               Personas
             </p>
           </div>
@@ -142,30 +143,30 @@ function SaldoIntermunicipal({ data }: { data: MigrationPresentationData }) {
   const saldo = inm !== null && emi !== null ? inm - emi : null;
   return (
     <div className="mt-8">
-      <h3 className="ideas-h2 mb-1">Saldo intermunicipal</h3>
-      <p className="mb-3 text-xs leading-relaxed text-[var(--color-text-secondary)]">
-        Inmigración intermunicipal − Emigración intermunicipal (tablas INE 69743 y 69746).
+      <h3 className="type-h4 text-[var(--text-primary)]">Saldo intermunicipal</h3>
+      <p className="mb-5 mt-1 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        Inmigración intermunicipal menos emigración intermunicipal (tablas INE 69743 y 69746).
       </p>
       {saldo !== null ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-3">
           <StatCard
             etiqueta="Saldo intermunicipal"
             valor={signed(saldo)}
             detalle={`Inmigración ${fmt(inm)} − Emigración ${fmt(emi)}`}
           />
-          <StatCard etiqueta="Inmigración" valor={fmt(inm)} detalle={`INE · Tabla 69743 · ${data.period}`} />
-          <StatCard etiqueta="Emigración" valor={fmt(emi)} detalle={`INE · Tabla 69746 · ${data.period}`} />
+          <StatCard etiqueta="Inmigración" valor={fmt(inm)} detalle={`INE, tabla 69743, ${data.period}`} />
+          <StatCard etiqueta="Emigración" valor={fmt(emi)} detalle={`INE, tabla 69746, ${data.period}`} />
         </div>
       ) : (
         <p
           role="status"
-          className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]"
+          className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]"
         >
           No se calcula el saldo: falta el total de alguno de los dos flujos intermunicipales.
         </p>
       )}
-      <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-        Saldo derivado — cálculo propio SOCideas sobre flujos oficiales del INE; no es un saldo
+      <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
+        Saldo derivado: cálculo propio SOCideas sobre flujos oficiales del INE; no es un saldo
         migratorio publicado como tal por la fuente.
       </p>
     </div>
@@ -178,24 +179,24 @@ export function FlujosMigratoriosBlock({ data }: { data: MigrationPresentationDa
   );
   const hasIntermunicipal = !!data.immigrationIntermunicipal || !!data.emigrationIntermunicipal;
   return (
-    <section aria-label="Flujos migratorios" className="mb-10">
-      <h2 className="ideas-h2">Flujos migratorios</h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Emigración al extranjero e intermunicipal · INE · {data.period}
+    <section aria-label="Flujos migratorios" className="border-t border-[var(--border-subtle)] py-10">
+      <h2 className="type-h3 text-[var(--text-primary)]">Flujos migratorios</h2>
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        Emigración al extranjero, inmigración y emigración intermunicipal del municipio.
       </p>
       {groups.length === 0 ? (
         <div className="mt-4">
           <EstadoLinea estado={data.status} />
         </div>
       ) : (
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-8 lg:grid-cols-3">
           {groups.map((g) => (
             <FlowCard key={g.source.tableId} group={g} />
           ))}
         </div>
       )}
       {hasIntermunicipal && <SaldoIntermunicipal data={data} />}
-      <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+      <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
         La ausencia de dato se muestra como ND; nunca como 0. Las barras comparan hombres y mujeres
         dentro de cada flujo, no flujos entre sí.
       </p>
@@ -221,12 +222,9 @@ function BalanceCard({
   tableId: string;
 }) {
   return (
-    <article className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-4 shadow-[var(--shadow-premium-sm)]">
-      <h3 className="text-sm font-bold text-[var(--color-text-primary)]">{label}</h3>
-      <p className="data-card__value mt-2 leading-none">{fmtSigned(value)}</p>
-      <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-        Personas (neto)
-      </p>
+    <article className="min-w-0 border-t border-[var(--border-strong)] pt-3">
+      <p className="type-h3 tnum font-semibold text-[var(--text-primary)]">{fmtSigned(value)}</p>
+      <h3 className="mt-1 text-sm text-[var(--text-secondary)]">{label} (personas, neto)</h3>
       <Trace label="Instituto Nacional de Estadística" tableId={tableId} period={period} />
     </article>
   );
@@ -241,36 +239,36 @@ export function SaldosMigratoriosBlock({ data }: { data: MigrationBalancePresent
   const hasData =
     data.total.value !== null || data.interior.value !== null || data.exterior.value !== null;
   return (
-    <section aria-label="Saldo migratorio neto" className="mb-10">
-      <h2 className="ideas-h2">Saldo migratorio neto</h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Diferencia neta entre entradas y salidas · INE · {data.period}
+    <section aria-label="Saldo migratorio neto" className="border-t border-[var(--border-subtle)] py-10">
+      <h2 className="type-h3 text-[var(--text-primary)]">Saldo migratorio neto</h2>
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        Diferencia neta entre entradas y salidas de población del municipio.
       </p>
       {!hasData ? (
         <div className="mt-4">
           <EstadoLinea estado={data.status} />
         </div>
       ) : (
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-3">
           <BalanceCard label="Saldo total" value={data.total.value} period={data.period} tableId={data.tableId} />
           <BalanceCard label="Saldo exterior" value={data.exterior.value} period={data.period} tableId={data.tableId} />
           <BalanceCard label="Saldo interior" value={data.interior.value} period={data.period} tableId={data.tableId} />
         </div>
       )}
       {data.bySex && (
-        <div className="mt-4 max-w-sm">
-          <article className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-4">
-            <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Saldo total por sexo</h3>
-            <dl className="mt-2 space-y-1 text-sm">
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-[var(--color-text-muted)]">Hombres</dt>
-                <dd className="font-semibold tabular-nums text-[var(--color-text-primary)]">
+        <div className="mt-8 max-w-sm">
+          <article>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Saldo total por sexo</h3>
+            <dl className="mt-2 text-sm">
+              <div className="flex items-baseline justify-between gap-3 border-t border-[var(--border-subtle)] py-2">
+                <dt className="text-[var(--text-secondary)]">Hombres</dt>
+                <dd className="font-semibold tabular-nums text-[var(--text-primary)]">
                   {fmtSigned(data.bySex.male.total.value)}
                 </dd>
               </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-[var(--color-text-muted)]">Mujeres</dt>
-                <dd className="font-semibold tabular-nums text-[var(--color-text-primary)]">
+              <div className="flex items-baseline justify-between gap-3 border-t border-[var(--border-subtle)] py-2">
+                <dt className="text-[var(--text-secondary)]">Mujeres</dt>
+                <dd className="font-semibold tabular-nums text-[var(--text-primary)]">
                   {fmtSigned(data.bySex.female.total.value)}
                 </dd>
               </div>
@@ -278,7 +276,7 @@ export function SaldosMigratoriosBlock({ data }: { data: MigrationBalancePresent
           </article>
         </div>
       )}
-      <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+      <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
         El saldo es la diferencia neta entre entradas y salidas; no es el número total de movimientos.
         Los flujos migratorios se muestran en el bloque anterior.
       </p>

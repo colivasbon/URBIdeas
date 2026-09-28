@@ -11,6 +11,7 @@
 import DataTableMeta from "./DataTableMeta";
 import StatCard from "./StatCard";
 import StatusCard from "./StatusCard";
+import { FIGURE_ROW, NOTE, DISCLOSURE, SOURCE_NOTE } from "./ficha-ui";
 import {
   DENSITY_METHOD_TEXT,
   densityDetailLabel,
@@ -35,9 +36,9 @@ function DensityTrace({
   anioSuperficie: number;
 }) {
   return (
-    <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-      Fuente: INE · Cifras oficiales de población (padrón, {anioPoblacion ?? "—"}) +
-      IGN · Superficie oficial municipal NGMEP ({anioSuperficie}) · Cálculo SOCideas
+    <p className={SOURCE_NOTE}>
+      Fuente: INE, cifras oficiales de población (padrón, {anioPoblacion ?? "—"}); IGN, superficie
+      oficial municipal NGMEP ({anioSuperficie}). Cálculo SOCideas.
     </p>
   );
 }
@@ -45,7 +46,7 @@ function DensityTrace({
 /** Réplica del patrón EstadoLinea de DemographicBlocks (mismas clases, mensajes de densidad). */
 function DensityEstadoLinea({ motivo }: { motivo: string }) {
   return (
-    <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
+    <p role="status" className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]">
       {motivo}
     </p>
   );
@@ -56,21 +57,21 @@ export function DensityBlock({ data }: { data: DensityBlockData }) {
   const { densidad, superficieKm2, anioPoblacion, anioSuperficie } = data;
   const aviso = densityYearsWarning(anioPoblacion, anioSuperficie);
   const periodo =
-    anioPoblacion !== null ? `población ${anioPoblacion} · superficie ${anioSuperficie}` : `superficie ${anioSuperficie}`;
+    anioPoblacion !== null ? `población ${anioPoblacion}, superficie ${anioSuperficie}` : `superficie ${anioSuperficie}`;
   return (
-    <section aria-label="Densidad y lectura territorial" className="premium-card mb-10 p-5 sm:p-6">
-      <h2 className="ideas-h2">Densidad y lectura territorial</h2>
+    <section aria-label="Densidad y lectura territorial" className="border-t border-[var(--border-subtle)] py-10">
+      <h2 className="type-h3 text-[var(--text-primary)]">Densidad y lectura territorial</h2>
       <div className="mt-2">
         <DataTableMeta
           meta={{
-            fuente: "INE + IGN (NGMEP) · Cálculo SOCideas",
+            fuente: "INE e IGN (NGMEP), cálculo SOCideas",
             periodo,
             unidad: "hab/km²",
           }}
         />
       </div>
       {densidad !== null ? (
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className={`mt-6 ${FIGURE_ROW} sm:grid-cols-2`}>
           <StatCard
             etiqueta="Densidad de población"
             valor={`${densidad.toLocaleString("es-ES")} hab/km²`}
@@ -83,7 +84,7 @@ export function DensityBlock({ data }: { data: DensityBlockData }) {
                 ? `${superficieKm2.toLocaleString("es-ES")} km²`
                 : "ND"
             }
-            detalle={`IGN · NGMEP ${anioSuperficie}`}
+            detalle={`IGN, NGMEP ${anioSuperficie}`}
           />
         </div>
       ) : (
@@ -97,9 +98,9 @@ export function DensityBlock({ data }: { data: DensityBlockData }) {
         </div>
       )}
       <DensityTrace anioPoblacion={anioPoblacion} anioSuperficie={anioSuperficie} />
-      <details className="mt-3">
-        <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)]">Cómo se calcula</summary>
-        <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
+      <details className="mt-4">
+        <summary className={DISCLOSURE}>Cómo se calcula</summary>
+        <p className={NOTE}>
           {DENSITY_METHOD_TEXT}
         </p>
       </details>
@@ -113,7 +114,7 @@ export function DensityPendingBlock({ motivo }: { motivo: string }) {
     <StatusCard
       state="pending"
       titulo="Densidad no disponible"
-      fuente="Fuente: pendiente de superficie oficial o población municipal · Nada se estima"
+      fuente="Fuente pendiente: superficie oficial o población municipal. Nada se estima."
     >
       <p>{motivo} El detalle figura en el panel de cobertura final; nada se estima.</p>
     </StatusCard>

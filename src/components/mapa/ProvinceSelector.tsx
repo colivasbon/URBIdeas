@@ -61,50 +61,77 @@ export function ProvinceSelector({ onToggle, selectedProvinces }: ProvinceSelect
   }, [grouped, search])
 
   if (loading) {
-    return <p className="text-xs text-[var(--color-text-muted)]">Cargando provincias...</p>
+    return (
+      <p className="flex items-center gap-2 px-4 pb-3 text-xs text-[var(--text-muted)]" role="status">
+        <span className="spinner" aria-hidden="true" />
+        Cargando provincias…
+      </p>
+    )
   }
 
   const selectedCount = selectedProvinces.length
   const totalProvinces = Object.keys(manifest).length
 
+  // Casilla con tres estados (vacía, parcial, completa) dibujada con tokens.
+  const casilla = (estado: 'no' | 'parcial' | 'si') => (
+    <span
+      aria-hidden="true"
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border transition-colors ${
+        estado === 'si'
+          ? 'border-[var(--musgo)] bg-[var(--musgo)] text-[var(--hueso)]'
+          : estado === 'parcial'
+            ? 'border-[var(--musgo)] bg-[var(--musgo-100)] text-[var(--musgo-700)]'
+            : 'border-[var(--border-default)]'
+      }`}
+    >
+      {estado === 'si' && (
+        <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      )}
+      {estado === 'parcial' && <span className="h-0.5 w-2 bg-current" />}
+    </span>
+  )
+
   return (
     <div className="flex flex-col">
-      <div className="px-3 py-2 border-b border-[var(--color-border-subtle)]">
-        <div className="relative">
-          <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-          </svg>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar provincia..."
-            className="w-full pl-7 pr-3 py-1.5 text-xs rounded border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-secondary)]"
-          />
-        </div>
-        <p className="text-[10px] mt-1 text-[var(--color-text-muted)]">
+      <div className="px-4 pb-3">
+        <label htmlFor="provincias-busqueda" className="sr-only">Buscar provincia</label>
+        <input
+          id="provincias-busqueda"
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar provincia"
+          className="input lg:min-h-[36px]"
+        />
+        <p className="tnum mt-1.5 text-xs text-[var(--text-muted)]">
           {selectedCount} de {totalProvinces} provincias seleccionadas
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto max-h-[300px]">
+      <div className="max-h-[300px] flex-1 overflow-y-auto border-t border-[var(--border-subtle)]">
         {Object.entries(filtered).map(([ccaa, provinces]) => {
           const allSelected = provinces.every(p => selectedProvinces.includes(p.code))
           const someSelected = provinces.some(p => selectedProvinces.includes(p.code))
           const expanded = expandedCCAA[ccaa] === true
 
           return (
-            <div key={ccaa} className="border-b border-[var(--color-border-subtle)]">
-              <div className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-[var(--color-input-bg)] transition-colors">
+            <div key={ccaa} className="border-b border-[var(--border-subtle)]">
+              <div className="flex min-h-[44px] items-center gap-1 pr-4 pl-1">
                 <button
+                  type="button"
                   onClick={() => setExpandedCCAA(prev => ({ ...prev, [ccaa]: !expanded }))}
-                  className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
+                  aria-label={expanded ? `Colapsar ${ccaa}` : `Expandir ${ccaa}`}
+                  aria-expanded={expanded}
                 >
-                  <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg aria-hidden="true" className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     provinces.forEach(p => {
                       if (allSelected) {
@@ -114,23 +141,12 @@ export function ProvinceSelector({ onToggle, selectedProvinces }: ProvinceSelect
                       }
                     })
                   }}
-                  className="flex items-center gap-2 flex-1 text-left"
+                  aria-pressed={allSelected ? true : someSelected ? 'mixed' : false}
+                  className="flex min-h-[40px] min-w-0 flex-1 items-center gap-2.5 rounded-[6px] text-left focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
                 >
-                  <div className={`w-3 h-3 rounded border flex items-center justify-center transition-colors ${
-                    allSelected
-                      ? 'bg-[var(--color-secondary)] border-[var(--color-secondary)]'
-                      : someSelected
-                        ? 'bg-[var(--color-secondary)]/30 border-[var(--color-secondary)]'
-                        : 'border-[var(--color-border-subtle)]'
-                  }`}>
-                    {(allSelected || someSelected) && (
-                      <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className="text-xs font-medium text-[var(--color-text-primary)]">{ccaa}</span>
-                  <span className="text-[10px] text-[var(--color-text-muted)] ml-auto">
+                  {casilla(allSelected ? 'si' : someSelected ? 'parcial' : 'no')}
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text-primary)]">{ccaa}</span>
+                  <span className="tnum text-xs text-[var(--text-muted)]">
                     {provinces.filter(p => selectedProvinces.includes(p.code)).length}/{provinces.length}
                   </span>
                 </button>
@@ -138,29 +154,24 @@ export function ProvinceSelector({ onToggle, selectedProvinces }: ProvinceSelect
 
               {expanded && (
                 <div className="pb-1">
-                  {provinces.map(({ code, data }) => (
-                    <button
-                      key={code}
-                      onClick={() => onToggle(code)}
-                      className="flex items-center gap-2 pl-8 pr-3 py-1 w-full text-left hover:bg-[var(--color-input-bg)] transition-colors"
-                    >
-                      <div className={`w-3 h-3 rounded-sm border flex items-center justify-center transition-colors ${
-                        selectedProvinces.includes(code)
-                          ? 'bg-[var(--color-secondary)] border-[var(--color-secondary)]'
-                          : 'border-[var(--color-border-subtle)]'
-                      }`}>
-                        {selectedProvinces.includes(code) && (
-                          <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-                      <span className="text-xs text-[var(--color-text-secondary)]">{data.name}</span>
-                      <span className="text-[10px] text-[var(--color-text-muted)] ml-auto">
-                        {data.features} polígonos
-                      </span>
-                    </button>
-                  ))}
+                  {provinces.map(({ code, data }) => {
+                    const sel = selectedProvinces.includes(code)
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() => onToggle(code)}
+                        aria-pressed={sel}
+                        className="flex min-h-[40px] w-full items-center gap-2.5 pr-4 pl-10 text-left transition-colors hover:bg-[var(--bg-surface-sunken)] focus-visible:bg-[var(--bg-surface-sunken)] focus-visible:outline-none"
+                      >
+                        {casilla(sel ? 'si' : 'no')}
+                        <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--text-secondary)]">{data.name}</span>
+                        <span className="tnum text-xs text-[var(--text-muted)]">
+                          {data.features.toLocaleString('es-ES')} polígonos
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>

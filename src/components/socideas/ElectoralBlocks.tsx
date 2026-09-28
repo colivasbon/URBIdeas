@@ -49,19 +49,19 @@ function fmtPct(n: number | null): string {
 
 function Trace({ anio }: { anio: number }) {
   return (
-    <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-      Fuente: Ministerio del Interior · Infoelectoral Datos Abiertos · Elecciones municipales{" "}
-      {anio} · Tabla MIR_MUNI_202305
+    <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
+      Fuente: Ministerio del Interior, Infoelectoral Datos Abiertos, elecciones municipales{" "}
+      <span className="tabular-nums">{anio}</span>, tabla MIR_MUNI_202305.
     </p>
   );
 }
 
 function EstadoLinea({ estado }: { estado: string }) {
   return (
-    <p role="status" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]">
+    <p role="status" className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]">
       {estado === "missing"
         ? "Sin resultados municipales de esta convocatoria para este municipio (p. ej. régimen de concejo abierto ≤250 hab, fuera del alcance actual)."
-        : "Cobertura parcial; consultar fuente y período."}
+        : "Cobertura parcial: consulte la fuente y el período antes de usar el dato."}
     </p>
   );
 }
@@ -70,32 +70,33 @@ export function BloqueElectoral({ data }: { data: ElectoralPresentationData }) {
   const ok = data.status === "observed";
   const conOtras = data.candidaturas.some((c) => c.nombre === "Otras candidaturas");
   return (
-    <section aria-label="Resultados electorales municipales" className="mb-10">
-      <h2 className="ideas-h2">Elecciones municipales</h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Participación y reparto de concejales · {data.municipio} · {data.anio}
+    <section aria-label="Resultados electorales municipales" className="border-t border-[var(--border-subtle)] py-10">
+      <h2 className="type-h3 text-[var(--text-primary)]">Elecciones municipales</h2>
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        Participación y reparto de concejales en {data.municipio}, <span className="tabular-nums">{data.anio}</span>.
       </p>
       {!ok ? (
         <div className="mt-4"><EstadoLinea estado={data.status} /></div>
       ) : (
         <>
           {data.ganadora && (
-            <p className="mt-3 text-sm text-[var(--color-text-primary)]">
+            <p className="mt-4 max-w-[70ch] text-sm text-[var(--text-primary)]">
               Candidatura más votada: <strong>{data.ganadora.nombre}</strong>
-              {data.ganadora.siglas ? ` (${data.ganadora.siglas})` : ""} · {fmt(data.ganadora.votos)} votos ·{" "}
-              {fmt(data.ganadora.concejales)} concejales
+              {data.ganadora.siglas ? ` (${data.ganadora.siglas})` : ""}, con{" "}
+              <span className="tabular-nums">{fmt(data.ganadora.votos)}</span> votos y{" "}
+              <span className="tabular-nums">{fmt(data.ganadora.concejales)}</span> concejales.
             </p>
           )}
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-3">
             <StatCard
               etiqueta="Participación (derivada)"
               valor={fmtPct(data.participacion)}
-              detalle={`${fmt(data.votantes)} votantes de ${fmt(data.censo)} electores · cálculo: votantes / censo`}
+              detalle={`${fmt(data.votantes)} votantes de ${fmt(data.censo)} electores; cálculo: votantes / censo`}
             />
             <StatCard
               etiqueta="Votos válidos"
               valor={fmt(data.validos)}
-              detalle={`Blancos: ${fmt(data.blancos)} · Nulos: ${fmt(data.nulos)}`}
+              detalle={`Blancos: ${fmt(data.blancos)}; nulos: ${fmt(data.nulos)}`}
             />
             <StatCard
               etiqueta="Concejales"
@@ -103,28 +104,28 @@ export function BloqueElectoral({ data }: { data: ElectoralPresentationData }) {
               detalle={`${data.candidaturas.length} candidaturas${conOtras ? " (resto en «Otras candidaturas»)" : ""}`}
             />
           </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="socideas-table-shell__scroll mt-8 overflow-x-auto">
+            <table className="socideas-table">
               <caption className="sr-only">
                 Votos y concejales por candidatura en {data.municipio} ({data.anio})
               </caption>
               <thead>
-                <tr className="text-left text-xs text-[var(--color-text-muted)]">
-                  <th scope="col" className="py-2 pr-4 font-medium">Candidatura</th>
-                  <th scope="col" className="py-2 pr-4 font-medium">Siglas</th>
-                  <th scope="col" className="py-2 pr-4 font-medium">Votos</th>
-                  <th scope="col" className="py-2 pr-4 font-medium">% válidos</th>
-                  <th scope="col" className="py-2 font-medium">Concejales</th>
+                <tr>
+                  <th scope="col" className="socideas-table__text">Candidatura</th>
+                  <th scope="col" className="socideas-table__text">Siglas</th>
+                  <th scope="col" className="socideas-table__numeric">Votos</th>
+                  <th scope="col" className="socideas-table__numeric">% válidos</th>
+                  <th scope="col" className="socideas-table__numeric">Concejales</th>
                 </tr>
               </thead>
               <tbody>
                 {data.candidaturas.map((c) => (
-                  <tr key={`${c.nombre}__${c.siglas}`} className="border-t border-[var(--color-border-subtle)]">
-                    <td className="py-2 pr-4">{c.nombre}</td>
-                    <td className="py-2 pr-4">{c.siglas || "—"}</td>
-                    <td className="py-2 pr-4 tabular-nums">{fmt(c.votos)}</td>
-                    <td className="py-2 pr-4 tabular-nums">{fmtPct(c.pctValidos)}</td>
-                    <td className="py-2 tabular-nums">{fmt(c.concejales)}</td>
+                  <tr key={`${c.nombre}__${c.siglas}`}>
+                    <td className="socideas-table__text">{c.nombre}</td>
+                    <td>{c.siglas || "—"}</td>
+                    <td className="socideas-table__numeric">{fmt(c.votos)}</td>
+                    <td className="socideas-table__numeric">{fmtPct(c.pctValidos)}</td>
+                    <td className="socideas-table__numeric">{fmt(c.concejales)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -133,7 +134,7 @@ export function BloqueElectoral({ data }: { data: ElectoralPresentationData }) {
         </>
       )}
       <Trace anio={data.anio} />
-      <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+      <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
         Se muestran las 5 candidaturas más votadas; el resto se agrupa en «Otras candidaturas».
         La participación es un cálculo SOCideas (votantes / censo). La ausencia de dato se muestra
         como ND; nunca como 0. Los municipios en régimen de concejo abierto (generalmente, menos

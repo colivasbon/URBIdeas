@@ -51,17 +51,17 @@ export default function DataStatusBadge({ estado }: { estado: DataEstado }) {
    se emite en paralelo (sr-only): nunca se lee solo un «✓».
    ============================================================ */
 
-/** Color del glifo sobre tarjeta/pestaña inactiva (todos ≥4.5:1 en ambos temas). */
+/** Color del glifo en pestaña o lista (todos ≥4.5:1 en ambos temas). */
 const GLYPH_COLOR: Record<EstadoGlyph, string> = {
-  ok: "text-[var(--color-success)]",
-  stale: "text-[var(--color-warning)]",
-  pronto: "text-[var(--color-text-muted)]",
-  "no-disponible": "text-[var(--color-text-secondary)]",
+  ok: "text-[var(--status-success-fg)]",
+  stale: "text-[var(--text-secondary)]",
+  pronto: "text-[var(--text-muted)]",
+  "no-disponible": "text-[var(--text-secondary)]",
 };
 
 /**
  * Glifo de estado de una hoja: `✓` reciente · `~` posible rezago ·
- * `⏳` próximamente · `—` no disponible para este municipio.
+ * `○` próximamente · `—` no disponible para este municipio.
  *
  * Uso (Server Component, sin estado cliente):
  *   <SheetStatusGlyph sheet={s} overrides={estadoPorHoja} selected={selected} />
@@ -75,7 +75,7 @@ export function SheetStatusGlyph({
   sheet: FichaSheetMeta;
   /** Overrides por municipio (p. ej. `no-disponible`), ver `EstadoGlyphOverrides`. */
   overrides?: EstadoGlyphOverrides;
-  /** Pestaña activa: el glifo pasa a blanco (fondo primario) manteniendo contraste. */
+  /** Pestaña activa (se conserva por compatibilidad; el glifo no cambia de color). */
   selected?: boolean;
 }) {
   const estado = sheetGlyphFor(sheet, overrides);
@@ -85,7 +85,8 @@ export function SheetStatusGlyph({
       <span
         aria-hidden="true"
         title={texto}
-        className={`text-[11px] leading-none ${selected ? "text-white" : GLYPH_COLOR[estado]}`}
+        data-selected={selected || undefined}
+        className={`text-xs leading-none ${GLYPH_COLOR[estado]}`}
       >
         {glifo}
       </span>

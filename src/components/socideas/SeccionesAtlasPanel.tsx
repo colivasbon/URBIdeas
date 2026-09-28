@@ -12,6 +12,7 @@
 // donde aplica, todos los controles son alcanzables con teclado y muestran
 // `:focus-visible`, y los objetivos táctiles miden 44 px como mínimo en móvil.
 
+import type { ReactNode } from "react";
 import { CLASES_MAXIMO, CLASES_MINIMO } from "@/lib/socideas-secciones";
 import type { ModoClasificacion } from "@/lib/socideas-secciones";
 import type { PresentacionAtlas } from "./SeccionesAtlasMap";
@@ -26,10 +27,16 @@ const MODOS: Array<{ valor: ModoClasificacion; etiqueta: string; ayuda: string }
 ];
 
 const BOTON =
-  "min-h-[44px] rounded-[6px] border border-[var(--color-border)] bg-[var(--color-card-bg)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:cursor-not-allowed disabled:opacity-50";
-const ETIQUETA = "mb-1 block text-xs font-semibold text-[var(--color-text-muted)]";
+  "inline-flex min-h-[44px] w-full items-center justify-center rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-sunken)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-[var(--border-default)] disabled:hover:bg-[var(--bg-surface)]";
+const BOTON_PRINCIPAL =
+  "inline-flex min-h-[44px] w-full items-center justify-center rounded-[6px] bg-[var(--action-primary-bg)] px-3 py-2 text-sm font-semibold text-[var(--action-primary-fg)] transition-colors hover:bg-[var(--action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50";
+const ETIQUETA = "type-label mb-1.5 block text-[var(--text-secondary)]";
+const AYUDA = "text-xs leading-relaxed text-[var(--text-muted)]";
+const TITULO_GRUPO = "type-body-sm font-semibold text-[var(--text-primary)]";
 const SELECT =
-  "min-h-[44px] w-full rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]";
+  "min-h-[44px] w-full rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] hover:border-[var(--border-strong)]";
+/** Bloque del panel: separado del anterior por un filete. */
+const BLOQUE = "border-t border-[var(--border-subtle)] pt-5";
 
 export interface SeccionesAtlasPanelProps {
   codigoINE: string;
@@ -63,6 +70,13 @@ export interface SeccionesAtlasPanelProps {
   /** URL de la descarga de DATOS seccionales (XLSX). `null` si el municipio no
    *  tiene atlas publicado. El PNG es una imagen; este fichero es la tabla. */
   urlXlsx?: string | null;
+  /** Lectura del mapa (leyenda y sección seleccionada), bajo el selector de
+   *  indicador y año. */
+  lectura?: ReactNode;
+  /** En móvil, los ajustes de clasificación y presentación se pliegan. En
+   *  escritorio están siempre visibles. */
+  ajustesAbiertos?: boolean;
+  onAlternarAjustes?: () => void;
 }
 
 export default function SeccionesAtlasPanel({
@@ -89,6 +103,9 @@ export default function SeccionesAtlasPanel({
   onExportarPng,
   onExportarPlano,
   urlXlsx,
+  lectura,
+  ajustesAbiertos = true,
+  onAlternarAjustes,
 }: SeccionesAtlasPanelProps) {
   const opciones = periodos.length > 0;
   // Clasificación, clases, paleta y opacidad solo tienen sentido con valores
@@ -97,8 +114,8 @@ export default function SeccionesAtlasPanel({
   const sinClasificar = sinIndicadores || plano;
   return (
     <div className="flex flex-col gap-5">
-      <fieldset disabled={sinIndicadores} className="flex flex-col gap-2">
-        <legend className="text-sm font-bold text-[var(--color-text-primary)]">Indicador</legend>
+      <fieldset disabled={sinIndicadores} className="flex flex-col">
+        <legend className="sr-only">Indicador</legend>
         <label htmlFor="atlas-indicador" className={ETIQUETA}>
           Indicador con dato por sección
         </label>
@@ -116,20 +133,20 @@ export default function SeccionesAtlasPanel({
             </option>
           ))}
         </select>
-        <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+        <p className={`${AYUDA} mt-1.5`}>
           El catálogo lo publica la fuente oficial. Un indicador marcado «no publicado por sección» no
           se representa: no existe dato oficial a ese grano.
         </p>
       </fieldset>
 
-      <fieldset disabled={!opciones} className="flex flex-col gap-2">
-        <legend className="text-sm font-bold text-[var(--color-text-primary)]">Año de referencia</legend>
+      <fieldset disabled={!opciones} className="flex flex-col">
+        <legend className="sr-only">Año de referencia</legend>
         <label htmlFor="atlas-anio" className={ETIQUETA}>
           Periodo estadístico
         </label>
         <select
           id="atlas-anio"
-          className={SELECT}
+          className={`${SELECT} tnum`}
           value={anio === null ? "" : String(anio)}
           onChange={(e) => onAnio(Number(e.target.value))}
         >
@@ -140,165 +157,180 @@ export default function SeccionesAtlasPanel({
             </option>
           ))}
         </select>
-        <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+        <p className={`${AYUDA} mt-1.5`}>
           Año de la estadística. Es distinto del año del seccionado (la geometría): no se sustituye uno
           por otro en ninguna etiqueta.
         </p>
       </fieldset>
 
-      <fieldset disabled={sinClasificar} className="flex flex-col gap-2">
-        <legend className="text-sm font-bold text-[var(--color-text-primary)]">Clasificación</legend>
-        <div role="radiogroup" aria-label="Método de clasificación" className="flex flex-col gap-2">
-          {MODOS.map((m) => (
-            <label
-              key={m.valor}
-              className={`flex min-h-[44px] cursor-pointer items-start gap-2 rounded-[6px] border px-3 py-2 text-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--moss-ink)] ${
-                modo === m.valor
-                  ? "border-[var(--color-secondary)] bg-[var(--color-input-bg-hover)] font-semibold text-[var(--color-text-primary)]"
-                  : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
-              }`}
-            >
-              <input
-                type="radio"
+      {lectura}
+
+      {onAlternarAjustes ? (
+        <div className={`${BLOQUE} lg:hidden`}>
+          <button
+            type="button"
+            onClick={onAlternarAjustes}
+            aria-expanded={ajustesAbiertos}
+            aria-controls="atlas-ajustes"
+            className={BOTON}
+          >
+            {ajustesAbiertos ? "Ocultar ajustes de clasificación" : "Ajustes de clasificación y presentación"}
+          </button>
+        </div>
+      ) : null}
+
+      <div id="atlas-ajustes" className={`flex-col gap-5 ${ajustesAbiertos ? "flex" : "hidden lg:flex"}`}>
+        <fieldset disabled={sinClasificar} className={`${BLOQUE} flex flex-col gap-2`}>
+          <legend className={`${TITULO_GRUPO} float-left mb-2 w-full`}>Clasificación</legend>
+          <div role="radiogroup" aria-label="Método de clasificación" className="flex flex-col">
+            {MODOS.map((m) => (
+              <OpcionInterruptor
+                key={m.valor}
                 name="atlas-modo"
                 value={m.valor}
-                checked={modo === m.valor}
+                etiqueta={m.etiqueta}
+                ayuda={m.ayuda}
+                marcado={modo === m.valor}
                 onChange={() => onModo(m.valor)}
-                className="mt-0.5 h-3.5 w-3.5 flex-none accent-[var(--color-secondary)]"
               />
-              <span className="min-w-0">
-                <span className="block">{m.etiqueta}</span>
-                <span className="block text-[11px] font-normal text-[var(--color-text-muted)]">{m.ayuda}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-        <CortesManuales
-          activo={modo === "cortes_manuales"}
-          disabled={sinClasificar}
-          cortes={presentacion.cortesManuales}
-          aviso={avisoCortes}
-          onChange={(cortes) => onPresentacion({ cortesManuales: cortes })}
-        />
-      </fieldset>
-
-      <fieldset disabled={sinClasificar} className="flex flex-col gap-2">
-        <legend className="text-sm font-bold text-[var(--color-text-primary)]">Número de clases</legend>
-        <div role="radiogroup" aria-label="Número de clases" className="flex flex-wrap gap-2">
-          {CLASES.map((n) => (
-            <label
-              key={n}
-              className={`inline-flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-[6px] border px-3 text-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--moss-ink)] ${
-                clases === n
-                  ? "border-[var(--color-secondary)] bg-[var(--color-input-bg-hover)] font-bold text-[var(--color-text-primary)]"
-                  : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
-              }`}
-            >
-              <input
-                type="radio"
-                name="atlas-clases"
-                value={n}
-                checked={clases === n}
-                onChange={() => onClases(n)}
-                className="sr-only"
-              />
-              {n}
-            </label>
-          ))}
-        </div>
-        <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-          Si hay menos valores distintos que clases pedidas, se reduce el número de clases: no se repite
-          color ni se estira una escala sobre datos que no existen.
-        </p>
-      </fieldset>
-
-      <fieldset className="flex flex-col gap-3">
-        <legend className="text-sm font-bold text-[var(--color-text-primary)]">Presentación</legend>
-
-        <fieldset disabled={sinClasificar}>
-          <legend className={ETIQUETA}>Paleta</legend>
-          <div role="radiogroup" aria-label="Paleta de color" className="flex flex-col gap-2">
-            <OpcionInterruptor
-              name="atlas-paleta"
-              etiqueta="Secuencial"
-              ayuda="Un solo sentido: de claro a oscuro. Para magnitudes sin centro natural."
-              marcado={!presentacion.divergente}
-              onChange={() => onPresentacion({ divergente: false })}
-            />
-            <OpcionInterruptor
-              name="atlas-paleta"
-              etiqueta="Divergente"
-              ayuda="Dos sentidos respecto al centro de la escala. Úsela solo si el cero o el punto medio significa algo."
-              marcado={presentacion.divergente}
-              onChange={() => onPresentacion({ divergente: true })}
-            />
+            ))}
           </div>
-        </fieldset>
-
-        <Casilla
-          id="atlas-bordes"
-          etiqueta="Contornos de sección"
-          ayuda="Línea entre secciones, para leer la partición cuando los colores son próximos."
-          marcado={presentacion.mostrarBordes}
-          onChange={(v) => onPresentacion({ mostrarBordes: v })}
-        />
-        <Casilla
-          id="atlas-etiquetas"
-          etiqueta="Etiquetas con el código de sección"
-          ayuda="Escribe el CUSEC de 10 dígitos dentro de cada polígono."
-          marcado={presentacion.mostrarEtiquetas}
-          onChange={(v) => onPresentacion({ mostrarEtiquetas: v })}
-        />
-        <Casilla
-          id="atlas-basemap"
-          etiqueta="Mapa base (OpenStreetMap)"
-          ayuda="Desactívelo para leer solo el seccionado sobre fondo neutro. El PNG sale sin cartografía de fondo."
-          marcado={presentacion.basemap}
-          onChange={(v) => onPresentacion({ basemap: v })}
-        />
-
-        <div>
-          <label htmlFor="atlas-opacidad" className={ETIQUETA}>
-            Opacidad del relleno: {Math.round(presentacion.opacidad * 100)} %
-          </label>
-          <input
-            id="atlas-opacidad"
-            type="range"
-            min={20}
-            max={100}
-            step={5}
+          <CortesManuales
+            activo={modo === "cortes_manuales"}
             disabled={sinClasificar}
-            value={Math.round(presentacion.opacidad * 100)}
-            onChange={(e) => onPresentacion({ opacidad: Number(e.target.value) / 100 })}
-            className="w-full accent-[var(--color-secondary)]"
+            cortes={presentacion.cortesManuales}
+            aviso={avisoCortes}
+            onChange={(cortes) => onPresentacion({ cortesManuales: cortes })}
           />
-        </div>
+        </fieldset>
 
-        <fieldset>
-          <legend className={ETIQUETA}>Resolución del PNG</legend>
-          <div role="radiogroup" aria-label="Resolución del PNG" className="flex flex-col gap-2">
-            <OpcionInterruptor
-              name="atlas-escala-png"
-              etiqueta="Estándar"
-              ayuda="Lado mayor de 1200 px. Archivo ligero."
-              marcado={presentacion.escalaPng === 1}
-              onChange={() => onPresentacion({ escalaPng: 1 })}
+        <fieldset disabled={sinClasificar} className="flex flex-col gap-2">
+          <legend className={`${ETIQUETA} float-left w-full`}>Número de clases</legend>
+          <div
+            role="radiogroup"
+            aria-label="Número de clases"
+            className="tnum inline-flex w-full overflow-hidden rounded-[6px] border border-[var(--border-default)]"
+          >
+            {CLASES.map((n, i) => (
+              <label
+                key={n}
+                className={`inline-flex min-h-[44px] min-w-[44px] flex-1 cursor-pointer items-center justify-center text-sm transition-colors focus-within:outline-2 focus-within:outline-offset-[-2px] focus-within:outline-[var(--border-focus)] ${
+                  i > 0 ? "border-l border-[var(--border-default)]" : ""
+                } ${
+                  clases === n
+                    ? "bg-[var(--musgo)] font-semibold text-[var(--hueso)]"
+                    : "bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-sunken)]"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="atlas-clases"
+                  value={n}
+                  checked={clases === n}
+                  onChange={() => onClases(n)}
+                  className="sr-only"
+                />
+                {n}
+              </label>
+            ))}
+          </div>
+          <p className={AYUDA}>
+            Si hay menos valores distintos que clases pedidas, se reduce el número de clases: no se repite
+            color ni se estira una escala sobre datos que no existen.
+          </p>
+        </fieldset>
+
+        <fieldset className={`${BLOQUE} flex flex-col gap-4`}>
+          <legend className={`${TITULO_GRUPO} float-left w-full`}>Presentación</legend>
+
+          <fieldset disabled={sinClasificar}>
+            <legend className={ETIQUETA}>Paleta</legend>
+            <div role="radiogroup" aria-label="Paleta de color" className="flex flex-col">
+              <OpcionInterruptor
+                name="atlas-paleta"
+                etiqueta="Secuencial"
+                ayuda="Un solo sentido: de claro a oscuro. Para magnitudes sin centro natural."
+                marcado={!presentacion.divergente}
+                onChange={() => onPresentacion({ divergente: false })}
+              />
+              <OpcionInterruptor
+                name="atlas-paleta"
+                etiqueta="Divergente"
+                ayuda="Dos sentidos respecto al centro de la escala. Úsela solo si el cero o el punto medio significa algo."
+                marcado={presentacion.divergente}
+                onChange={() => onPresentacion({ divergente: true })}
+              />
+            </div>
+          </fieldset>
+
+          <div className="flex flex-col">
+            <Casilla
+              id="atlas-bordes"
+              etiqueta="Contornos de sección"
+              ayuda="Línea entre secciones, para leer la partición cuando los colores son próximos."
+              marcado={presentacion.mostrarBordes}
+              onChange={(v) => onPresentacion({ mostrarBordes: v })}
             />
-            <OpcionInterruptor
-              name="atlas-escala-png"
-              etiqueta="Alta"
-              ayuda="Lado mayor de 2400 px. Para imprimir oAmpliar."
-              marcado={presentacion.escalaPng === 2}
-              onChange={() => onPresentacion({ escalaPng: 2 })}
+            <Casilla
+              id="atlas-etiquetas"
+              etiqueta="Etiquetas con el código de sección"
+              ayuda="Escribe el CUSEC de 10 dígitos dentro de cada polígono."
+              marcado={presentacion.mostrarEtiquetas}
+              onChange={(v) => onPresentacion({ mostrarEtiquetas: v })}
+            />
+            <Casilla
+              id="atlas-basemap"
+              etiqueta="Mapa base (OpenStreetMap)"
+              ayuda="Desactívelo para leer solo el seccionado sobre fondo neutro. El PNG sale sin cartografía de fondo."
+              marcado={presentacion.basemap}
+              onChange={(v) => onPresentacion({ basemap: v })}
             />
           </div>
-        </fieldset>
-      </fieldset>
 
-      <div className="flex flex-col gap-2 border-t border-[var(--color-border-subtle)] pt-4">
+          <div>
+            <label htmlFor="atlas-opacidad" className={ETIQUETA}>
+              Opacidad del relleno: <span className="tnum">{Math.round(presentacion.opacidad * 100)} %</span>
+            </label>
+            <input
+              id="atlas-opacidad"
+              type="range"
+              min={20}
+              max={100}
+              step={5}
+              disabled={sinClasificar}
+              value={Math.round(presentacion.opacidad * 100)}
+              onChange={(e) => onPresentacion({ opacidad: Number(e.target.value) / 100 })}
+              className="min-h-[44px] w-full accent-[var(--moss-ink)] disabled:opacity-50"
+            />
+          </div>
+
+          <fieldset>
+            <legend className={ETIQUETA}>Resolución del PNG</legend>
+            <div role="radiogroup" aria-label="Resolución del PNG" className="flex flex-col">
+              <OpcionInterruptor
+                name="atlas-escala-png"
+                etiqueta="Estándar"
+                ayuda="Lado mayor de 1200 px. Archivo ligero."
+                marcado={presentacion.escalaPng === 1}
+                onChange={() => onPresentacion({ escalaPng: 1 })}
+              />
+              <OpcionInterruptor
+                name="atlas-escala-png"
+                etiqueta="Alta"
+                ayuda="Lado mayor de 2400 px. Para imprimir o ampliar."
+                marcado={presentacion.escalaPng === 2}
+                onChange={() => onPresentacion({ escalaPng: 2 })}
+              />
+            </div>
+          </fieldset>
+        </fieldset>
+      </div>
+
+      <section aria-label="Descargas" className={`${BLOQUE} flex flex-col gap-2`}>
+        <h3 className={`${TITULO_GRUPO} mb-1`}>Descargas</h3>
         {plano ? (
           <>
-            <button type="button" onClick={onExportarPlano} disabled={exporting} className={BOTON}>
+            <button type="button" onClick={onExportarPlano} disabled={exporting} className={BOTON_PRINCIPAL}>
               {exporting ? "Componiendo el plano…" : "Descargar plano de secciones"}
             </button>
             <button
@@ -311,7 +343,7 @@ export default function SeccionesAtlasPanel({
             </button>
           </>
         ) : (
-          <button type="button" onClick={onExportarPng} disabled={exporting} className={BOTON}>
+          <button type="button" onClick={onExportarPng} disabled={exporting} className={BOTON_PRINCIPAL}>
             {exporting ? "Componiendo el PNG…" : "Descargar mapa coroplético PNG"}
           </button>
         )}
@@ -326,7 +358,7 @@ export default function SeccionesAtlasPanel({
         <button type="button" onClick={onRestablecer} className={BOTON}>
           Restablecer vista
         </button>
-        <p aria-live="polite" className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+        <p aria-live="polite" className={`${AYUDA} mt-1 [overflow-wrap:anywhere]`}>
           {exportError ? (
             <span className="socideas-error-text">{exportError}</span>
           ) : exportNotice ? (
@@ -343,26 +375,29 @@ export default function SeccionesAtlasPanel({
             </span>
           )}
         </p>
-      </div>
+      </section>
 
-      <section aria-label="Alcance de la descarga" className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] p-3">
-        <p className="text-xs font-bold text-[var(--color-text-primary)]">Sobre la descarga de datos</p>
+      <section
+        aria-label="Alcance de la descarga"
+        className="rounded-[6px] bg-[var(--bg-surface-sunken)] p-4"
+      >
+        <p className="type-body-sm font-semibold text-[var(--text-primary)]">Sobre la descarga de datos</p>
         {urlXlsx ? (
-          <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+          <p className={`${AYUDA} mt-1`}>
             «Descargar datos seccionales (XLSX)» entrega una fila por sección, indicador y año: la clave
             CUSEC como texto (conserva los ceros), el valor, la unidad, el estado (observado o ND), la
             operación y la tabla del INE, el periodo estadístico, el año de geometría, la fecha de
             consulta y la URL de la fuente. El PNG es una imagen: no sustituye a este fichero.
           </p>
         ) : (
-          <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+          <p className={`${AYUDA} mt-1`}>
             Este municipio todavía no tiene indicadores cargados, así que no hay tabla de datos que
             descargar: la única exportación disponible es el plano de secciones (geometría), que no es
             una estadística. Cuando se carguen los indicadores aparecerá aquí la descarga XLSX.
           </p>
         )}
-        <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">
-          Municipio INE <span className="font-mono tabular-nums">{codigoINE}</span>.
+        <p className={`${AYUDA} mt-2`}>
+          Municipio INE <span className="tnum">{codigoINE}</span>.
         </p>
       </section>
     </div>
@@ -373,35 +408,36 @@ export default function SeccionesAtlasPanel({
 
 function OpcionInterruptor({
   name,
+  value,
   etiqueta,
   ayuda,
   marcado,
   onChange,
 }: {
   name: string;
+  value?: string;
   etiqueta: string;
   ayuda: string;
   marcado: boolean;
   onChange: () => void;
 }) {
   return (
-    <label
-      className={`flex min-h-[44px] cursor-pointer items-start gap-2 rounded-[6px] border px-3 py-2 text-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--moss-ink)] ${
-        marcado
-          ? "border-[var(--color-secondary)] bg-[var(--color-input-bg-hover)] font-semibold text-[var(--color-text-primary)]"
-          : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
-      }`}
-    >
+    <label className="flex min-h-[44px] cursor-pointer items-start gap-3 rounded-[6px] py-2 text-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--border-focus)]">
       <input
         type="radio"
         name={name}
+        value={value}
         checked={marcado}
         onChange={onChange}
-        className="mt-0.5 h-3.5 w-3.5 flex-none accent-[var(--color-secondary)]"
+        className="mt-1 h-4 w-4 flex-none accent-[var(--moss-ink)]"
       />
       <span className="min-w-0">
-        <span className="block">{etiqueta}</span>
-        <span className="block text-[11px] font-normal text-[var(--color-text-muted)]">{ayuda}</span>
+        <span
+          className={`block ${marcado ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
+        >
+          {etiqueta}
+        </span>
+        <span className="block text-xs leading-relaxed text-[var(--text-muted)]">{ayuda}</span>
       </span>
     </label>
   );
@@ -423,18 +459,18 @@ function Casilla({
   return (
     <label
       htmlFor={id}
-      className="flex min-h-[44px] cursor-pointer items-start gap-2 rounded-[6px] border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text-secondary)] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--moss-ink)]"
+      className="flex min-h-[44px] cursor-pointer items-start gap-3 rounded-[6px] py-2 text-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--border-focus)]"
     >
       <input
         id={id}
         type="checkbox"
         checked={marcado}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-4 w-4 flex-none accent-[var(--color-secondary)]"
+        className="mt-1 h-4 w-4 flex-none accent-[var(--moss-ink)]"
       />
       <span className="min-w-0">
-        <span className="block font-semibold text-[var(--color-text-primary)]">{etiqueta}</span>
-        <span className="block text-[11px] text-[var(--color-text-muted)]">{ayuda}</span>
+        <span className="block text-[var(--text-primary)]">{etiqueta}</span>
+        <span className="block text-xs leading-relaxed text-[var(--text-muted)]">{ayuda}</span>
       </span>
     </label>
   );
@@ -455,7 +491,7 @@ function CortesManuales({
 }) {
   const bruto = cortes ? cortes.join(", ") : "";
   return (
-    <div className="mt-1 flex flex-col gap-2">
+    <div className="mt-1 flex flex-col">
       <label htmlFor="atlas-cortes" className={ETIQUETA}>
         Cortes manuales, separados por comas
       </label>
@@ -469,15 +505,15 @@ function CortesManuales({
         onChange={(e) => onChange(parsearCortes(e.target.value))}
         aria-describedby="atlas-cortes-ayuda"
         aria-invalid={aviso ? true : undefined}
-        className={`min-h-[44px] w-full rounded-[6px] border bg-[var(--color-input-bg)] px-3 py-2 text-sm tabular-nums text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] disabled:cursor-not-allowed disabled:opacity-60 ${
-          aviso ? "border-[var(--color-error)]" : "border-[var(--color-border)]"
+        className={`tnum min-h-[44px] w-full rounded-[6px] border bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] disabled:cursor-not-allowed disabled:bg-[var(--bg-surface-sunken)] disabled:opacity-70 ${
+          aviso ? "border-[var(--danger-ink)]" : "border-[var(--border-default)]"
         }`}
       />
-      <p id="atlas-cortes-ayuda" className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+      <p id="atlas-cortes-ayuda" className={`${AYUDA} mt-1.5`}>
         Entre 1 y 9 números. El último corte define la clase abierta por arriba.
       </p>
       {aviso && (
-        <p role="alert" className="socideas-error-text text-[11px]">
+        <p role="alert" className="socideas-error-text mt-1 text-xs">
           {aviso}
         </p>
       )}

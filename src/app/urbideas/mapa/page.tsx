@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react"
 import dynamic from "next/dynamic"
 import UrbideasHeader from "@/components/platform/UrbideasHeader"
-import Footer from "@/components/layout/Footer"
+import PlatformFooter from "@/components/platform/PlatformFooter"
+import { Badge } from "@/components/ui/Badge"
 import { ControlCapas } from "@/components/mapa/ControlCapas"
 import { FileLayerPanel } from "@/components/mapa/FileLayerPanel"
 import type { FileLayer } from "@/components/mapa/fileLayerUtils"
@@ -23,11 +24,9 @@ import * as turf from "@turf/turf"
 const VisorMapa = dynamic(() => import("@/components/mapa/VisorMapa"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full min-h-[400px] sm:min-h-[500px] items-center justify-center bg-[var(--color-input-bg)] rounded-[var(--border-radius-lg)]">
-      <div className="text-center">
-        <div className="animate-spin inline-block w-6 h-6 border-2 border-[var(--color-secondary)] border-t-transparent rounded-full mb-2" />
-        <p className="text-xs text-[var(--color-text-muted)]">Cargando mapa...</p>
-      </div>
+    <div className="flex h-full items-center justify-center gap-2 bg-[var(--bg-surface-sunken)] text-sm text-[var(--text-muted)]" role="status">
+      <span className="spinner" aria-hidden="true" />
+      Cargando mapa…
     </div>
   ),
 })
@@ -39,49 +38,91 @@ const PERFILES: { id: PerfilId; label: string }[] = [
   { id: 'afecciones', label: 'Informe de afecciones' },
 ]
 
-const BADGE_RESULTADO: Record<string, { label: string; bg: string; fg: string }> = {
-  solapa: { label: 'Solapa', bg: '#643335', fg: '#F1F1F1' },
-  borde: { label: 'Borde (<10 m, criterio interno)', bg: '#C2E189', fg: '#3C403E' },
-  proximo: { label: 'Próximo', bg: '#3E665C', fg: '#F1F1F1' },
-  limpio: { label: 'Sin intersección', bg: '#86B73D', fg: '#2B2E2C' },
-  sin_datos: { label: 'Sin datos', bg: '#B0BDB0', fg: '#3C403E' },
+// Resultado por capa → variante del sistema (badge-*). Sin colores fuera de paleta.
+const BADGE_RESULTADO: Record<string, { label: string; variant: 'danger' | 'accent' | 'primary' | 'success' | 'muted' }> = {
+  solapa: { label: 'Solapa', variant: 'danger' },
+  borde: { label: 'Borde (<10 m, criterio interno)', variant: 'accent' },
+  proximo: { label: 'Próximo', variant: 'primary' },
+  limpio: { label: 'Sin intersección', variant: 'success' },
+  sin_datos: { label: 'Sin datos', variant: 'muted' },
 }
 
 function ResultadoBadge({ resultado }: { resultado: string }) {
   const b = BADGE_RESULTADO[resultado] || BADGE_RESULTADO.sin_datos
-  return (
-    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded-[6px] border border-current" style={{ background: b.bg, color: b.fg }}>
-      {b.label}
-    </span>
-  )
+  return <Badge variant={b.variant}>{b.label}</Badge>
 }
 
-function SemaforoBadge({ estado, pendiente }: { estado: 'compatible' | 'condicionado' | 'incompatible'; pendiente: boolean }) {
-  const cfg = estado === 'compatible'
-    ? { label: etiquetaEstado(estado), bg: '#86B73D', fg: '#2B2E2C' }
-    : estado === 'condicionado'
-      ? { label: etiquetaEstado(estado), bg: '#C2E189', fg: '#3C403E' }
-      : { label: etiquetaEstado(estado), bg: '#643335', fg: '#F1F1F1' }
+// Semáforo: compatible → conífera (success), condicionado → retama (warning),
+// incompatible → rupestre (danger).
+const VARIANTE_ESTADO = { compatible: 'success', condicionado: 'accent', incompatible: 'danger' } as const
+
+/** Punto de estado en literal de paleta (lista de ámbitos guardados). */
+const PUNTO_ESTADO: Record<'compatible' | 'condicionado' | 'incompatible', string> = {
+  compatible: 'bg-[var(--conifera)]',
+  condicionado: 'bg-[var(--retama)] ring-1 ring-[var(--carbon)]',
+  incompatible: 'bg-[var(--rupestre)]',
+}
+
+function SemaforoBadge({ estado }: { estado: 'compatible' | 'condicionado' | 'incompatible' }) {
   return (
-    <span className="inline-flex flex-col gap-0.5">
-      <span className="inline-block px-2.5 py-1 text-xs font-bold rounded-[6px] border border-current" style={{ background: cfg.bg, color: cfg.fg }}>
-        {cfg.label}
-      </span>
-      {pendiente && (
-        <span className="text-[10px] font-medium" style={{ color: cfg.fg }}>
-          Identificado — afecciones sectoriales pendientes
-        </span>
-      )}
-    </span>
+    <Badge variant={VARIANTE_ESTADO[estado]} dot className="h-8 px-3 text-sm font-semibold">
+      {etiquetaEstado(estado)}
+    </Badge>
   )
 }
 
 function FichaFila({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex gap-2">
-      <dt className="shrink-0 font-medium" style={{ color: 'var(--color-text-muted)' }}>{k}:</dt>
-      <dd className="text-[var(--color-text-primary)]">{v}</dd>
+    <div className="grid grid-cols-[9.5rem_minmax(0,1fr)] gap-3 border-b border-[var(--border-subtle)] py-2">
+      <dt className="text-[var(--text-muted)]">{k}</dt>
+      <dd className="min-w-0 break-words text-[var(--text-primary)]">{v}</dd>
     </div>
+  )
+}
+
+/** Bloque de la ficha: título a la izquierda en escritorio, contenido a la derecha. */
+function BloqueFicha({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-3 border-t border-[var(--border-subtle)] py-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-10">
+      <h3 className="text-sm font-semibold text-[var(--text-primary)]">{titulo}</h3>
+      <div className="min-w-0">{children}</div>
+    </div>
+  )
+}
+
+const PASOS_FLUJO = ['Delimitar el ámbito', 'Cruzar afecciones', 'Leer el dictamen', 'Descargar el expediente'] as const
+
+/** Secuencia real del dictamen: el paso en curso se deriva del estado de la página. */
+function FlujoDictamen({ paso }: { paso: number }) {
+  return (
+    <ol aria-label="Flujo del dictamen" className="flex flex-wrap gap-x-6 gap-y-2">
+      {PASOS_FLUJO.map((titulo, i) => {
+        const n = i + 1
+        const hecho = n < paso
+        const actual = n === paso
+        return (
+          <li key={titulo} aria-current={actual ? 'step' : undefined} className="flex items-center gap-2 text-sm">
+            <span
+              className={[
+                'tnum inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] border text-xs font-semibold',
+                actual
+                  ? 'border-[var(--musgo)] bg-[var(--musgo)] text-[var(--hueso)]'
+                  : hecho
+                    ? 'border-[var(--border-strong)] text-[var(--moss-ink)]'
+                    : 'border-[var(--border-subtle)] text-[var(--text-muted)]',
+              ].join(' ')}
+              aria-hidden="true"
+            >
+              {n}
+            </span>
+            <span className={actual ? 'font-semibold text-[var(--text-primary)]' : hecho ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)]'}>
+              {titulo}
+              {hecho && <span className="sr-only"> (completado)</span>}
+            </span>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 
@@ -139,7 +180,7 @@ export default function MapaPage() {
   const [tab, setTab] = useState<'capas' | 'archivo' | 'ambitos'>('capas')
   const [soilGeoJSON, setSoilGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null)
 
-  // --- Ímbito de trabajo (Fase 1) ---
+  // --- Ámbito de trabajo (Fase 1) ---
   const [modoDibujo, setModoDibujo] = useState<ModoDibujo>(null)
   const [ambito, setAmbito] = useState<Ambito | null>(null)
   const [nombreAmbito, setNombreAmbito] = useState("")
@@ -228,7 +269,7 @@ export default function MapaPage() {
       setTimeout(() => URL.revokeObjectURL(a.href), 5000)
       setMsgDescarga('Archivo generado con la misma plantilla de la pantalla.')
     } catch (e) {
-      setMsgDescarga(e instanceof Error ? `No se pudo generar: ${e.message}` : 'No se pudo generar el archivo.')
+      setMsgDescarga(e instanceof Error ? `No se pudo generar el archivo (${e.message}). Vuelva a intentarlo.` : 'No se pudo generar el archivo. Vuelva a intentarlo.')
     } finally {
       setDescargando(null)
     }
@@ -292,11 +333,11 @@ export default function MapaPage() {
 
   const activarAmbito = useCallback((geojson: GeoJSON.FeatureCollection, nombre?: string) => {
     const tipo = tipoDeGeoJSON(geojson)
-    const a = nuevoAmbito(nombre || nombreAmbito || "Ímbito sin nombre", perfil, geojson, tipo)
+    const a = nuevoAmbito(nombre || nombreAmbito || "Ámbito sin nombre", perfil, geojson, tipo)
     setAmbito(a)
     setModoDibujo(null)
     setEncuadrarKey(k => k + 1)
-    // Resolución territorial inmediata: centroide â†’ CCAA/municipio (PostGIS),
+    // Resolución territorial inmediata: centroide → CCAA/municipio (PostGIS),
     // con Nominatim como respaldo. Autoselecciona "Limitar a".
     void (async () => {
       let t: TerritorioAmbito | null = null
@@ -443,14 +484,14 @@ export default function MapaPage() {
         const res = await fetch(`/api/catastro?rc=${encodeURIComponent(rc)}`)
         const json = await res.json()
         if (json.error || !json.data) {
-          setMsgBusqueda(json.error || "Catastro sin respuesta. Puedes dibujar el ámbito a mano.")
+          setMsgBusqueda(json.error || "Catastro sin respuesta. Puede dibujar el ámbito a mano.")
           return
         }
         setCatastroInfo({ ref: rc.toUpperCase(), municipio: json.data.municipio || '' })
         // OVC devuelve UTM (ETRS89 huso 30 por defecto en península); informar sin volar a ciegas
-        setMsgBusqueda(`Catastro: ${json.data.municipio || ''} ${json.data.direccion || ''} (coord. UTM ${json.data.x}, ${json.data.y} — dibuja o ajusta el ámbito sobre la zona)`)
+        setMsgBusqueda(`Catastro: ${json.data.municipio || ''} ${json.data.direccion || ''} (coord. UTM ${json.data.x}, ${json.data.y} — dibuje o ajuste el ámbito sobre la zona)`)
       } catch {
-        setMsgBusqueda("Catastro sin respuesta. Puedes dibujar el ámbito a mano.")
+        setMsgBusqueda("Catastro sin respuesta. Puede dibujar el ámbito a mano.")
       }
       return
     }
@@ -469,11 +510,11 @@ export default function MapaPage() {
         // Fallback: municipio en BD propia
         const r2 = await fetch(`/api/municipios?search=${encodeURIComponent(q)}&limit=5`)
         const j2 = await r2.json()
-        if (j2.data?.length > 0) setMsgBusqueda(`Municipio en registro: ${j2.data.map((m: { nombre: string }) => m.nombre).join(', ')}. Centra el mapa y dibuja el ámbito.`)
-        else setMsgBusqueda("Sin resultados. Prueba con municipio, coordenadas o referencia catastral.")
+        if (j2.data?.length > 0) setMsgBusqueda(`Municipio en registro: ${j2.data.map((m: { nombre: string }) => m.nombre).join(', ')}. Centre el mapa y dibuje el ámbito.`)
+        else setMsgBusqueda("Sin resultados. Pruebe con un municipio, unas coordenadas o una referencia catastral.")
       }
     } catch {
-      setMsgBusqueda("Buscador sin respuesta. Prueba con coordenadas.")
+      setMsgBusqueda("El buscador de lugares no respondió. Pruebe con coordenadas.")
     }
   }, [busqueda])
 
@@ -540,7 +581,7 @@ export default function MapaPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ambito: { nombre: nombreAmbitoRef.current || 'Ímbito sin nombre', perfil_id: perfilRef.current, geojson: ambitoGeo, preset_modificado: presetModificadoRef.current },
+            ambito: { nombre: nombreAmbitoRef.current || 'Ámbito sin nombre', perfil_id: perfilRef.current, geojson: ambitoGeo, preset_modificado: presetModificadoRef.current },
             filas,
             ficha: {
               superficie_m2,
@@ -556,13 +597,13 @@ export default function MapaPage() {
           }),
         })
         const json = await res.json()
-        if (json.error || !json.data) setDictamenError(json.error || 'Dictamen sin respuesta.')
+        if (json.error || !json.data) setDictamenError(json.error || 'El servicio de dictamen no respondió. Pulse Dictaminar para reintentarlo.')
         else {
           setDictamen(json.data.resultado)
           setFechaDictamen(new Date(json.data.fecha || Date.now()).toLocaleString('es-ES'))
         }
       } catch {
-        setDictamenError('Dictamen sin respuesta. El cruce queda visible arriba.')
+        setDictamenError('El servicio de dictamen no respondió. El cruce se ha completado; pulse Dictaminar para reintentarlo.')
       } finally {
         setDictamenCargando(false)
       }
@@ -600,102 +641,76 @@ export default function MapaPage() {
     .map(c => ({ id: c.id, nombre_capa: c.nombre_capa, url_servicio: c.url_servicio, formato_soportado: c.formato_soportado || "image/png" }))
 
   const caidos = servicios?.filter(s => s.estado === 'caido') || []
+  const pasoFlujo = !ambito ? 1 : !dictamen ? 2 : 4
+  const capasEnAlcance = capas.filter(c => activeCapas.includes(c.id) && enAlcance(c)).length
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-[var(--bg-canvas)]">
       <UrbideasHeader />
       <main id="contenido" className="flex-1">
         {/* Aviso móvil */}
-        <p className="lg:hidden px-4 py-2 text-[11px] text-center" style={{ background: 'var(--color-input-bg)', color: 'var(--color-text-muted)' }}>
-          Estás en móvil: el mapa funciona, pero la experiencia completa de dictamen es de escritorio.
+        <p className="lg:hidden border-b border-[var(--border-subtle)] bg-[var(--bg-surface-sunken)] px-4 py-2 text-xs text-[var(--text-secondary)]">
+          En el móvil puede consultar el mapa; el flujo completo de dictamen está pensado para escritorio.
         </p>
 
-        <div className="mx-auto max-w-[1400px] px-3 py-4 sm:px-4">
-          {/* Barra superior: buscador + estado servicios */}
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center mb-3">
-            <div className="flex flex-1 gap-2">
-              <input
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') buscar() }}
-                placeholder="Lugar, coordenadas o referencia catastral…"
-                className="flex-1 min-w-0 px-3 py-2 text-sm rounded-[var(--border-radius)] border border-[var(--color-border)] bg-[var(--color-card-bg)] text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-secondary)]"
-              />
-              <button onClick={buscar} className="px-4 py-2 text-sm font-medium rounded-[var(--border-radius)] bg-[var(--color-primary)] text-white hover:opacity-90">
-                Buscar
-              </button>
+        <div className="mx-auto w-full max-w-[1600px] px-4 pt-4 pb-12 sm:px-6">
+          {/* Cabecera de la herramienta: título, flujo, buscador y estado de servicios */}
+          <div className="flex flex-col gap-4 border-b border-[var(--border-subtle)] pb-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              <h1 className="type-h3 text-[var(--text-primary)]">Mapa y dictamen</h1>
+              <FlujoDictamen paso={pasoFlujo} />
             </div>
-            <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--color-text-secondary)' }} title="Estado de servicios externos">
-              {servicios === null && <span>Comprobando servicios…</span>}
-              {servicios !== null && servicios.map(s => (
-                <span key={s.nombre} className="inline-flex items-center gap-1">
-                  <span className="inline-block w-2 h-2 rounded-full" style={{ background: s.estado === 'ok' ? '#2ecc71' : '#e74c3c' }} />
-                  {s.nombre}
-                </span>
-              ))}
+            <div className="flex w-full flex-col gap-2 xl:max-w-[26rem]">
+              <form
+                role="search"
+                className="flex gap-2"
+                onSubmit={(e) => { e.preventDefault(); buscar() }}
+              >
+                <label htmlFor="mapa-busqueda" className="sr-only">Buscar lugar, coordenadas o referencia catastral</label>
+                <input
+                  id="mapa-busqueda"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder="Lugar, coordenadas o ref. catastral"
+                  className="input min-w-0 flex-1 lg:min-h-[40px]"
+                />
+                <button type="submit" className="btn btn-secondary shrink-0">
+                  Buscar
+                </button>
+              </form>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--text-secondary)]" aria-label="Estado de servicios externos">
+                {servicios === null && <span>Comprobando servicios…</span>}
+                {servicios !== null && servicios.map(s => (
+                  <span key={s.nombre} className="inline-flex items-center gap-1.5">
+                    <span
+                      aria-hidden="true"
+                      className={`inline-block h-2 w-2 rounded-full ${s.estado === 'ok' ? 'bg-[var(--conifera)]' : 'bg-[var(--rupestre)]'}`}
+                    />
+                    {s.nombre}
+                    <span className="sr-only">{s.estado === 'ok' ? ': operativo' : ': sin respuesta'}</span>
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
           {(msgBusqueda || caidos.length > 0) && (
-            <div className="mb-3 flex flex-col gap-1">
-              {msgBusqueda && <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{msgBusqueda}</p>}
+            <div className="mt-3 flex flex-col gap-1" aria-live="polite">
+              {msgBusqueda && <p className="text-sm text-[var(--text-secondary)]">{msgBusqueda}</p>}
               {caidos.map(s => (
-                <p key={s.nombre} className="text-[11px]" style={{ color: 'var(--color-error-light)' }}>
-                  {s.nombre} sin respuesta — el dictamen lo marcará como «sin datos», nunca como verde.
+                <p key={s.nombre} className="text-xs text-[var(--danger-ink)]">
+                  {s.nombre} sin respuesta: el dictamen lo marcará como «sin datos», nunca como compatible.
                 </p>
               ))}
             </div>
           )}
 
-          {/* Barra de ámbito: dibujo + nombre + perfil + dictamen */}
-          <div className="mb-3 flex flex-wrap items-center gap-2 p-2 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)]">
-            <div className="flex items-center gap-1" role="toolbar" aria-label="Herramientas de dibujo">
-              {([['poligono', 'Polígono'], ['punto', 'Punto'], ['linea', 'LÍnea']] as [ModoDibujo, string][]).map(([m, label]) => (
-                <button key={m} onClick={() => setModoDibujo(cur => (cur === m ? null : m))}
-                  className={`px-2.5 py-1.5 text-xs font-medium rounded-[var(--border-radius)] border transition-colors ${modoDibujo === m ? 'bg-[var(--color-secondary)] text-white border-[var(--color-secondary)]' : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}>
-                  {label}
-                </button>
-              ))}
-              <button onClick={() => { setTab('archivo'); setSidebarOpen(true) }}
-                className="px-2.5 py-1.5 text-xs font-medium rounded-[var(--border-radius)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
-                Subir archivo
-              </button>
-              <button onClick={() => { setAmbito(null); setModoDibujo(null); setFilasCruce(null); setDictamen(null); setDictamenError(null); setTerritorio(null) }} disabled={!ambito && !modoDibujo}
-                className="px-2.5 py-1.5 text-xs rounded-[var(--border-radius)] border border-[var(--color-border)] text-[var(--color-text-secondary)] disabled:opacity-40">
-                Borrar
-              </button>
-            </div>
-            <input
-              value={nombreAmbito}
-              onChange={(e) => setNombreAmbito(e.target.value)}
-              placeholder="Nombra el ámbito antes de dictaminar…"
-              className="flex-1 min-w-[160px] px-2.5 py-1.5 text-xs rounded-[var(--border-radius)] border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-secondary)]"
-            />
-            <select value={perfil} onChange={(e) => aplicarPreset(e.target.value as PerfilId)}
-              className="px-2.5 py-1.5 text-xs font-medium rounded-[var(--border-radius)] border border-[var(--color-secondary)] bg-[var(--color-card-bg)] text-[var(--color-text-primary)]"
-              title="Perfil de consulta (cambia preset de familias y texto del dictamen, no el motor de cruce)">
-              {PERFILES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
-            <button onClick={guardar} disabled={!ambito}
-              className="px-3 py-1.5 text-xs font-medium rounded-[var(--border-radius)] border border-[var(--color-border)] text-[var(--color-text-secondary)] disabled:opacity-40">
-              Guardar
-            </button>
-            <button onClick={() => { if (ambito) ejecutarCruce(ambito.geojson, capas, activeCapas, soilGeoJSON) }} disabled={!ambito || !validacion?.ok || cruceCorriendo} title={!ambito ? 'Dibuja o sube un ámbito primero' : 'Cruzar de nuevo contra las capas activas'}
-              className="px-3 py-1.5 text-xs font-semibold rounded-[var(--border-radius)] bg-[var(--color-secondary)] text-white disabled:opacity-40">
-              {cruceCorriendo ? 'Cruzando…' : 'Dictaminar'}
-            </button>
-          </div>
-          {modoDibujo && (
-            <p className="mb-2 text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
-              {modoDibujo === 'poligono' && 'Clic para añadir vértices · doble clic o Intro para cerrar el recinto · Esc para cancelar.'}
-              {modoDibujo === 'linea' && 'Clic para añadir puntos · doble clic o Intro para terminar · Esc para cancelar.'}
-              {modoDibujo === 'punto' && 'Clic en el mapa para situar el punto. El punto no acredita superficie.'}
-            </p>
-          )}
-
-          <div className="flex flex-col gap-3 lg:flex-row">
-            {/* Mapa casi completo */}
-            <div className="flex-1 min-h-[55vh] lg:min-h-[72vh]">
-              <div className="h-full min-h-[55vh] lg:min-h-[72vh] rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] overflow-hidden" style={{ position: 'relative', zIndex: 0 }}>
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22.5rem]">
+            {/* Mapa */}
+            <div className="min-w-0">
+              <div
+                className="h-[60svh] min-h-[360px] overflow-hidden rounded-[6px] border border-[var(--border-subtle)] lg:h-[calc(100svh-15rem)] lg:min-h-[560px]"
+                style={{ position: 'relative', zIndex: 0 }}
+              >
                 <VisorMapa
                   capasActivas={selectedCapas}
                   fileLayers={fileLayers}
@@ -718,46 +733,115 @@ export default function MapaPage() {
                   onDibujarLinea={onDibujarLinea}
                 />
               </div>
-              {/* Resumen de ámbito */}
-              {ambito && (
-                <div className="mt-2 px-3 py-2 text-xs rounded-[var(--border-radius)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)]" style={{ color: 'var(--color-text-secondary)' }}>
-                  <strong className="text-[var(--color-text-primary)]">{ambito.nombre}</strong>
-                  {' · '}{ambito.tipo}{medidaAmbito ? ` · ${medidaAmbito}` : ''}
-                  {ambito.tipo !== 'poligono' && ' · no acredita superficie'}
-                  {!validacion?.ok && <span style={{ color: 'var(--color-error-light)' }}> · {validacion?.motivo}</span>}
-                  {presetModificado && ' · preset modificado por el usuario'}
-                  {(territorio || ccaaAlcance) && (
-                    <span className="block mt-0.5">
-                      Territorio: {territorio ? `${territorio.municipio || 'municipio s.d.'}${territorio.provincia ? ` (${territorio.provincia})` : ''} · ${territorio.ccaa}${territorio.exacto ? '' : ' (aprox.)'}` : ccaaAlcance}
-                      {' · '}cruce acotado a {capas.filter(c => activeCapas.includes(c.id) && enAlcance(c)).length} capas (estatales + {ccaaAlcance || 'sin CCAA'})
-                    </span>
-                  )}
+            </div>
+
+            {/* Panel lateral: en móvil se apila bajo el mapa */}
+            <aside
+              aria-label="Panel de trabajo"
+              className="flex min-w-0 flex-col overflow-hidden rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] lg:h-[calc(100svh-15rem)] lg:min-h-[560px]"
+            >
+              {/* 1 · Ámbito */}
+              <section aria-labelledby="panel-ambito" className="flex flex-col gap-4 p-4">
+                <h2 id="panel-ambito" className="text-sm font-semibold text-[var(--text-primary)]">Ámbito de trabajo</h2>
+
+                <div>
+                  <div className="flex flex-wrap gap-2" role="toolbar" aria-label="Herramientas de dibujo">
+                    {([['poligono', 'Polígono'], ['punto', 'Punto'], ['linea', 'Línea']] as [ModoDibujo, string][]).map(([m, label]) => (
+                      <button key={m} type="button" onClick={() => setModoDibujo(cur => (cur === m ? null : m))}
+                        aria-pressed={modoDibujo === m}
+                        className={`btn btn-sm ${modoDibujo === m ? 'border-[var(--musgo)] bg-[var(--musgo)] text-[var(--hueso)]' : 'btn-secondary'}`}>
+                        {label}
+                      </button>
+                    ))}
+                    <button type="button" onClick={() => { setTab('archivo'); setSidebarOpen(true) }} className="btn btn-sm btn-ghost">
+                      Subir archivo
+                    </button>
+                    <button type="button" onClick={() => { setAmbito(null); setModoDibujo(null); setFilasCruce(null); setDictamen(null); setDictamenError(null); setTerritorio(null) }} disabled={!ambito && !modoDibujo}
+                      className="btn btn-sm btn-ghost">
+                      Borrar
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]" aria-live="polite">
+                    {modoDibujo === 'poligono' && 'Pulse para añadir vértices. Doble clic o Intro cierra el recinto; Esc cancela.'}
+                    {modoDibujo === 'linea' && 'Pulse para añadir puntos. Doble clic o Intro termina la línea; Esc cancela.'}
+                    {modoDibujo === 'punto' && 'Pulse en el mapa para situar el punto. Un punto no acredita superficie.'}
+                    {!modoDibujo && !ambito && 'Dibuje el recinto sobre el mapa o suba un KML, GeoJSON o shapefile.'}
+                  </p>
                 </div>
-              )}
-            </div>
 
-            {/* Toggle móvil */}
-            <div className="lg:hidden">
-              <button onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="w-full px-4 py-2 text-xs font-medium bg-[var(--color-card-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)]">
-                Panel{activeCapas.length > 0 && ` (${activeCapas.length} capas)`} · {ambito ? '1 ámbito' : 'sin ámbito'}
-              </button>
-            </div>
+                <div className="grid gap-3">
+                  <div>
+                    <label htmlFor="mapa-nombre-ambito" className="field-label">Nombre del ámbito</label>
+                    <input
+                      id="mapa-nombre-ambito"
+                      value={nombreAmbito}
+                      onChange={(e) => setNombreAmbito(e.target.value)}
+                      placeholder="Por ejemplo, Parcela 12 polígono 7"
+                      className="input lg:min-h-[40px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="mapa-perfil" className="field-label">Perfil de consulta</label>
+                    <select id="mapa-perfil" value={perfil} onChange={(e) => aplicarPreset(e.target.value as PerfilId)}
+                      className="input lg:min-h-[40px]"
+                      title="Cambia el preset de familias y el texto del dictamen, no el motor de cruce">
+                      {PERFILES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+                    </select>
+                  </div>
+                </div>
 
-            {/* Lateral */}
-            <div className={`w-full shrink-0 lg:w-80 ${sidebarOpen ? 'block' : 'hidden'} lg:block`}>
-              <div className="lg:sticky lg:top-16 border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] bg-[var(--color-card-bg)] overflow-hidden" style={{ maxHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
-                <div className="flex border-b border-[var(--color-border)]">
-                  {([['capas', 'Capas'], ['archivo', 'Archivo'], ['ambitos', `Ímbitos (${misAmbitos.length})`]] as const).map(([t, label]) => (
-                    <button key={t} onClick={() => setTab(t)}
-                      className={`flex-1 px-2 py-2 text-xs font-medium ${tab === t ? 'text-[var(--color-secondary)] border-b-2 border-[var(--color-secondary)]' : 'text-[var(--color-text-secondary)]'}`}>
+                {ambito && (
+                  <div className="border-t border-[var(--border-subtle)] pt-3 text-xs leading-relaxed text-[var(--text-secondary)]">
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">{ambito.nombre}</p>
+                    <p className="tnum">
+                      {ambito.tipo}{medidaAmbito ? ` · ${medidaAmbito}` : ''}
+                      {ambito.tipo !== 'poligono' && ' · no acredita superficie'}
+                      {presetModificado && ' · preset modificado por el usuario'}
+                    </p>
+                    {!validacion?.ok && <p className="text-[var(--danger-ink)]">{validacion?.motivo}</p>}
+                    {(territorio || ccaaAlcance) && (
+                      <p className="mt-1">
+                        {territorio ? `${territorio.municipio || 'Municipio sin determinar'}${territorio.provincia ? ` (${territorio.provincia})` : ''}, ${territorio.ccaa}${territorio.exacto ? '' : ' (aprox.)'}` : ccaaAlcance}
+                        . Cruce acotado a <span className="tnum">{capasEnAlcance}</span> capas: estatales y {ccaaAlcance || 'sin CCAA'}.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { if (ambito) ejecutarCruce(ambito.geojson, capas, activeCapas, soilGeoJSON) }} disabled={!ambito || !validacion?.ok || cruceCorriendo} title={!ambito ? 'Dibuje o suba un ámbito primero' : 'Cruzar de nuevo contra las capas activas'}
+                    className={`btn flex-1 ${dictamen ? 'btn-secondary' : 'btn-primary'}`}>
+                    {cruceCorriendo ? <><span className="spinner" aria-hidden="true" />Cruzando…</> : 'Dictaminar'}
+                  </button>
+                  <button type="button" onClick={guardar} disabled={!ambito} className="btn btn-secondary">
+                    Guardar
+                  </button>
+                </div>
+              </section>
+
+              {/* Toggle móvil del resto del panel */}
+              <div className="border-t border-[var(--border-subtle)] lg:hidden">
+                <button type="button" onClick={() => setSidebarOpen(!sidebarOpen)} aria-expanded={sidebarOpen} aria-controls="mapa-panel-pestanas"
+                  className="flex min-h-[44px] w-full items-center justify-between px-4 text-sm font-medium text-[var(--text-primary)]">
+                  <span>Capas, archivos y ámbitos{activeCapas.length > 0 && ` (${activeCapas.length} capas activas)`}</span>
+                  <svg aria-hidden="true" className={`h-4 w-4 text-[var(--text-muted)] transition-transform ${sidebarOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+              </div>
+
+              <div id="mapa-panel-pestanas" className={`${sidebarOpen ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col border-t border-[var(--border-subtle)] lg:flex`}>
+                <div className="tabs px-2" role="tablist" aria-label="Contenido del panel">
+                  {([['capas', 'Capas'], ['archivo', 'Archivo'], ['ambitos', `Ámbitos (${misAmbitos.length})`]] as const).map(([t, label]) => (
+                    <button key={t} type="button" role="tab" id={`mapa-tab-${t}`} aria-selected={tab === t} aria-controls="mapa-tabpanel"
+                      onClick={() => setTab(t)} className="tab flex-1 justify-center px-2">
                       {label}
                     </button>
                   ))}
                 </div>
-                <div className="flex-1 overflow-y-auto" style={{ minHeight: 200 }}>
+                <div id="mapa-tabpanel" role="tabpanel" aria-labelledby={`mapa-tab-${tab}`} className="min-h-[240px] flex-1 overflow-y-auto">
                   {tab === 'capas' && (
-                    loading ? <p className="p-4 text-xs" style={{ color: 'var(--color-text-muted)' }}>Cargando capas…</p>
+                    loading ? <p className="p-4 text-sm text-[var(--text-muted)]">Cargando capas…</p>
                       : <ControlCapas capasSeleccionadas={activeCapas} onToggleCapa={toggleCapa} onToggleFamilia={toggleFamilia} filtroCA={filtroCA} onFiltroCAChange={setFiltroCA} />
                   )}
                   {tab === 'archivo' && (
@@ -775,92 +859,108 @@ export default function MapaPage() {
                     />
                   )}
                   {tab === 'ambitos' && (
-                    <div className="p-3 flex flex-col gap-2">
+                    <div className="flex flex-col">
                       {misAmbitos.length === 0 && (
-                        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                          Sin ámbitos guardados. Dibuja o sube un recinto, nómbralo y pulsa Guardar. El archivo de sesión se mantiene como apoyo; el trabajo real es el ámbito guardado.
+                        <p className="p-4 text-sm leading-relaxed text-[var(--text-secondary)]">
+                          Aún no hay ámbitos guardados. Dibuje o suba un recinto, póngale nombre y pulse Guardar. Las capas de archivo solo duran la sesión; el ámbito guardado es el que conserva el trabajo.
                         </p>
                       )}
-                      {misAmbitos.map(a => (
-                        <div key={a.id} className="p-2 rounded-[var(--border-radius)] border border-[var(--color-border-subtle)]">
-                          <p className="text-xs font-medium text-[var(--color-text-primary)] truncate">{a.nombre}</p>
-                          <p className="text-[10px] flex items-center gap-1.5" style={{ color: 'var(--color-text-muted)' }}>
-                            {a.dictamen ? (
-                              <>
-                                <span className="inline-block w-2 h-2 rounded-full" style={{
-                                  background: a.dictamen.estado === 'compatible' ? '#27ae60' : a.dictamen.estado === 'condicionado' ? '#d4a017' : '#e74c3c',
-                                }} />
-                                {a.dictamen.estado === 'compatible' ? 'Compatible' : a.dictamen.estado === 'condicionado' ? 'Condicionado' : 'Incompatible'}
-                                {' · '}{a.dictamen.fecha || new Date(a.updated_at).toLocaleDateString('es-ES')}
-                              </>
-                            ) : (
-                              <>{a.tipo} · {PERFILES.find(p => p.id === a.perfil_id)?.label} · {new Date(a.updated_at).toLocaleDateString('es-ES')}</>
-                            )}
-                          </p>
-                          <div className="mt-1 flex gap-2">
-                            <button onClick={() => cargarAmbito(a)} className="text-[11px] font-medium text-[var(--color-secondary)]">Abrir</button>
-                            <button onClick={() => eliminarAmbito(a.id)} className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Borrar</button>
-                          </div>
-                        </div>
-                      ))}
-                      <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>Radar de boletines: pendiente hasta que exista dictamen (Fase 5).</p>
+                      {misAmbitos.length > 0 && (
+                        <ul>
+                          {misAmbitos.map(a => (
+                            <li key={a.id} className="border-b border-[var(--border-subtle)] px-4 py-3">
+                              <p className="truncate text-sm font-medium text-[var(--text-primary)]">{a.nombre}</p>
+                              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                                {a.dictamen ? (
+                                  <>
+                                    <span aria-hidden="true" className={`inline-block h-2 w-2 shrink-0 rounded-full ${PUNTO_ESTADO[a.dictamen.estado]}`} />
+                                    <span className="text-[var(--text-secondary)]">
+                                      {a.dictamen.estado === 'compatible' ? 'Compatible' : a.dictamen.estado === 'condicionado' ? 'Condicionado' : 'Incompatible'}
+                                    </span>
+                                    {' · '}{a.dictamen.fecha || new Date(a.updated_at).toLocaleDateString('es-ES')}
+                                  </>
+                                ) : (
+                                  <>{a.tipo} · {PERFILES.find(p => p.id === a.perfil_id)?.label} · {new Date(a.updated_at).toLocaleDateString('es-ES')}</>
+                                )}
+                              </p>
+                              <div className="mt-2 flex gap-2">
+                                <button type="button" onClick={() => cargarAmbito(a)} className="btn btn-sm btn-secondary" aria-label={`Abrir ${a.nombre}`}>Abrir</button>
+                                <button type="button" onClick={() => eliminarAmbito(a.id)} className="btn btn-sm btn-ghost" aria-label={`Borrar ${a.nombre}`}>Borrar</button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className="p-4 text-xs text-[var(--text-muted)]">Radar de boletines: pendiente hasta que exista dictamen (fase 5).</p>
                     </div>
                   )}
                 </div>
               </div>
-            </div>
+            </aside>
           </div>
 
           {/* Ficha de dictamen: seis bloques, títulos fijos (Fase 3) */}
-          <section className="mt-4 rounded-[var(--border-radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Dictamen del ámbito</h2>
-              {dictamen && <SemaforoBadge estado={dictamen.estado} pendiente={dictamen.subtitulo_pendiente} />}
-              {dictamen && (
-                <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                  confianza {dictamen.confianza}{fechaDictamen ? ` · ${fechaDictamen}` : ''}
-                </span>
-              )}
-            </div>
+          <section aria-labelledby="dictamen-titulo" className="mt-10 border-t border-[var(--border-strong)] pt-8">
+            <h2 id="dictamen-titulo" className="type-h2 text-[var(--text-primary)]">Dictamen del ámbito</h2>
+
             {!ambito && (
-              <p className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                Dibuja o sube un ámbito para empezar. La ficha con los seis bloques aparecerá aquí.
+              <p className="mt-3 max-w-[68ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+                Dibuje o suba un ámbito para empezar. Aquí aparecerá la ficha del dictamen con sus seis bloques.
               </p>
             )}
             {ambito && (cruceCorriendo || dictamenCargando) && (
-              <div className="mt-2" role="status" aria-live="polite">
-                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+              <div className="mt-4 max-w-[40rem]" role="status" aria-live="polite">
+                <p className="tnum text-sm text-[var(--text-secondary)]">
                   {cruceCorriendo
-                    ? `Cruzando ${progresoCruce.hechas}/${progresoCruce.total}${progresoCruce.capaActual ? ` · ${progresoCruce.capaActual}` : ''}…`
-                    : 'Redactando dictamen…'}
+                    ? `Cruzando ${progresoCruce.hechas} de ${progresoCruce.total} capas${progresoCruce.capaActual ? `: ${progresoCruce.capaActual}` : ''}…`
+                    : 'Redactando el dictamen…'}
                 </p>
                 <div
-                  className="mt-1 h-1.5 rounded-full bg-[var(--color-input-bg)] overflow-hidden"
+                  className="mt-2 h-1 overflow-hidden rounded-[6px] bg-[var(--bg-surface-sunken)]"
                   role="progressbar"
                   aria-valuemin={0}
                   aria-valuemax={progresoCruce.total || 1}
                   aria-valuenow={cruceCorriendo ? progresoCruce.hechas : undefined}
                   aria-label={cruceCorriendo ? "Progreso del cruce de capas" : "Redactando dictamen"}
                 >
-                  <div className="h-full bg-[var(--color-secondary)] transition-all"
+                  <div className="h-full bg-[var(--musgo)] transition-[width] duration-200"
                     style={{ width: progresoCruce.total ? `${Math.round((progresoCruce.hechas / progresoCruce.total) * 100)}%` : '0%' }} />
                 </div>
               </div>
             )}
             {ambito && !cruceCorriendo && !dictamenCargando && filasCruce && filasCruce.length === 0 && (
-              <p className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                Activa capas por familia para cruzar el ámbito. Sin capas no hay cruce.
+              <p className="mt-3 max-w-[68ch] text-sm text-[var(--text-secondary)]">
+                Active capas por familia en el panel para cruzar el ámbito. Sin capas activas no hay cruce.
+              </p>
+            )}
+            {ambito && activeCapas.length === 0 && !filasCruce && !dictamen && (
+              <p className="mt-3 max-w-[68ch] text-sm text-[var(--text-secondary)]">
+                Active capas por familia en el panel para cruzar el ámbito.
               </p>
             )}
             {dictamenError && (
-              <p className="mt-1 text-xs" style={{ color: 'var(--color-error-light)' }}>{dictamenError}</p>
+              <p className="mt-3 max-w-[68ch] text-sm text-[var(--danger-ink)]" role="alert">{dictamenError}</p>
             )}
+
             {dictamen && ambito && (
-              <div className="mt-3 flex flex-col gap-4">
-                <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Identificación del ámbito</h3>
-                  <dl className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
-                    <FichaFila k="Ímbito" v={ambito.nombre} />
+              <div className="mt-6">
+                {/* Conclusión: semáforo + motivo principal */}
+                <div className="flex flex-col gap-3 pb-6 sm:flex-row sm:items-start sm:gap-5">
+                  <SemaforoBadge estado={dictamen.estado} />
+                  <div className="min-w-0">
+                    <p className="max-w-[68ch] text-base font-semibold leading-snug text-[var(--text-primary)]">{dictamen.motivos[0]}</p>
+                    <p className="tnum mt-1 text-xs text-[var(--text-muted)]">
+                      Confianza {dictamen.confianza}{fechaDictamen ? ` · ${fechaDictamen}` : ''}
+                    </p>
+                    {dictamen.subtitulo_pendiente && (
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">Identificado; afecciones sectoriales pendientes.</p>
+                    )}
+                  </div>
+                </div>
+
+                <BloqueFicha titulo="Identificación del ámbito">
+                  <dl className="grid gap-x-8 text-sm sm:grid-cols-2">
+                    <FichaFila k="Ámbito" v={ambito.nombre} />
                     <FichaFila k="Perfil" v={PERFILES.find(p => p.id === ambito.perfil_id)?.label || ambito.perfil_id} />
                     <FichaFila k="Municipio" v={dictamen.ficha.municipio} />
                     <FichaFila k="Código INE" v={dictamen.ficha.ine} />
@@ -870,39 +970,39 @@ export default function MapaPage() {
                     <FichaFila k="Clasificación" v={dictamen.ficha.clasificacion} />
                     <FichaFila k="Calificación" v={dictamen.ficha.calificacion} />
                   </dl>
-                </div>
-                <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Dictamen del ámbito</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-primary)]">{dictamen.parrafo}</p>
-                  <ul className="mt-1 list-disc pl-5 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                </BloqueFicha>
+
+                <BloqueFicha titulo="Dictamen del ámbito">
+                  <p className="max-w-[68ch] text-sm leading-relaxed text-[var(--text-primary)]">{dictamen.parrafo}</p>
+                  <ul className="mt-3 max-w-[68ch] list-disc space-y-1 pl-5 text-sm text-[var(--text-secondary)]">
                     {dictamen.motivos.map((m, i) => <li key={i}>{m}</li>)}
                   </ul>
-                </div>
-                <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Afecciones que condicionan</h3>
+                </BloqueFicha>
+
+                <BloqueFicha titulo="Afecciones que condicionan">
                   {dictamen.afecciones.length === 0 ? (
-                    <p className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>Sin solapes ni condicionantes en las fuentes consultadas.</p>
+                    <p className="text-sm text-[var(--text-secondary)]">Sin solapes ni condicionantes en las fuentes consultadas.</p>
                   ) : (
-                    <div className="mt-1 overflow-x-auto">
-                      <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+                    <div className="data-table-wrap rounded-[6px] border border-[var(--border-subtle)]">
+                      <table className="data-table min-w-[640px]">
                         <thead>
-                          <tr className="text-left" style={{ color: 'var(--color-text-muted)' }}>
-                            <th className="py-1 pr-2 font-medium">Familia / capa</th>
-                            <th className="py-1 pr-2 font-medium">Resultado</th>
-                            <th className="py-1 pr-2 font-medium">Sentido práctico</th>
-                            <th className="py-1 pr-2 font-medium">Fuente y fecha</th>
+                          <tr>
+                            <th scope="col">Familia y capa</th>
+                            <th scope="col">Resultado</th>
+                            <th scope="col">Sentido práctico</th>
+                            <th scope="col">Fuente y fecha</th>
                           </tr>
                         </thead>
                         <tbody>
                           {dictamen.afecciones.map(f => (
-                            <tr key={f.capa} className="border-t border-[var(--color-border-subtle)] align-top">
-                              <td className="py-1.5 pr-2">
-                                <span className="block font-medium text-[var(--color-text-primary)]">{f.capa}</span>
-                                <span className="block text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{tituloFamilia(f.familia)}</span>
+                            <tr key={f.capa} className="align-top">
+                              <td>
+                                <span className="block font-medium text-[var(--text-primary)]">{f.capa}</span>
+                                <span className="block text-xs text-[var(--text-muted)]">{tituloFamilia(f.familia)}</span>
                               </td>
-                              <td className="py-1.5 pr-2 whitespace-nowrap"><ResultadoBadge resultado={f.resultado} /></td>
-                              <td className="py-1.5 pr-2 text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>{f.frase}</td>
-                              <td className="py-1.5 pr-2 text-[10px] whitespace-nowrap" style={{ color: 'var(--color-text-muted)' }}>
+                              <td className="whitespace-nowrap"><ResultadoBadge resultado={f.resultado} /></td>
+                              <td className="meta">{f.frase}</td>
+                              <td className="tnum whitespace-nowrap text-xs text-[var(--text-muted)]">
                                 {f.fuente} · {f.fecha_fuente}
                               </td>
                             </tr>
@@ -911,60 +1011,57 @@ export default function MapaPage() {
                       </table>
                     </div>
                   )}
-                </div>
-                <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Planeamiento de referencia</h3>
-                  <p className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>{dictamen.planeamiento.siu_figura}</p>
+                </BloqueFicha>
+
+                <BloqueFicha titulo="Planeamiento de referencia">
+                  <p className="max-w-[68ch] text-sm text-[var(--text-secondary)]">{dictamen.planeamiento.siu_figura}</p>
                   {dictamen.planeamiento.instrumentos.length > 0 && (
-                    <ul className="mt-1 text-xs list-disc pl-5" style={{ color: 'var(--color-text-secondary)' }}>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[var(--text-secondary)]">
                       {(dictamen.planeamiento.instrumentos as { tipo: string; estado: string }[]).map((ins, i) => (
-                        <li key={i}>{ins.tipo} — {ins.estado}</li>
+                        <li key={i}>{ins.tipo}: {ins.estado}</li>
                       ))}
                     </ul>
                   )}
-                  <p className="mt-1 text-[11px] italic" style={{ color: 'var(--color-text-muted)' }}>{dictamen.planeamiento.nota_siu}</p>
-                </div>
+                  <p className="mt-2 max-w-[68ch] text-xs text-[var(--text-muted)]">{dictamen.planeamiento.nota_siu}</p>
+                </BloqueFicha>
+
                 {(ambito.perfil_id === 'cribado' || ambito.perfil_id === 'afecciones') && (
-                  <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Distancias de contexto</h3>
+                  <BloqueFicha titulo="Distancias de contexto">
                     {(() => {
                       const dists = dictamen.afecciones.filter(f => f.distancia_m !== null)
                       return dists.length === 0
-                        ? <p className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>Sin proximidades medidas en las fuentes consultadas.</p>
-                        : <ul className="mt-1 text-xs list-disc pl-5" style={{ color: 'var(--color-text-secondary)' }}>
+                        ? <p className="text-sm text-[var(--text-secondary)]">Sin proximidades medidas en las fuentes consultadas.</p>
+                        : <ul className="tnum list-disc space-y-1 pl-5 text-sm text-[var(--text-secondary)]">
                           {dists.map((f, i) => <li key={i}>{f.capa}: a {f.distancia_m} m.</li>)}
                         </ul>
                     })()}
-                  </div>
+                  </BloqueFicha>
                 )}
-                <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Documentación de salida</h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <button onClick={() => descargar('pdf')} disabled={descargando !== null}
-                      className="px-3 py-1.5 text-xs font-medium rounded-[var(--border-radius)] bg-[var(--color-primary)] text-white disabled:opacity-50">
-                      {descargando === 'pdf' ? 'Generando…' : 'Descargar PDF'}
+
+                <BloqueFicha titulo="Documentación de salida">
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => descargar('pdf')} disabled={descargando !== null} className="btn btn-primary">
+                      {descargando === 'pdf' ? <><span className="spinner" aria-hidden="true" />Generando…</> : 'Descargar PDF'}
                     </button>
-                    <button onClick={() => descargar('word')} disabled={descargando !== null}
-                      className="px-3 py-1.5 text-xs font-medium rounded-[var(--border-radius)] border border-[var(--color-border)] disabled:opacity-50">
-                      {descargando === 'word' ? 'Generando…' : 'Descargar Word'}
+                    <button type="button" onClick={() => descargar('word')} disabled={descargando !== null} className="btn btn-secondary">
+                      {descargando === 'word' ? <><span className="spinner" aria-hidden="true" />Generando…</> : 'Descargar Word'}
                     </button>
-                    <button onClick={() => descargar('paquete')} disabled={descargando !== null}
-                      className="px-3 py-1.5 text-xs font-medium rounded-[var(--border-radius)] border border-[var(--color-border)] disabled:opacity-50">
-                      {descargando === 'paquete' ? 'Generando…' : 'Paquete QGIS / AutoCAD / Google Earth'}
+                    <button type="button" onClick={() => descargar('paquete')} disabled={descargando !== null} className="btn btn-secondary">
+                      {descargando === 'paquete' ? <><span className="spinner" aria-hidden="true" />Generando…</> : 'Descargar paquete QGIS, AutoCAD y Google Earth'}
                     </button>
                   </div>
-                  {msgDescarga && <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>{msgDescarga}</p>}
-                  <details className="mt-1">
-                    <summary className="text-[11px] cursor-pointer" style={{ color: 'var(--color-text-muted)' }}>Validez jurídica</summary>
-                    <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>{PIE_LEGAL}</p>
+                  {msgDescarga && <p className="mt-2 text-sm text-[var(--text-secondary)]" aria-live="polite">{msgDescarga}</p>}
+                  <details className="mt-4 max-w-[68ch]">
+                    <summary className="cursor-pointer text-sm text-[var(--text-link)]">Validez jurídica</summary>
+                    <p className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">{PIE_LEGAL}</p>
                   </details>
-                </div>
+                </BloqueFicha>
               </div>
             )}
           </section>
         </div>
       </main>
-      <Footer />
+      <PlatformFooter />
     </div>
   )
 }

@@ -17,6 +17,7 @@
 
 import { useMemo, useState } from "react";
 import { COLOR_CONTORNO_SIN_DATO, COLOR_SIN_DATO, etiquetaEstado } from "@/lib/socideas-secciones";
+import { COLOR_SELECCION } from "./SeccionesAtlasMap";
 import type { ClaveOrdenAtlas, EntradaLeyendaAtlas, FilaAtlas } from "./SeccionesAtlasMap";
 
 export interface SeccionesAtlasTableProps {
@@ -35,8 +36,9 @@ export interface SeccionesAtlasTableProps {
   onAcercar: (key: string) => void;
 }
 
-const TH =
-  "px-3 py-2 text-left align-bottom text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]";
+const TH = "px-3 py-1 text-left align-bottom type-label font-semibold text-[var(--text-secondary)]";
+/** Columnas numéricas: alineadas a la derecha, cifras tabulares. */
+const NUMERICA: ReadonlySet<ClaveOrdenAtlas> = new Set<ClaveOrdenAtlas>(["valor"]);
 
 const ORDEN_ETIQUETA: Record<ClaveOrdenAtlas, string> = {
   seccion: "Clave de sección",
@@ -106,14 +108,14 @@ export default function SeccionesAtlasTable({
     <section aria-label="Tabla de secciones censales" className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Tabla de secciones</h3>
-          <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+          <h2 className="type-h4 text-[var(--text-primary)]">Tabla de secciones</h2>
+          <p className="tnum mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
             {filtradas.length} de {filas.length} secciones · cobertura {coberturaPct.toLocaleString("es-ES", { maximumFractionDigits: 1 })} %
             {rango ? " · comparación con la referencia municipal de la misma operación y periodo" : ""}
           </p>
         </div>
         <div className="sm:w-64">
-          <label htmlFor="atlas-filtro-seccion" className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+          <label htmlFor="atlas-filtro-seccion" className="type-label mb-1.5 block text-[var(--text-secondary)]">
             Filtrar por clave de sección
           </label>
           <input
@@ -124,9 +126,9 @@ export default function SeccionesAtlasTable({
             onChange={(e) => setFiltro(e.target.value)}
             placeholder="Por ejemplo 28079"
             aria-describedby="atlas-filtro-ayuda"
-            className="min-h-[44px] w-full rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 font-mono text-sm tabular-nums text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+            className="tnum min-h-[44px] w-full rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] hover:border-[var(--border-strong)]"
           />
-          <p id="atlas-filtro-ayuda" className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+          <p id="atlas-filtro-ayuda" className="mt-1.5 text-xs text-[var(--text-muted)]">
             La clave de sección son 10 dígitos: provincia, municipio, distrito y sección.
           </p>
         </div>
@@ -141,41 +143,49 @@ export default function SeccionesAtlasTable({
           `tabIndex={0}` + `role="region"` + nombre accesible hacen que el
           contenedor sea alcanzable y desplazable con el teclado. */}
       <div
-        className="max-h-[34rem] w-full min-w-0 max-w-[100vw] overflow-x-auto overflow-y-auto overscroll-x-contain rounded-[6px] border border-[var(--color-border-subtle)] [contain:paint]"
+        className="max-h-[34rem] w-full min-w-0 max-w-[100vw] overflow-x-auto overflow-y-auto overscroll-x-contain rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] [contain:paint]"
         tabIndex={0}
         role="region"
         aria-label={`Tabla de secciones de ${municipioNombre}, desplazable horizontalmente`}
       >
-        <table className="socideas-table w-full text-left text-xs">
-          <caption className="max-w-full break-words px-3 py-2 text-left text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+        <table className="socideas-table tnum w-full text-left text-[13px]">
+          <caption className="max-w-full break-words border-b border-[var(--border-subtle)] px-3 py-2.5 text-left text-xs leading-relaxed text-[var(--text-muted)]">
             {indicadorEtiqueta} en {municipioNombre}
             {anio !== null ? `, ${anio}` : ""} por sección censal
             {unidad ? `, en ${unidad}` : ""}. Una fila por sección publicada. Las secciones sin dato
             aparecen como «ND»: eso no es un cero. Ordene por cualquier columna con el botón de su
             cabecera.
           </caption>
-          <thead className="sticky top-0 z-10 bg-[var(--color-card-bg)]">
+          <thead className="sticky top-0 z-10 bg-[var(--bg-surface-sunken)]">
             <tr>
               {(["seccion", "valor", "estado", "clase"] as ClaveOrdenAtlas[]).map((clave) => (
-                <th key={clave} scope="col" aria-sort={ariaSort(clave)} className={`${TH} border-b border-[var(--color-border)]`}>
+                <th
+                  key={clave}
+                  scope="col"
+                  aria-sort={ariaSort(clave)}
+                  className={`${TH} border-b border-[var(--border-default)] ${NUMERICA.has(clave) ? "text-right" : ""}`}
+                >
                   <button
                     type="button"
                     onClick={() => alternar(clave)}
-                    className="flex min-h-[44px] min-w-[44px] w-full flex-wrap items-center gap-x-1 rounded-[6px] text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+                    className={`flex min-h-[44px] min-w-[44px] w-full items-center gap-x-1.5 rounded-[6px] transition-colors hover:text-[var(--text-primary)] ${
+                      NUMERICA.has(clave) ? "justify-end text-right" : "text-left"
+                    } ${orden.clave === clave ? "text-[var(--text-primary)]" : ""}`}
                   >
                     <span className="break-words">{ORDEN_ETIQUETA[clave]}</span>
-                    <span className="text-[10px] font-semibold uppercase">
-                      {orden.clave === clave ? (orden.sentido === "asc" ? "Asc" : "Desc") : ""}
+                    {/* Sentido del orden: símbolo funcional; el estado lo anuncia aria-sort. */}
+                    <span aria-hidden="true" className="w-3 text-[var(--text-muted)]">
+                      {orden.clave === clave ? (orden.sentido === "asc" ? "↑" : "↓") : ""}
                     </span>
                   </button>
                 </th>
               ))}
               {rango && (
-                <th scope="col" className={`${TH} border-b border-[var(--color-border)]`}>
+                <th scope="col" className={`${TH} border-b border-[var(--border-default)] text-right`}>
                   Frente al municipio
                 </th>
               )}
-              <th scope="col" className={`${TH} border-b border-[var(--color-border)]`}>
+              <th scope="col" className={`${TH} border-b border-[var(--border-default)]`}>
                 <span className="sr-only">Acciones sobre la sección</span>
               </th>
             </tr>
@@ -194,8 +204,12 @@ export default function SeccionesAtlasTable({
                   onMouseLeave={() => onHover(null)}
                   onFocus={() => onHover(f.key)}
                   onBlur={() => onHover(null)}
-                  className={`border-b border-[var(--color-border-subtle)] transition-colors ${
-                    activa ? "bg-[var(--color-input-bg-hover)]" : resaltada ? "bg-[var(--color-input-bg)]" : ""
+                  className={`transition-colors ${
+                    activa
+                      ? "bg-[var(--status-info-bg)] shadow-[inset_3px_0_0_var(--moss-ink)]"
+                      : resaltada
+                        ? "bg-[var(--bg-surface-sunken)]"
+                        : ""
                   }`}
                 >
                   <th scope="row" className="px-3 py-2 text-left font-normal">
@@ -203,27 +217,34 @@ export default function SeccionesAtlasTable({
                       type="button"
                       onClick={() => onSeleccionar(f.key)}
                       aria-pressed={activa}
-                      className="flex min-h-[44px] items-center gap-2 rounded-[6px] font-mono text-xs tabular-nums text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+                      className={`flex min-h-[44px] items-center gap-2.5 rounded-[6px] text-[13px] text-[var(--text-primary)] ${activa ? "font-semibold" : ""}`}
                     >
                       <span
                         aria-hidden="true"
-                        className="inline-block h-3.5 w-3.5 flex-none rounded-[2px] border"
-                        style={{ background: colorClase, borderColor: f.colorContorno }}
+                        className="inline-block h-3 w-3 flex-none border"
+                        style={{
+                          background: colorClase,
+                          borderColor: f.esSinDato
+                            ? COLOR_CONTORNO_SIN_DATO
+                            : activa
+                              ? COLOR_SELECCION
+                              : "var(--border-default)",
+                        }}
                       />
                       <span>{f.key}</span>
                     </button>
                   </th>
-                  <td className={`px-3 py-2 tabular-nums ${f.esSinDato ? "italic text-[var(--color-text-muted)]" : "font-semibold text-[var(--color-text-primary)]"}`}>
+                  <td className={`whitespace-nowrap px-3 py-2 text-right ${f.esSinDato ? "text-[var(--text-muted)]" : "font-medium text-[var(--text-primary)]"}`}>
                     {f.texto}
                   </td>
-                  <td className="px-3 py-2 text-[var(--color-text-secondary)]">
+                  <td className="px-3 py-2 text-[var(--text-secondary)]">
                     {f.motivoSinDato ?? etiquetaEstado(f.status)}
                   </td>
-                  <td className="px-3 py-2 text-[var(--color-text-secondary)]">
+                  <td className="whitespace-nowrap px-3 py-2 text-[var(--text-secondary)]">
                     {f.esSinDato ? "Fuera de la escala" : (etiquetasClase[f.clase] ?? "—")}
                   </td>
                   {rango && (
-                    <td className="px-3 py-2 tabular-nums text-[var(--color-text-secondary)]">
+                    <td className="whitespace-nowrap px-3 py-2 text-right text-[var(--text-secondary)]">
                       {f.value === null ? "ND" : formatearDiferencia(f.value - (referenciaMunicipal as number), unidad)}
                     </td>
                   )}
@@ -231,7 +252,7 @@ export default function SeccionesAtlasTable({
                     <button
                       type="button"
                       onClick={() => onAcercar(f.key)}
-                      className="min-h-[44px] rounded-[6px] border border-[var(--color-border)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+                      className="min-h-[44px] rounded-[6px] px-3 py-1 text-[13px] font-medium text-[var(--text-link)] underline decoration-1 underline-offset-[3px] transition-colors hover:text-[var(--text-link-hover)] hover:decoration-2"
                     >
                       <span className="sr-only">Acercar el mapa a la sección </span>Acercar
                     </button>
@@ -241,7 +262,7 @@ export default function SeccionesAtlasTable({
             })}
             {filtradas.length === 0 && (
               <tr>
-                <td colSpan={rango ? 6 : 5} className="px-3 py-6 text-center text-xs text-[var(--color-text-muted)]">
+                <td colSpan={rango ? 6 : 5} className="px-3 py-6 text-center text-sm text-[var(--text-muted)]">
                   Ninguna sección coincide con el filtro «{filtro}». Borre el filtro para verlas todas.
                 </td>
               </tr>
@@ -249,9 +270,9 @@ export default function SeccionesAtlasTable({
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-        El contorno de ND es {COLOR_CONTORNO_SIN_DATO} sobre relleno {COLOR_SIN_DATO}, y en el mapa y en
-        el PNG se añade una trama diagonal. Ningún ND entra en las clases de color.
+      <p className="text-xs leading-relaxed text-[var(--text-muted)]">
+        Las secciones sin dato (ND) llevan relleno limo con trama diagonal, igual en el mapa, en la
+        leyenda y en el PNG. Ningún ND entra en las clases de color.
       </p>
     </section>
   );

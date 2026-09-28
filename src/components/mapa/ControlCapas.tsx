@@ -48,7 +48,7 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa, onToggleFamilia
         if (json.error) { setError(json.error); setCargando(false); return }
         setCapas((json.data || []).map(conFamilia))
       } catch {
-        setError('Error al cargar capas')
+        setError('sin respuesta del servidor')
       } finally {
         setCargando(false)
       }
@@ -103,55 +103,68 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa, onToggleFamilia
 
   if (cargando) {
     return (
-      <div className="p-4 text-center" style={{ color: 'var(--color-text-secondary)' }}>
-        <div className="animate-spin inline-block w-5 h-5 border-2 border-[var(--color-secondary)] border-t-transparent rounded-full mb-2" />
-        <p className="text-xs">Cargando capas por familias…</p>
+      <div className="flex items-center gap-2 p-4 text-sm text-[var(--text-muted)]" role="status">
+        <span className="spinner" aria-hidden="true" />
+        Cargando capas por familias…
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="p-4 text-center">
-        <p className="text-xs" style={{ color: 'var(--color-error-light)' }}>{error}</p>
+      <div className="p-4">
+        <p className="text-sm text-[var(--danger-ink)]" role="alert">
+          No se pudieron cargar las capas ({error}). Recargue la página para intentarlo de nuevo.
+        </p>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-[var(--color-border)]">
-        <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Capas por familia</h3>
-        <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-          {capasSeleccionadas.length} de {capas.length} activas · 9 familias de veto
-        </p>
-      </div>
-
-      <div className="px-3 py-2 border-b border-[var(--color-border)] flex flex-col gap-2">
+    <div className="flex h-full flex-col">
+      <div className="flex flex-col gap-3 border-b border-[var(--border-subtle)] px-4 py-4">
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Capas por familia</h3>
+          <p className="tnum mt-0.5 text-xs text-[var(--text-secondary)]">
+            {capasSeleccionadas.length} de {capas.length} activas en {FAMILIAS.length} familias de veto
+          </p>
+        </div>
         <div className="relative">
+          <label htmlFor="capas-busqueda" className="sr-only">Buscar capa</label>
           <input
+            id="capas-busqueda"
             type="text"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar capa…"
-            className="w-full pl-3 pr-7 py-1.5 text-xs rounded-[var(--border-radius)] border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-secondary)]"
+            placeholder="Buscar capa"
+            className="input pr-10 lg:min-h-[36px]"
           />
           {busqueda && (
-            <button onClick={() => setBusqueda('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]" aria-label="Limpiar búsqueda">✕</button>
+            <button
+              type="button"
+              onClick={() => setBusqueda('')}
+              className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[6px] text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
+              aria-label="Limpiar búsqueda"
+            >
+              <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           )}
         </div>
-        <label className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
-          <span className="shrink-0">Limitar a:</span>
+        <div>
+          <label htmlFor="capas-filtro-ca" className="field-label">Limitar a</label>
           <select
+            id="capas-filtro-ca"
             value={filtroCAEff}
             onChange={(e) => setFiltroCA(e.target.value)}
-            className="flex-1 min-w-0 text-xs rounded-[var(--border-radius)] border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text-primary)] px-2 py-1"
+            className="input lg:min-h-[36px]"
             title="Autoseleccionada a partir del ámbito. «Toda España» solo amplía el listado; el cruce siempre se acota al territorio del recinto."
           >
             <option value="todas">Toda España</option>
             {comunidades.map(ca => <option key={ca} value={ca}>{ca}</option>)}
           </select>
-        </label>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -161,47 +174,66 @@ export function ControlCapas({ capasSeleccionadas, onToggleCapa, onToggleFamilia
           const todasActivas = grupo.length > 0 && activas === grupo.length
           const colapsado = busqueda ? false : (colapsadas[fam.id] ?? true)
           return (
-            <div key={fam.id} className="border-b border-[var(--color-border)]">
-              <div className="flex items-center gap-2 px-3 py-2 hover:bg-[var(--color-input-bg)] transition-colors">
-                <button onClick={() => toggleGrupo(fam.id)} className="text-[var(--color-text-secondary)]" aria-label={colapsado ? 'Expandir' : 'Colapsar'}>
-                  <svg className={`w-3 h-3 transition-transform ${colapsado ? '' : 'rotate-90'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div key={fam.id} className="border-b border-[var(--border-subtle)]">
+              <div className="flex min-h-[44px] items-center gap-1 pr-3 pl-1">
+                <button
+                  type="button"
+                  onClick={() => toggleGrupo(fam.id)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] text-[var(--text-muted)] hover:text-[var(--text-primary)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
+                  aria-label={colapsado ? `Expandir ${fam.titulo}` : `Colapsar ${fam.titulo}`}
+                  aria-expanded={!colapsado}
+                >
+                  <svg aria-hidden="true" className={`h-3.5 w-3.5 transition-transform ${colapsado ? '' : 'rotate-90'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
-                <button onClick={() => toggleFamiliaCompleta(fam.id)} className="flex items-center gap-2 flex-1 text-left min-w-0" title={todasActivas ? 'Desactivar familia' : 'Activar familia'}>
-                  <span className="text-[10px] font-bold text-[var(--color-text-muted)] tabular-nums w-5">{fam.orden}</span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-xs font-medium text-[var(--color-text-primary)] truncate">{fam.titulo}</span>
-                  </span>
-                  <span className="text-[10px] tabular-nums" style={{ color: 'var(--color-text-secondary)' }}>{activas}/{grupo.length}</span>
-                  <span className={`relative inline-flex w-7 h-4 rounded-full transition-colors ${todasActivas ? 'bg-[var(--color-secondary)]' : activas > 0 ? 'bg-[var(--color-secondary)]/40' : 'bg-[var(--color-border)]'}`}>
-                    <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${todasActivas ? 'left-3.5' : 'left-0.5'}`} />
+                <button
+                  type="button"
+                  onClick={() => toggleFamiliaCompleta(fam.id)}
+                  className="flex min-h-[40px] min-w-0 flex-1 items-center gap-3 rounded-[6px] text-left focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
+                  title={todasActivas ? 'Desactivar familia' : 'Activar familia'}
+                  aria-pressed={todasActivas}
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)]">{fam.titulo}</span>
+                  <span className="tnum text-xs text-[var(--text-muted)]">{activas}/{grupo.length}</span>
+                  <span
+                    aria-hidden="true"
+                    className={`relative inline-flex h-4 w-7 shrink-0 rounded-full transition-colors ${todasActivas ? 'bg-[var(--musgo)]' : activas > 0 ? 'bg-[var(--musgo-300)]' : 'bg-[var(--limo)]'}`}
+                  >
+                    <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-[var(--hueso)] transition-[left] ${todasActivas ? 'left-3.5' : 'left-0.5'}`} />
                   </span>
                 </button>
               </div>
               {!colapsado && (
-                <div className="pb-1">
+                <div className="pb-2">
                   {grupo.length === 0 && (
-                    <p className="px-8 py-2 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>Sin capas en esta familia para el filtro actual.</p>
+                    <p className="py-2 pr-4 pl-10 text-xs text-[var(--text-muted)]">Sin capas en esta familia para el filtro actual.</p>
                   )}
                   {grupo.map(capa => {
                     const activa = capasSeleccionadas.includes(capa.id)
+                    const severidad = capa.severidad === 'veto' ? 'Veto' : capa.severidad === 'condicionante' ? 'Condicionante' : 'Informativo'
+                    const meta = [capa.norma_ref, capa.comunidad_autonoma?.nombre].filter(Boolean).join(' · ')
                     return (
-                      <div key={capa.id} onClick={() => onToggleCapa(capa.id)}
-                        className={`flex items-start gap-2 pl-8 pr-3 py-1.5 cursor-pointer ${activa ? 'bg-[var(--color-primary)]/10' : 'hover:bg-[var(--color-input-bg)]'}`}>
-                        <div className={`w-3 h-3 mt-0.5 rounded-sm border flex items-center justify-center flex-shrink-0 ${activa ? 'bg-[var(--color-secondary)] border-[var(--color-secondary)]' : 'border-[var(--color-border)]'}`}>
-                          {activa && <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-xs leading-tight truncate ${activa ? 'text-[var(--color-text-primary)] font-medium' : 'text-[var(--color-text-secondary)]'}`}>
+                      <label
+                        key={capa.id}
+                        className={`flex min-h-[44px] cursor-pointer items-start gap-3 py-2 pr-4 pl-10 transition-colors hover:bg-[var(--bg-surface-sunken)] ${activa ? 'bg-[var(--bg-surface-sunken)]' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={activa}
+                          onChange={() => onToggleCapa(capa.id)}
+                          className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--musgo)]"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className={`block truncate text-[13px] leading-snug ${activa ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
                             {capa.layer_title || capa.nombre_capa}
-                          </p>
-                          <p className="text-[10px] leading-tight mt-0.5 truncate" style={{ color: 'var(--color-text-muted)' }}>
-                            {capa.severidad === 'veto' ? '● veto' : capa.severidad === 'condicionante' ? '● condicionante' : '● informativo'}
-                            {' · '}{capa.norma_ref || ''} · {capa.comunidad_autonoma?.nombre || ''}
-                          </p>
-                        </div>
-                      </div>
+                          </span>
+                          <span className="mt-0.5 block truncate text-[11px] leading-snug text-[var(--text-muted)]">
+                            <span className={capa.severidad === 'veto' ? 'text-[var(--danger-ink)]' : undefined}>{severidad}</span>
+                            {meta && ` · ${meta}`}
+                          </span>
+                        </span>
+                      </label>
                     )
                   })}
                 </div>

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import SectionEyebrow from "./SectionEyebrow";
 
 interface Props {
-  eyebrow: string;
+  /** Rótulo opcional sobre el título (módulo o contexto). Sin mayúsculas. */
+  eyebrow?: string;
   title: string;
   lede?: string;
   actions?: ReactNode;
@@ -11,20 +11,24 @@ interface Props {
   children?: ReactNode;
 }
 
-/** Cabecera de página: eyebrow + h1 + lede + metadatos y acciones. */
+/**
+ * Cabecera de página interior (nivel 2): migas, título, entradilla, metadatos
+ * y acciones sobre el fondo de página, cerrada por un filete musgo. Las
+ * portadas de plataforma y módulo usan la hoja cartográfica (MapSheet).
+ */
 export default function PageShell({ eyebrow, title, lede, actions, meta, breadcrumbs, children }: Props) {
   return (
-    <header className="pb-6">
-      {breadcrumbs ? <div className="mb-4">{breadcrumbs}</div> : null}
-      <SectionEyebrow>{eyebrow}</SectionEyebrow>
-      <h1 className="type-h1 mt-3 max-w-3xl text-[var(--text-primary)]">{title}</h1>
+    <header className="page-head">
+      {breadcrumbs ? <div className="mb-6">{breadcrumbs}</div> : null}
+      {eyebrow ? <p className="type-label text-[var(--moss-ink)]">{eyebrow}</p> : null}
+      <h1 className={["type-h1 max-w-[22ch] text-[var(--text-primary)]", eyebrow ? "mt-2" : ""].join(" ")}>{title}</h1>
       {lede ? (
-        <p className="measure mt-3 text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-secondary)]">
+        <p className="mt-4 max-w-[62ch] text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-secondary)]">
           {lede}
         </p>
       ) : null}
-      {meta ? <div className="mt-4 flex flex-wrap items-center gap-2">{meta}</div> : null}
-      {actions ? <div className="mt-5 flex flex-wrap gap-3">{actions}</div> : null}
+      {meta ? <div className="mt-5 flex flex-wrap items-center gap-2">{meta}</div> : null}
+      {actions ? <div className="mt-6 flex flex-wrap gap-3">{actions}</div> : null}
       {children}
     </header>
   );

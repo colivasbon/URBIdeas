@@ -8,14 +8,15 @@ import {
 } from "./ficha-sheets";
 import { SheetStatusGlyph } from "./DataStatusBadge";
 import TabPendingIndicator from "./TabPendingIndicator";
+import { FIELD_LABEL, SELECT } from "./ficha-ui";
 
 /**
  * Navegación por hojas del libro. Sustituye a la antigua cápsula
  * Demografía · Economía · Secciones censales: ahora cada hoja del XLSX tiene su
- * propio apartado. La hoja activa se marca con `aria-current` y color primario.
+ * propio apartado. La hoja activa se marca con `aria-current` y subrayado Conífera.
  *
  * v2.3 — mejoras generales:
- * - Glifo de estado por hoja (✓ ~ ⏳ —) SIEMPRE acompañado de texto accesible
+ * - Glifo de estado por hoja (✓ ~ ○ —) SIEMPRE acompañado de texto accesible
  *   (sr-only + `title`), nunca glifo solo para lectores de pantalla.
  * - Tira horizontal con `overflow-x-auto` + `scroll-smooth` + overscroll táctil:
  *   a 375 px la página no se desborda, la tira desplaza y las pestañas nunca
@@ -67,36 +68,29 @@ export default function SheetTabs({
         <form
           method="get"
           action={`/socideas/${codigoINE}`}
-          className="mb-2 flex items-end gap-2 sm:hidden"
+          className="mb-3 flex items-end gap-2 sm:hidden"
         >
           <div className="min-w-0 flex-1">
-            <label
-              htmlFor="ficha-hoja-select"
-              className="mb-1 block text-xs font-semibold text-[var(--color-text-secondary)]"
-            >
+            <label htmlFor="ficha-hoja-select" className={FIELD_LABEL}>
               Ir a la hoja del libro
             </label>
             <select
               id="ficha-hoja-select"
               name="hoja"
               defaultValue={activa}
-              className="w-full rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-xs font-semibold text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+              className={`${SELECT} w-full`}
             >
               {FICHA_SHEETS.map((s) => {
                 const g = SHEET_GLYPH[sheetGlyphFor(s, estadoPorHoja)];
                 return (
                   <option key={s.key} value={s.key}>
-                    {`${s.code} · ${s.label}: ${g.glifo} ${g.texto}`}
+                    {`${s.code} ${s.label} (${g.texto.toLowerCase()})`}
                   </option>
                 );
               })}
             </select>
           </div>
-          <button
-            type="submit"
-            aria-label="Ir a la hoja seleccionada"
-            className="inline-flex min-h-[36px] items-center rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
-          >
+          <button type="submit" aria-label="Ir a la hoja seleccionada" className="btn btn-secondary btn-sm">
             Ir
           </button>
           {conservadas.map(([k, v]) => (
@@ -105,8 +99,8 @@ export default function SheetTabs({
         </form>
       )}
 
-      {/* Tira de pestañas: scroll horizontal propio, ancho mínimo legible. */}
-      <div className="flex w-full min-w-0 gap-2 overflow-x-auto scroll-smooth p-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
+      {/* Pestañas subrayadas: scroll horizontal propio, sin comprimir. */}
+      <div className="flex w-full min-w-0 overflow-x-auto border-b border-[var(--border-subtle)] [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:var(--border-default)_transparent]">
         {FICHA_SHEETS.map((s) => {
           const selected = s.key === activa;
           return (
@@ -115,18 +109,9 @@ export default function SheetTabs({
               href={hrefFor(s.key)}
               aria-current={selected ? "page" : undefined}
               title={s.descripcion}
-              className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-[6px] border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)] ${
-                selected
-                  ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
-                  : "border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:text-[var(--color-text-primary)]"
-              }`}
+              className={`${TAB} ${selected ? TAB_ACTIVE : ""}`}
             >
-              <span
-                aria-hidden="true"
-                className={`font-mono text-[10px] tabular-nums ${
-                  selected ? "text-white/80" : "text-[var(--color-text-muted)]"
-                }`}
-              >
+              <span aria-hidden="true" className="text-xs tabular-nums text-[var(--text-muted)]">
                 {s.code}
               </span>
               <span>{s.label}</span>
@@ -135,14 +120,12 @@ export default function SheetTabs({
             </Link>
           );
         })}
+        <span aria-hidden="true" className="mx-2 my-3 w-px shrink-0 bg-[var(--border-subtle)]" />
         <Link
           href={`/socideas/${codigoINE}/secciones-censales`}
-          title="Geometría de secciones censales del municipio"
-          className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-[6px] border border-dashed border-[var(--color-border)] bg-[var(--color-card-bg)] px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+          title="Atlas por sección censal del municipio"
+          className={TAB}
         >
-          <span aria-hidden="true" className="font-mono text-[10px] text-[var(--color-text-muted)]">
-            SC
-          </span>
           Secciones censales
           <TabPendingIndicator />
         </Link>
@@ -150,3 +133,9 @@ export default function SheetTabs({
     </nav>
   );
 }
+
+/** Pestaña subrayada: indicador Conífera de 2 px en la activa. */
+const TAB =
+  "relative inline-flex min-h-[44px] shrink-0 items-center gap-2 whitespace-nowrap px-3 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--border-focus)]";
+const TAB_ACTIVE =
+  "font-semibold text-[var(--text-primary)] after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:bg-[var(--conifera)] after:content-['']";

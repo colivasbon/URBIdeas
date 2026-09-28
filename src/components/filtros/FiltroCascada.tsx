@@ -84,49 +84,49 @@ export default function FiltroCascada({ onMunicipioSeleccionado, onProvinciaSele
       .catch(() => { onMunRef.current?.(mun) })
   }
 
-  const selectClass = "input appearance-none pr-8 disabled:opacity-45"
+  const selectClass = "input appearance-none pr-9 disabled:cursor-not-allowed disabled:opacity-45"
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="filtro-ccaa" className="field-label">Comunidad Autónoma</label>
+      <div className="flex flex-col">
+        <label htmlFor="filtro-ccaa" className="field-label">Comunidad autónoma</label>
         <div className="relative">
           <select id="filtro-ccaa" value={selCCAA} onChange={e => setSelCCAA(e.target.value)} disabled={loadingCCAA} className={selectClass}>
-            <option value="">{loadingCCAA ? "Cargando..." : "Seleccionar CCAA..."}</option>
+            <option value="">{loadingCCAA ? "Cargando…" : "Seleccione una comunidad"}</option>
             {comunidades.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
-          <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
           </div>
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col">
         <label htmlFor="filtro-provincia" className="field-label">Provincia</label>
         <div className="relative">
           <select id="filtro-provincia" value={selProv} onChange={e => setSelProv(e.target.value)} disabled={!selCCAA || loadingProv} className={selectClass}>
-            <option value="">{loadingProv ? "Cargando..." : !selCCAA ? "Primero selecciona una CCAA" : "Seleccionar Provincia..."}</option>
+            <option value="">{loadingProv ? "Cargando…" : !selCCAA ? "Seleccione antes una comunidad" : "Seleccione una provincia"}</option>
             {provincias.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
           </select>
-          <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
           </div>
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col">
         <label htmlFor="filtro-municipio" className="field-label">
-          Municipio{municipios.length > 0 && <span className="ml-2 text-xs text-[var(--text-muted)]">{municipios.length} disponibles</span>}
+          Municipio{municipios.length > 0 && <span className="tnum ml-2 font-normal text-[var(--text-muted)]">{municipios.length} disponibles</span>}
         </label>
         <div className="relative">
           <select id="filtro-municipio" value={selMun} onChange={handleMunicipioChange} disabled={!selProv || loadingMun} className={selectClass}>
-            <option value="">{loadingMun ? "Cargando..." : !selProv ? "Primero selecciona una provincia" : "Seleccionar Municipio..."}</option>
+            <option value="">{loadingMun ? "Cargando…" : !selProv ? "Seleccione antes una provincia" : "Seleccione un municipio"}</option>
             {municipios.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
           </select>
-          <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
           </div>

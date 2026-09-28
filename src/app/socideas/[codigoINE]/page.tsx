@@ -38,8 +38,8 @@ import { readMunicipalStructureWithBenchmarks } from "@/lib/socideas-population-
 import type { MunicipalStructureWithBenchmarks } from "@/lib/socideas-population-runtime";
 import EstructuraSoloBloque from "@/components/socideas/EstructuraSoloBloque";
 import EmptyState from "@/components/ui/EmptyState";
-import SourcePill from "@/components/ui/SourcePill";
-import SectionEyebrow from "@/components/ui/SectionEyebrow";
+import PageShell from "@/components/ui/PageShell";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import type { PerfilDemografico, PerfilEconomico } from "@/lib/socideas";
 
 export const dynamic = "force-dynamic";
@@ -141,17 +141,19 @@ export default async function SocideasFicha({
     return (
       <div className="flex min-h-screen flex-col">
         <SocideasHeader codigoINE={codigoINE} />
-        <main id="contenido" className="flex-1 flex items-center justify-center px-4 py-10">
-          <div className="w-full max-w-md">
-            <EmptyState
-              title={`No se encontró el municipio con código INE ${codigoINE}.`}
-              description="Compruebe el código o vuelva al buscador municipal de SOCideas."
-              action={
-                <Link href="/socideas" className="text-sm font-semibold text-[var(--color-secondary)]">
-                  Volver al buscador
-                </Link>
-              }
-            />
+        <main id="contenido" className="flex-1">
+          <div className="container-ima py-16">
+            <div className="mx-auto w-full max-w-md">
+              <EmptyState
+                title={`No se encontró el municipio con código INE ${codigoINE}`}
+                description="El código no corresponde a ningún municipio del catálogo o sus datos no se han podido leer. Compruebe los cinco dígitos del código INE o búsquelo por nombre."
+                action={
+                  <Link href="/socideas" className="btn btn-secondary btn-sm">
+                    Buscar un municipio
+                  </Link>
+                }
+              />
+            </div>
           </div>
         </main>
         <PlatformFooter />
@@ -224,76 +226,74 @@ export default async function SocideasFicha({
     <div className="flex min-h-screen flex-col">
       <SocideasHeader codigoINE={municipio.codigo_ine} search={new URLSearchParams(spObj).toString()} />
       <main id="contenido" className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-          <section className="mb-8 border-b border-[var(--color-border-subtle)] pb-8">
-            <nav aria-label="Migas de pan" className="mb-3 text-xs text-[var(--color-text-muted)]">
-              <Link href="/socideas" className="hover:text-[var(--color-secondary)]">
-                SOCideas
-              </Link>
-              <span className="mx-1.5">/</span>
-              <span className="text-[var(--color-text-secondary)]">{municipio.nombre}</span>
-            </nav>
-            <SectionEyebrow>
-              Ficha municipal · {municipio.provincia} · {municipio.comunidad_autonoma}
-            </SectionEyebrow>
-            <h1 className="editorial-display mt-3 text-3xl text-[var(--color-text-primary)] sm:text-4xl">
-              {municipio.nombre}
-            </h1>
-            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-              {municipio.provincia} · {municipio.comunidad_autonoma} · Código INE {municipio.codigo_ine}
-            </p>
-            {perfil.ultima_sincronizacion && (
-              <div className="mt-3">
-                <SourcePill title={`Última sincronización: ${perfil.ultima_sincronizacion}`}>
-                  Datos oficiales actualizados el{" "}
-                  {new Date(perfil.ultima_sincronizacion).toLocaleDateString("es-ES", {
+        <div className="container-ima pb-16">
+          <PageShell
+            breadcrumbs={
+              <Breadcrumbs
+                items={[
+                  { label: "IDEAS Sostenibilidad", href: "/" },
+                  { label: "SOCideas", href: "/socideas" },
+                  { label: municipio.nombre },
+                ]}
+              />
+            }
+            title={municipio.nombre}
+            meta={
+              <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-sm text-[var(--text-secondary)]">
+                <div>
+                  <dt className="sr-only">Provincia y comunidad autónoma</dt>
+                  <dd>
+                    {municipio.provincia}, {municipio.comunidad_autonoma}
+                  </dd>
+                </div>
+                <div className="flex gap-1.5">
+                  <dt className="text-[var(--text-muted)]">Código INE</dt>
+                  <dd className="tabular-nums">{municipio.codigo_ine}</dd>
+                </div>
+                {perfil.ultima_sincronizacion && (
+                  <div className="flex flex-wrap gap-x-1.5" title={`Última sincronización: ${perfil.ultima_sincronizacion}`}>
+                    <dt className="text-[var(--text-muted)]">Datos oficiales sincronizados el</dt>
+                    <dd>
+                      <time dateTime={perfil.ultima_sincronizacion}>
+                        {new Date(perfil.ultima_sincronizacion).toLocaleDateString("es-ES", {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
                   })}
-                </SourcePill>
-              </div>
-            )}
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                href="/socideas"
-                className="inline-flex min-h-[36px] items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-[6px] hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
-                style={{ backgroundColor: 'var(--color-input-bg)' }}
-              >
-                ← Volver a SOCideas
-              </Link>
-              <Link
-                href={mapHref}
-                className="inline-flex min-h-[36px] items-center gap-2 px-4 py-2 text-xs font-semibold text-hueso bg-musgo rounded-[6px] hover:bg-musgo-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
-              >
-                Abrir en URBideas →
-              </Link>
-            </div>
-          </section>
-
-          {/* Cabecera operativa: recuento de tablas + descarga XLSX en banda propia. */}
-          <FichaToolbar
-            codigoINE={municipio.codigo_ine}
-            demoCount={buildDemografiaTables(perfil).length}
-            ecoCount={economia ? buildEconomiaTables(economia).length : 0}
-            demoPeriodo={periodoDe(buildDemografiaTables(perfil).map((t) => t.periodo))}
-            ecoPeriodo={economia ? periodoDe(buildEconomiaTables(economia).map((t) => t.periodo)) : null}
+                      </time>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            }
           >
-            <ActualizacionMenu
+            {/* Barra operativa: recuento de tablas del libro y descarga XLSX. */}
+            <FichaToolbar
               codigoINE={municipio.codigo_ine}
-              ultimaDemografia={perfil.ultima_sincronizacion}
-              ultimaEconomia={economia?.ultima_sincronizacion}
-              capasPreview={capasPreview}
-            />
-          </FichaToolbar>
+              demoCount={buildDemografiaTables(perfil).length}
+              ecoCount={economia ? buildEconomiaTables(economia).length : 0}
+              demoPeriodo={periodoDe(buildDemografiaTables(perfil).map((t) => t.periodo))}
+              ecoPeriodo={economia ? periodoDe(buildEconomiaTables(economia).map((t) => t.periodo)) : null}
+            >
+              <Link href={mapHref} className="btn btn-ghost">
+                Abrir en URBideas
+              </Link>
+              <ActualizacionMenu
+                codigoINE={municipio.codigo_ine}
+                ultimaDemografia={perfil.ultima_sincronizacion}
+                ultimaEconomia={economia?.ultima_sincronizacion}
+                capasPreview={capasPreview}
+              />
+            </FichaToolbar>
+          </PageShell>
 
           {/* Navegación por hojas del libro XLSX. */}
-          <div className="mt-6">
+          <div className="-mt-4">
             <SheetTabs codigoINE={municipio.codigo_ine} activa={hojaActiva} searchParams={spObj} />
           </div>
 
           {/* Apartado activo: cada hoja del libro tiene su propio encabezado. */}
-          <div className="mt-8">
+          <div>
             <SheetHeader sheet={hojaMeta} />
 
             {hojaActiva === "proyecto" && <ProyectoSheet codigoINE={municipio.codigo_ine} />}
@@ -304,8 +304,8 @@ export default async function SocideasFicha({
                   title="Preparando datos oficiales"
                   description="Este municipio aún no tiene su perfil demográfico sincronizado. La sincronización la realiza el equipo técnico desde el servidor con fuentes oficiales; ningún dato se muestra sin trazabilidad."
                   action={
-                    <Link href="/socideas" className="text-sm font-semibold text-[var(--color-secondary)]">
-                      Volver al buscador
+                    <Link href="/socideas" className="btn btn-secondary btn-sm">
+                      Buscar otro municipio
                     </Link>
                   }
                 />
@@ -315,8 +315,8 @@ export default async function SocideasFicha({
                     title="Sin serie demográfica cargada"
                     description="Este municipio no tiene población en los envelopes R2 de la carga nacional SOCideas. La ausencia se muestra como tal: no se imputa ningún valor ni se convierte en cero."
                     action={
-                      <Link href="/socideas" className="text-sm font-semibold text-[var(--color-secondary)]">
-                        Volver al buscador
+                      <Link href="/socideas" className="btn btn-secondary btn-sm">
+                        Buscar otro municipio
                       </Link>
                     }
                   />
@@ -362,7 +362,7 @@ export default async function SocideasFicha({
               ) : (
                 <EmptyState
                   title="Bloque económico no disponible"
-                  description="No se pudo cargar el bloque económico de este municipio. La sincronización la realiza el equipo técnico desde el servidor con fuentes oficiales."
+                  description="No se ha podido leer el bloque económico de este municipio. Recargue la página en unos minutos; si persiste, el bloque está pendiente de sincronización por el equipo técnico con fuentes oficiales."
                 />
               ))}
 

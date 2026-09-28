@@ -11,7 +11,7 @@ export function Card({ children, className = '', padding = true, hover = false }
   return (
     <div
       className={[
-        'rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[var(--shadow-1)]',
+        'rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]',
         padding ? 'p-5 sm:p-6' : '',
         hover ? 'card-interactive' : '',
         className,

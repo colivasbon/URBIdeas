@@ -3,6 +3,11 @@ import { useEffect, useRef } from 'react'
 import { useMap } from 'react-leaflet'
 import L from 'leaflet'
 
+// Croquis en curso: musgo discontinuo con vértices hueso (paleta en literal para Leaflet).
+const MUSGO = '#3E665C'
+const HUESO = '#F1F1F1'
+const CRISOPA = '#C2E189'
+
 export type ModoDibujo = null | 'poligono' | 'punto' | 'linea'
 
 interface Props {
@@ -44,11 +49,11 @@ export function DibujoAmbito({ modo, onPoligono, onPunto, onLinea }: Props) {
     const modo = modoRef.current
     if (modo === 'poligono') {
       lineRef.current = L.polygon(pts as L.LatLngExpression[], {
-        color: '#e07b39', weight: 2, dashArray: '6 4', fillOpacity: 0.15,
+        color: MUSGO, weight: 2.5, dashArray: '6 4', fillColor: CRISOPA, fillOpacity: 0.2,
       }).addTo(map)
     } else if (modo === 'linea' && pts.length >= 1) {
       lineRef.current = L.polyline(pts as L.LatLngExpression[], {
-        color: '#e07b39', weight: 3, dashArray: '6 4',
+        color: MUSGO, weight: 3, dashArray: '6 4',
       }).addTo(map)
     }
   }
@@ -79,7 +84,7 @@ export function DibujoAmbito({ modo, onPoligono, onPunto, onLinea }: Props) {
       }
       ;(L.DomEvent as unknown as { stopPropagation: (ev: unknown) => void }).stopPropagation(e.originalEvent)
       ptsRef.current.push(e.latlng)
-      const dot = L.circleMarker(e.latlng, { radius: 4, color: '#e07b39', fillColor: '#e07b39', fillOpacity: 1 }).addTo(map)
+      const dot = L.circleMarker(e.latlng, { radius: 4.5, color: MUSGO, weight: 2, fillColor: HUESO, fillOpacity: 1 }).addTo(map)
       markersRef.current.push(dot)
       redibujar()
     }

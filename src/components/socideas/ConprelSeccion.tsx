@@ -25,16 +25,17 @@ export default function ConprelSeccion({
 }) {
   if (!presentacion) {
     return (
-      <section aria-label="Presupuestos y liquidaciones (CONPREL)" className="ideas-section">
-        <h2 className="ideas-h2">Presupuestos y liquidaciones (CONPREL)</h2>
-        <div className="ideas-status mt-3" data-state="pending" role="status">
-          <div className="ideas-status__head">
-            <p className="ideas-status__title">Bloque CONPREL</p>
-            <span className="ideas-status__badge">Preparado, no publicado</span>
+      <section aria-label="Presupuestos y liquidaciones (CONPREL)" className="border-t border-[var(--border-subtle)] py-10">
+        <h2 className="type-h3 text-[var(--text-primary)]">Presupuestos y liquidaciones (CONPREL)</h2>
+        <div className="mt-4 rounded-[6px] border border-dashed border-[var(--border-default)] px-5 py-4" data-state="pending" role="status">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="type-h4 text-[var(--text-primary)]">Bloque CONPREL</p>
+            <span className="socideas-badge" data-tone="draft">
+              <span aria-hidden="true" className="socideas-badge__dot" />
+              Preparado, no publicado
+            </span>
           </div>
-          <div className="ideas-status__body">
-            <p>{CONPREL_NO_PUBLICADO_TEXTO}</p>
-          </div>
+          <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">{CONPREL_NO_PUBLICADO_TEXTO}</p>
         </div>
       </section>
     );
@@ -43,43 +44,37 @@ export default function ConprelSeccion({
   const { ppto, liq, cruceTexto, notasTerritoriales } = presentacion;
 
   return (
-    <section aria-label="Presupuestos y liquidaciones (CONPREL)" className="ideas-section">
+    <section aria-label="Presupuestos y liquidaciones (CONPREL)" className="border-t border-[var(--border-subtle)] py-10">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="ideas-h2">Presupuestos y liquidaciones (CONPREL)</h2>
+        <h2 className="type-h3 text-[var(--text-primary)]">Presupuestos y liquidaciones (CONPREL)</h2>
         <DataStatusBadge estado="parcial" />
       </div>
 
-      <p
-        className="mt-3 max-w-3xl rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-secondary)]"
-        role="note"
-      >
-        <strong>{presentacion.notaSerie}</strong>
+      <p className="note mt-4 max-w-[70ch]" role="note">
+        <span className="font-medium text-[var(--text-primary)]">{presentacion.notaSerie}</span>
       </p>
 
-      <p
-        className="mt-2 max-w-3xl rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-secondary)]"
-        role="status"
-      >
+      <p className="mt-3 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]" role="status">
         {cruceTexto}
       </p>
 
       {notasTerritoriales.map((nota) => (
         <p
           key={nota}
-          className="mt-2 max-w-3xl rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-secondary)]"
+          className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]"
           role="note"
         >
           {nota}
         </p>
       ))}
 
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="mt-8 grid grid-cols-1 gap-x-10 gap-y-10 xl:grid-cols-2">
         <FamiliaConprel bloqueId={`conprel-ppto-${presentacion.codigoINE}`} familia={ppto} />
         <FamiliaConprel bloqueId={`conprel-liq-${presentacion.codigoINE}`} familia={liq} />
       </div>
 
-      <p className="ideas-note mt-4">{presentacion.notaNd}</p>
-      <p className="ideas-note">{presentacion.notaAntiComparacion}</p>
+      <p className="mt-6 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">{presentacion.notaNd}</p>
+      <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">{presentacion.notaAntiComparacion}</p>
     </section>
   );
 }
@@ -93,21 +88,21 @@ function FamiliaConprel({
 }) {
   const ausente = !familia.presente;
   return (
-    <div className="premium-card p-5">
+    <div className="min-w-0 border-t border-[var(--border-strong)] pt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">{familia.titulo}</h3>
+        <h3 className="type-h4 text-[var(--text-primary)]">{familia.titulo}</h3>
         <DataStatusBadge estado="parcial" />
       </div>
-      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-        Ejercicio {familia.ejercicio} · {familia.etiquetaCorte} · tabla {familia.tableId}
+      <p className="mt-1 text-[13px] text-[var(--text-muted)]">
+        Ejercicio <span className="tabular-nums">{familia.ejercicio}</span>, {familia.etiquetaCorte}, tabla {familia.tableId}
       </p>
-      <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
         {familia.coberturaTexto}
       </p>
 
       {ausente && (
         <p
-          className="mt-3 rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-3 py-2.5 text-xs leading-relaxed text-[var(--color-text-secondary)]"
+          className="mt-4 rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]"
           role="status"
         >
           <span className="socideas-badge mr-2" role="status">
@@ -118,7 +113,8 @@ function FamiliaConprel({
       )}
 
       {!ausente && (
-        <table id={bloqueId} className="socideas-table mt-3">
+        <div className="socideas-table-shell__scroll overflow-x-auto" role="region" aria-label={`Tabla: ${familia.titulo}`} tabIndex={0}>
+        <table id={bloqueId} className="socideas-table">
           <caption className="sr-only">
             {familia.titulo} — indicadores CONPREL del municipio
           </caption>
@@ -144,22 +140,23 @@ function FamiliaConprel({
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       {ausente && (
-        <ul className="mt-3 space-y-1.5">
+        <ul className="mt-4">
           {familia.filas.map((fila) => (
             <li
               key={fila.slug}
-              className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-3 py-2"
+              className="border-t border-[var(--border-subtle)] py-3"
             >
-              <p className="text-xs font-semibold text-[var(--color-text-primary)]">
+              <p className="text-sm font-medium text-[var(--text-primary)]">
                 {fila.nombre}
               </p>
-              <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
-                Período: {fila.periodo} · Unidad: {fila.unidad} · Fuente: {fila.fuente}
+              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                Período: {fila.periodo}. Unidad: {fila.unidad}. Fuente: {fila.fuente}.
               </p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+              <p className="mt-0.5 max-w-[70ch] text-xs leading-relaxed text-[var(--text-secondary)]">
                 {fila.definicion}
               </p>
             </li>
@@ -167,7 +164,7 @@ function FamiliaConprel({
         </ul>
       )}
 
-      <p className="ideas-note mt-3">{familia.pie}</p>
+      <p className="mt-4 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">{familia.pie}</p>
       <div className="mt-2">
         <FuenteOficial url={familia.fuenteUrl} etiqueta="Descarga oficial CONPREL" />
       </div>
@@ -199,14 +196,14 @@ function FilaConprel({ fila }: { fila: ConprelIndicadorFila }) {
       <td className="socideas-table__year">{fila.ejercicio}</td>
       <td className="socideas-table__text">
         <span className="block">{fila.concepto}</span>
-        <span className="mt-0.5 block text-[11px] font-normal text-[var(--color-text-muted)]">
+        <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">
           {fila.nombre}
         </span>
-        <span className="mt-0.5 block text-[11px] font-normal text-[var(--color-text-muted)]">
+        <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">
           {fila.definicion}
         </span>
-        <span className="mt-0.5 block text-[11px] font-normal text-[var(--color-text-muted)]">
-          Período: {fila.periodo} · Unidad: {fila.unidad}
+        <span className="mt-0.5 block text-xs font-normal text-[var(--text-muted)]">
+          Período: {fila.periodo}. Unidad: {fila.unidad}.
         </span>
       </td>
       <td className="socideas-table__text">{fila.magnitud}</td>
@@ -218,7 +215,7 @@ function FilaConprel({ fila }: { fila: ConprelIndicadorFila }) {
         ) : fila.esCeroPublicado ? (
           <span className="tabular-nums" title="Cero publicado por la fuente (no es ND)">
             0 €
-            <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+            <span className="ml-1 text-xs font-medium text-[var(--text-muted)]">
               cero publicado
             </span>
           </span>

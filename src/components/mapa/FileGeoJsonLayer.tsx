@@ -62,11 +62,11 @@ export function FileGeoJsonLayer({ layer }: FileGeoJsonLayerProps) {
           const hidden = sorted.length - MAX_VISIBLE
 
           const popupContent = visible
-            .map(([k, v]) => `<tr><td style="padding:2px 6px 2px 0;font-weight:500;color:var(--color-text-muted);white-space:nowrap;vertical-align:top;font-size:11px">${k}</td><td style="padding:2px 0;font-size:11px;word-break:break-word">${String(v).substring(0, 120)}${String(v).length > 120 ? '...' : ''}</td></tr>`)
+            .map(([k, v]) => `<tr><td style="padding:2px 6px 2px 0;font-weight:500;color:var(--text-muted);white-space:nowrap;vertical-align:top;font-size:11px">${k}</td><td style="padding:2px 0;font-size:11px;word-break:break-word">${String(v).substring(0, 120)}${String(v).length > 120 ? '...' : ''}</td></tr>`)
             .join('')
 
           const moreText = hidden > 0
-            ? `<div style="font-size:10px;color:var(--color-text-muted);text-align:center;padding:4px 0;border-top:1px solid var(--color-border-subtle);margin-top:4px">+${hidden} campos más</div>`
+            ? `<div style="font-size:10px;color:var(--text-muted);text-align:center;padding:4px 0;border-top:1px solid var(--border-subtle);margin-top:4px">+${hidden} campos más</div>`
             : ''
 
           leafletLayer.bindPopup(

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, use } from "react"
 import UrbideasHeader from "@/components/platform/UrbideasHeader"
-import Footer from "@/components/layout/Footer"
+import PlatformFooter from "@/components/platform/PlatformFooter"
+import PageShell from "@/components/ui/PageShell"
+import Breadcrumbs from "@/components/ui/Breadcrumbs"
 import { Badge } from "@/components/ui/Badge"
 import Link from "next/link"
 
@@ -95,19 +97,32 @@ export default function LegislacionMunicipioPage({
     fetchData()
   }, [resolvedParams.codigoINE])
 
+  const nombreMunicipio = siuData?.nombre || directorioData?.nombre_ayuntamiento
+
+  const breadcrumbs = (
+    <Breadcrumbs
+      items={[
+        { label: "IDEAS Sostenibilidad", href: "/" },
+        { label: "URBideas", href: "/urbideas" },
+        { label: "Legislación", href: "/urbideas/legislacion" },
+        { label: nombreMunicipio || resolvedParams.codigoINE },
+      ]}
+    />
+  )
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col">
         <UrbideasHeader />
-        <main id="contenido" className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="h-6 w-6 mx-auto animate-spin rounded-full border-2 border-[var(--color-secondary)] border-t-transparent" />
-            <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-              Cargando información del municipio...
-            </p>
+        <main id="contenido" className="flex-1">
+          <div className="container-ima py-16">
+            <div className="flex items-center gap-3" role="status" aria-live="polite">
+              <span className="spinner text-[var(--moss-ink)]" aria-hidden="true" />
+              <p className="text-sm text-[var(--text-muted)]">Cargando información del municipio…</p>
+            </div>
           </div>
         </main>
-        <Footer />
+        <PlatformFooter />
       </div>
     )
   }
@@ -116,251 +131,211 @@ export default function LegislacionMunicipioPage({
     return (
       <div className="flex min-h-screen flex-col">
         <UrbideasHeader />
-        <main id="contenido" className="flex-1 flex items-center justify-center">
-          <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] p-6 max-w-md text-center">
-            <p className="text-sm text-[var(--color-text-secondary)]">{error}</p>
-            <div className="mt-4">
-              <Link
-                href="/urbideas/legislacion"
-                className="text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)]"
-              >
-                Volver a Legislación
-              </Link>
+        <main id="contenido" className="flex-1">
+          <div className="container-ima pb-16">
+            <PageShell breadcrumbs={breadcrumbs} title="Legislación municipal" />
+            <div className="note note-danger max-w-[70ch]" role="alert">
+              <p className="font-medium text-[var(--text-primary)]">
+                No se pudo cargar la información del municipio {resolvedParams.codigoINE}.
+              </p>
+              <p className="mt-1">
+                Compruebe la conexión y recargue la página, o consulte la normativa general en{" "}
+                <Link href="/urbideas/legislacion" className="link">
+                  Legislación
+                </Link>
+                .
+              </p>
             </div>
           </div>
         </main>
-        <Footer />
+        <PlatformFooter />
       </div>
     )
   }
 
+  const enlacesAyuntamiento = directorioData
+    ? [
+        {
+          href: directorioData.url_web_oficial,
+          nombre: "Web oficial",
+          descripcion: directorioData.url_web_oficial,
+          breakAll: true,
+        },
+        {
+          href: directorioData.url_legislacion_urbanistica,
+          nombre: "Legislación urbanística",
+          descripcion: "Normativa y ordenanzas municipales",
+          breakAll: false,
+        },
+        {
+          href: directorioData.url_plan_ordenacion,
+          nombre: "Plan de ordenación",
+          descripcion: "PGOU, normas subsidiarias y planeamiento",
+          breakAll: false,
+        },
+        {
+          href: directorioData.url_boletin_municipal,
+          nombre: "Boletín municipal",
+          descripcion: "Publicaciones oficiales del ayuntamiento",
+          breakAll: false,
+        },
+      ].filter((e): e is { href: string; nombre: string; descripcion: string; breakAll: boolean } => Boolean(e.href))
+    : []
+
   return (
     <div className="flex min-h-screen flex-col">
       <UrbideasHeader />
-      
+
       <main id="contenido" className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          {/* Breadcrumb */}
-          <nav className="mb-4 text-[11px] text-[var(--color-text-muted)]">
-            <Link href="/urbideas/legislacion" className="hover:text-[var(--color-secondary)] transition-colors">
-              Legislación
-            </Link>
-            <span className="mx-1.5">/</span>
-            <span className="text-[var(--color-text-secondary)]">
-              {siuData?.nombre || directorioData?.nombre_ayuntamiento || resolvedParams.codigoINE}
-            </span>
-          </nav>
+        <div className="container-ima pb-16">
+          <PageShell
+            breadcrumbs={breadcrumbs}
+            title={nombreMunicipio || "Municipio"}
+            lede="Planeamiento urbanístico comunicado al SIU, enlaces del ayuntamiento y normativa municipal registrada."
+            meta={<span className="tnum text-sm text-[var(--text-secondary)]">Código INE {resolvedParams.codigoINE}</span>}
+          />
 
-          {/* Title */}
-          <section className="mb-6 border-b border-[var(--color-border-subtle)] pb-6">
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
-              {siuData?.nombre || directorioData?.nombre_ayuntamiento || "Municipio"}
-            </h1>
-            <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-              Código INE: {resolvedParams.codigoINE}
-            </p>
-          </section>
-
-          {/* SIU Data */}
-          {siuData && (
-            <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] mb-5">
-              <div className="px-5 py-4 border-b border-[var(--color-border-subtle)]">
-                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Planeamiento Urbanístico (SIU)</h3>
-              </div>
-              <div className="px-5 py-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-                      Figura vigente
-                    </p>
-                    <Badge variant={figuraColors[siuData.figura_vigente] || "primary"}>
-                      {siuData.figura_vigente}
-                    </Badge>
+          <div className="flex flex-col gap-14">
+            {/* Planeamiento (SIU) */}
+            {siuData && (
+              <section aria-labelledby="sec-siu">
+                <h2 id="sec-siu" className="type-h3 text-[var(--text-primary)]">
+                  Planeamiento urbanístico (SIU)
+                </h2>
+                <dl className="module-index mt-5">
+                  <div className="module-index__row">
+                    <dt className="text-sm text-[var(--text-secondary)]">Figura vigente</dt>
+                    <dd>
+                      <Badge variant={figuraColors[siuData.figura_vigente] || "primary"}>
+                        {siuData.figura_vigente}
+                      </Badge>
+                    </dd>
                   </div>
-                  
                   {siuData.fecha_figura && (
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-                        Fecha de aprobación
-                      </p>
-                      <p className="text-sm text-[var(--color-text-secondary)]">
-                        {siuData.fecha_figura}
-                      </p>
+                    <div className="module-index__row">
+                      <dt className="text-sm text-[var(--text-secondary)]">Fecha de aprobación</dt>
+                      <dd className="tnum text-sm text-[var(--text-primary)]">{siuData.fecha_figura}</dd>
                     </div>
                   )}
-                </div>
-
-                {siuData.observaciones && (
-                  <div className="mt-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-                      Observaciones
-                    </p>
-                    <p className="text-sm text-[var(--color-text-secondary)]">
-                      {siuData.observaciones}
-                    </p>
-                  </div>
-                )}
-
-                {siuData.url_link && (
-                  <div className="mt-4 pt-3 border-t border-[var(--color-border-subtle)]">
-                    <a
-                      href={siuData.url_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
-                    >
-                      {siuData.texto_link || "Visor de planeamiento"}
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Directorio del Ayuntamiento */}
-          {directorioData && (
-            <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] mb-5">
-              <div className="px-5 py-4 border-b border-[var(--color-border-subtle)]">
-                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Enlaces del Ayuntamiento</h3>
-              </div>
-              <div className="divide-y divide-[var(--color-border-subtle)]">
-                {directorioData.url_web_oficial && (
-                  <a
-                    href={directorioData.url_web_oficial}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--color-card-bg)]"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-[var(--color-text-primary)]">Web oficial</p>
-                      <p className="text-[11px] text-[var(--color-text-muted)] truncate max-w-xs">
-                        {directorioData.url_web_oficial}
-                      </p>
+                  {siuData.observaciones && (
+                    <div className="module-index__row">
+                      <dt className="text-sm text-[var(--text-secondary)]">Observaciones</dt>
+                      <dd className="max-w-[70ch] text-sm leading-relaxed text-[var(--text-primary)]">
+                        {siuData.observaciones}
+                      </dd>
                     </div>
-                  </a>
-                )}
-
-                {directorioData.url_legislacion_urbanistica && (
-                  <a
-                    href={directorioData.url_legislacion_urbanistica}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--color-card-bg)]"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-[var(--color-text-primary)]">Legislación urbanística</p>
-                      <p className="text-[11px] text-[var(--color-text-muted)]">
-                        Normativa y ordenanzas municipales
-                      </p>
-                    </div>
-                  </a>
-                )}
-
-                {directorioData.url_plan_ordenacion && (
-                  <a
-                    href={directorioData.url_plan_ordenacion}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--color-card-bg)]"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-[var(--color-text-primary)]">Plan de ordenación</p>
-                      <p className="text-[11px] text-[var(--color-text-muted)]">
-                        PGOU, normas subsidiarias y planeamiento
-                      </p>
-                    </div>
-                  </a>
-                )}
-
-                {directorioData.url_boletin_municipal && (
-                  <a
-                    href={directorioData.url_boletin_municipal}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--color-card-bg)]"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-[var(--color-text-primary)]">Boletín municipal</p>
-                      <p className="text-[11px] text-[var(--color-text-muted)]">
-                        Publicaciones oficiales del ayuntamiento
-                      </p>
-                    </div>
-                  </a>
-                )}
-              </div>
-
-              {directorioData.tiene_datos_abiertos && (
-                <div className="px-5 py-3 border-t border-[var(--color-border-subtle)]">
-                  <Badge variant="success">Datos abiertos disponibles</Badge>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Normativa específica del municipio */}
-          {normativaData.length > 0 && (
-            <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] mb-5">
-              <div className="px-5 py-4 border-b border-[var(--color-border-subtle)]">
-                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Normativa Municipal</h3>
-              </div>
-              <div className="divide-y divide-[var(--color-border-subtle)]">
-                {normativaData.map((norma) => (
-                  <div 
-                    key={norma.id}
-                    className="flex items-start justify-between gap-4 px-5 py-3 transition-colors hover:bg-[var(--color-card-bg)]"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
-                        {norma.titulo}
-                      </p>
-                      <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                        {norma.referencia_legal}
-                      </p>
-                      {norma.fecha_publicacion && (
-                        <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                          Publicación: {new Date(norma.fecha_publicacion).toLocaleDateString("es-ES")}
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant={norma.estado_vigencia === "vigente" ? "success" : "primary"}>
-                        {norma.estado_vigencia}
-                      </Badge>
-                      {norma.enlace_boe_boletin && (
+                  )}
+                  {siuData.url_link && (
+                    <div className="module-index__row">
+                      <dt className="text-sm text-[var(--text-secondary)]">Visor</dt>
+                      <dd className="text-sm">
                         <a
-                          href={norma.enlace_boe_boletin}
+                          href={siuData.url_link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
+                          className="link link-external"
                         >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                          </svg>
+                          {siuData.texto_link || "Visor de planeamiento"}
                         </a>
-                      )}
+                      </dd>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+                  )}
+                </dl>
+              </section>
+            )}
 
-          {/* Empty state */}
-          {!siuData && !directorioData && normativaData.length === 0 && (
-            <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] py-12 text-center px-5">
-              <p className="text-sm text-[var(--color-text-muted)]">
-                No se encontró información para este municipio.
-              </p>
-              <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
-                Código INE: {resolvedParams.codigoINE}
-              </p>
-            </div>
-          )}
+            {/* Directorio del ayuntamiento */}
+            {directorioData && (
+              <section aria-labelledby="sec-ayuntamiento">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 id="sec-ayuntamiento" className="type-h3 text-[var(--text-primary)]">
+                    Enlaces del ayuntamiento
+                  </h2>
+                  {directorioData.tiene_datos_abiertos && <Badge variant="success">Datos abiertos disponibles</Badge>}
+                </div>
+                {enlacesAyuntamiento.length > 0 ? (
+                  <dl className="module-index mt-5">
+                    {enlacesAyuntamiento.map((e) => (
+                      <div key={e.nombre} className="module-index__row">
+                        <dt className="text-sm">
+                          <a href={e.href} target="_blank" rel="noopener noreferrer" className="link link-external font-medium">
+                            {e.nombre}
+                          </a>
+                        </dt>
+                        <dd className={`module-index__desc ${e.breakAll ? "break-all" : ""}`}>{e.descripcion}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="mt-4 text-sm text-[var(--text-secondary)]">
+                    El directorio no recoge enlaces para este ayuntamiento.
+                  </p>
+                )}
+              </section>
+            )}
+
+            {/* Normativa municipal */}
+            {normativaData.length > 0 && (
+              <section aria-labelledby="sec-normativa">
+                <h2 id="sec-normativa" className="type-h3 text-[var(--text-primary)]">
+                  Normativa municipal
+                </h2>
+                <ul className="mt-5 border-t border-[var(--border-strong)]">
+                  {normativaData.map((norma) => (
+                    <li
+                      key={norma.id}
+                      className="grid gap-3 border-b border-[var(--border-subtle)] py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-8"
+                    >
+                      <div className="min-w-0">
+                        <p className="max-w-[70ch] text-sm font-medium text-[var(--text-primary)]">{norma.titulo}</p>
+                        <p className="tnum mt-1 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--text-muted)]">
+                          {norma.referencia_legal && <span>{norma.referencia_legal}</span>}
+                          {norma.fecha_publicacion && (
+                            <span>Publicación: {new Date(norma.fecha_publicacion).toLocaleDateString("es-ES")}</span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 self-start">
+                        <Badge variant={norma.estado_vigencia === "vigente" ? "success" : "primary"}>
+                          {norma.estado_vigencia}
+                        </Badge>
+                        {norma.enlace_boe_boletin && (
+                          <a
+                            href={norma.enlace_boe_boletin}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="link link-external text-sm"
+                          >
+                            Ver boletín
+                          </a>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {/* Estado vacío */}
+            {!siuData && !directorioData && normativaData.length === 0 && (
+              <div>
+                <p className="type-h4 text-[var(--text-primary)]">Sin información registrada para este municipio</p>
+                <p className="type-body-sm mt-2 max-w-[65ch] text-[var(--text-secondary)]">
+                  No constan datos del SIU, del directorio de ayuntamientos ni normativa municipal para el
+                  código INE {resolvedParams.codigoINE}. Compruebe el código o consulte la normativa estatal y
+                  autonómica en{" "}
+                  <Link href="/urbideas/legislacion" className="link">
+                    Legislación
+                  </Link>
+                  .
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
-      <Footer />
+      <PlatformFooter />
     </div>
   )
 }

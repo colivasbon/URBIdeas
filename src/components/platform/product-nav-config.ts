@@ -28,7 +28,7 @@ export function urbideasNavConfig(): ProductNavbarConfig {
     productLabel: "URBideas",
     productMark: "U",
     productHref: "/urbideas",
-    productDescription: "Análisis territorial · IDEAS Sostenibilidad",
+    productDescription: "Análisis territorial",
     tone: "urban",
     mobileMenuLabel: "Abrir menú de URBideas",
     navigation: [
@@ -70,7 +70,7 @@ export function socideasNavConfig(ctx: SocideasContext = {}): ProductNavbarConfi
     productLabel: "SOCideas",
     productMark: "S",
     productHref: "/socideas",
-    productDescription: "Diagnóstico municipal · IDEAS Sostenibilidad",
+    productDescription: "Diagnóstico municipal",
     tone: "social",
     mobileMenuLabel: "Abrir menú de SOCideas",
     navigation: [
@@ -79,7 +79,7 @@ export function socideasNavConfig(ctx: SocideasContext = {}): ProductNavbarConfi
         id: "explorar",
         label: "Explorar",
         items: [
-          { label: "Buscador municipal", href: "/socideas/buscar", description: "Buscar por nombre o código INE" },
+          { label: "Buscador municipal", href: "/socideas#buscador", description: "Buscar por nombre o código INE" },
           ...(ine
             ? [
                 {

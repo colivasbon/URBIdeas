@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardHeader, CardTitle } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import Link from "next/link"
 
@@ -82,188 +81,157 @@ export default function MunicipalTab() {
   }
 
   useEffect(() => {
+    // Carga inicial y recarga al cambiar búsqueda, vista o página.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, activeView, pagination.offset])
 
+  const vistas = [
+    { key: "siu" as const, label: "Planeamiento (SIU)" },
+    { key: "directorio" as const, label: "Directorio de ayuntamientos" },
+  ]
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-8">
       {/* Controles */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setActiveView("siu")}
-            className={`px-4 py-2 text-sm font-medium rounded-[var(--border-radius)] transition-colors ${
-              activeView === "siu"
-                ? "bg-[var(--color-primary)] text-white"
-                : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:bg-[var(--color-input-bg-hover)]"
-            }`}
-          >
-            SIU Estatal
-          </button>
-          <button
-            onClick={() => setActiveView("directorio")}
-            className={`px-4 py-2 text-sm font-medium rounded-[var(--border-radius)] transition-colors ${
-              activeView === "directorio"
-                ? "bg-[var(--color-primary)] text-white"
-                : "bg-[var(--color-input-bg)] text-[var(--color-text-secondary)] hover:bg-[var(--color-input-bg-hover)]"
-            }`}
-          >
-            Directorio Ayuntamientos
-          </button>
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {vistas.map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              onClick={() => setActiveView(v.key)}
+              aria-pressed={activeView === v.key}
+              className={`btn btn-sm ${activeView === v.key ? "btn-secondary" : "btn-ghost text-[var(--text-secondary)]"}`}
+            >
+              {v.label}
+            </button>
+          ))}
         </div>
-        
-        <div className="relative w-full sm:w-80">
+
+        <div className="w-full sm:w-80">
+          <label htmlFor="municipal-busqueda" className="field-label">
+            Buscar municipio
+          </label>
           <input
+            id="municipal-busqueda"
             type="text"
-            placeholder="Buscar municipio..."
+            placeholder="Nombre del municipio"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 pl-10 text-sm bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+            className="input"
           />
-          <svg
-            className="absolute left-3 top-2.5 h-4 w-4 text-[var(--color-text-muted)]"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
         </div>
       </div>
 
       {/* Contenido */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-secondary)] border-t-transparent" />
-          <span className="ml-3 text-sm text-[var(--color-text-muted)]">
-            Cargando datos...
-          </span>
+        <div className="flex items-center gap-3 py-8" role="status" aria-live="polite">
+          <span className="spinner text-[var(--moss-ink)]" aria-hidden="true" />
+          <span className="text-sm text-[var(--text-muted)]">Cargando datos…</span>
         </div>
       ) : activeView === "siu" ? (
-        // Vista SIU
-        <div>
-          <Card className="mb-4">
-            <CardHeader>
-              <CardTitle className="text-base">
-                Datos del Sistema de Información Urbana (SIU)
-              </CardTitle>
-            </CardHeader>
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              Información oficial de planeamiento urbanístico de {siuData.length} municipios.
-              Fuente: Ministerio de Vivienda y Agenda Urbana.
-            </p>
-          </Card>
+        <section aria-labelledby="municipal-siu">
+          <h2 id="municipal-siu" className="type-h3 text-[var(--text-primary)]">
+            Sistema de Información Urbana
+          </h2>
+          <p className="type-body-sm mt-2 max-w-[65ch] text-[var(--text-secondary)]">
+            Planeamiento urbanístico comunicado al Ministerio de Vivienda y Agenda Urbana.{" "}
+            <span className="tnum">
+              {siuData.length} {siuData.length === 1 ? "municipio" : "municipios"} en esta vista.
+            </span>
+          </p>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {siuData.map((municipio) => (
-              <Card key={municipio.codigo_ine} className="flex flex-col" hover>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-[var(--color-text-primary)]">
-                      {municipio.nombre}
-                    </p>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                      INE: {municipio.codigo_ine}
-                    </p>
-                  </div>
-                  <Badge variant={figuraColors[municipio.figura_vigente] || "primary"}>
-                    {municipio.figura_vigente}
-                  </Badge>
-                </div>
-                
-                {municipio.fecha_figura && (
-                  <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-                    Aprobación: {municipio.fecha_figura}
-                  </p>
-                )}
-                
-                {municipio.observaciones && (
-                  <p className="mt-1 text-xs text-[var(--color-text-muted)] line-clamp-2">
-                    {municipio.observaciones}
-                  </p>
-                )}
-                
-                <div className="mt-auto pt-3 border-t border-[var(--color-border-subtle)]">
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={`/urbideas/municipios/${municipio.codigo_ine}/legislacion`}
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-primary)] hover:text-[var(--color-primary-light)] transition-colors"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                      </svg>
-                      Ver detalles
-                    </Link>
-                    {municipio.url_link && (
-                      <a
-                        href={municipio.url_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] transition-colors"
+          {siuData.length === 0 ? (
+            <p className="mt-6 border-t border-[var(--border-subtle)] py-6 text-sm text-[var(--text-secondary)]">
+              {searchTerm
+                ? "Ningún municipio coincide con la búsqueda. Pruebe con otro nombre."
+                : "No hay datos del SIU disponibles en este momento."}
+            </p>
+          ) : (
+            <ul className="mt-6 border-t border-[var(--border-strong)]">
+              {siuData.map((municipio) => (
+                <li
+                  key={municipio.codigo_ine}
+                  className="grid gap-3 border-b border-[var(--border-subtle)] py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-8"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <Link
+                        href={`/urbideas/municipios/${municipio.codigo_ine}/legislacion`}
+                        className="link font-medium"
                       >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                        </svg>
-                        {municipio.texto_link || "Ver planeamiento"}
-                      </a>
+                        {municipio.nombre}
+                      </Link>
+                      <Badge variant={figuraColors[municipio.figura_vigente] || "primary"}>
+                        {municipio.figura_vigente}
+                      </Badge>
+                    </div>
+                    <p className="tnum mt-1 text-xs text-[var(--text-muted)]">
+                      INE {municipio.codigo_ine}
+                      {municipio.fecha_figura ? `, aprobación ${municipio.fecha_figura}` : ""}
+                    </p>
+                    {municipio.observaciones && (
+                      <p className="mt-1.5 line-clamp-2 max-w-[70ch] text-xs text-[var(--text-secondary)]">
+                        {municipio.observaciones}
+                      </p>
                     )}
                   </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
+                  {municipio.url_link && (
+                    <a
+                      href={municipio.url_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="link link-external self-start text-sm"
+                    >
+                      {municipio.texto_link || "Ver planeamiento"}
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       ) : (
-        // Vista Directorio
-        <div>
-          <Card className="mb-4">
-            <CardHeader>
-              <CardTitle className="text-base">
-                Directorio de Ayuntamientos
-              </CardTitle>
-            </CardHeader>
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              Enlaces directos a las webs oficiales de los ayuntamientos con información urbanística.
-            </p>
-          </Card>
+        <section aria-labelledby="municipal-directorio">
+          <h2 id="municipal-directorio" className="type-h3 text-[var(--text-primary)]">
+            Directorio de ayuntamientos
+          </h2>
+          <p className="type-body-sm mt-2 max-w-[65ch] text-[var(--text-secondary)]">
+            Enlaces a las webs oficiales de los ayuntamientos con información urbanística.
+          </p>
 
           {directorioData.length === 0 ? (
-            <Card>
-              <p className="py-12 text-center text-sm text-[var(--color-text-muted)]">
-                No se encontraron ayuntamientos en el directorio.
-              </p>
-            </Card>
+            <p className="mt-6 border-t border-[var(--border-subtle)] py-6 text-sm text-[var(--text-secondary)]">
+              {searchTerm
+                ? "Ningún ayuntamiento del directorio coincide con la búsqueda. Pruebe con otro nombre."
+                : "El directorio de ayuntamientos todavía no tiene entradas."}
+            </p>
           ) : (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <ul className="mt-6 border-t border-[var(--border-strong)]">
               {directorioData.map((ayuntamiento) => (
-                <Card key={ayuntamiento.id} className="flex flex-col" hover>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium text-[var(--color-text-primary)]">
+                <li
+                  key={ayuntamiento.id}
+                  className="grid gap-3 border-b border-[var(--border-subtle)] py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-8"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <span className="font-medium text-[var(--text-primary)]">
                         {ayuntamiento.nombre_ayuntamiento}
-                      </p>
-                      <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                        INE: {ayuntamiento.codigo_ine}
-                      </p>
+                      </span>
+                      {ayuntamiento.tiene_datos_abiertos && <Badge variant="success">Datos abiertos</Badge>}
                     </div>
-                    {ayuntamiento.tiene_datos_abiertos && (
-                      <Badge variant="success">Datos Abiertos</Badge>
-                    )}
+                    <p className="tnum mt-1 text-xs text-[var(--text-muted)]">INE {ayuntamiento.codigo_ine}</p>
                   </div>
-                  
-                  <div className="mt-3 space-y-2">
+                  <div className="flex flex-wrap gap-x-5 gap-y-2 self-start text-sm">
                     {ayuntamiento.url_web_oficial && (
                       <a
                         href={ayuntamiento.url_web_oficial}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)]"
+                        className="link link-external"
                       >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-                        </svg>
                         Web oficial
                       </a>
                     )}
@@ -272,11 +240,8 @@ export default function MunicipalTab() {
                         href={ayuntamiento.url_legislacion_urbanistica}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)]"
+                        className="link link-external"
                       >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                        </svg>
                         Legislación urbanística
                       </a>
                     )}
@@ -285,43 +250,42 @@ export default function MunicipalTab() {
                         href={ayuntamiento.url_plan_ordenacion}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)]"
+                        className="link link-external"
                       >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
-                        </svg>
                         Plan de ordenación
                       </a>
                     )}
                   </div>
-                </Card>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
 
           {/* Paginación */}
           {pagination.total > pagination.limit && (
-            <div className="flex justify-center gap-2 mt-6">
+            <nav aria-label="Paginación del directorio" className="mt-6 flex flex-wrap items-center gap-3">
               <button
+                type="button"
                 onClick={() => setPagination(prev => ({ ...prev, offset: Math.max(0, prev.offset - prev.limit) }))}
                 disabled={pagination.offset === 0}
-                className="px-4 py-2 text-sm font-medium bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--color-input-bg-hover)]"
+                className="btn btn-secondary btn-sm"
               >
                 Anterior
               </button>
-              <span className="px-4 py-2 text-sm text-[var(--color-text-muted)]">
-                {Math.floor(pagination.offset / pagination.limit) + 1} de {Math.ceil(pagination.total / pagination.limit)}
+              <span className="tnum text-sm text-[var(--text-secondary)]">
+                Página {Math.floor(pagination.offset / pagination.limit) + 1} de {Math.ceil(pagination.total / pagination.limit)}
               </span>
               <button
+                type="button"
                 onClick={() => setPagination(prev => ({ ...prev, offset: prev.offset + prev.limit }))}
                 disabled={pagination.offset + pagination.limit >= pagination.total}
-                className="px-4 py-2 text-sm font-medium bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--color-input-bg-hover)]"
+                className="btn btn-secondary btn-sm"
               >
                 Siguiente
               </button>
-            </div>
+            </nav>
           )}
-        </div>
+        </section>
       )}
     </div>
   )

@@ -35,11 +35,8 @@ function pct(num: number | null | undefined, den: number | null | undefined): st
 /** Nota de cobertura SIEMPRE visible, en bloque destacado. */
 function NotaCobertura({ nota }: { nota: string }) {
   return (
-    <div
-      role="note"
-      className="mt-3 rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-secondary)]"
-    >
-      <strong className="text-[var(--color-text-primary)]">Cobertura: </strong>
+    <div role="note" className="note mt-4 max-w-[70ch]">
+      <strong className="font-semibold text-[var(--text-primary)]">Cobertura: </strong>
       {nota}
     </div>
   )
@@ -47,14 +44,14 @@ function NotaCobertura({ nota }: { nota: string }) {
 
 function FuenteLine({ fuente, url }: { fuente: string; url?: string }) {
   return (
-    <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+    <p className="mt-4 text-[13px] text-[var(--text-muted)]">
       Fuente:{' '}
       {url ? (
         <a
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+          className="text-[var(--text-link)] underline underline-offset-2 hover:text-[var(--text-link-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         >
           {fuente}
         </a>
@@ -71,20 +68,20 @@ function CifrasProvinciales({
   rows: { label: string; valor: string }[]
 }) {
   return (
-    <div className="mt-4 overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="socideas-table-shell__scroll max-w-[40rem] overflow-x-auto">
+      <table className="socideas-table">
         <caption className="sr-only">Participación y agregados de la circunscripción</caption>
         <thead>
-          <tr className="text-left text-xs text-[var(--color-text-muted)]">
-            <th scope="col" className="py-2 pr-4 font-medium">Concepto</th>
-            <th scope="col" className="py-2 font-medium">Valor (circunscripción)</th>
+          <tr>
+            <th scope="col" className="socideas-table__text">Concepto</th>
+            <th scope="col" className="socideas-table__numeric">Valor (circunscripción)</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.label} className="border-t border-[var(--color-border-subtle)]">
-              <th scope="row" className="py-2 pr-4 font-normal text-left">{r.label}</th>
-              <td className="py-2 tabular-nums">{r.valor}</td>
+            <tr key={r.label}>
+              <th scope="row" className="border-[var(--border-subtle)] px-[14px] py-3 text-left font-medium text-[var(--text-primary)] [tr+tr_&]:border-t">{r.label}</th>
+              <td className="socideas-table__numeric">{r.valor}</td>
             </tr>
           ))}
         </tbody>
@@ -109,12 +106,12 @@ export function AutonomicasBloque({
     .sort((a, b) => (b.votos ?? -1) - (a.votos ?? -1))
     .slice(0, 12)
   return (
-    <section aria-labelledby="bloque-autonomicas" className="mb-10">
-      <h2 id="bloque-autonomicas" className="ideas-h2">
-        Elecciones autonómicas {data.anio} · {data.camara}
+    <section aria-labelledby="bloque-autonomicas" className="border-t border-[var(--border-subtle)] py-10">
+      <h2 id="bloque-autonomicas" className="type-h3 text-[var(--text-primary)]">
+        Elecciones autonómicas {data.anio}: {data.camara}
       </h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Circunscripción de {data.circunscripcion} · {data.fecha} · ámbito provincial, no municipal
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        Circunscripción de {data.circunscripcion}, {data.fecha}. Ámbito provincial, no municipal.
       </p>
       <NotaCobertura nota={nota} />
       <CifrasProvinciales
@@ -129,34 +126,34 @@ export function AutonomicasBloque({
         ]}
       />
       {candidaturas.length > 0 && (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="socideas-table-shell__scroll mt-8 overflow-x-auto">
+          <table className="socideas-table">
             <caption className="sr-only">
               Votos y escaños por candidatura en la circunscripción de {data.circunscripcion} ({data.anio})
             </caption>
             <thead>
-              <tr className="text-left text-xs text-[var(--color-text-muted)]">
-                <th scope="col" className="py-2 pr-4 font-medium">Candidatura</th>
-                <th scope="col" className="py-2 pr-4 font-medium">Siglas normalizadas</th>
-                <th scope="col" className="py-2 pr-4 font-medium">Votos</th>
-                <th scope="col" className="py-2 pr-4 font-medium">% válidos</th>
-                <th scope="col" className="py-2 font-medium">Escaños en las Cortes</th>
+              <tr>
+                <th scope="col" className="socideas-table__text">Candidatura</th>
+                <th scope="col" className="socideas-table__text">Siglas normalizadas</th>
+                <th scope="col" className="socideas-table__numeric">Votos</th>
+                <th scope="col" className="socideas-table__numeric">% válidos</th>
+                <th scope="col" className="socideas-table__numeric">Escaños en las Cortes</th>
               </tr>
             </thead>
             <tbody>
               {candidaturas.map((c) => (
-                <tr key={`${c.nombre}__${c.siglas}`} className="border-t border-[var(--color-border-subtle)]">
-                  <td className="py-2 pr-4">{c.nombre}</td>
-                  <td className="py-2 pr-4">{normalizarSiglasElectoral(c.siglas || c.nombre) || '—'}</td>
-                  <td className="py-2 pr-4 tabular-nums">{fmt(c.votos)}</td>
-                  <td className="py-2 pr-4 tabular-nums">{pct(c.votos, data.validos)}</td>
-                  <td className="py-2 tabular-nums">{fmt(c.escanos)}</td>
+                <tr key={`${c.nombre}__${c.siglas}`}>
+                  <td className="socideas-table__text">{c.nombre}</td>
+                  <td>{normalizarSiglasElectoral(c.siglas || c.nombre) || '—'}</td>
+                  <td className="socideas-table__numeric">{fmt(c.votos)}</td>
+                  <td className="socideas-table__numeric">{pct(c.votos, data.validos)}</td>
+                  <td className="socideas-table__numeric">{fmt(c.escanos)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           {data.candidaturas.length > candidaturas.length && (
-            <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+            <p className="mt-2 text-xs text-[var(--text-muted)]">
               Se muestran {candidaturas.length} de {data.candidaturas.length} candidaturas; el listado
               completo está en el libro XLSX descargable.
             </p>
@@ -169,7 +166,7 @@ export function AutonomicasBloque({
         fuente={data.fuenteLabel}
         nota="Cifras de la circunscripción, no del municipio."
       />
-      <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
+      <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
         Los escaños corresponden a la circunscripción de {data.circunscripcion} y nunca se suman con
         los del Congreso ni con los del Senado. {municipio} no dispone de desglose autonómico municipal.
       </p>
@@ -193,12 +190,12 @@ export function CongresoBloque({
     .sort((a, b) => (b.votos ?? -1) - (a.votos ?? -1))
     .slice(0, 10)
   return (
-    <section aria-labelledby="bloque-congreso" className="mb-10">
-      <h2 id="bloque-congreso" className="ideas-h2">
-        Elecciones generales · Congreso {data.anio}
+    <section aria-labelledby="bloque-congreso" className="border-t border-[var(--border-subtle)] py-10">
+      <h2 id="bloque-congreso" className="type-h3 text-[var(--text-primary)]">
+        Elecciones generales {data.anio}: Congreso
       </h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Circunscripción de {data.provincia} · {data.fecha} · ámbito provincial, no municipal
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        Circunscripción de {data.provincia}, {data.fecha}. Ámbito provincial, no municipal.
       </p>
       <NotaCobertura nota={nota} />
       <CifrasProvinciales
@@ -212,28 +209,28 @@ export function CongresoBloque({
         ]}
       />
       {candidaturas.length > 0 && (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="socideas-table-shell__scroll mt-8 overflow-x-auto">
+          <table className="socideas-table">
             <caption className="sr-only">
               Votos y diputados por candidatura en la circunscripción de {data.provincia} ({data.anio})
             </caption>
             <thead>
-              <tr className="text-left text-xs text-[var(--color-text-muted)]">
-                <th scope="col" className="py-2 pr-4 font-medium">Candidatura</th>
-                <th scope="col" className="py-2 pr-4 font-medium">Siglas normalizadas</th>
-                <th scope="col" className="py-2 pr-4 font-medium">Votos</th>
-                <th scope="col" className="py-2 pr-4 font-medium">% válidos</th>
-                <th scope="col" className="py-2 font-medium">Diputados</th>
+              <tr>
+                <th scope="col" className="socideas-table__text">Candidatura</th>
+                <th scope="col" className="socideas-table__text">Siglas normalizadas</th>
+                <th scope="col" className="socideas-table__numeric">Votos</th>
+                <th scope="col" className="socideas-table__numeric">% válidos</th>
+                <th scope="col" className="socideas-table__numeric">Diputados</th>
               </tr>
             </thead>
             <tbody>
               {candidaturas.map((c) => (
-                <tr key={`${c.nombre}__${c.siglas}`} className="border-t border-[var(--color-border-subtle)]">
-                  <td className="py-2 pr-4">{c.nombre}</td>
-                  <td className="py-2 pr-4">{normalizarSiglasElectoral(c.siglas || c.nombre) || '—'}</td>
-                  <td className="py-2 pr-4 tabular-nums">{fmt(c.votos)}</td>
-                  <td className="py-2 pr-4 tabular-nums">{pct(c.votos, data.validos)}</td>
-                  <td className="py-2 tabular-nums">{fmt(c.escanos)}</td>
+                <tr key={`${c.nombre}__${c.siglas}`}>
+                  <td className="socideas-table__text">{c.nombre}</td>
+                  <td>{normalizarSiglasElectoral(c.siglas || c.nombre) || '—'}</td>
+                  <td className="socideas-table__numeric">{fmt(c.votos)}</td>
+                  <td className="socideas-table__numeric">{pct(c.votos, data.validos)}</td>
+                  <td className="socideas-table__numeric">{fmt(c.escanos)}</td>
                 </tr>
               ))}
             </tbody>
@@ -246,7 +243,7 @@ export function CongresoBloque({
         fuente={data.fuenteLabel}
         nota="Participación y votos son cifras de la circunscripción, no totales nacionales."
       />
-      <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
+      <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
         Cámara separada del Senado: los votos y escaños de una y otra nunca se suman entre sí.
         {municipio} no dispone de desglose a nivel municipal para esta elección.
       </p>
@@ -271,17 +268,17 @@ export function SenadoBloque({
     .slice(0, 30)
   const elegidos = data.candidatos.filter((c) => c.elegido).length
   return (
-    <section aria-labelledby="bloque-senado" className="mb-10">
-      <h2 id="bloque-senado" className="ideas-h2">
-        Elecciones generales · Senado {data.anio}
+    <section aria-labelledby="bloque-senado" className="border-t border-[var(--border-subtle)] py-10">
+      <h2 id="bloque-senado" className="type-h3 text-[var(--text-primary)]">
+        Elecciones generales {data.anio}: Senado
       </h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Circunscripción de {data.circunscripcion} · {data.fecha} · voto a candidatos · ámbito
-        provincial, no municipal
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        Circunscripción de {data.circunscripcion}, {data.fecha}. Voto a candidatos; ámbito
+        provincial, no municipal.
       </p>
       <NotaCobertura nota={nota} />
-      <p className="mt-3 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-        <strong>Sistema de voto:</strong> cada elector marca hasta{' '}
+      <p className="mt-4 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        <strong className="font-semibold text-[var(--text-primary)]">Sistema de voto:</strong> cada elector marca hasta{' '}
         <strong>3 candidatos</strong> de la lista de su circunscripción y resultan elegidos los más
         votados. No es una lista cerrada: se vota a personas, no a candidaturas.
       </p>
@@ -295,42 +292,41 @@ export function SenadoBloque({
         ]}
       />
       {candidatos.length > 0 && (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="socideas-table-shell__scroll mt-8 overflow-x-auto">
+          <table className="socideas-table">
             <caption className="sr-only">
               Candidatos al Senado por la circunscripción de {data.circunscripcion} ({data.anio}),
               con votos y condición de elegido
             </caption>
             <thead>
-              <tr className="text-left text-xs text-[var(--color-text-muted)]">
-                <th scope="col" className="py-2 pr-4 font-medium">Candidato</th>
-                <th scope="col" className="py-2 pr-4 font-medium">Candidatura (siglas normalizadas)</th>
-                <th scope="col" className="py-2 pr-4 font-medium">Votos</th>
-                <th scope="col" className="py-2 font-medium">Elegido</th>
+              <tr>
+                <th scope="col" className="socideas-table__text">Candidato</th>
+                <th scope="col" className="socideas-table__text">Candidatura (siglas normalizadas)</th>
+                <th scope="col" className="socideas-table__numeric">Votos</th>
+                <th scope="col" className="socideas-table__status">Elegido</th>
               </tr>
             </thead>
             <tbody>
               {candidatos.map((c, i) => (
                 <tr
                   key={`${c.nombre}_${c.apellido1}_${c.partidoSiglas}_${i}`}
-                  className="border-t border-[var(--color-border-subtle)]"
                 >
-                  <td className="py-2 pr-4">
+                  <td className="socideas-table__text">
                     {[c.nombre, c.apellido1, c.apellido2].filter(Boolean).join(' ')}
                   </td>
-                  <td className="py-2 pr-4">
+                  <td>
                     {c.partidoNombre
                       ? `${c.partidoNombre} (${normalizarSiglasElectoral(c.partidoSiglas)})`
                       : normalizarSiglasElectoral(c.partidoSiglas) || '—'}
                   </td>
-                  <td className="py-2 pr-4 tabular-nums">{fmt(c.votos)}</td>
-                  <td className="py-2">{c.elegido ? 'SÍ' : 'No'}</td>
+                  <td className="socideas-table__numeric">{fmt(c.votos)}</td>
+                  <td className="socideas-table__status">{c.elegido ? 'Sí' : 'No'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           {data.candidatos.length > candidatos.length && (
-            <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+            <p className="mt-2 text-xs text-[var(--text-muted)]">
               Se muestran {candidatos.length} de {data.candidatos.length} candidatos; el listado
               completo está en el libro XLSX descargable.
             </p>
@@ -343,7 +339,7 @@ export function SenadoBloque({
         fuente={data.fuenteLabel}
         nota="Tabla separada del Congreso: cámaras distintas, nunca se suman."
       />
-      <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
+      <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
         Los votos y senadores corresponden a la circunscripción de {data.circunscripcion}.
         {municipio} no dispone de desglose a nivel municipal para esta elección.
       </p>
@@ -369,8 +365,8 @@ export function ElectoralProvincialBloques({
   if (!hayAlgo) return null
   return (
     <div>
-      <p className="mb-4 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
-        Resultados de la circunscripción de {bundle.circunscripcion} · no son datos de {municipio}
+      <p className="border-t border-[var(--border-subtle)] pt-10 text-sm font-medium text-[var(--text-secondary)]">
+        Resultados de la circunscripción de {bundle.circunscripcion}: no son datos de {municipio}.
       </p>
       {bundle.autonomicas && (
         <AutonomicasBloque data={bundle.autonomicas} municipio={municipio} nota={nota} />

@@ -8,6 +8,7 @@
  */
 import DataStatusBadge from "./DataStatusBadge";
 import StatCard from "./StatCard";
+import { DISCLOSURE, FIGURE_ROW, LEDE, NOTE, SOURCE_NOTE } from "./ficha-ui";
 import type {
   IneEducationDistribution,
   IneMigrationYear,
@@ -37,40 +38,38 @@ export function MigracionBlock({ data }: { data: NonNullable<MunicipalIneLayersV
   const y: IneMigrationYear = data.latest;
   const serie = data.annualSeries ?? [];
   return (
-    <section aria-label="Movilidad migratoria" className="mb-10">
+    <section aria-label="Movilidad migratoria" className="border-t border-[var(--border-subtle)] py-10">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="ideas-h2">Movilidad migratoria</h2>
+        <h2 className="type-h3 text-[var(--text-primary)]">Movilidad migratoria</h2>
         <DataStatusBadge estado={estadoDe(y.total)} />
       </div>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Saldo migratorio · INE · Tabla {y.total.tableId} · {y.total.period}
-      </p>
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard etiqueta="Saldo total" valor={fmtIneValue(y.total)} detalle={`INE · ${y.total.period}`} />
-        <StatCard etiqueta="Saldo interior" valor={fmtIneValue(y.interior)} detalle={`INE · ${y.interior.period}`} />
-        <StatCard etiqueta="Saldo exterior" valor={fmtIneValue(y.exterior)} detalle={`INE · ${y.exterior.period}`} />
+      <p className={LEDE}>Saldo migratorio total, interior y exterior del municipio.</p>
+      <div className={`mt-6 ${FIGURE_ROW} sm:grid-cols-3`}>
+        <StatCard etiqueta="Saldo total" valor={fmtIneValue(y.total)} detalle={`INE, ${y.total.period}`} />
+        <StatCard etiqueta="Saldo interior" valor={fmtIneValue(y.interior)} detalle={`INE, ${y.interior.period}`} />
+        <StatCard etiqueta="Saldo exterior" valor={fmtIneValue(y.exterior)} detalle={`INE, ${y.exterior.period}`} />
       </div>
       {serie.length > 1 && (
-        <details className="mt-3">
-          <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)]">Serie anual</summary>
-          <div className="mt-2 max-w-full overflow-x-auto">
-            <table className="w-full min-w-[16rem] text-xs">
+        <details className="mt-6">
+          <summary className={DISCLOSURE}>Ver serie anual</summary>
+          <div className="socideas-table-shell__scroll max-w-[40rem] overflow-x-auto">
+            <table className="socideas-table min-w-[16rem]">
               <caption className="sr-only">Serie anual del saldo migratorio</caption>
               <thead>
-                <tr className="text-left text-[var(--color-text-muted)]">
-                  <th scope="col" className="py-1 pr-3 font-semibold">Año</th>
-                  <th scope="col" className="py-1 pr-3 text-right font-semibold">Total</th>
-                  <th scope="col" className="py-1 pr-3 text-right font-semibold">Interior</th>
-                  <th scope="col" className="py-1 text-right font-semibold">Exterior</th>
+                <tr>
+                  <th scope="col" className="socideas-table__year">Año</th>
+                  <th scope="col" className="socideas-table__numeric">Total</th>
+                  <th scope="col" className="socideas-table__numeric">Interior</th>
+                  <th scope="col" className="socideas-table__numeric">Exterior</th>
                 </tr>
               </thead>
               <tbody>
                 {serie.map((row) => (
-                  <tr key={row.period} className="border-t border-[var(--color-border-subtle)]">
-                    <td className="py-1 pr-3 tabular-nums">{row.period}</td>
-                    <td className="py-1 pr-3 text-right tabular-nums">{fmtIneValue(row.total)}</td>
-                    <td className="py-1 pr-3 text-right tabular-nums">{fmtIneValue(row.interior)}</td>
-                    <td className="py-1 text-right tabular-nums">{fmtIneValue(row.exterior)}</td>
+                  <tr key={row.period}>
+                    <td className="socideas-table__year">{row.period}</td>
+                    <td className="socideas-table__numeric">{fmtIneValue(row.total)}</td>
+                    <td className="socideas-table__numeric">{fmtIneValue(row.interior)}</td>
+                    <td className="socideas-table__numeric">{fmtIneValue(row.exterior)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -78,9 +77,9 @@ export function MigracionBlock({ data }: { data: NonNullable<MunicipalIneLayersV
           </div>
         </details>
       )}
-      <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-        Fuente: INE · Tabla {y.total.tableId} · Cálculo de saldo según publicación oficial. La ausencia de
-        dato se muestra como ND; nunca como 0.
+      <p className={SOURCE_NOTE}>
+        Fuente: INE, tabla {y.total.tableId}. Periodo: <span className="tabular-nums">{y.total.period}</span>. Saldo
+        según publicación oficial; la ausencia de dato se muestra como ND, nunca como 0.
       </p>
     </section>
   );
@@ -97,27 +96,25 @@ export function EducacionBlock({ data }: { data: NonNullable<MunicipalIneLayersV
   const dist = data.total ?? data.bySex?.male;
   if (!dist) return null;
   return (
-    <section aria-label="Nivel educativo" className="mb-10">
+    <section aria-label="Nivel educativo" className="border-t border-[var(--border-subtle)] py-10">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="ideas-h2">Nivel educativo</h2>
+        <h2 className="type-h3 text-[var(--text-primary)]">Nivel educativo</h2>
         <DataStatusBadge estado={data.status === "observed" ? "consolidado" : "parcial"} />
       </div>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Censo de Población y Viviendas 2021 · INE · Tabla {dist.higher.tableId}
-      </p>
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <p className={LEDE}>Población de 15 años o más por nivel de estudios terminados.</p>
+      <div className={`mt-6 ${FIGURE_ROW} sm:grid-cols-2 lg:grid-cols-4`}>
         {EDUCACION_LABELS.map(([key, label]) => (
-          <StatCard key={key} etiqueta={label} valor={fmtIneValue(dist[key])} detalle="Censo 2021 · dato estructural" />
+          <StatCard key={key} etiqueta={label} valor={fmtIneValue(dist[key])} detalle="INE, Censo 2021" />
         ))}
       </div>
-      <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-        Dato estructural · Censo de Población y Viviendas 2021. No es una serie anual y no se compara con
+      <p className={SOURCE_NOTE}>
+        Fuente: INE, Censo de Población y Viviendas 2021, tabla {dist.higher.tableId}. Dato estructural: no es una serie anual y no se compara con
         una evolución inexistente.
       </p>
-      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+      <p className={NOTE}>
         «ND» = valor no difundido o no disponible en la fuente oficial; nunca equivale a 0.
       </p>
-      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+      <p className={NOTE}>
         La categoría «No aplicable: menor de 15 años» se conserva en la fuente y no se suma a las
         categorías educativas.
       </p>

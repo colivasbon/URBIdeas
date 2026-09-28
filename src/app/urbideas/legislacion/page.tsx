@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import UrbideasHeader from "@/components/platform/UrbideasHeader"
 import PlatformFooter from "@/components/platform/PlatformFooter"
 import Breadcrumbs from "@/components/ui/Breadcrumbs"
+import PageShell from "@/components/ui/PageShell"
 import { Badge } from "@/components/ui/Badge"
 import MunicipalTab from "@/components/datos/MunicipalTab"
 
@@ -231,32 +232,28 @@ export default function LegislacionPage() {
       <UrbideasHeader />
 
       <main id="contenido" className="flex-1">
-        <div className="container-ima py-8">
-          {/* Page header */}
-          <section className="mb-8 border-b border-[var(--border-subtle)] pb-8">
-            <Breadcrumbs
-              items={[
-                { label: "IDEAS Sostenibilidad", href: "/" },
-                { label: "URBideas", href: "/urbideas" },
-                { label: "Legislación" },
-              ]}
-            />
-            <p className="type-overline mt-5 text-[var(--moss-ink)]">Normativa</p>
-            <h1 className="type-h1 mt-3 text-[var(--text-primary)]">Legislación urbanística</h1>
-            <p className="measure mt-4 text-[var(--text-secondary)]">
-              La legislación urbanística española se consulta en cuatro capas: el Estado fija el
-              régimen básico del suelo; cada comunidad aprueba la ley urbanística de aplicación
-              directa; la provincia publica el planeamiento en su boletín; el municipio aprueba el
-              plan que rige cada parcela.
-            </p>
-            <p className="note mt-6 max-w-3xl">
+        <div className="container-ima pb-16">
+          <PageShell
+            breadcrumbs={
+              <Breadcrumbs
+                items={[
+                  { label: "IDEAS Sostenibilidad", href: "/" },
+                  { label: "URBideas", href: "/urbideas" },
+                  { label: "Legislación" },
+                ]}
+              />
+            }
+            title="Legislación urbanística"
+            lede="La legislación urbanística española se consulta en cuatro capas: el Estado fija el régimen básico del suelo; cada comunidad aprueba la ley urbanística de aplicación directa; la provincia publica el planeamiento en su boletín; el municipio aprueba el plan que rige cada parcela."
+          >
+            <p className="note mt-8 max-w-[70ch]">
               Consulta orientativa. Para validez jurídica, acuda siempre al texto publicado en la
               sede electrónica o boletín oficial correspondiente.
             </p>
-          </section>
+          </PageShell>
 
           {/* Tabs */}
-          <div className="tabs mb-8" role="tablist" aria-label="Ámbito de la normativa">
+          <div className="tabs mb-10 flex-wrap" role="tablist" aria-label="Ámbito de la normativa">
             {tabs.map((t) => (
               <button
                 key={t.key}
@@ -275,34 +272,35 @@ export default function LegislacionPage() {
           {/* Estatal */}
           {tab === "estatal" && (
             <section id="panel-estatal" role="tabpanel" aria-labelledby="tab-estatal">
-              <div className="divide-y divide-[var(--border-subtle)] rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+              <ul className="border-t border-[var(--border-strong)]">
                 {leyesEstatales.map((ley) => (
-                  <article key={ley.referencia} className="px-5 py-4 transition-colors hover:bg-[var(--musgo-50)]">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium leading-snug text-[var(--text-primary)]">{ley.titulo}</p>
-                        <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
-                          {ley.descripcion}
-                        </p>
-                        <div className="tnum mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
-                          <span className="inline-flex items-center gap-1.5">
-                            Ref: <Badge variant="muted">{ley.referencia}</Badge>
-                          </span>
-                          <span>{ley.fecha}</span>
-                        </div>
-                      </div>
-                      <a
-                        href={ley.enlace}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="link-external shrink-0 text-xs font-medium text-[var(--text-link)]"
-                      >
-                        BOE
-                      </a>
+                  <li
+                    key={ley.referencia}
+                    className="grid gap-3 border-b border-[var(--border-subtle)] py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-8"
+                  >
+                    <div className="min-w-0">
+                      <p className="max-w-[70ch] text-sm font-semibold leading-snug text-[var(--text-primary)]">
+                        {ley.titulo}
+                      </p>
+                      <p className="mt-1.5 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+                        {ley.descripcion}
+                      </p>
+                      <p className="tnum mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--text-muted)]">
+                        <span>{ley.referencia}</span>
+                        <span>{ley.fecha}</span>
+                      </p>
                     </div>
-                  </article>
+                    <a
+                      href={ley.enlace}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="link link-external self-start text-sm"
+                    >
+                      Texto en el BOE
+                    </a>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </section>
           )}
 
@@ -310,31 +308,29 @@ export default function LegislacionPage() {
           {tab === "autonomico" && (
             <section id="panel-autonomico" role="tabpanel" aria-labelledby="tab-autonomico">
               {loading ? (
-                <div className="flex items-center justify-center gap-3 py-16" role="status" aria-live="polite">
-                  <span className="spinner text-[var(--conifera-700)]" aria-hidden="true" />
-                  <span className="text-xs text-[var(--text-muted)]">
+                <div className="flex items-center gap-3 py-10" role="status" aria-live="polite">
+                  <span className="spinner text-[var(--moss-ink)]" aria-hidden="true" />
+                  <span className="text-sm text-[var(--text-muted)]">
                     Cargando legislación autonómica…
                   </span>
                 </div>
               ) : grouped.length === 0 ? (
-                <p className="py-12 text-center text-xs text-[var(--text-muted)]">
-                  No se encontró legislación autonómica registrada.
+                <p className="border-t border-[var(--border-subtle)] py-6 text-sm text-[var(--text-secondary)]">
+                  No hay legislación autonómica registrada todavía. Consulte mientras tanto la
+                  normativa estatal o la municipal.
                 </p>
               ) : (
-                <div className="flex flex-col gap-3">
+                <div className="border-t border-[var(--border-strong)]">
                   {grouped.map(([ccaa, leyes]) => {
                     const isExpanded = expandedCCAA[ccaa] ?? false
                     return (
-                      <div
-                        key={ccaa}
-                        className="overflow-hidden rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
-                      >
+                      <div key={ccaa} className="border-b border-[var(--border-subtle)]">
                         <button
                           onClick={() => toggleGroup(ccaa)}
                           aria-expanded={isExpanded}
-                          className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors duration-150 hover:bg-[var(--musgo-50)]"
+                          className="flex min-h-12 w-full items-center justify-between gap-4 py-3 text-left text-[var(--text-primary)] transition-colors hover:text-[var(--text-link)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                         >
-                          <div className="flex items-center gap-2.5">
+                          <span className="flex items-center gap-3">
                             <svg
                               className={`h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
                               fill="none"
@@ -345,54 +341,56 @@ export default function LegislacionPage() {
                             >
                               <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                             </svg>
-                            <span className="text-sm font-medium text-[var(--text-primary)]">{ccaa}</span>
-                          </div>
-                          <Badge variant="muted">{leyes.length}</Badge>
+                            <span className="text-sm font-medium">{ccaa}</span>
+                          </span>
+                          <span className="tnum text-xs text-[var(--text-muted)]">
+                            {leyes.length} {leyes.length === 1 ? "norma" : "normas"}
+                          </span>
                         </button>
                         <div
-                          className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${
-                            isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                          className={`grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out ${
+                            isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                           }`}
                         >
                           <div className="overflow-hidden">
-                            <div className="border-t border-[var(--border-subtle)] px-5 py-4">
-                              <div className="divide-y divide-[var(--border-subtle)] rounded-[6px] border border-[var(--border-subtle)]">
-                                {leyes.map((ley) => (
-                                  <div key={ley.id} className="px-4 py-3 transition-colors hover:bg-[var(--musgo-50)]">
-                                    <div className="flex items-start justify-between gap-2">
-                                      <p className="text-sm font-medium leading-snug text-[var(--text-primary)]">{ley.titulo}</p>
-                                      <Badge variant={vigenciaVariant[ley.estado_vigencia] ?? "primary"}>
-                                        {ley.estado_vigencia}
-                                      </Badge>
-                                    </div>
-                                    <p className="tnum mt-1 text-xs text-[var(--text-muted)]">
-                                      {ley.referencia_legal}
+                            <ul className="pb-3 pl-6.5">
+                              {leyes.map((ley) => (
+                                <li key={ley.id} className="border-t border-[var(--border-subtle)] py-3">
+                                  <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                                    <p className="max-w-[70ch] text-sm font-medium leading-snug text-[var(--text-primary)]">
+                                      {ley.titulo}
                                     </p>
-                                    {ley.fecha_publicacion && (
-                                      <p className="tnum mt-1 text-xs text-[var(--text-muted)]">
-                                        Publicación: {new Date(ley.fecha_publicacion).toLocaleDateString("es-ES")}
-                                      </p>
-                                    )}
-                                    <div className="mt-2">
-                                      {ley.enlace_boe_boletin ? (
-                                        <a
-                                          href={ley.enlace_boe_boletin}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="link-external text-xs font-medium text-[var(--text-link)]"
-                                        >
-                                          Ver en boletín oficial
-                                        </a>
-                                      ) : (
-                                        <span className="text-xs text-[var(--text-muted)]">
-                                          Enlace no disponible
-                                        </span>
-                                      )}
-                                    </div>
+                                    <Badge variant={vigenciaVariant[ley.estado_vigencia] ?? "primary"}>
+                                      {ley.estado_vigencia}
+                                    </Badge>
                                   </div>
-                                ))}
-                              </div>
-                            </div>
+                                  <p className="tnum mt-1 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--text-muted)]">
+                                    <span>{ley.referencia_legal}</span>
+                                    {ley.fecha_publicacion && (
+                                      <span>
+                                        Publicación: {new Date(ley.fecha_publicacion).toLocaleDateString("es-ES")}
+                                      </span>
+                                    )}
+                                  </p>
+                                  <div className="mt-2">
+                                    {ley.enlace_boe_boletin ? (
+                                      <a
+                                        href={ley.enlace_boe_boletin}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="link link-external text-sm"
+                                      >
+                                        Ver en el boletín oficial
+                                      </a>
+                                    ) : (
+                                      <span className="text-xs text-[var(--text-muted)]">
+                                        Enlace al boletín no disponible
+                                      </span>
+                                    )}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         </div>
                       </div>
@@ -412,30 +410,33 @@ export default function LegislacionPage() {
           {/* Geoespacial */}
           {tab === "geoespacial" && (
             <section id="panel-geoespacial" role="tabpanel" aria-labelledby="tab-geoespacial">
-              <div className="card mb-5 p-5">
-                <h3 className="type-h4 text-[var(--text-primary)]">Fuentes geoespaciales estatales</h3>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                  Servicios interoperables reutilizables en toda España para SIOSE, SIU y ocupación del suelo.
-                </p>
-                <div className="mt-4 divide-y divide-[var(--border-subtle)] rounded-[6px] border border-[var(--border-subtle)]">
-                  {fuentesEstatalesGeo.map((fuente) => (
-                    <div key={fuente.titulo} className="px-4 py-3 transition-colors hover:bg-[var(--musgo-50)]">
-                      <p className="text-sm font-medium text-[var(--text-primary)]">{fuente.titulo}</p>
-                      <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{fuente.descripcion}</p>
-                      <div className="mt-2">
-                        <a
-                          href={fuente.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="link-external text-xs font-medium text-[var(--text-link)]"
-                        >
-                          Abrir servicio
-                        </a>
-                      </div>
+              <h2 className="type-h3 text-[var(--text-primary)]">Fuentes geoespaciales estatales</h2>
+              <p className="type-body-sm mt-2 max-w-[65ch] text-[var(--text-secondary)]">
+                Servicios interoperables reutilizables en toda España para SIOSE, SIU y ocupación del suelo.
+              </p>
+              <ul className="mt-6 border-t border-[var(--border-strong)]">
+                {fuentesEstatalesGeo.map((fuente) => (
+                  <li
+                    key={fuente.titulo}
+                    className="grid gap-3 border-b border-[var(--border-subtle)] py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-8"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[var(--text-primary)]">{fuente.titulo}</p>
+                      <p className="mt-1.5 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+                        {fuente.descripcion}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <a
+                      href={fuente.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="link link-external self-start text-sm"
+                    >
+                      Abrir servicio
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
         </div>

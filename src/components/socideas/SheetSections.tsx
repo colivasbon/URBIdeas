@@ -20,47 +20,44 @@ function hrefHoja(codigoINE: string, key: FichaSheetKey): string {
 }
 
 // El estado visible de cada hoja lo pinta `SheetStatusGlyph` (glifo ✓ / ~ /
-// ⏳ / — más texto sr-only): la representación textual antigua de estado se
+// ○ / — más texto sr-only): la representación textual antigua de estado se
 // retiró para no duplicar mensajes inaccesibles.
 
 /** Hoja 00: portada editorial del libro y mapa de hojas. */
 export function ProyectoSheet({ codigoINE }: { codigoINE: string }) {
   return (
-    <div>
-      <div className="premium-card mb-8 p-5 sm:p-6">
-        <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
+    <div className="border-t border-[var(--border-subtle)] py-10">
+      <div className="max-w-[70ch]">
+        <p className="leading-relaxed text-[var(--text-secondary)]">
           SOCideas publica un libro municipal comparativo organizado en nueve hojas. Cada hoja reúne
           un ámbito temático y declara su fuente, su periodo y su cobertura. La ausencia de dato se
           muestra siempre como «ND» o como bloque pendiente: nunca como cero ni con estimaciones.
         </p>
-        <p className="mt-3 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="mt-3 leading-relaxed text-[var(--text-secondary)]">
           Esta ficha reproduce, apartado a apartado, la misma estructura del libro descargable en
           formato XLSX.
         </p>
       </div>
 
-      <h3 className="ideas-h2 mb-3">Hojas del libro</h3>
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <h3 className="type-h3 mt-10 text-[var(--text-primary)]">Hojas del libro</h3>
+      <ul className="mt-4 border-t border-[var(--border-strong)]">
         {FICHA_SHEETS.map((s) => (
-          <li key={s.key}>
+          <li key={s.key} className="border-b border-[var(--border-subtle)]">
             <Link
               href={hrefHoja(codigoINE, s.key)}
-              className="premium-card premium-card--hover flex h-full items-start gap-3 p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+              className="group grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 py-4 transition-colors hover:bg-[var(--bg-surface-sunken)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:grid-cols-[2.5rem_14rem_minmax(0,1fr)] sm:gap-x-6"
             >
-              <span
-                aria-hidden="true"
-                className="mt-0.5 font-mono text-sm font-bold tabular-nums text-[var(--color-text-muted)]"
-              >
+              <span aria-hidden="true" className="pl-1 text-sm tabular-nums text-[var(--text-muted)]">
                 {s.code}
               </span>
-              <span className="min-w-0">
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-bold text-[var(--color-text-primary)]">{s.label}</span>
-                  <SheetStatusGlyph sheet={s} selected={false} />
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-[var(--text-link)] underline-offset-4 group-hover:underline">
+                  {s.label}
                 </span>
-                <span className="mt-1 block text-xs leading-relaxed text-[var(--color-text-muted)]">
-                  {s.descripcion}
-                </span>
+                <SheetStatusGlyph sheet={s} selected={false} />
+              </span>
+              <span className="col-start-2 mt-1 block max-w-[62ch] text-[13px] leading-relaxed text-[var(--text-secondary)] sm:col-start-3 sm:mt-0">
+                {s.descripcion}
               </span>
             </Link>
           </li>
@@ -94,7 +91,7 @@ export function ContextoPoliticoSheet({
       )}
       <FreshnessLine
         periodo="2023"
-        fuente="Ministerio del Interior · Infoelectoral; Junta de Comunidades de Castilla-La Mancha"
+        fuente="Ministerio del Interior, Infoelectoral; Junta de Comunidades de Castilla-La Mancha"
         actualizado="2026-09-25"
         nota="Municipales: ámbito municipal. Autonómico, Congreso y Senado: ámbito de la circunscripción provincial."
       />
@@ -119,7 +116,7 @@ export function PatrimonioSheet({
         <GalBloque data={gal} municipio={municipio} />
       ) : (
         <SheetPlaceholder
-          title="Contexto rural — Grupo de Acción Local (GAL)"
+          title="Contexto rural: Grupo de Acción Local (GAL)"
           description="Sin datos publicados de GAL para este municipio. La pertenencia a un Grupo de Acción Local (LEADER/FEADER) se declara solo cuando existe una fuente estructurada que cubra el territorio; nunca se infiere."
           badge="Sin datos"
         />
@@ -131,7 +128,7 @@ export function PatrimonioSheet({
       />
       <FreshnessLine
         periodo={wikipedia ? `Consulta ${wikipedia.retrievedAt.slice(0, 10)}` : undefined}
-        fuente="Wikipedia / Wikidata · Red PAC España · datos.gob.es"
+        fuente="Wikipedia y Wikidata; Red PAC España; datos.gob.es"
         actualizado="2026-09-25"
         nota="Contenido de Wikipedia bajo CC BY-SA 4.0 con atribución visible. Verificar en la web del GAL la vigencia del ámbito territorial."
       />
@@ -204,32 +201,32 @@ const CRITERIOS: { titulo: string; detalle: string }[] = [
 const FUENTES_V23: { fuente: string; uso: string; actualizado: string }[] = [
   {
     fuente: "Registros autonómicos de asociaciones (CLM, C. Valenciana, Galicia, La Rioja, Navarra)",
-    uso: "Hoja 07 · directorio asociativo con aviso de verificación",
+    uso: "Hoja 07: directorio asociativo con aviso de verificación",
     actualizado: "2026-09-25",
   },
   {
     fuente: "Registros autonómicos sin descarga estructurada (9 CCAA) y sin fuente (5 territorios)",
-    uso: "Hoja 07 · estado declarado, nunca datos inventados",
+    uso: "Hoja 07: estado declarado, nunca datos inventados",
     actualizado: "2026-09-25",
   },
   {
-    fuente: "Red PAC España · datos.gob.es (GAL/LEADER) y Datos Abiertos CLM (GDR PEPAC 2023-2027)",
-    uso: "Hoja 05 · Grupo de Acción Local del municipio",
+    fuente: "Red PAC España, datos.gob.es (GAL/LEADER) y Datos Abiertos CLM (GDR PEPAC 2023-2027)",
+    uso: "Hoja 05: Grupo de Acción Local del municipio",
     actualizado: "2026-09-25",
   },
   {
     fuente: "Wikipedia (CC BY-SA 4.0) y Wikidata (P1435, P856, P625, P571, P18)",
-    uso: "Hoja 05 · resumen y bienes patrimoniales, con atribución",
+    uso: "Hoja 05: resumen y bienes patrimoniales, con atribución",
     actualizado: "2026-09-25",
   },
   {
-    fuente: "INE · Censo Anual de Población, tablas 68521 y 68535",
-    uso: "Hoja 01 · estructura de población 2025 (pirámide)",
+    fuente: "INE, Censo Anual de Población, tablas 68521 y 68535",
+    uso: "Hoja 01: estructura de población 2025 (pirámide)",
     actualizado: "2025-01-01",
   },
   {
     fuente: "Infoelectoral (Congreso y Senado) y Datos Abiertos CLM + DOCM 2023/5411 (Cortes)",
-    uso: "Hoja 02 · resultados de la circunscripción de Toledo 2023",
+    uso: "Hoja 02: resultados de la circunscripción de Toledo 2023",
     actualizado: "2023-07-23",
   },
 ];
@@ -237,53 +234,47 @@ const FUENTES_V23: { fuente: string; uso: string; actualizado: string }[] = [
 /** Hoja 08: criterios de lectura y acceso al registro central de fuentes. */
 export function CriteriosFuentesSheet() {
   return (
-    <div>
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="border-t border-[var(--border-subtle)] py-10">
+      <h3 className="type-h3 text-[var(--text-primary)]">Criterios de lectura</h3>
+      <ul className="mt-4 grid grid-cols-1 gap-x-10 sm:grid-cols-2">
         {CRITERIOS.map((c) => (
-          <li key={c.titulo} className="premium-card p-4">
-            <p className="text-sm font-bold text-[var(--color-text-primary)]">{c.titulo}</p>
-            <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-secondary)]">{c.detalle}</p>
+          <li key={c.titulo} className="border-t border-[var(--border-subtle)] py-4">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">{c.titulo}</p>
+            <p className="mt-1 max-w-[62ch] text-[13px] leading-relaxed text-[var(--text-secondary)]">{c.detalle}</p>
           </li>
         ))}
       </ul>
-      <h3 className="ideas-h2 mb-3 mt-8">Fuentes añadidas en v2.3</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <h3 className="type-h3 mt-12 text-[var(--text-primary)]">Fuentes añadidas en la versión 2.3</h3>
+      <div className="socideas-table-shell__scroll mt-4 overflow-x-auto" role="region" aria-label="Tabla: fuentes añadidas en la versión 2.3" tabIndex={0}>
+        <table className="socideas-table">
           <caption className="sr-only">
             Fuentes incorporadas en la versión 2.3, su uso en la ficha y su fecha de última
             actualización
           </caption>
           <thead>
-            <tr className="text-left text-xs text-[var(--color-text-muted)]">
-              <th scope="col" className="py-2 pr-4 font-medium">Fuente</th>
-              <th scope="col" className="py-2 pr-4 font-medium">Uso en la ficha</th>
-              <th scope="col" className="py-2 font-medium">Última actualización</th>
+            <tr>
+              <th scope="col" className="socideas-table__text">Fuente</th>
+              <th scope="col" className="socideas-table__text">Uso en la ficha</th>
+              <th scope="col" className="socideas-table__year">Última actualización</th>
             </tr>
           </thead>
           <tbody>
             {FUENTES_V23.map((f) => (
-              <tr key={f.fuente} className="border-t border-[var(--color-border-subtle)]">
-                <td className="py-2 pr-4">{f.fuente}</td>
-                <td className="py-2 pr-4">{f.uso}</td>
-                <td className="py-2 tabular-nums">{f.actualizado}</td>
+              <tr key={f.fuente}>
+                <td className="socideas-table__text min-w-[16rem]">{f.fuente}</td>
+                <td className="min-w-[14rem] text-[var(--text-secondary)]">{f.uso}</td>
+                <td className="socideas-table__year">{f.actualizado}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="ideas-status mt-6" data-state="pending" role="note">
-        <div className="ideas-status__head">
-          <p className="ideas-status__title">Registro centralizado de fuentes</p>
-          <span className="ideas-status__badge">Hoja 08 del libro</span>
-        </div>
-        <div className="ideas-status__body">
-          <p>
-            El registro completo de fuentes —área, organismo, operación, periodo y enlace— se compila
-            en la hoja «08_Criterios y fuentes» del libro XLSX, junto con las tablas de cada bloque.
-          </p>
-        </div>
-        <p className="ideas-status__source">
-          Descarga el libro desde el botón «Descargar libro XLSX» de la cabecera de esta ficha.
+      <div className="note mt-8 max-w-[70ch]" data-state="pending" role="note">
+        <p className="font-medium text-[var(--text-primary)]">Registro centralizado de fuentes</p>
+        <p className="mt-1">
+          El registro completo de fuentes (área, organismo, operación, periodo y enlace) se compila
+          en la hoja «08_Criterios y fuentes» del libro XLSX, junto con las tablas de cada bloque.
+          Descargue el libro con el botón «Descargar libro XLSX» de la cabecera de esta ficha.
         </p>
       </div>
     </div>

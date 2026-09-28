@@ -23,7 +23,7 @@ export function Input({ label, icon, error, className = '', id, ...props }: Inpu
         {icon && (
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors duration-150 group-focus-within:text-[var(--musgo)]"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors duration-150 group-focus-within:text-[var(--moss-ink)]"
           >
             {icon}
           </span>
@@ -36,14 +36,13 @@ export function Input({ label, icon, error, className = '', id, ...props }: Inpu
             'input',
             'placeholder:text-[var(--text-muted)]',
             icon ? 'pl-10' : '',
-            error ? 'border-[var(--rupestre)]' : '',
             className,
           ].join(' ')}
           {...props}
         />
       </div>
       {error && (
-        <p id={errorId} className="text-xs text-[var(--rupestre-700)]" role="alert">
+        <p id={errorId} className="text-xs text-[var(--danger-ink)]" role="alert">
           {error}
         </p>
       )}

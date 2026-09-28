@@ -17,10 +17,10 @@ export function HerramientasConsulta({
   descripcion?: string;
 }) {
   return (
-    <section aria-label="Herramientas de consulta" className="ideas-section">
-      <h2 className="ideas-h2">Herramientas de consulta</h2>
-      <p className="mt-2 max-w-3xl text-sm text-[var(--color-text-secondary)]">{descripcion}</p>
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">{children}</div>
+    <section aria-label="Herramientas de consulta" className="border-t border-[var(--border-subtle)] py-10">
+      <h2 className="type-h3 text-[var(--text-primary)]">Herramientas de consulta</h2>
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">{descripcion}</p>
+      <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-6 lg:grid-cols-2">{children}</div>
     </section>
   );
 }
@@ -45,28 +45,28 @@ export function ComparadorPeriodos({
   const pct = anteriorP.valor === 0 ? null : Math.round((diff / Math.abs(anteriorP.valor)) * 1000) / 10;
   const fmtN = (n: number) => n.toLocaleString("es-ES");
   return (
-    <div className="premium-card p-5">
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{titulo}</p>
-      <p className="mt-2 text-sm text-[var(--color-text-primary)]">
+    <div className="border-t border-[var(--border-strong)] pt-3">
+      <p className="text-sm font-semibold text-[var(--text-primary)]">{titulo}</p>
+      <p className="mt-2 text-sm text-[var(--text-primary)]">
         <strong className="tabular-nums">
           {fmtN(ultimoP.valor)}
           {unidad ? ` ${unidad}` : ""}
         </strong>{" "}
-        <span className="text-[var(--color-text-muted)]">({ultimoP.anio})</span>
+        <span className="text-[var(--text-muted)]">({ultimoP.anio})</span>
         {" frente a "}
         <strong className="tabular-nums">
           {fmtN(anteriorP.valor)}
           {unidad ? ` ${unidad}` : ""}
         </strong>{" "}
-        <span className="text-[var(--color-text-muted)]">({anteriorP.anio})</span>
+        <span className="text-[var(--text-muted)]">({anteriorP.anio})</span>
       </p>
-      <p className="mt-1.5 text-sm tabular-nums text-[var(--color-text-secondary)]" role="status">
+      <p className="mt-1.5 text-sm tabular-nums text-[var(--text-secondary)]" role="status">
         Variación: {diff > 0 ? "+" : ""}
         {fmtN(Math.round(diff * 10) / 10)}
-        {unidad ? ` ${unidad}` : ""} · {pct === null ? "No comparable (base nula o cero)" : `${pct > 0 ? "+" : ""}${fmtN(pct)} %`}
+        {unidad ? ` ${unidad}` : ""} ({pct === null ? "no comparable: base nula o cero" : `${pct > 0 ? "+" : ""}${fmtN(pct)} %`})
       </p>
-      <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
-        Periodos exactos {anteriorP.anio} → {ultimoP.anio}. Sin mezclar fuentes ni años.
+      <p className="mt-1 text-xs text-[var(--text-muted)]">
+        Periodos exactos {anteriorP.anio} y {ultimoP.anio}, misma fuente y serie.
       </p>
     </div>
   );
@@ -90,19 +90,19 @@ export function Metodologia({
   limitacion?: string;
 }) {
   return (
-    <details className="premium-card p-5">
-      <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]">
-        Ver definición y fuente: {nombre}
+    <details className="border-t border-[var(--border-strong)] pt-3">
+      <summary className="cursor-pointer text-sm font-medium text-[var(--text-link)] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]">
+        Definición y fuente: {nombre}
       </summary>
-      <dl className="mt-3 space-y-1.5 text-sm text-[var(--color-text-secondary)]">
-        <div className="flex gap-2"><dt className="font-semibold text-[var(--color-text-primary)]">Indicador:</dt><dd>{nombre}</dd></div>
-        <div className="flex gap-2"><dt className="font-semibold text-[var(--color-text-primary)]">Definición:</dt><dd>{definicion}</dd></div>
-        <div className="flex gap-2"><dt className="font-semibold text-[var(--color-text-primary)]">Fuente:</dt><dd>{fuente}</dd></div>
-        <div className="flex gap-2"><dt className="font-semibold text-[var(--color-text-primary)]">Periodo:</dt><dd>{periodo}</dd></div>
-        <div className="flex gap-2"><dt className="font-semibold text-[var(--color-text-primary)]">Cobertura:</dt><dd>{cobertura}</dd></div>
-        <div className="flex gap-2"><dt className="font-semibold text-[var(--color-text-primary)]">Estado:</dt><dd>{estado}</dd></div>
+      <dl className="mt-3 max-w-[70ch] space-y-1.5 text-sm text-[var(--text-secondary)]">
+        <div className="flex gap-2"><dt className="shrink-0 font-medium text-[var(--text-primary)]">Indicador:</dt><dd>{nombre}</dd></div>
+        <div className="flex gap-2"><dt className="shrink-0 font-medium text-[var(--text-primary)]">Definición:</dt><dd>{definicion}</dd></div>
+        <div className="flex gap-2"><dt className="shrink-0 font-medium text-[var(--text-primary)]">Fuente:</dt><dd>{fuente}</dd></div>
+        <div className="flex gap-2"><dt className="shrink-0 font-medium text-[var(--text-primary)]">Periodo:</dt><dd>{periodo}</dd></div>
+        <div className="flex gap-2"><dt className="shrink-0 font-medium text-[var(--text-primary)]">Cobertura:</dt><dd>{cobertura}</dd></div>
+        <div className="flex gap-2"><dt className="shrink-0 font-medium text-[var(--text-primary)]">Estado:</dt><dd>{estado}</dd></div>
         {limitacion && (
-          <div className="flex gap-2"><dt className="font-semibold text-[var(--color-text-primary)]">Limitación:</dt><dd>{limitacion}</dd></div>
+          <div className="flex gap-2"><dt className="shrink-0 font-medium text-[var(--text-primary)]">Limitación:</dt><dd>{limitacion}</dd></div>
         )}
       </dl>
     </details>
@@ -116,9 +116,10 @@ export function FuenteOficial({ url, etiqueta = "Consultar fuente oficial", clas
       href={url}
       target="_blank"
       rel="noreferrer"
-      className={className ?? "inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-secondary)] hover:text-[var(--color-secondary-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"}
+      className={className ?? "inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-[var(--text-link)] underline underline-offset-2 hover:text-[var(--text-link-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:min-h-0"}
     >
-      {etiqueta} <span aria-hidden="true">↗</span>
+      {etiqueta}
+      <span className="sr-only"> (se abre en una pestaña nueva)</span>
     </a>
   );
 }
@@ -154,28 +155,28 @@ export function FiltroTabla({
   const reset = () => { setQ(""); setAnio(null); aplicar("", null); };
 
   return (
-    <div className="premium-card p-5">
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Filtrar tabla</p>
+    <div className="border-t border-[var(--border-strong)] pt-3">
+      <p className="text-sm font-semibold text-[var(--text-primary)]">Filtrar tabla</p>
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <div className="min-w-44 flex-1">
-          <label htmlFor={`${inputId}-q`} className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">Buscar</label>
+          <label htmlFor={`${inputId}-q`} className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Buscar</label>
           <input
             id={`${inputId}-q`}
             type="search"
             value={q}
             onChange={(e) => onQ(e.target.value)}
             placeholder={placeholder}
-            className="w-full rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+            className="input"
           />
         </div>
         {anios && anios.length > 1 && (
           <div>
-            <label htmlFor={`${inputId}-anio`} className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">Año</label>
+            <label htmlFor={`${inputId}-anio`} className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Año</label>
             <select
               id={`${inputId}-anio`}
               value={anio ?? ""}
               onChange={(e) => onAnio(e.target.value)}
-              className="rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+              className="input w-auto"
             >
               <option value="">Todos</option>
               {anios.map((a) => (<option key={a} value={a}>{a}</option>))}
@@ -185,12 +186,12 @@ export function FiltroTabla({
         <button
           type="button"
           onClick={reset}
-          className="px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-md hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+          className="btn btn-ghost btn-sm"
         >
           Restablecer filtros
         </button>
       </div>
-      <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">Filtros locales sobre datos ya cargados. No generan nuevas consultas.</p>
+      <p className="mt-2 text-xs text-[var(--text-muted)]">Filtros locales sobre datos ya cargados. No generan nuevas consultas.</p>
     </div>
   );
 }

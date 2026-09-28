@@ -50,7 +50,7 @@ function Aviso({ texto }: { texto: string }) {
   return (
     <p
       role="note"
-      className="mt-4 rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-muted)]"
+      className="note mt-6 max-w-[70ch]"
     >
       {texto}
     </p>
@@ -59,14 +59,14 @@ function Aviso({ texto }: { texto: string }) {
 
 function Fila({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
   return (
-    <tr className="border-t border-[var(--color-border-subtle)]">
+    <tr>
       <th
         scope="row"
-        className="w-1/3 py-2 pr-4 align-top text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]"
+        className="w-1/3 border-t border-[var(--border-subtle)] py-3 pr-4 align-top text-left text-sm font-medium text-[var(--text-secondary)]"
       >
         {etiqueta}
       </th>
-      <td className="py-2 align-top text-sm text-[var(--color-text-primary)]">{children}</td>
+      <td className="border-t border-[var(--border-subtle)] py-3 align-top text-sm text-[var(--text-primary)]">{children}</td>
     </tr>
   );
 }
@@ -74,21 +74,21 @@ function Fila({ etiqueta, children }: { etiqueta: string; children: ReactNode })
 function Traza({ fuenteUrl, fuenteFecha }: { fuenteUrl: string; fuenteFecha: string }) {
   const url = httpSegura(fuenteUrl);
   return (
-    <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+    <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
       Fuente:{" "}
       {url ? (
         <a
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:text-[var(--color-secondary)]"
+          className="text-[var(--text-link)] underline underline-offset-2 hover:text-[var(--text-link-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         >
           dataset estructurado publicado por la administración
         </a>
       ) : (
         "dataset estructurado publicado por la administración"
       )}
-      {" · recuperado el "}
+      {", recuperado el "}
       {fmtFecha(fuenteFecha)}. La ausencia de dato se muestra como «—»; nunca como 0.
     </p>
   );
@@ -96,25 +96,25 @@ function Traza({ fuenteUrl, fuenteFecha }: { fuenteUrl: string; fuenteFecha: str
 
 export function GalBloque({ data, municipio }: GalBloqueProps) {
   const { estado, gal, totalGalEnTerritorio } = data;
-  const titulo = "Contexto rural — GAL";
+  const titulo = "Contexto rural: Grupo de Acción Local (GAL)";
 
   return (
-    <section aria-label="Contexto rural: grupos de acción local" className="mb-10">
-      <h2 className="ideas-h2">{titulo}</h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Grupos de Acción Local (LEADER / FEADER / PAC) · ámbito de desarrollo rural
-        {municipio ? ` · ${municipio}` : ""}
+    <section aria-label="Contexto rural: grupos de acción local" className="border-t border-[var(--border-subtle)] py-10">
+      <h2 className="type-h3 text-[var(--text-primary)]">{titulo}</h2>
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        Pertenencia {municipio ? `de ${municipio} ` : ""}a un Grupo de Acción Local (LEADER, FEADER,
+        PAC), ámbito de desarrollo rural.
       </p>
 
       {estado === "sin_datos" && (
         <div className="mt-4">
           <p
             role="status"
-            className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-muted)]"
+            className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]"
           >
             Sin datos publicados de GAL para este municipio.
           </p>
-          <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+          <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
             Todavía no hay información de grupos de acción local disponible en la fuente
             consultada por SOCideas. Esto no significa que el municipio carezca de GAL:
             significa que aún no se han publicado datos comprobables.
@@ -126,11 +126,11 @@ export function GalBloque({ data, municipio }: GalBloqueProps) {
         <div className="mt-4">
           <p
             role="status"
-            className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-sm text-[var(--color-text-muted)]"
+            className="max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]"
           >
             Este municipio no está incluido en el ámbito de ningún GAL con datos publicados.
           </p>
-          <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+          <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
             Con datos publicados en la fuente: {totalGalEnTerritorio} grupos de acción local.
             La ausencia de inclusión responde al ámbito territorial publicado, no a una
             deficiencia del municipio: la intervención LEADER solo alcanza zonas rurales
@@ -140,14 +140,14 @@ export function GalBloque({ data, municipio }: GalBloqueProps) {
       )}
 
       {estado === "pertenece" && gal && (
-        <div className="premium-card mt-4 p-4 sm:p-5">
-          <p className="text-sm text-[var(--color-text-primary)]">
-            Pertenece al grupo de acción local: <strong>{gal.nombre}</strong>
+        <div className="mt-6">
+          <p className="max-w-[70ch] text-[var(--text-primary)]">
+            Pertenece al grupo de acción local <strong className="font-semibold">{gal.nombre}</strong>
             {gal.codigo ? ` (${gal.codigo})` : ""}
           </p>
 
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[18rem] text-sm">
+          <div className="mt-5 max-w-[48rem] overflow-x-auto">
+            <table className="w-full min-w-[18rem] border-b border-[var(--border-subtle)] text-sm">
               <caption className="sr-only">
                 Datos de publicados del grupo de acción local de{" "}
                 {municipio ?? "este municipio"}
@@ -163,7 +163,7 @@ export function GalBloque({ data, municipio }: GalBloqueProps) {
                       href={httpSegura(gal.web)!}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="underline underline-offset-2 hover:text-[var(--color-secondary)]"
+                      className="text-[var(--text-link)] underline underline-offset-2 hover:text-[var(--text-link-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
                     >
                       {hostDe(httpSegura(gal.web)!)}
                     </a>
@@ -173,13 +173,13 @@ export function GalBloque({ data, municipio }: GalBloqueProps) {
                 </Fila>
                 <Fila etiqueta="Estado del enlace">
                   {gal.estado_enlace === "verificado" ? (
-                    <span className="text-[var(--color-secondary)]">Verificado</span>
+                    <span className="text-[var(--status-success-fg)]">Verificado</span>
                   ) : gal.estado_enlace === "pendiente" ? (
-                    <span className="text-[var(--color-text-muted)]">Pendiente de verificación</span>
+                    <span className="text-[var(--text-muted)]">Pendiente de verificación</span>
                   ) : gal.estado_enlace === "no_verificado" ? (
-                    <span className="text-[var(--color-text-muted)]">No verificado</span>
+                    <span className="text-[var(--text-muted)]">No verificado</span>
                   ) : (
-                    <span className="text-[var(--color-text-muted)]">Fuente caída</span>
+                    <span className="text-[var(--text-muted)]">Fuente caída</span>
                   )}
                 </Fila>
                 {gal.fecha_verificacion && (
@@ -189,7 +189,7 @@ export function GalBloque({ data, municipio }: GalBloqueProps) {
                   {mailSeguro(gal.email) ? (
                     <a
                       href={`mailto:${mailSeguro(gal.email)}`}
-                      className="underline underline-offset-2 hover:text-[var(--color-secondary)]"
+                      className="text-[var(--text-link)] underline underline-offset-2 hover:text-[var(--text-link-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
                     >
                       {gal.email}
                     </a>
@@ -202,7 +202,7 @@ export function GalBloque({ data, municipio }: GalBloqueProps) {
             </table>
           </div>
 
-          <p className="mt-4 text-xs text-[var(--color-text-muted)]">
+          <p className="mt-4 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
             Este municipio está publicado dentro del ámbito de este GAL. En la fuente hay{" "}
             {totalGalEnTerritorio} grupos de acción local con datos.
           </p>
@@ -225,13 +225,13 @@ export function GalSkeleton() {
     <section
       aria-label="Contexto rural: grupos de acción local"
       aria-busy="true"
-      className="mb-10"
+      className="border-t border-[var(--border-subtle)] py-10"
     >
-      <h2 className="ideas-h2">Contexto rural — GAL</h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Grupos de Acción Local (LEADER / FEADER / PAC)
+      <h2 className="type-h3 text-[var(--text-primary)]">Contexto rural: Grupo de Acción Local (GAL)</h2>
+      <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+        Grupos de Acción Local (LEADER, FEADER, PAC)
       </p>
-      <div className="premium-card mt-4 p-4 sm:p-5">
+      <div className="mt-6">
         <div className="premium-skeleton h-4 w-2/3" />
         <div className="mt-4 space-y-3">
           <div className="premium-skeleton h-3 w-full" />

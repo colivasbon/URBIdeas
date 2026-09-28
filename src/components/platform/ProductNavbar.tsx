@@ -247,7 +247,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
               <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">
                 IDEAS Sostenibilidad
               </span>
-              <span className="hidden truncate text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)] sm:block">
+              <span className="hidden truncate text-xs text-[var(--text-muted)] sm:block">
                 Ideas Medioambientales
               </span>
             </Link>
@@ -270,7 +270,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                     {config.productLabel}
                   </span>
                   {config.productDescription && (
-                    <span className="hidden truncate text-[10px] font-medium text-[var(--text-muted)] sm:block">
+                    <span className="hidden truncate text-xs text-[var(--text-muted)] sm:block">
                       {config.productDescription}
                     </span>
                   )}
@@ -485,7 +485,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                   onClick={closeMobile}
                   className="mb-1 block rounded-[6px] px-4 py-3 text-sm font-semibold text-[var(--text-link)] hover:bg-[var(--musgo-50)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                 >
-                  ← IDEAS Sostenibilidad
+                  Volver a IDEAS Sostenibilidad
                 </Link>
               )}
               {config.navigation.map((item, index) => {

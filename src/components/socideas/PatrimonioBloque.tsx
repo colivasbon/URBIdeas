@@ -67,7 +67,7 @@ function formatFounded(raw: string): string {
 }
 
 const LINK_INLINE =
-  "font-medium text-[var(--color-secondary)] underline decoration-[var(--color-secondary)] underline-offset-2 hover:text-[var(--color-text-primary)]";
+  "font-medium text-[var(--text-link)] underline underline-offset-2 hover:text-[var(--text-link-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]";
 
 export interface PatrimonioBloqueProps {
   /** Enriquecimiento leído de R2 (null = sin dato sincronizado todavía). */
@@ -84,8 +84,8 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
   const heritage = data?.heritageSites ?? [];
 
   const caption = (
-    <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-      Resumen enciclopédico y bienes protegidos{nombre !== "" ? ` · ${nombre}` : ""}
+    <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+      Resumen enciclopédico y bienes protegidos{nombre !== "" ? ` de ${nombre}` : ""}, según Wikipedia y Wikidata.
     </p>
   );
 
@@ -95,27 +95,28 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
       <section
         id="patrimonio-turismo"
         aria-label="Patrimonio y turismo"
-        className="premium-card mb-10 scroll-mt-24 p-5 sm:p-6"
+        className="scroll-mt-24 border-t border-[var(--border-subtle)] py-10"
       >
-        <h2 className="ideas-h2">Patrimonio y turismo</h2>
+        <h2 className="type-h3 text-[var(--text-primary)]">Patrimonio y turismo</h2>
         {caption}
-        <div className="ideas-status mt-4" data-state="pending" role="status">
-          <div className="ideas-status__head">
-            <p className="ideas-status__title">
+        <div className="mt-4 rounded-[6px] border border-dashed border-[var(--border-default)] px-5 py-4" data-state="pending" role="status">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="type-h4 text-[var(--text-primary)]">
               {esError
                 ? "Contenido enciclopédico no disponible temporalmente"
                 : "Sin artículo de Wikipedia para este municipio"}
             </p>
-            <span className="ideas-status__badge">{esError ? "No disponible" : "Sin contenido"}</span>
+            <span className="socideas-badge" data-tone={esError ? "error" : "draft"}>
+              <span aria-hidden="true" className="socideas-badge__dot" />
+              {esError ? "No disponible" : "Sin contenido"}
+            </span>
           </div>
-          <div className="ideas-status__body">
-            <p>
-              {esError
-                ? "No se pudo consultar la fuente enciclopédica en este momento. No se sustituye por otro texto ni se estiman datos; vuelve a intentarlo más tarde."
-                : "Este municipio no tiene artículo propio en la Wikipedia en español con contenido verificable. No se muestra ningún texto de otro municipio ni se rellena con descripciones genéricas."}
-            </p>
-          </div>
-          <p className="ideas-status__source">
+          <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+            {esError
+              ? "No se ha podido consultar la fuente enciclopédica en este momento. No se sustituye por otro texto ni se estiman datos; recargue la página más tarde."
+              : "Este municipio no tiene artículo propio en la Wikipedia en español con contenido verificable. No se muestra ningún texto de otro municipio ni se rellena con descripciones genéricas."}
+          </p>
+          <p className="mt-3 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
             Fuentes previstas: es.wikipedia.org (texto, CC BY-SA 4.0) y Wikidata (entidades y bienes protegidos).
           </p>
         </div>
@@ -142,34 +143,32 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
     <section
       id="patrimonio-turismo"
       aria-label="Patrimonio y turismo"
-      className="premium-card mb-10 scroll-mt-24 p-5 sm:p-6"
+      className="scroll-mt-24 border-t border-[var(--border-subtle)] py-10"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="ideas-h2">Patrimonio y turismo</h2>
+          <h2 className="type-h3 text-[var(--text-primary)]">Patrimonio y turismo</h2>
           {caption}
         </div>
-        <span className="rounded-[4px] bg-[var(--color-input-bg)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
-          Wikipedia · Wikidata
-        </span>
+        <span className="socideas-badge">Wikipedia, Wikidata</span>
       </div>
 
-      <div className={`mt-4 grid gap-5${image !== null ? " lg:grid-cols-3" : ""}`}>
+      <div className={`mt-6 grid gap-8${image !== null ? " lg:grid-cols-3" : ""}`}>
         <div className={`min-w-0${image !== null ? " lg:col-span-2" : ""}`}>
-          <p className="text-sm leading-relaxed text-[var(--color-text-primary)]">{summary}</p>
+          <p className="max-w-[70ch] leading-relaxed text-[var(--text-primary)]">{summary}</p>
 
           {wd !== null && (
-            <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 border-t border-[var(--color-border-subtle)] pt-3 sm:grid-cols-2">
+            <dl className="mt-6 grid grid-cols-1 gap-x-8 gap-y-4 border-t border-[var(--border-subtle)] pt-4 sm:grid-cols-2">
               {lat !== null && lon !== null && (
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  <dt className="text-xs font-medium text-[var(--text-muted)]">
                     Coordenadas
                   </dt>
-                  <dd className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                  <dd className="mt-1 text-sm text-[var(--text-secondary)]">
                     <span className="tabular-nums">
                       {lat}, {lon}
                     </span>
-                    {" · "}
+                    {". "}
                     <a
                       href={osmUrl(lat, lon)}
                       target="_blank"
@@ -183,7 +182,7 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
               )}
               {wd.officialWebsite !== undefined && (
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  <dt className="text-xs font-medium text-[var(--text-muted)]">
                     Web oficial
                   </dt>
                   <dd className="mt-1 text-sm">
@@ -200,16 +199,16 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
               )}
               {wd.founded !== undefined && (
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  <dt className="text-xs font-medium text-[var(--text-muted)]">
                     Fundación (Wikidata)
                   </dt>
-                  <dd className="mt-1 text-sm tabular-nums text-[var(--color-text-secondary)]">
+                  <dd className="mt-1 text-sm tabular-nums text-[var(--text-secondary)]">
                     {formatFounded(wd.founded)}
                   </dd>
                 </div>
               )}
               <div>
-                <dt className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                <dt className="text-xs font-medium text-[var(--text-muted)]">
                   Ficha en Wikidata
                 </dt>
                 <dd className="mt-1 text-sm">
@@ -217,7 +216,7 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
                     href={`https://www.wikidata.org/wiki/${wd.qid}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`${LINK_INLINE} font-mono`}
+                    className={`${LINK_INLINE} tabular-nums`}
                   >
                     {wd.qid}
                   </a>
@@ -229,7 +228,7 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
 
         {image !== null && (
           <figure className="min-w-0">
-            <div className="overflow-hidden rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)]">
+            <div className="overflow-hidden rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface-sunken)]">
               {/* eslint-disable-next-line @next/next/no-img-element -- imagen externa de Commons, sin loader local */}
               <img
                 src={image.url}
@@ -240,54 +239,54 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
                 className="h-auto w-full object-cover"
               />
             </div>
-            <figcaption className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
+            <figcaption className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">
               Imagen con licencia libre verificada
-              {image.license !== undefined && image.license !== "" ? ` (${image.license})` : ""} · Wikipedia, La
-              enciclopedia libre · Artículo: {article.title}.
+              {image.license !== undefined && image.license !== "" ? ` (${image.license})` : ""}. Wikipedia, La
+              enciclopedia libre, artículo «{article.title}».
             </figcaption>
           </figure>
         )}
       </div>
 
-      <div className="mt-5">
-        <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Bienes patrimoniales</h3>
+      <div className="mt-10">
+        <h3 className="type-h4 text-[var(--text-primary)]">Bienes patrimoniales</h3>
         {heritage.length > 0 ? (
           <>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            <p className="mt-1 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
               Bienes con figura de protección declarada en el término municipal (Wikidata, propiedad P1435).
-              <strong> Nota:</strong> Wikidata complementa, no sustituye, los registros oficiales de BIC.
+              Wikidata complementa, no sustituye, los registros oficiales de BIC.
               No se interpreta P1435 sin calificación específica.
             </p>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[32rem] text-sm">
+            <div className="socideas-table-shell__scroll overflow-x-auto">
+              <table className="socideas-table min-w-[32rem]">
                 <caption className="sr-only">
                   Bienes patrimoniales protegidos en {nombre || article.title} y su figura de protección
                 </caption>
                 <thead>
-                  <tr className="text-left text-xs text-[var(--color-text-muted)]">
-                    <th scope="col" className="py-2 pr-4 font-medium">
+                  <tr>
+                    <th scope="col" className="socideas-table__text">
                       Bien
                     </th>
-                    <th scope="col" className="py-2 pr-4 font-medium">
+                    <th scope="col" className="socideas-table__text">
                       Figura de protección
                     </th>
-                    <th scope="col" className="py-2 pr-4 font-medium">
+                    <th scope="col" className="socideas-table__text">
                       Fuente
                     </th>
-                    <th scope="col" className="py-2 font-medium">
+                    <th scope="col" className="socideas-table__text">
                       Ficha
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {heritage.map((site) => (
-                    <tr key={site.qid} className="border-t border-[var(--color-border-subtle)]">
-                      <td className="py-2 pr-4">{site.title}</td>
-                      <td className="py-2 pr-4">{site.heritageType}</td>
-                      <td className="py-2 pr-4 text-[var(--color-text-muted)]">
+                    <tr key={site.qid}>
+                      <td className="socideas-table__text">{site.title}</td>
+                      <td>{site.heritageType}</td>
+                      <td className="text-[var(--text-muted)]">
                         Wikidata (P1435)
                       </td>
-                      <td className="py-2">
+                      <td>
                         <a href={site.url} target="_blank" rel="noopener noreferrer" className={LINK_INLINE}>
                           Ver
                         </a>
@@ -297,29 +296,29 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
                 </tbody>
               </table>
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
-              <strong>Prioridad:</strong> Registros oficiales de BIC de la comunidad autónoma correspondiente.
+            <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
+              <strong className="font-semibold text-[var(--text-secondary)]">Prioridad:</strong> registros oficiales de BIC de la comunidad autónoma correspondiente.
               Wikidata es una fuente complementaria y puede no estar actualizada.
             </p>
           </>
         ) : (
-          <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+          <p className="mt-2 max-w-[70ch] rounded-[6px] border border-dashed border-[var(--border-default)] px-4 py-3 text-sm leading-relaxed text-[var(--text-secondary)]">
             Sin bienes con figura de protección declarados en Wikidata para este municipio. El inventario puede estar
             incompleto: los registros oficiales de protección dependen de las comunidades autónomas.
-            <strong> Prioridad:</strong> Consultar el registro oficial de BIC de la comunidad autónoma.
+            Consulte el registro oficial de BIC de la comunidad autónoma.
           </p>
         )}
       </div>
 
-      <p className="mt-4 border-t border-[var(--color-border-subtle)] pt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+      <p className="mt-8 max-w-[70ch] border-t border-[var(--border-subtle)] pt-4 text-[13px] leading-relaxed text-[var(--text-muted)]">
         Texto extraído de Wikipedia, La enciclopedia libre. Artículo:{" "}
         <a href={articleUrl} target="_blank" rel="noopener noreferrer" className={LINK_INLINE}>
           {article.title}
         </a>
         . Licencia CC BY-SA 4.0. Consultado el {fechaLarga(data.retrievedAt)}.
       </p>
-      <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
-        Este contenido puede no estar actualizado. Consultar Wikipedia para la versión más reciente.
+      <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
+        Este contenido puede no estar actualizado. Consulte Wikipedia para la versión más reciente.
       </p>
     </section>
   );
@@ -332,16 +331,16 @@ export function PatrimonioSkeleton() {
       id="patrimonio-turismo"
       aria-label="Patrimonio y turismo"
       aria-busy="true"
-      className="premium-card mb-10 scroll-mt-24 p-5 sm:p-6"
+      className="scroll-mt-24 border-t border-[var(--border-subtle)] py-10"
     >
-      <div className="premium-skeleton h-6 w-56 max-w-full rounded-[4px]" />
-      <div className="premium-skeleton mt-3 h-4 w-72 max-w-full rounded-[4px]" />
+      <div className="premium-skeleton h-6 w-56 max-w-full rounded-[6px]" />
+      <div className="premium-skeleton mt-3 h-4 w-72 max-w-full rounded-[6px]" />
       <div className="mt-4 grid gap-5 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
-          <div className="premium-skeleton h-4 w-full rounded-[4px]" />
-          <div className="premium-skeleton h-4 w-full rounded-[4px]" />
-          <div className="premium-skeleton h-4 w-5/6 rounded-[4px]" />
-          <div className="premium-skeleton h-4 w-2/3 rounded-[4px]" />
+          <div className="premium-skeleton h-4 w-full rounded-[6px]" />
+          <div className="premium-skeleton h-4 w-full rounded-[6px]" />
+          <div className="premium-skeleton h-4 w-5/6 rounded-[6px]" />
+          <div className="premium-skeleton h-4 w-2/3 rounded-[6px]" />
         </div>
         <div className="premium-skeleton aspect-[4/3] w-full rounded-[6px]" />
       </div>

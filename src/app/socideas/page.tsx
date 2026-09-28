@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
+import MapSheet from "@/components/platform/MapSheet";
 import SocideasSearch from "@/components/socideas/SocideasSearch";
-import SectionHeading from "@/components/ui/SectionHeading";
 import Badge from "@/components/ui/Badge";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
-import SectionReveal from "@/components/ui/SectionReveal";
 
 export const metadata: Metadata = {
   title: "SOCideas",
@@ -16,33 +15,26 @@ export const metadata: Metadata = {
 
 const BLOQUES = [
   {
-    tone: "available" as const,
-    badge: "Disponible",
-    title: "Demografía",
-    description:
-      "Población municipal, evolución anual y estructura por edad y sexo. Instituto Nacional de Estadística.",
+    nombre: "Demografía",
+    descripcion: "Población, evolución anual y estructura por edad y sexo, con comparativa provincial, autonómica y estatal.",
+    fuente: "INE",
   },
   {
-    tone: "warning" as const,
-    badge: "En desarrollo",
-    title: "Economía",
-    description:
-      "Renta por declaración, renta y desigualdad, empresas y sector agrario. Cada subbloque declara cobertura y año.",
+    nombre: "Economía",
+    descripcion: "Renta de los hogares y por declaración, desigualdad, tejido empresarial y estructura agraria.",
+    fuente: "INE, AEAT",
   },
   {
-    tone: "pending" as const,
-    badge: "En preparación",
-    title: "Secciones censales",
-    description:
-      "Geometría oficial del INE bajo demanda. Indicadores por sección solo con fuente oficial a ese nivel.",
+    nombre: "Secciones censales",
+    descripcion: "Atlas por sección censal sobre la geometría oficial, solo con indicadores publicados a ese nivel.",
+    fuente: "INE",
+  },
+  {
+    nombre: "Descargas",
+    descripcion: "Tablas de cada bloque con fuente y periodo, en formato listo para anexar.",
+    fuente: "Todas",
   },
 ];
-
-const badgeVariant = {
-  available: "secondary",
-  warning: "accent",
-  pending: "muted",
-} as const;
 
 export default function SocideasHub() {
   return (
@@ -50,78 +42,71 @@ export default function SocideasHub() {
       <SocideasHeader />
 
       <main id="contenido" className="flex-1">
-        {/* Hero funcional: el buscador es el punto de partida */}
-        <section className="bg-[var(--bg-inverse)] text-[var(--text-inverse)]">
-          <div className="container-ima py-12 sm:py-16">
-            <Breadcrumbs
-              items={[{ label: "IDEAS Sostenibilidad", href: "/" }, { label: "SOCideas" }]}
-              tone="inverse"
-            />
-            <p className="type-overline mt-5 text-[var(--retama)]">
-              SOCideas · IDEAS Sostenibilidad
-            </p>
-            <h1 className="type-h1 mt-3 max-w-2xl text-[var(--text-inverse)]">
-              Diagnóstico municipal con fuentes oficiales
-            </h1>
-            <p className="measure mt-4 text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-inverse-secondary)]">
-              Diagnóstico demográfico y económico de cualquier municipio español a partir de
-              fuentes oficiales trazables.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Badge variant="muted">Beta interna</Badge>
-              <Badge variant="secondary" dot>
-                Demografía disponible
-              </Badge>
-              <Badge variant="accent">Economía en desarrollo</Badge>
-            </div>
-
-            <div className="mt-8 rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 text-[var(--text-primary)] shadow-[var(--shadow-2)] sm:p-7">
-              <SectionHeading
-                title="Buscador municipal"
-                lede="Escriba el nombre del municipio o de su provincia para abrir su ficha de caracterización."
-                as="h2"
-              />
-              <div className="mt-5">
-                <SocideasSearch />
+        <section className="container-ima pt-6 pb-12 sm:pt-10 sm:pb-16">
+          <Breadcrumbs
+            items={[{ label: "IDEAS Sostenibilidad", href: "/" }, { label: "SOCideas" }]}
+            className="mb-6"
+          />
+          <MapSheet relief={false}>
+            <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="type-label text-[var(--moss-ink)]">SOCideas</p>
+                  <Badge variant="muted">Beta interna</Badge>
+                </div>
+                <h1 className="type-h1 mt-4 max-w-[16ch] text-[var(--text-primary)]">
+                  La ficha social y económica de un municipio
+                </h1>
+                <p className="mt-5 max-w-[40ch] text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-secondary)]">
+                  Busque el municipio por nombre o código INE. Cada indicador de la ficha indica su
+                  fuente oficial y su año.
+                </p>
+              </div>
+              <div
+                id="buscador"
+                className="scroll-mt-24 rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 sm:p-6"
+              >
+                <h2 className="type-h4 text-[var(--text-primary)]">Buscar un municipio</h2>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                  Por nombre, por código INE o acotando por comunidad y provincia.
+                </p>
+                <div className="mt-5">
+                  <SocideasSearch />
+                </div>
               </div>
             </div>
-          </div>
+          </MapSheet>
         </section>
 
-        {/* Fuentes y cobertura */}
-        <SectionReveal>
+        <section aria-labelledby="contenido-ficha" className="border-t border-[var(--border-subtle)]">
           <div className="container-ima section-ima">
-            <p className="type-overline text-[var(--moss-ink)]">Fuentes y cobertura</p>
-            <div className="mt-8 grid gap-6 md:grid-cols-3">
-              {BLOQUES.map((bloque) => (
-                <div key={bloque.title} className="card p-6">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="type-h4 text-[var(--text-primary)]">{bloque.title}</h2>
-                    <Badge variant={badgeVariant[bloque.tone]} dot={bloque.tone !== "pending"}>
-                      {bloque.badge}
-                    </Badge>
+            <div className="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
+              <div>
+                <h2 id="contenido-ficha" className="type-h2 text-[var(--text-primary)]">
+                  Qué contiene la ficha
+                </h2>
+                <p className="mt-4 max-w-[40ch] text-[var(--text-secondary)]">
+                  Los datos se sincronizan de forma controlada y se guardan con su trazabilidad; no se
+                  consulta a la fuente en cada visita.
+                </p>
+                <p className="mt-6">
+                  <Link href="/socideas/como-funciona" className="link text-sm">
+                    Metodología, fuentes y cobertura
+                  </Link>
+                </p>
+              </div>
+              <dl className="module-index">
+                {BLOQUES.map((b) => (
+                  <div key={b.nombre} className="module-index__row">
+                    <dt>
+                      <span className="module-index__name">{b.nombre}</span>
+                      <span className="mt-1 block text-xs text-[var(--text-muted)]">{b.fuente}</span>
+                    </dt>
+                    <dd className="module-index__desc">{b.descripcion}</dd>
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
-                    {bloque.description}
-                  </p>
-                </div>
-              ))}
+                ))}
+              </dl>
             </div>
-            <p className="note mt-8 max-w-3xl">
-              Los datos se sincronizan de forma controlada y se almacenan con trazabilidad; no se
-              consulta a las fuentes oficiales en cada visita.
-            </p>
-          </div>
-        </SectionReveal>
-
-        <section aria-label="Enlaces relacionados" className="border-t border-[var(--border-subtle)]">
-          <div className="container-ima flex flex-wrap gap-3 py-10">
-            <Link href="/socideas/como-funciona" className="btn btn-secondary">
-              Cómo funciona
-            </Link>
-            <Link href="/" className="btn btn-ghost">
-              Volver a la plataforma
-            </Link>
           </div>
         </section>
       </main>

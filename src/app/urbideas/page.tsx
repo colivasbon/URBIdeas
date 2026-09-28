@@ -3,8 +3,7 @@ import Link from "next/link";
 import { createSupabaseServerSafe } from "@/lib/supabase-server";
 import UrbideasHeader from "@/components/platform/UrbideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
-import SectionReveal from "@/components/ui/SectionReveal";
-import KpiNumber from "@/components/ui/KpiNumber";
+import MapSheet, { type SheetLegendItem } from "@/components/platform/MapSheet";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 
 export const metadata: Metadata = {
@@ -42,141 +41,123 @@ async function getStats() {
   };
 }
 
-const ACCESOS = [
+const HERRAMIENTAS = [
   {
-    title: "Municipios",
-    description: "Consulta el planeamiento urbanístico de cualquier municipio de España.",
-    href: "/urbideas/municipios",
-    icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M3 21h18M5 21V7l6-4 6 4v14M9 21v-6h4v6M9 9h.01M13 9h.01M9 12h.01M13 12h.01"
-      />
-    ),
-  },
-  {
-    title: "Mapa y dictamen",
-    description: "Dibuja un ámbito, cruza sus afecciones, recibe el dictamen y descarga el expediente.",
+    nombre: "Mapa y dictamen",
     href: "/urbideas/mapa",
-    icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M9 6.75V15m6-6v8.25m.5-12.75 4.5 2.25v13.5l-4.5-2.25-6 3-4.5-2.25V5.25l4.5 2.25 6-3Z"
-      />
-    ),
+    descripcion: "Dibuje o suba un recinto, cruce el suelo con sus afecciones y descargue el expediente.",
   },
   {
-    title: "Legislación",
-    description: "Accede a la normativa urbanística por nivel: estatal, autonómica y municipal.",
+    nombre: "Municipios",
+    href: "/urbideas/municipios",
+    descripcion: "Planeamiento urbanístico vigente de cualquier municipio de España.",
+  },
+  {
+    nombre: "Legislación",
     href: "/urbideas/legislacion",
-    icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 6.04 9.75 4.5A4.5 4.5 0 0 0 3 8.25c0 .41.33.75.75.75h16.5c.41 0 .75-.34.75-.75a4.5 4.5 0 0 0-6.75-3.75L12 6.04Zm0 0v13.5m-6.75 0h13.5"
-      />
-    ),
+    descripcion: "Normativa urbanística por nivel: estatal, autonómica y municipal.",
   },
   {
-    title: "API",
-    description: "Endpoints REST para consulta programática de datos urbanísticos.",
+    nombre: "API",
     href: "/urbideas/api-docs",
-    icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="m6.75 7.5-4.5 4.5 4.5 4.5m10.5-9 4.5 4.5-4.5 4.5M14.25 4.5l-4.5 15"
-      />
-    ),
+    descripcion: "Endpoints REST para consultar los mismos datos desde sus herramientas.",
   },
 ];
+
+// El dictamen sí es una secuencia: se numera.
+const PASOS = [
+  { titulo: "Delimitar el ámbito", texto: "Dibújelo sobre el mapa o suba un KML, GeoJSON o shapefile." },
+  { titulo: "Cruzar afecciones", texto: "El recinto se superpone con las capas oficiales de suelo y protección." },
+  { titulo: "Leer el dictamen", texto: "Compatible, condicionado o incompatible, con la afección que lo motiva." },
+  { titulo: "Descargar el expediente", texto: "PDF del dictamen o paquete completo con las capas del cruce." },
+];
+
+const fmt = (n: number) => n.toLocaleString("es-ES");
 
 export default async function UrbideasHome() {
   const stats = await getStats();
 
-  const kpis = [
-    { value: stats.totalMunicipios.toLocaleString("es-ES"), label: "Municipios" },
-    { value: stats.totalLegalSources.toLocaleString("es-ES"), label: "Fuentes normativas" },
-    { value: stats.totalGeoServices.toLocaleString("es-ES"), label: "Servicios geo" },
-    { value: stats.totalCapasWMS.toLocaleString("es-ES"), label: "Capas WMS" },
-  ];
+  const legend: SheetLegendItem[] = [
+    { label: "Municipios", value: stats.totalMunicipios },
+    { label: "Instrumentos de planeamiento", value: stats.totalInstrumentos },
+    { label: "Fuentes normativas", value: stats.totalLegalSources },
+    { label: "Capas WMS activas", value: stats.totalCapasWMS },
+  ]
+    .filter((i) => i.value > 0)
+    .map((i) => ({ label: i.label, value: fmt(i.value) }));
 
   return (
     <div className="flex min-h-screen flex-col">
       <UrbideasHeader />
 
       <main id="contenido" className="flex-1">
-        {/* Cabecera de módulo */}
-        <section className="relative overflow-hidden bg-[var(--bg-inverse)] text-[var(--text-inverse)]">
-          <div className="container-ima relative py-12 sm:py-16 lg:py-20">
-            <Breadcrumbs
-              items={[
-                { label: "IDEAS Sostenibilidad", href: "/" },
-                { label: "URBideas" },
-              ]}
-              tone="inverse"
-            />
-            <p className="type-overline mt-5 text-[var(--retama)]">URBideas · Módulo</p>
-            <h1 className="type-h1 mt-3 text-[var(--text-inverse)]">Análisis territorial, urbanístico y geoespacial</h1>
-            <p className="measure mt-5 text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-inverse-secondary)]">
-              Dictamen territorial de ámbito: dibuja o sube el recinto, cruza el suelo con sus
-              afecciones y recibe un juicio compatible, condicionado o incompatible, listo para
-              descargar.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/urbideas/municipios" className="btn btn-primary btn-lg">
-                Buscar municipio
-                <svg className="btn-arrow h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3" />
-                </svg>
-              </Link>
-              <Link href="/urbideas/mapa" className="btn btn-inverse btn-lg">
-                Dictaminar un ámbito
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* Cifras de cobertura */}
-        <section aria-label="Cobertura de URBideas" className="border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-          <div className="container-ima">
-            <div className="grid grid-cols-2 gap-y-8 py-8 sm:grid-cols-4 sm:gap-0 sm:divide-x sm:divide-[var(--border-subtle)]">
-              {kpis.map((stat, i) => (
-                <div key={stat.label} className={i === 0 ? "sm:pr-6" : "sm:px-6"}>
-                  <KpiNumber value={stat.value} label={stat.label} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Accesos directos */}
-        <SectionReveal>
-          <div className="container-ima section-ima">
-            <p className="type-overline text-[var(--moss-ink)]">Acceso directo</p>
-            <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              {ACCESOS.map((item) => (
-                <Link key={item.title} href={item.href} className="card card-interactive p-6">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-[6px] bg-[var(--status-info-bg)] text-[var(--status-info-fg)]">
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
-                      {item.icon}
-                    </svg>
-                  </span>
-                  <h2 className="type-h3 mt-4 text-[var(--text-primary)]">{item.title}</h2>
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{item.description}</p>
-                  <span className="btn btn-link mt-4 px-0" aria-hidden="true">
-                    Explorar
-                    <svg className="btn-arrow h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3" />
-                    </svg>
-                  </span>
+        <section className="container-ima pt-6 pb-12 sm:pt-10 sm:pb-16">
+          <Breadcrumbs
+            items={[{ label: "IDEAS Sostenibilidad", href: "/" }, { label: "URBideas" }]}
+            className="mb-6"
+          />
+          <MapSheet legend={legend}>
+            <div className="max-w-[42rem]">
+              <p className="type-label text-[var(--moss-ink)]">URBideas</p>
+              <h1 className="type-display mt-4 max-w-[17ch] text-[var(--text-primary)]">
+                Qué se puede hacer en un suelo, antes de proyectar
+              </h1>
+              <p className="mt-6 max-w-[36rem] text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-secondary)]">
+                Delimite un ámbito y URBideas lo cruza con planeamiento y afecciones para emitir un
+                dictamen compatible, condicionado o incompatible, listo para descargar.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link href="/urbideas/mapa" className="btn btn-primary btn-lg">
+                  Dictaminar un ámbito
                 </Link>
+                <Link href="/urbideas/municipios" className="btn btn-secondary btn-lg">
+                  Consultar un municipio
+                </Link>
+              </div>
+            </div>
+          </MapSheet>
+        </section>
+
+        <section aria-labelledby="dictamen" className="border-t border-[var(--border-subtle)]">
+          <div className="container-ima section-ima">
+            <h2 id="dictamen" className="type-h2 text-[var(--text-primary)]">
+              Cómo se obtiene un dictamen
+            </h2>
+            <ol className="step-list mt-10">
+              {PASOS.map((p, i) => (
+                <li key={p.titulo} className="step-list__item">
+                  <span className="step-list__n" aria-hidden="true">
+                    {i + 1}
+                  </span>
+                  <h3 className="type-h4 text-[var(--text-primary)]">{p.titulo}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{p.texto}</p>
+                </li>
               ))}
+            </ol>
+          </div>
+        </section>
+
+        <section aria-labelledby="herramientas" className="border-t border-[var(--border-subtle)] bg-[var(--bg-surface-sunken)]">
+          <div className="container-ima section-ima">
+            <div className="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
+              <h2 id="herramientas" className="type-h2 text-[var(--text-primary)]">
+                Herramientas del módulo
+              </h2>
+              <dl className="module-index">
+                {HERRAMIENTAS.map((h) => (
+                  <div key={h.nombre} className="module-index__row">
+                    <dt>
+                      <Link href={h.href} className="module-index__name">
+                        {h.nombre}
+                      </Link>
+                    </dt>
+                    <dd className="module-index__desc">{h.descripcion}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </div>
-        </SectionReveal>
+        </section>
       </main>
 
       <PlatformFooter />

@@ -151,7 +151,7 @@ export interface GlyphMeta {
 export const SHEET_GLYPH: Record<EstadoGlyph, GlyphMeta> = {
   ok: { glifo: "✓", texto: "Datos disponibles y recientes" },
   stale: { glifo: "~", texto: "Datos disponibles pero pueden estar desactualizados" },
-  pronto: { glifo: "⏳", texto: "Próximamente" },
+  pronto: { glifo: "○", texto: "Próximamente" },
   "no-disponible": { glifo: "—", texto: "No disponible para este municipio" },
 };
 

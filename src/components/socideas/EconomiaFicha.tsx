@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import EvolutionChart, { type SerieEvo } from "./EvolutionChart";
+import { CHART, FIGURE, FIGURE_DETAIL, FIGURE_LABEL, FIGURE_ROW, FIGURE_VALUE } from "./ficha-ui";
 import Traceability from "./Traceability";
 import DataTableShell from "./DataTableShell";
 import DataTableMeta from "./DataTableMeta";
@@ -68,7 +69,7 @@ function serie(valores: IndicatorValue[], slug: string, ambito = "municipio"): {
 function fuenteDe(v: IndicatorValue | null): string {
   if (!v) return "";
   const org = (v.source as unknown as { organismo?: string } | undefined)?.organismo ?? "";
-  return `${org} · ${v.anio_referencia ?? "—"}`;
+  return `${org}, ${v.anio_referencia ?? "—"}`;
 }
 
 const RENTA_SLUGS = ["irpf_declaraciones", "irpf_renta_bruta_media", "irpf_renta_disponible_media", "renta_neta_media_persona", "renta_neta_media_hogar", "renta_bruta_media_persona", "renta_bruta_media_hogar"];
@@ -221,10 +222,10 @@ export default function EconomiaFicha({
   ].filter((s) => s.exp !== null || s.cab !== null);
 
   const giniSerie: SerieEvo[] = [
-    { clave: "gini", etiqueta: `${municipio.nombre} · Municipio`, color: "var(--color-secondary)", puntos: serie(valores, "gini") },
+    { clave: "gini", etiqueta: `${municipio.nombre} (municipio)`, color: CHART.municipio, puntos: serie(valores, "gini") },
   ];
   const p80Serie: SerieEvo[] = [
-    { clave: "p80", etiqueta: `${municipio.nombre} · Municipio`, color: "var(--color-secondary)", puntos: serie(valores, "p80_p20") },
+    { clave: "p80", etiqueta: `${municipio.nombre} (municipio)`, color: CHART.municipio, puntos: serie(valores, "p80_p20") },
   ];
   const rentaNetaSerie = serie(valores, "renta_neta_media_persona");
   const rentaHogarSerie = serie(valores, "renta_neta_media_hogar");
@@ -252,10 +253,10 @@ export default function EconomiaFicha({
   const rentaHogarW = rentaHogarSerie.filter(inRentaWindow);
   const rentaChartSeries: SerieEvo[] = [
     ...(rentaSel.includes("renta_neta_media_persona") && rentaPersonaW.length >= 2
-      ? [{ clave: "renta-persona", etiqueta: `${municipio.nombre} · Renta neta por persona`, color: "#86B73D", puntos: rentaPersonaW }]
+      ? [{ clave: "renta-persona", etiqueta: `${municipio.nombre}, renta neta por persona`, color: CHART.municipio, puntos: rentaPersonaW }]
       : []),
     ...(rentaSel.includes("renta_neta_media_hogar") && rentaHogarW.length >= 2
-      ? [{ clave: "renta-hogar", etiqueta: `${municipio.nombre} · Renta neta por hogar`, color: "#3E665C", puntos: rentaHogarW }]
+      ? [{ clave: "renta-hogar", etiqueta: `${municipio.nombre}, renta neta por hogar`, color: CHART.provincia, puntos: rentaHogarW }]
       : []),
   ];
   const rentaChartPeriodo =
@@ -324,8 +325,8 @@ export default function EconomiaFicha({
   return (
     <div>
       {/* Visión general: solo KPIs reales */}
-      <section aria-label="Visión general de la economía" className="mb-10">
-        <h2 className="ideas-h2">Visión general</h2>
+      <section aria-label="Visión general de la economía" className="border-t border-[var(--border-subtle)] py-10">
+        <h2 className="type-h3 text-[var(--text-primary)]">Visión general</h2>
         <AvailabilitySummary
           bloque="Economía"
           disponibles={countData([...RENTA_SLUGS, ...DESIGUALDAD_SLUGS, ...EMPRESAS_SLUGS, ...AGR_SLUGS, ...GAN_SLUGS])}
@@ -337,15 +338,12 @@ export default function EconomiaFicha({
           emptyTitle="Sin indicadores económicos con valor"
           emptyDescription="La fuente no publica estos indicadores para el municipio. El detalle de cobertura figura al final; nada se rellena con ceros."
         />
-        <p className="mt-3 text-xs text-[var(--color-text-muted)]">
+        <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
           Contexto económico de {municipio.nombre} a partir de fuentes oficiales. Cada indicador
           declara su año de referencia y su fuente; cada subbloque funciona de forma autónoma.
         </p>
         {notaTerritorialArriba && territorialAeat && (
-          <p
-            className="mt-3 max-w-3xl rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-secondary)]"
-            role="note"
-          >
+          <p className="note mt-4 max-w-[70ch]" role="note">
             {territorialAeat}
           </p>
         )}
@@ -355,12 +353,9 @@ export default function EconomiaFicha({
             className="mt-3"
           />
         )}
-        <div className="mt-3">
-          <Link
-            href={`/socideas/${codigoINE}/descargas/economia`}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-secondary)] border border-[var(--color-border)] rounded-[6px] hover:bg-[var(--color-input-bg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
-          >
-            Descargar tablas de Economía →
+        <div className="mt-6">
+          <Link href={`/socideas/${codigoINE}/descargas/economia`} className="btn btn-secondary">
+            Descargar tablas de economía
           </Link>
         </div>
       </section>
@@ -373,45 +368,39 @@ export default function EconomiaFicha({
 
       {/* Renta */}
       {rentaOk && (
-        <section aria-label="Renta y capacidad económica" className="ideas-section">
-          <h2 className="ideas-h2">Renta y capacidad económica</h2>
-          <p
-            className="mt-3 max-w-3xl rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-secondary)]"
-            role="note"
-          >
-            <strong>Renta de declarantes IRPF (AEAT).</strong> Mide a los <em>declarantes</em>:{" "}
-            <strong>no equivale a la renta de toda la población</strong>.{" "}
+        <section aria-label="Renta y capacidad económica" className="border-t border-[var(--border-subtle)] py-10">
+          <h2 className="type-h3 text-[var(--text-primary)]">Renta y capacidad económica</h2>
+          <p className="note mt-4 max-w-[70ch]" role="note">
+            <span className="font-medium text-[var(--text-primary)]">Renta de declarantes IRPF (AEAT).</span> Mide a
+            los declarantes: <strong className="font-semibold text-[var(--text-primary)]">no equivale a la renta de toda la población</strong>.{" "}
             {AEAT_VS_ADRH_COMPARABILITY} El País Vasco y
-            Navarra tienen régimen foral: AEAT no publica sus municipios, que quedan sin dato —{" "}
-            <strong>nunca se imputa</strong> un valor AEAT a esos territorios.
+            Navarra tienen régimen foral: AEAT no publica sus municipios, que quedan sin dato; nunca se imputa un
+            valor AEAT a esos territorios.
           </p>
           {(() => {
             const territorial = avisoCoberturaAeatTerritorio(codigoINE);
             if (!territorial) return null;
             return (
-              <p
-                className="mt-2 max-w-3xl rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs leading-relaxed text-[var(--color-text-secondary)]"
-                role="note"
-              >
+              <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]" role="note">
                 {territorial}
               </p>
             );
           })()}
           {rentaCaps.length > 1 && (
-            <div className="mt-3 flex flex-wrap items-end gap-x-5 gap-y-3" role="group" aria-label="Controles de renta">
+            <div className="mt-6 flex flex-wrap items-end gap-x-6 gap-y-3" role="group" aria-label="Controles de renta">
               <fieldset>
-                <legend className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">Indicadores</legend>
+                <legend className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Indicadores</legend>
                 <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                   {rentaCaps.map((c) => (
-                    <label key={c.id} className="inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                    <label key={c.id} className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 text-sm text-[var(--text-secondary)] sm:min-h-[32px]">
                       <input
                         type="checkbox"
                         checked={rentaSel.includes(c.id)}
                         onChange={(e) => toggleRenta(c.id, e.target.checked)}
-                        className="h-4 w-4 accent-[var(--color-secondary)]"
+                        className="h-4 w-4 accent-[var(--musgo)]"
                       />
                       {c.label}
-                      <span className="text-xs text-[var(--color-text-muted)]">{c.source}</span>
+                      <span className="text-xs text-[var(--text-muted)]">{c.source}</span>
                     </label>
                   ))}
                 </div>
@@ -419,24 +408,24 @@ export default function EconomiaFicha({
               {allRentaPeriods.length > 1 && (
                 <>
                   <div>
-                    <label htmlFor={`renta-desde-${codigoINE}`} className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">Desde</label>
+                    <label htmlFor={`renta-desde-${codigoINE}`} className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Desde</label>
                     <select
                       id={`renta-desde-${codigoINE}`}
                       value={rentaDesde ?? ""}
                       onChange={(e) => { setRentaHint(null); setRentaDesde(e.target.value ? parseInt(e.target.value, 10) : null); }}
-                      className="rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+                      className="min-h-[44px] rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:min-h-[36px]"
                     >
                       <option value="">Inicio</option>
                       {allRentaPeriods.map((a) => (<option key={a} value={a}>{a}</option>))}
                     </select>
                   </div>
                   <div>
-                    <label htmlFor={`renta-hasta-${codigoINE}`} className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">Hasta</label>
+                    <label htmlFor={`renta-hasta-${codigoINE}`} className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Hasta</label>
                     <select
                       id={`renta-hasta-${codigoINE}`}
                       value={rentaHasta ?? ""}
                       onChange={(e) => { setRentaHint(null); setRentaHasta(e.target.value ? parseInt(e.target.value, 10) : null); }}
-                      className="rounded-[6px] border border-[var(--color-border)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+                      className="min-h-[44px] rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] sm:min-h-[36px]"
                     >
                       <option value="">Fin</option>
                       {allRentaPeriods.map((a) => (<option key={a} value={a}>{a}</option>))}
@@ -447,14 +436,14 @@ export default function EconomiaFicha({
               <button
                 type="button"
                 onClick={resetRenta}
-                className="px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-md hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--moss-ink)]"
+                className="btn btn-ghost btn-sm"
               >
-                Restablecer
+                Restablecer filtros de renta
               </button>
             </div>
           )}
           {rentaHint && (
-            <p role="status" className="mt-2 text-xs text-[var(--color-text-secondary)]">{rentaHint}</p>
+            <p role="status" className="mt-2 text-xs text-[var(--text-secondary)]">{rentaHint}</p>
           )}
           <RentaCards valores={valores} />
           <SourceMethodologyNotice
@@ -468,9 +457,9 @@ export default function EconomiaFicha({
             visual={
               rentaChartSeries.length > 0 ? (
                 <div>
-                  <h3 className="socideas-table-shell__title">Evolución de la renta neta</h3>
+                  <h3 className="text-[15px] font-semibold leading-snug text-[var(--text-primary)]">Evolución de la renta neta</h3>
                   <div className="mt-2">
-                    <DataTableMeta meta={{ fuente: "INE · ADRH", periodo: rentaChartPeriodo, unidad: "euros" }} />
+                    <DataTableMeta meta={{ fuente: "INE, ADRH", periodo: rentaChartPeriodo, unidad: "euros" }} />
                   </div>
                   <div className="mt-3">
                     <EvolutionChart series={rentaChartSeries} id={`renta-${codigoINE}`} />
@@ -480,17 +469,17 @@ export default function EconomiaFicha({
             }
             visualLabel="Gráfico de evolución de la renta neta (ADRH)"
           />
-          <p className="ideas-note">
+          <p className="mt-4 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
             Nota metodológica: importes medios por declaración (AEAT), no renta media por habitante. La renta
             por declaración depende de la modalidad de tributación (individual o conjunta) y no equivale
             a la renta de los hogares (ADRH) ni a la renta por persona. Ambas familias se presentan por
             separado y nunca se mezclan.
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="mt-6 flex flex-col gap-3">
             <Metodologia
               nombre="Renta neta media por persona (ADRH)"
               definicion="Renta neta media por persona del Atlas de Distribución de Renta de los Hogares."
-              fuente={fuenteDe(ultimo(valores, "renta_neta_media_persona")) || "INE · ADRH"}
+              fuente={fuenteDe(ultimo(valores, "renta_neta_media_persona")) || "INE, ADRH"}
               periodo={String(ultimo(valores, "renta_neta_media_persona")?.anio_referencia ?? "—")}
               cobertura={`Municipio ${municipio.nombre}`}
               estado="Consolidado"
@@ -503,39 +492,46 @@ export default function EconomiaFicha({
 
       {/* Desigualdad */}
       {desigOk && (
-        <section aria-label="Desigualdad" className="ideas-section">
-          <h2 className="ideas-h2">Desigualdad</h2>
-          <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <section aria-label="Desigualdad" className="border-t border-[var(--border-subtle)] py-10">
+          <h2 className="type-h3 text-[var(--text-primary)]">Desigualdad</h2>
+          <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+            Índice de Gini y ratio P80/P20 de la renta por unidad de consumo, según el Atlas de Distribución de Renta de los Hogares.
+          </p>
+          <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-8 xl:grid-cols-2">
             <div>
-              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Evolución del Índice de Gini</h3>
-              <EvolutionChart series={giniSerie} id={`gini-${codigoINE}`} />
+              <h3 className="text-[15px] font-semibold text-[var(--text-primary)]">Evolución del Índice de Gini</h3>
+              <div className="mt-3"><EvolutionChart series={giniSerie} id={`gini-${codigoINE}`} /></div>
             </div>
             <div>
-              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Evolución del ratio P80/P20</h3>
-              <EvolutionChart series={p80Serie} id={`p80-${codigoINE}`} />
+              <h3 className="text-[15px] font-semibold text-[var(--text-primary)]">Evolución del ratio P80/P20</h3>
+              <div className="mt-3"><EvolutionChart series={p80Serie} id={`p80-${codigoINE}`} /></div>
             </div>
           </div>
-          <div className="mt-4">
+          <p className="mt-4 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
+            Fuente: INE, Atlas de Distribución de Renta de los Hogares. Último año: <span className="tabular-nums">{gini?.anio_referencia ?? "—"}</span>.
+          </p>
+          <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-6 lg:grid-cols-2">
             <ComparadorPeriodos serie={serie(valores, "gini")} unidad="puntos" titulo="Comparador del Índice de Gini" />
-          </div>
           <Metodologia
             nombre="Gini y P80/P20 (ADRH)"
             definicion="El Índice de Gini (0-100) mide la desigualdad de la renta por unidad de consumo; el ratio P80/P20 compara el percentil 80 con el 20."
-            fuente="INE · Atlas de Distribución de Renta de los Hogares, serie 2015-2023"
+            fuente="INE, Atlas de Distribución de Renta de los Hogares, serie 2015-2023"
             periodo={gini?.anio_referencia ? String(gini.anio_referencia) : "—"}
             cobertura="Municipios con 100 o más residentes"
             estado="Consolidado"
             limitacion="SOCideas no calcula estos indicadores: los reproduce de la fuente oficial."
           />
+          </div>
         </section>
       )}
 
       {/* Empresas */}
       {empOk && (
-        <section aria-label="Tejido empresarial" className="ideas-section">
-          <h2 className="ideas-h2">Tejido empresarial</h2>
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-            {isRealValue(empTotalV) ? `${fmt(empTotalV)} empresas` : "ND"} · {fuenteDe(empTotal)} · DIRCE, referencia a 1 de enero
+        <section aria-label="Tejido empresarial" className="border-t border-[var(--border-subtle)] py-10">
+          <h2 className="type-h3 text-[var(--text-primary)]">Tejido empresarial</h2>
+          <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+            <span className="font-semibold tabular-nums text-[var(--text-primary)]">{isRealValue(empTotalV) ? `${fmt(empTotalV)} empresas` : "ND"}</span> con
+            sede en el municipio, por sector de actividad. {fuenteDe(empTotal)}; DIRCE, referencia a 1 de enero.
           </p>
           <Barras
             filas={[
@@ -545,7 +541,7 @@ export default function EconomiaFicha({
               { e: "Resto de servicios", v: empRestoV, p: pct(empRestoV) },
             ].filter((r) => r.v !== null)}
           />
-          <p className="ideas-note">
+          <p className="mt-4 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
             Fuente: DIRCE (INE), empresas con sede en el municipio. Servicios en conjunto:{" "}
             {empSerV === null ? "ND" : `${fmt(empSerV)} (${pct(empSerV) ?? "—"} %)`}. El número de
             empresas no equivale al número de personas ocupadas. Desglose según tamaño municipal.
@@ -555,39 +551,36 @@ export default function EconomiaFicha({
 
       {/* Agrario */}
       {agLayer && (
-      <section aria-label="Sector agrario" className="ideas-section">
-        <h2 className="ideas-h2">
-          Sector agrario <span className="ideas-tag">Censo Agrario 2020 · estructural</span>
+      <section aria-label="Sector agrario" className="border-t border-[var(--border-subtle)] py-10">
+        <h2 className="type-h3 text-[var(--text-primary)]">
+          Sector agrario <span className="socideas-badge ml-2 align-middle">Estructural, 2020</span>
         </h2>
-        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-          Instituto Nacional de Estadística · Censo Agrario 2020 · año {agLayer.censusYear} (decenal, no anual)
+        <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+          Superficie, explotaciones y titulares según el Censo Agrario (INE), año {agLayer.censusYear}: dato decenal, no anual.
         </p>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
           {(
             [
               ["SAU total (ha)", agLayer.landUse?.utilizedAgriculturalAreaHa],
               ["Tierra arable (ha)", agLayer.landUse?.arableSurfaceHa],
               ["Explotaciones de arable", agLayer.landUse?.arableHoldings],
-              ["Bovinos · explotaciones", agLayer.livestock?.bovineHoldings],
+              ["Explotaciones de bovino", agLayer.livestock?.bovineHoldings],
               ["Responsables (personas)", agLayer.farmHolders?.total],
               ["Edad media de jefes (años)", agLayer.farmHolders?.meanAge],
             ] as Array<[string, { value: number | null; tableId?: string } | undefined]>
           ).map(([label, v]) => (
-            <article
-              key={label}
-              className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-card-bg)] p-4"
-            >
-              <p className="text-sm font-semibold text-[var(--color-text-primary)]">{label}</p>
-              <p className="data-card__value mt-2 leading-none">
+            <article key={label} className="min-w-0 border-t border-[var(--border-strong)] pt-3">
+              <p className="type-h3 tnum font-semibold text-[var(--text-primary)]">
                 {v && typeof v.value === "number" ? v.value.toLocaleString("es-ES") : "ND"}
               </p>
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-                Censo 2020 {v?.tableId ? `· Tabla ${v.tableId}` : ""}
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">{label}</p>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                INE, Censo Agrario 2020{v?.tableId ? `, tabla ${v.tableId}` : ""}
               </p>
             </article>
           ))}
         </div>
-        <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+        <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
           Unidades separadas: hectáreas ≠ explotaciones ≠ personas ≠ años. El secreto estadístico se
           muestra como ND, nunca como 0. Censo Agrario 2020: dato estructural decenal, no comparable
           con las series anuales del resto del bloque.
@@ -595,11 +588,11 @@ export default function EconomiaFicha({
       </section>
     )}
     {agrOk && (
-        <section aria-label="Estructura agraria" className="ideas-section">
-          <h2 className="ideas-h2">Estructura agraria <span className="ideas-tag">Estructural · 2020</span></h2>
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-            {isRealValue(agrSau?.valor_numerico) ? `${fmt(agrSau?.valor_numerico ?? null)} ha` : "ND"} de superficie agraria
-            {isRealValue(agrExp?.valor_numerico) ? ` · ${fmt(agrExp?.valor_numerico ?? null)} explotaciones` : ""} · {fuenteDe(agrSau ?? agrExp)}
+        <section aria-label="Estructura agraria" className="border-t border-[var(--border-subtle)] py-10">
+          <h2 className="type-h3 text-[var(--text-primary)]">Estructura agraria <span className="socideas-badge ml-2 align-middle">Estructural, 2020</span></h2>
+          <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+            <span className="font-semibold tabular-nums text-[var(--text-primary)]">{isRealValue(agrSau?.valor_numerico) ? `${fmt(agrSau?.valor_numerico ?? null)} ha` : "ND"}</span> de superficie agraria
+            {isRealValue(agrExp?.valor_numerico) ? ` en ${fmt(agrExp?.valor_numerico ?? null)} explotaciones` : ""}. {fuenteDe(agrSau ?? agrExp)}.
           </p>
           <Barras
             unidad="ha"
@@ -609,7 +602,7 @@ export default function EconomiaFicha({
               p: c.v !== null && agrSuma > 0 ? Math.round((c.v / agrSuma) * 1000) / 10 : null,
             }))}
           />
-          <p className="ideas-note">
+          <p className="mt-4 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
             Indicador estructural del Censo Agrario 2020 (INE); no representa un dato anual actualizado.
             Unidad en hectáreas.
           </p>
@@ -618,15 +611,16 @@ export default function EconomiaFicha({
 
       {/* Ganadería */}
       {ganOk && (
-        <section aria-label="Ganadería" className="ideas-section">
-          <h2 className="ideas-h2">Ganadería <span className="ideas-tag">Estructural · 2020</span></h2>
+        <section aria-label="Ganadería" className="border-t border-[var(--border-subtle)] py-10">
+          <h2 className="type-h3 text-[var(--text-primary)]">Ganadería <span className="socideas-badge ml-2 align-middle">Estructural, 2020</span></h2>
+          <p className="mb-6 mt-2 max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)]">Explotaciones y cabezas de ganado por especie según el Censo Agrario 2020.</p>
           <TableWorkspace
             table={
               <DataTableShell
                 title="Cabaña ganadera por especie"
                 subtitle="Censo Agrario 2020 (estructural, no anual)"
                 narrow
-                meta={{ fuente: fuenteDe(ultimo(valores, "gan_ug_total") ?? ultimo(valores, "gan_bovino_cab")).split("·")[0].trim() || "INE · Censo Agrario 2020", periodo: "2020", cobertura: `Municipio ${municipio.nombre}`, estado: "consolidado" }}
+                meta={{ fuente: fuenteDe(ultimo(valores, "gan_ug_total") ?? ultimo(valores, "gan_bovino_cab")).split(",")[0].trim() || "INE, Censo Agrario 2020", periodo: "2020", cobertura: `Municipio ${municipio.nombre}`, estado: "consolidado" }}
                 toolbar={<DataTableToolbar tableId={`tabla-gan-${codigoINE}`} sourceUrl={ultimo(valores, "gan_ug_total")?.source_url ?? ultimo(valores, "gan_bovino_cab")?.source_url} />}
                 footnote="ND = no difundido por secreto estadístico; nunca equivale a cero."
               >
@@ -652,7 +646,7 @@ export default function EconomiaFicha({
               </DataTableShell>
             }
           />
-          <p className="ideas-note">
+          <p className="mt-4 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-muted)]">
             Censo Agrario 2020 (INE). ND = no difundido por secreto estadístico; nunca equivale a cero.
           </p>
         </section>
@@ -688,12 +682,12 @@ function RentaCards({ valores }: { valores: IndicatorValue[] }) {
     .filter((x) => isRealValue(x.v?.valor_numerico));
   if (cards.length === 0) return null;
   return (
-    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className={`mt-8 ${FIGURE_ROW} sm:grid-cols-2 xl:grid-cols-3`}>
       {cards.map(({ d, v }) => (
-        <div key={d.slug} className="data-card">
-          <p className="data-card__label">{d.etiqueta}</p>
-          <p className="data-card__value">{fmt(v?.valor_numerico ?? null)}{d.suffix ?? ""}</p>
-          <p className="data-card__detail">{fuenteDe(v)}</p>
+        <div key={d.slug} className={FIGURE}>
+          <p className={FIGURE_VALUE}>{fmt(v?.valor_numerico ?? null)}{d.suffix ?? ""}</p>
+          <p className={FIGURE_LABEL}>{d.etiqueta}</p>
+          <p className={FIGURE_DETAIL}>{fuenteDe(v)}</p>
         </div>
       ))}
     </div>
@@ -703,19 +697,19 @@ function RentaCards({ valores }: { valores: IndicatorValue[] }) {
 function Barras({ filas, unidad }: { filas: { e: string; v: number | null; p: number | null }[]; unidad?: string }) {
   if (filas.length === 0) return null;
   return (
-    <div className="premium-card mt-4 p-5">
+    <div className="mt-6 max-w-[48rem]">
       <div className="flex flex-col gap-3">
         {filas.map((r) => (
           <div key={r.e}>
             <div className="flex justify-between gap-3 text-sm">
-              <span className="font-medium text-[var(--color-text-primary)]">{r.e}</span>
-              <span className="tabular-nums text-[var(--color-text-secondary)]">
+              <span className="font-medium text-[var(--text-primary)]">{r.e}</span>
+              <span className="tabular-nums text-[var(--text-secondary)]">
                 {r.v === null ? "ND" : `${fmt(r.v)}${unidad ? ` ${unidad}` : ""}`}
-                {r.p !== null ? ` · ${r.p.toLocaleString("es-ES")} %` : ""}
+                {r.p !== null ? ` (${r.p.toLocaleString("es-ES")} %)` : ""}
               </span>
             </div>
-            <div className="mt-1 h-3 overflow-hidden rounded bg-[var(--color-input-bg)]" role="img" aria-label={`${r.e}: ${r.v === null ? "no disponible" : r.v}`}>
-              <div className="h-full rounded bg-[var(--color-secondary)]" style={{ width: `${r.p ?? 0}%` }} />
+            <div className="mt-1 h-3 overflow-hidden bg-[var(--bg-surface-sunken)]" role="img" aria-label={`${r.e}: ${r.v === null ? "no disponible" : r.v}`}>
+              <div className="h-full" style={{ width: `${r.p ?? 0}%`, background: CHART.municipio }} />
             </div>
           </div>
         ))}
@@ -767,7 +761,7 @@ function RentaTable({
     );
   }
   const primera = ultimo(valores, visibles[0].slug);
-  const fuenteCorta = (primera?.source as unknown as { organismo?: string } | undefined)?.organismo ?? "AEAT · INE ADRH";
+  const fuenteCorta = (primera?.source as unknown as { organismo?: string } | undefined)?.organismo ?? "AEAT e INE (ADRH)";
   return (
     <DataTableShell
       title="Tabla anual de renta"

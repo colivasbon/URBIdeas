@@ -6,7 +6,7 @@ import { buildDemografiaTables, demografiaExcluidas } from "@/lib/socideas-expor
 import SocideasHeader from "@/components/platform/SocideasHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import PageShell from "@/components/ui/PageShell";
-import SectionEyebrow from "@/components/ui/SectionEyebrow";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import EmptyState from "@/components/ui/EmptyState";
 import DescargasBloque from "@/components/socideas/DescargasBloque";
 
@@ -34,7 +34,17 @@ export default async function DescargasDemografia({
     return (
       <div className="flex min-h-screen flex-col">
         <SocideasHeader />
-        <main id="contenido" className="flex flex-1 items-center justify-center px-4"><EmptyState title="Código INE inválido" description="Se esperan 5 dígitos." /></main>
+        <main id="contenido" className="flex-1">
+          <div className="container-ima py-16">
+            <div className="mx-auto w-full max-w-md">
+              <EmptyState
+                title="Código INE no válido"
+                description="El código INE municipal tiene cinco dígitos (por ejemplo, 02003). Revise la dirección o busque el municipio por nombre."
+                action={<Link href="/socideas" className="btn btn-secondary btn-sm">Buscar un municipio</Link>}
+              />
+            </div>
+          </div>
+        </main>
         <PlatformFooter />
       </div>
     );
@@ -45,8 +55,16 @@ export default async function DescargasDemografia({
     return (
       <div className="flex min-h-screen flex-col">
         <SocideasHeader />
-        <main id="contenido" className="flex flex-1 items-center justify-center px-4">
-          <EmptyState title={`No se encontró el municipio ${codigoINE}.`} description="Compruebe el código o vuelva al buscador." action={<Link href="/socideas" className="text-sm font-semibold text-[var(--color-secondary)]">Volver al buscador</Link>} />
+        <main id="contenido" className="flex-1">
+          <div className="container-ima py-16">
+            <div className="mx-auto w-full max-w-md">
+              <EmptyState
+                title={`No se encontró el municipio con código INE ${codigoINE}`}
+                description="El código no corresponde a ningún municipio del catálogo. Compruebe los cinco dígitos o búsquelo por nombre."
+                action={<Link href="/socideas" className="btn btn-secondary btn-sm">Buscar un municipio</Link>}
+              />
+            </div>
+          </div>
         </main>
         <PlatformFooter />
       </div>
@@ -60,36 +78,46 @@ export default async function DescargasDemografia({
     <div className="flex min-h-screen flex-col">
       <SocideasHeader codigoINE={codigoINE} />
       <main id="contenido" className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-          <nav aria-label="Migas de pan" className="mb-3 text-xs text-[var(--color-text-muted)]">
-            <Link href="/socideas" className="hover:text-[var(--color-secondary)]">SOCideas</Link>
-            <span className="mx-1.5">/</span>
-            <Link href={`/socideas/${codigoINE}`} className="hover:text-[var(--color-secondary)]">{perfil.municipio.nombre}</Link>
-            <span className="mx-1.5">/</span>
-            <span className="text-[var(--color-text-secondary)]">Descargas de Demografía</span>
-          </nav>
-          <SectionEyebrow>Ficha municipal · {perfil.municipio.provincia} · {perfil.municipio.comunidad_autonoma}</SectionEyebrow>
+        <div className="container-ima pb-16">
           <PageShell
-            eyebrow={`Código INE ${codigoINE}`}
-            title={`Tablas de Demografía — ${perfil.municipio.nombre}`}
-            lede="Tablas generadas a partir de los indicadores disponibles en la ficha municipal, con fuente y periodo de referencia."
+            breadcrumbs={
+              <Breadcrumbs
+                items={[
+                  { label: "IDEAS Sostenibilidad", href: "/" },
+                  { label: "SOCideas", href: "/socideas" },
+                  { label: perfil.municipio.nombre, href: `/socideas/${codigoINE}?categoria=demografia` },
+                  { label: "Descargas de demografía" },
+                ]}
+              />
+            }
+            title={`Tablas de demografía de ${perfil.municipio.nombre}`}
+            lede="Tablas generadas a partir de los indicadores disponibles en la ficha municipal, cada una con su fuente y su periodo de referencia. Descárguelas en CSV o en el libro XLSX combinado."
+            meta={
+              <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-sm text-[var(--text-secondary)]">
+                <div>
+                  <dt className="sr-only">Provincia y comunidad autónoma</dt>
+                  <dd>
+                    {perfil.municipio.provincia}, {perfil.municipio.comunidad_autonoma}
+                  </dd>
+                </div>
+                <div className="flex gap-1.5">
+                  <dt className="text-[var(--text-muted)]">Código INE</dt>
+                  <dd className="tabular-nums">{codigoINE}</dd>
+                </div>
+              </dl>
+            }
+            actions={
+              <>
+                <Link href={`/socideas/${codigoINE}?categoria=demografia`} className="btn btn-secondary">
+                  Volver a la ficha
+                </Link>
+                <Link href={`/socideas/${codigoINE}/descargas/economia`} className="btn btn-ghost">
+                  Ver descargas de economía
+                </Link>
+              </>
+            }
           />
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link
-              href={`/socideas/${codigoINE}?categoria=demografia`}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-xl hover:text-[var(--color-text-primary)]"
-              style={{ backgroundColor: 'var(--color-input-bg)' }}
-            >
-              â† Volver a la ficha
-            </Link>
-            <Link
-              href={`/socideas/${codigoINE}/descargas/economia`}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-[var(--color-secondary)]"
-            >
-              Descargas de Economía â†’
-            </Link>
-          </div>
-          <div className="mt-8">
+          <div>
             <DescargasBloque municipio={perfil.municipio.nombre} codigoINE={codigoINE} bloque="Demografia" tablas={tablas} excluidas={excluidas} />
           </div>
         </div>

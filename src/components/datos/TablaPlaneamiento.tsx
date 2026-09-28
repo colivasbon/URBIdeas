@@ -56,114 +56,75 @@ export default function TablaPlaneamiento({ municipioId }: TablaPlaneamientoProp
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-secondary)] border-t-transparent" />
-        <span className="ml-3 text-sm text-[var(--color-text-secondary)]">
-          Cargando planeamiento...
-        </span>
+      <div className="flex items-center gap-3 py-8" role="status" aria-live="polite">
+        <span className="spinner text-[var(--moss-ink)]" aria-hidden="true" />
+        <span className="text-sm text-[var(--text-secondary)]">Cargando planeamiento…</span>
       </div>
     )
   }
 
   if (error) {
     return (
-      <p className="py-8 text-center text-sm text-red-400">
-        Error al cargar datos: {error}
-      </p>
+      <div className="note note-danger" role="alert">
+        <p className="font-medium text-[var(--text-primary)]">No se pudo cargar el planeamiento del municipio.</p>
+        <p className="mt-1">{error}. Recargue la página para intentarlo de nuevo.</p>
+      </div>
     )
   }
 
   if (instrumentos.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <svg
-          className="mx-auto mb-3 h-10 w-10 text-[var(--color-text-secondary)]"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-          />
-        </svg>
-        <p className="text-sm text-[var(--color-text-secondary)]">
-          No se encontraron instrumentos de planeamiento para este municipio.
-        </p>
-      </div>
+      <p className="border-t border-[var(--border-subtle)] py-6 text-sm text-[var(--text-secondary)]">
+        No hay instrumentos de planeamiento registrados para este municipio.
+      </p>
     )
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="data-table-wrap rounded-[6px] border border-[var(--border-subtle)]">
+      <table className="data-table min-w-[720px]">
         <thead>
-          <tr className="border-b border-[var(--color-border)]">
-            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Tipo</th>
-            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Estado</th>
-            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">
-              Fecha Aprobación Inicial
-            </th>
-            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">
-              Fecha Aprobación Definitiva
-            </th>
-            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Fuente</th>
-            <th className="px-4 py-3 text-left font-semibold text-[var(--color-text-primary)]">Enlace</th>
+          <tr>
+            <th scope="col">Tipo</th>
+            <th scope="col">Estado</th>
+            <th scope="col" className="num">Aprobación inicial</th>
+            <th scope="col" className="num">Aprobación definitiva</th>
+            <th scope="col">Fuente</th>
+            <th scope="col">Documento</th>
           </tr>
         </thead>
         <tbody>
           {instrumentos.map((inst) => (
-            <tr
-              key={inst.id}
-              className="border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-input-bg)]"
-            >
-              <td className="px-4 py-3 font-medium text-[var(--color-text-primary)]">{inst.tipo}</td>
-              <td className="px-4 py-3">
+            <tr key={inst.id}>
+              <td className="font-medium">{inst.tipo}</td>
+              <td>
                 <Badge variant={estadoBadgeVariant[inst.estado] ?? "primary"}>
                   {inst.estado}
                 </Badge>
               </td>
-              <td className="px-4 py-3 text-[var(--color-text-secondary)]">
+              <td className="num meta">
                 {inst.fecha_aprobacion_inicial
                   ? new Date(inst.fecha_aprobacion_inicial).toLocaleDateString("es-ES")
                   : "—"}
               </td>
-              <td className="px-4 py-3 text-[var(--color-text-secondary)]">
+              <td className="num meta">
                 {inst.fecha_aprobacion_definitiva
                   ? new Date(inst.fecha_aprobacion_definitiva).toLocaleDateString("es-ES")
                   : "—"}
               </td>
-              <td className="px-4 py-3 text-[var(--color-text-secondary)]">
-                {inst.fuente || "—"}
-              </td>
-              <td className="px-4 py-3">
+              <td className="meta">{inst.fuente || "—"}</td>
+              <td>
                 {inst.enlace_documento_oficial ? (
                   <a
                     href={inst.enlace_documento_oficial}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[var(--color-secondary)] transition-colors hover:text-[var(--color-accent)]"
-                    title="Abrir documento oficial"
+                    className="link link-external"
                   >
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
-                      />
-                    </svg>
-                    <span className="text-xs underline underline-offset-2">Enlace</span>
+                    Documento oficial
                   </a>
                 ) : (
-                  <span className="text-[var(--color-text-secondary)]">—</span>
+                  <span className="text-[var(--text-muted)]">—</span>
                 )}
               </td>
             </tr>

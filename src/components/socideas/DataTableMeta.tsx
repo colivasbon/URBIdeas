@@ -2,7 +2,7 @@ import DataStatusBadge, { type DataEstado } from "./DataStatusBadge";
 
 /**
  * Metadata rail compacta y legible (≥12px móvil, 13px escritorio):
- * Fuente · Período · Cobertura · Estado. Solo muestra valores existentes;
+ * fuente, período, cobertura y estado, separados por filetes. Solo muestra valores existentes;
  * la ausencia se omite (se explica en el panel de cobertura, no aquí).
  */
 export interface TableMeta {
@@ -52,9 +52,7 @@ export default function DataTableMeta({ meta }: { meta: TableMeta }) {
       {items.map((it, i) => (
         <span key={i} style={{ display: "contents" }}>
           {i > 0 && (
-            <span aria-hidden="true" className="socideas-table-meta__sep">
-              ·
-            </span>
+            <span aria-hidden="true" className="inline-block h-3 w-px self-center bg-[var(--border-default)]" />
           )}
           {it}
         </span>

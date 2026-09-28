@@ -1,7 +1,9 @@
 "use client"
 
 import UrbideasHeader from "@/components/platform/UrbideasHeader"
-import Footer from "@/components/layout/Footer"
+import PlatformFooter from "@/components/platform/PlatformFooter"
+import PageShell from "@/components/ui/PageShell"
+import Breadcrumbs from "@/components/ui/Breadcrumbs"
 import { Badge } from "@/components/ui/Badge"
 
 interface Endpoint {
@@ -152,116 +154,129 @@ const endpoints: Endpoint[] = [
   },
 ]
 
-const methodStyles: Record<string, string> = {
-  GET: "bg-[var(--color-success)]/15 text-[var(--color-success-light)]",
-  POST: "bg-[var(--color-info)]/15 text-[var(--color-info)]",
-  PUT: "bg-[var(--color-accent)]/15 text-[var(--color-accent)]",
-  DELETE: "bg-[var(--color-error)]/15 text-[var(--color-error-light)]",
+// Método → variante de estado del sistema (hoy solo hay GET).
+const methodVariant: Record<Endpoint["method"], "primary" | "success" | "accent" | "danger"> = {
+  GET: "primary",
+  POST: "success",
+  PUT: "accent",
+  DELETE: "danger",
 }
+
+const anchor = (path: string) =>
+  "ep-" + path.replace(/^\/api\//, "").replace(/[^a-z0-9]+/gi, "-").replace(/-+$/, "")
 
 export default function ApiDocsPage() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-[var(--bg-canvas)]">
       <UrbideasHeader />
 
       <main id="contenido" className="flex-1">
-        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          {/* Page header */}
-          <section className="mb-6 border-b border-[var(--color-border-subtle)] pb-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-px w-8 bg-[var(--color-secondary)]" />
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-                Desarrolladores
+        <div className="container-ima pb-16 lg:pb-24">
+          <PageShell
+            breadcrumbs={
+              <Breadcrumbs
+                items={[
+                  { label: "IDEAS Sostenibilidad", href: "/" },
+                  { label: "URBideas", href: "/urbideas" },
+                  { label: "API" },
+                ]}
+              />
+            }
+            title="API REST de URBideas"
+            lede="Consulte desde sus herramientas el registro de planeamiento urbanístico de España: municipios, instrumentos, legislación y capas WMS. Todas las respuestas se devuelven en JSON."
+          />
+
+          <div className="grid gap-12 lg:grid-cols-[minmax(0,3fr)_minmax(0,9fr)] lg:gap-16">
+            <aside className="lg:sticky lg:top-24 lg:self-start">
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Acceso</h2>
+              <p className="mt-2 max-w-[40ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+                Acceso público, sin autenticación. Límite de{" "}
+                <span className="font-semibold text-[var(--text-primary)]">100 peticiones por minuto</span> por
+                dirección IP.
               </p>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
-              API REST
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm text-[var(--color-text-muted)]">
-              API pública para consulta del registro de planeamiento urbanístico de España.
-              Todas las respuestas están en formato JSON.
-            </p>
-          </section>
 
-          {/* Rate limiting notice */}
-          <div className="border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/5 rounded-[var(--border-radius-lg)] p-4 mb-6">
-            <p className="text-sm font-medium text-[var(--color-text-primary)]">Autenticación y rate limiting</p>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)] leading-relaxed">
-              La API es de acceso público sin autenticación. Se aplica un límite de{" "}
-              <span className="font-medium text-[var(--color-accent)]">100 peticiones por minuto</span>{" "}
-              por dirección IP.
-            </p>
-          </div>
+              <h2 className="mt-8 text-sm font-semibold text-[var(--text-primary)]">Endpoints</h2>
+              <nav aria-label="Índice de endpoints" className="mt-2">
+                <ul className="border-t border-[var(--border-subtle)]">
+                  {endpoints.map((ep) => (
+                    <li key={ep.path} className="border-b border-[var(--border-subtle)]">
+                      <a
+                        href={`#${anchor(ep.path)}`}
+                        className="flex min-h-[44px] items-center gap-3 rounded-[6px] py-2 text-sm text-[var(--text-link)] hover:text-[var(--text-link-hover)] focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
+                      >
+                        <span className="w-10 shrink-0 text-xs font-semibold text-[var(--text-muted)]">{ep.method}</span>
+                        <code className="min-w-0 break-all font-mono text-[13px]">{ep.path}</code>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            </aside>
 
-          {/* Endpoints */}
-          <section className="flex flex-col gap-4">
-            {endpoints.map((ep) => (
-              <div key={ep.path} className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius-lg)] overflow-hidden">
-                <div className="px-5 py-4 border-b border-[var(--color-border-subtle)] bg-[var(--color-card-bg)]">
+            <div className="min-w-0">
+              {endpoints.map((ep, i) => (
+                <section
+                  key={ep.path}
+                  id={anchor(ep.path)}
+                  aria-labelledby={`${anchor(ep.path)}-t`}
+                  className={["scroll-mt-24 pb-10", i === 0 ? "" : "border-t border-[var(--border-subtle)] pt-10"].join(" ")}
+                >
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className={`inline-flex items-center rounded-[var(--border-radius)] px-2 py-0.5 text-[11px] font-bold ${methodStyles[ep.method]}`}>
-                      {ep.method}
-                    </span>
-                    <code className="text-sm font-semibold text-[var(--color-text-primary)] font-mono">
-                      {ep.path}
-                    </code>
+                    <Badge variant={methodVariant[ep.method]}>{ep.method}</Badge>
+                    <h3 id={`${anchor(ep.path)}-t`} className="min-w-0 break-all">
+                      <code className="font-mono text-base font-semibold text-[var(--text-primary)]">{ep.path}</code>
+                    </h3>
                   </div>
-                  <p className="mt-2 text-xs text-[var(--color-text-muted)] leading-relaxed">{ep.description}</p>
-                </div>
+                  <p className="mt-3 max-w-[68ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+                    {ep.description}
+                  </p>
 
-                <div className="px-5 py-4">
-                  {ep.params && ep.params.length > 0 && (
-                    <div className="mb-4">
-                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                        Parámetros
-                      </p>
-                      <div className="border border-[var(--color-border-subtle)] rounded-[var(--border-radius)] overflow-hidden">
-                        <table className="w-full text-sm min-w-[500px]">
+                  {ep.params && ep.params.length > 0 ? (
+                    <div className="mt-6">
+                      <h4 className="text-sm font-semibold text-[var(--text-primary)]">Parámetros</h4>
+                      <div className="data-table-wrap mt-3 rounded-[6px] border border-[var(--border-subtle)]">
+                        <table className="data-table min-w-[520px]">
                           <thead>
-                            <tr className="border-b border-[var(--color-border-subtle)] bg-[var(--color-input-bg)]">
-                              <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Nombre</th>
-                              <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Tipo</th>
-                              <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Obligatorio</th>
-                              <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Descripción</th>
+                            <tr>
+                              <th scope="col">Nombre</th>
+                              <th scope="col">Tipo</th>
+                              <th scope="col">Obligatorio</th>
+                              <th scope="col">Descripción</th>
                             </tr>
                           </thead>
                           <tbody>
                             {ep.params.map((p) => (
-                              <tr key={p.name} className="border-b border-[var(--color-border-subtle)] last:border-b-0 transition-colors hover:bg-[var(--color-card-bg)]">
-                                <td className="px-3 py-2">
-                                  <code className="text-xs text-[var(--color-secondary)] font-mono">{p.name}</code>
+                              <tr key={p.name}>
+                                <td>
+                                  <code className="font-mono text-[13px] text-[var(--text-primary)]">{p.name}</code>
                                 </td>
-                                <td className="px-3 py-2 text-[var(--color-text-secondary)] text-xs">{p.type}</td>
-                                <td className="px-3 py-2">
-                                  <Badge variant={p.required ? "accent" : "muted"}>
-                                    {p.required ? "SÍ" : "No"}
-                                  </Badge>
-                                </td>
-                                <td className="px-3 py-2 text-[var(--color-text-secondary)] text-xs">{p.description}</td>
+                                <td className="meta">{p.type}</td>
+                                <td className={p.required ? "font-medium" : "meta"}>{p.required ? "Sí" : "No"}</td>
+                                <td className="meta">{p.description}</td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
                     </div>
+                  ) : (
+                    <p className="mt-6 text-sm text-[var(--text-muted)]">Sin parámetros.</p>
                   )}
 
-                  <div>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                      Ejemplo de respuesta
-                    </p>
-                    <pre className="overflow-x-auto rounded-[var(--border-radius)] bg-[var(--color-input-bg)] border border-[var(--color-border-subtle)] p-4 text-xs leading-relaxed text-[var(--color-text-muted)] font-mono">
+                  <div className="mt-6">
+                    <h4 className="text-sm font-semibold text-[var(--text-primary)]">Ejemplo de respuesta</h4>
+                    <pre className="mt-3 overflow-x-auto rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface-sunken)] p-4 font-mono text-[13px] leading-relaxed text-[var(--text-primary)]">
                       <code>{ep.example}</code>
                     </pre>
                   </div>
-                </div>
-              </div>
-            ))}
-          </section>
+                </section>
+              ))}
+            </div>
+          </div>
         </div>
       </main>
 
-      <Footer />
+      <PlatformFooter />
     </div>
   )
 }

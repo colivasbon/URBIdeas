@@ -162,21 +162,21 @@ interface CardSpec {
 const CARD_SPECS: readonly CardSpec[] = [
   {
     key: "edad_media",
-    label: "Edad media",
+    label: "Edad media aproximada",
     kind: "age",
     unit: "años",
     differenceUnit: "años",
     precision: 2,
-    definition: "Media ponderada por grupos quinquenales de edad (punto medio de cada grupo).",
+    definition: "Media ponderada por grupos quinquenales de edad (punto medio de cada grupo). Es una aproximación, no la edad media oficial.",
   },
   {
-    key: "menores16",
-    label: "Menores de 16 años",
+    key: "menores15",
+    label: "Menores de 15 años",
     kind: "share",
     unit: "% del total",
     differenceUnit: "pp",
     precision: 1,
-    definition: "Peso de las personas de 0 a 15 años sobre la población total.",
+    definition: "Población de 0 a 14 años / población total × 100. Calculado desde grupos quinquenales.",
   },
   {
     key: "mayores65",
@@ -198,12 +198,12 @@ const CARD_SPECS: readonly CardSpec[] = [
   },
   {
     key: "dependencia_total",
-    label: "Dependencia total",
+    label: "Dependencia total (criterio 0–14 y 65+)",
     kind: "ratio",
     unit: "%",
     differenceUnit: "pp",
     precision: 1,
-    definition: "Población de 0 a 14 y de 65 o más años por cada 100 personas de 16 a 64 años.",
+    definition: "(Población 0–14 + población 65+) / población 15–64 × 100. Calculado desde grupos quinquenales.",
   },
   {
     key: "indice_envejecimiento",
@@ -212,7 +212,7 @@ const CARD_SPECS: readonly CardSpec[] = [
     unit: "%",
     differenceUnit: "pp",
     precision: 1,
-    definition: "Personas de 65 y más años por cada 100 menores de 15 años.",
+    definition: "Personas de 65 y más años por cada 100 menores de 15 años (0–14).",
   },
 ];
 
@@ -283,11 +283,54 @@ export function buildEstructuraView(
   );
   const maxValue = scaleValues.reduce<number>((acc, value) => (value !== null && value > acc ? value : acc), 0);
 
+  // Calcular indicadores desde bandas quinquenales
+  const sumBands = (bands: readonly { male: number | null; female: number | null }[]): number => {
+    return bands.reduce((acc, band) => {
+      return acc + (band.male ?? 0) + (band.female ?? 0);
+    }, 0);
+  };
+
+  const band0_14 = dto.bands.filter((b) => /^(0-4|5-9|10-14)$/.test(b.band));
+  const band15_64 = dto.bands.filter((b) => /^(15-19|20-24|25-29|30-34|35-39|40-44|45-49|50-54|55-59|60-64)$/.test(b.band));
+  const band65plus = dto.bands.filter((b) => /^(65-69|70-74|75-79|80-84|85-89|90-94|95-99|100\+)/.test(b.band));
+
+  const total0_14 = sumBands(band0_14);
+  const total15_64 = sumBands(band15_64);
+  const total65plus = sumBands(band65plus);
+
+  const refBand0_14 = ref === null ? [] : ref.bands.filter((b) => /^(0-4|5-9|10-14)$/.test(b.band));
+  const refBand15_64 = ref === null ? [] : ref.bands.filter((b) => /^(15-19|20-24|25-29|30-34|35-39|40-44|45-49|50-54|55-59|60-64)$/.test(b.band));
+  const refBand65plus = ref === null ? [] : ref.bands.filter((b) => /^(65-69|70-74|75-79|80-84|85-89|90-94|95-99|100\+)/.test(b.band));
+
+  const refTotal0_14 = sumBands(refBand0_14);
+  const refTotal15_64 = sumBands(refBand15_64);
+  const refTotal65plus = sumBands(refBand65plus);
+
   const cards: EstructuraCardView[] = CARD_SPECS.map((spec) => {
-    const municipalIndicator = indicatorValue(dto.indicators, spec.key);
-    const referenceIndicator = ref === null ? null : indicatorValue(ref.indicators, spec.key);
-    const municipal = spec.kind === "share" ? share(municipalIndicator, dto.totals.total) : municipalIndicator;
-    const reference = ref === null ? null : spec.kind === "share" ? share(referenceIndicator, ref.totals.total) : referenceIndicator;
+    let municipal: number | null = null;
+    let reference: number | null = null;
+    let municipalCount: number | null = null;
+
+    if (spec.key === "menores15") {
+      municipal = share(total0_14, dto.totals.total);
+      reference = ref === null ? null : share(refTotal0_14, ref.totals.total);
+      municipalCount = total0_14;
+    } else if (spec.key === "dependencia_total") {
+      const numerator = total0_14 + total65plus;
+      municipal = total15_64 > 0 ? round((numerator / total15_64) * 100, 2) : null;
+      if (ref !== null) {
+        const refNumerator = refTotal0_14 + refTotal65plus;
+        reference = refTotal15_64 > 0 ? round((refNumerator / refTotal15_64) * 100, 2) : null;
+      }
+      municipalCount = numerator;
+    } else {
+      const municipalIndicator = indicatorValue(dto.indicators, spec.key);
+      const referenceIndicator = ref === null ? null : indicatorValue(ref.indicators, spec.key);
+      municipal = spec.kind === "share" ? share(municipalIndicator, dto.totals.total) : municipalIndicator;
+      reference = ref === null ? null : spec.kind === "share" ? share(referenceIndicator, ref.totals.total) : referenceIndicator;
+      municipalCount = spec.kind === "share" ? municipalIndicator : null;
+    }
+
     const difference = municipal !== null && reference !== null ? round(municipal - reference, spec.precision) : null;
     return {
       key: spec.key,
@@ -296,7 +339,7 @@ export function buildEstructuraView(
       definition: spec.definition,
       period: dto.period,
       municipal,
-      municipalCount: spec.kind === "share" ? municipalIndicator : null,
+      municipalCount,
       reference,
       difference,
       differenceUnit: spec.differenceUnit,

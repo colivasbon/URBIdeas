@@ -115,7 +115,19 @@ export function expandirAtlas(
   }
 
   // Se expande indicador a indicador para que la unidad, el denominador y la
-  // URL de provenance sean los de ESE indicador y no los del primero.
+  // URL de provenance sean los de ESE indicador y no los del primero. El
+  // checksum también es por operación: el ADRH y el Censo anual tienen
+  // descargas distintas y no deben compartir la misma huella.
+  const checksumDe = (ind: { tableFamily: string }): string => {
+    if (ind.tableFamily === 'censo_sexo_edad') {
+      return compacto.sourceChecksums?.censoSexoEdad ?? baseCtx.checksum
+    }
+    if (ind.tableFamily === 'censo_nacionalidad') {
+      return compacto.sourceChecksums?.censoNacionalidad ?? baseCtx.checksum
+    }
+    return compacto.sourceChecksums?.adrhProvincial ?? baseCtx.checksum
+  }
+
   const observations: Record<
     string,
     Record<string, Record<string, SeccionesAtlasV1['observations'][string][string][string]>>
@@ -128,6 +140,7 @@ export function expandirAtlas(
       denominator: ind.denominador,
       sourceUrl: ind.url,
       operation: ind.operation,
+      checksum: checksumDe(ind),
     }
     const parcial = expandirObservaciones(compacto.series, ctx, {
       anio: opciones.anio,

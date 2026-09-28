@@ -394,6 +394,12 @@ export interface InterpretacionAdrh {
 
 /** Interpreta la columna `Total` de un CSV del ADRH.
  *
+ *  Formato verificado de las descargas `jaxiT3` (español): la coma es el
+ *  separador DECIMAL y el punto es SIEMPRE separador de MILLARES, incluso
+ *  cuando la cifra no lleva coma. Patrones reales de la tabla 30656 (renta):
+ *  `DD.DDD` y `D.DDD`; de la 37678 (Gini/P80-P20): `D,D`, `DD,D`, `DD`. Tratar
+ *  "20.516" como 20,516 (en vez de 20516) encogía la renta por un factor 1000.
+ *
  *  Regla central: un ND, un secreto o una cadena vacía producen
  *  `{ value: null, status: 'no_difundido' }`. NUNCA 0. */
 export function interpretarTotalAdrh(bruto: string): InterpretacionAdrh {
@@ -402,11 +408,14 @@ export function interpretarTotalAdrh(bruto: string): InterpretacionAdrh {
   if (MARCADORES_ND.has(norm)) {
     return { value: null, status: 'no_difundido', note: null, cotaSuperior: false }
   }
-  // "14.105" (punto) o "14,105"/"28,7" (coma) → número. Reemplazamos solo la
-  // coma decimal cuando NO hay punto; si hay ambos, el punto es millares.
-  let num = Number.NaN
-  if (norm.includes(',') && !norm.includes('.')) num = Number(norm.replace(',', '.'))
-  else num = Number(norm.replace(/,/g, ''))
+  // Se retiran los puntos de millares y se convierte la coma decimal. La guarda
+  // evita que un marcador residual como "." se degrade a 0: si no queda un
+  // número con forma válida, es ND, jamás 0.
+  const normalizado = norm.replace(/\./g, '').replace(',', '.')
+  if (!/^-?\d+(\.\d+)?$/.test(normalizado)) {
+    return { value: null, status: 'no_difundido', note: null, cotaSuperior: false }
+  }
+  const num = Number(normalizado)
   if (!Number.isFinite(num)) {
     return { value: null, status: 'no_difundido', note: null, cotaSuperior: false }
   }

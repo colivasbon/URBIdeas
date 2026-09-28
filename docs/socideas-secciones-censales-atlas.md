@@ -78,6 +78,14 @@ coropleta inventada.
    aunque el INE los publica a nivel de sección (Alcalá del Júcar: 72 observaciones con
    los 8 indicadores; antes 54 sin ellos). Se decodifica UTF-8 y se retira el BOM.
 
+5. **Separador de millares leído como decimal (renta 1000× menor).** En las descargas
+   `jaxiT3` el punto es SIEMPRE separador de millares y la coma es decimal. Patrones
+   reales: renta `DD.DDD`/`D.DDD`, Gini `D,D`/`DD,D`. El parser anterior solo trataba el
+   punto como millares si además había coma, así que `"20.516"` se guardaba como
+   `20,516` en lugar de `20516`: toda la renta quedaba dividida por mil. Ahora se
+   retiran los puntos de millares y se convierte la coma decimal, con guarda para que
+   un marcador residual (`.`) siga siendo ND y nunca 0.
+
 ## 4. Estados de dato y reglas que no se rompen
 
 - Un ND, un secreto estadístico o una celda vacía son `no_difundido` con

@@ -1,0 +1,10 @@
+{
+  "02": { "provincia": "Albacete", "sexoEdad": 69097, "nacionalidad": 69095, "nacimiento": 69094 },
+  "16": { "provincia": "Cuenca", "sexoEdad": 69169, "nacionalidad": 69166, "nacimiento": 69167 },
+  "28": { "provincia": "Madrid", "sexoEdad": 69213, "nacionalidad": 69210, "nacimiento": 69211 },
+  "41": { "provincia": "Sevilla", "sexoEdad": 69261, "nacionalidad": 69258, "nacimiento": 69259 },
+  "45": { "provincia": "Toledo", "sexoEdad": 69273, "nacionalidad": 69270, "nacimiento": 69275 },
+  "46": { "provincia": "Valencia", "sexoEdad": 69277, "nacionalidad": 69274, "nacimiento": 69352 },
+  "51": { "provincia": "Ceuta", "sexoEdad": 69293, "nacionalidad": 69290, "nacimiento": 69291 },
+  "52": { "provincia": "Melilla", "sexoEdad": 69297, "nacionalidad": 69294, "nacimiento": 69295 }
+}

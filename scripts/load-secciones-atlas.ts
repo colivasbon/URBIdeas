@@ -63,6 +63,12 @@ import {
 } from '../src/lib/socideas-secciones'
 import { expandirAtlas } from '../src/lib/socideas-secciones-store'
 import PROVINCE_TABLES from '../src/lib/adrh-province-tables.json'
+import CENSO_TABLES from '../src/lib/censo-province-tables.json'
+import {
+  construirCatalogoCenso,
+  construirDemografiaCenso,
+  parsearCenso,
+} from '../src/lib/ine-censo-secciones'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Utilidades
@@ -79,6 +85,10 @@ const AVISO_FUENTE = 'ATOMIZACIÓN PROHIBIDA: el Atlas de Distribución de Renta
 type TablasProvincia = { provincia: string; renta: number; gini: number; verificado: string }
 
 const TABLAS = PROVINCE_TABLES as unknown as Record<string, TablasProvincia>
+
+type TablasCenso = { provincia: string; sexoEdad: number; nacionalidad: number; nacimiento: number }
+
+const CENSO = CENSO_TABLES as unknown as Record<string, TablasCenso>
 
 const UA = { 'User-Agent': 'URBIdeas/1.0 (+https://urbideas.com)' }
 
@@ -205,6 +215,45 @@ async function csvProvincial(provincia: string): Promise<CsvProvincia> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Descarga de las tablas provinciales del CENSO (sexo/edad y nacionalidad)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface CensoProvincia {
+  sexoEdad: { texto: string; url: string; sha256: string }
+  nacionalidad: { texto: string; url: string; sha256: string }
+  retrievedAt: string
+}
+
+const cacheCenso = new Map<string, CensoProvincia>()
+
+async function censoProvincial(provincia: string): Promise<CensoProvincia | null> {
+  const tablas = CENSO[provincia]
+  if (!tablas) return null
+  const enCache = cacheCenso.get(provincia)
+  if (enCache) return enCache
+  const bajar = async (tabla: number): Promise<{ texto: string; url: string; sha256: string }> => {
+    const url = `https://www.ine.es/jaxiT3/files/t/csv_bd/${tabla}.csv`
+    const ctl = new AbortController()
+    const t = setTimeout(() => ctl.abort(), TIMEOUT_FETCH_MS)
+    try {
+      const res = await fetch(url, { signal: ctl.signal, headers: UA })
+      if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`)
+      const buf = Buffer.from(await res.arrayBuffer())
+      return { texto: buf.toString('utf8').replace(/^\uFEFF/, ''), url, sha256: sha256(buf) }
+    } finally {
+      clearTimeout(t)
+    }
+  }
+  const [sexoEdad, nacionalidad] = await Promise.all([
+    bajar(tablas.sexoEdad),
+    bajar(tablas.nacionalidad),
+  ])
+  const out: CensoProvincia = { sexoEdad, nacionalidad, retrievedAt: new Date().toISOString() }
+  cacheCenso.set(provincia, out)
+  return out
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Construcción del atlas de un municipio
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -283,21 +332,91 @@ async function construirAtlas(
     observations[seccion] = destino
   }
 
-  // 4. Cobertura por indicador.
-  const indicadores: SeccionIndicador[] = construirCatalogoIndicadores(
-    { renta: String(tablas.renta), gini: String(tablas.gini) },
-    parseo.indicadoresPresentes,
-    nombre,
-    (tabla) => `https://www.ine.es/jaxiT3/Tabla.htm?t=${tabla}`,
-  )
-  const periodosDisponibles = [...new Set(parseo.periodos)].sort((a, b) => a - b)
+  // 3b. Demografía (Censo anual) — se añade a las MISMAS observaciones. Si la
+  //     provincia no tiene tablas del censo o la descarga falla, el atlas del
+  //     ADRH se publica igual: la demografía es aditiva, nunca bloqueante.
+  const tablasCenso = CENSO[provincia] ?? null
+  let censoChecksums: Record<string, string> = {}
+  let demografia: ReturnType<typeof construirDemografiaCenso> | null = null
+  if (tablasCenso) {
+    try {
+      const censo = await censoProvincial(provincia)
+      if (censo) {
+        const se = parsearCenso(censo.sexoEdad.texto, ine)
+        const nac = parsearCenso(censo.nacionalidad.texto, ine)
+        demografia = construirDemografiaCenso(se, nac, ine, {
+          retrievedAt: censo.retrievedAt,
+          checksumSexoEdad: censo.sexoEdad.sha256,
+          checksumNacionalidad: censo.nacionalidad.sha256,
+          urlSexoEdad: censo.sexoEdad.url,
+          urlNacionalidad: censo.nacionalidad.url,
+          tablaSexoEdad: tablasCenso.sexoEdad,
+          tablaNacionalidad: tablasCenso.nacionalidad,
+        })
+        censoChecksums = {
+          censoSexoEdad: censo.sexoEdad.sha256,
+          censoNacionalidad: censo.nacionalidad.sha256,
+          censoTablaSexoEdad: String(tablasCenso.sexoEdad),
+          censoTablaNacionalidad: String(tablasCenso.nacionalidad),
+        }
+        for (const [seccion, porIndicador] of Object.entries(demografia.porSeccion)) {
+          if (!clavesGeometria.has(seccion)) continue
+          observations[seccion] = observations[seccion] ?? {}
+          for (const [indicadorId, porPeriodo] of Object.entries(porIndicador)) {
+            const periodos: Record<string, SeccionObservacion> = observations[seccion]![indicadorId] ?? {}
+            for (const [periodo, obs] of Object.entries(porPeriodo)) {
+              if (periodos[periodo]) continue
+              const conGeometria: SeccionObservacion = { ...obs, geometryYear: geo.geometryYear }
+              periodos[periodo] = conGeometria
+              totalObservaciones++
+              if (conGeometria.status !== 'observado') totalNoDifundidas++
+            }
+            observations[seccion]![indicadorId] = periodos
+          }
+        }
+      }
+    } catch (e) {
+      parseo.avisos.push(`Demografía (censo) no disponible: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
+  // 4. Cobertura por indicador, con los periodos PROPIOS de cada operación: el
+  //    ADRH publica 2015-2023 y el censo 2021-2025; usar un único listado
+  //    mezclaría años que una fuente no tiene.
+  const indicadores: SeccionIndicador[] = [
+    ...construirCatalogoIndicadores(
+      { renta: String(tablas.renta), gini: String(tablas.gini) },
+      parseo.indicadoresPresentes,
+      nombre,
+      (tabla) => `https://www.ine.es/jaxiT3/Tabla.htm?t=${tabla}`,
+    ),
+    ...(tablasCenso && demografia
+      ? construirCatalogoCenso(
+          { sexoEdad: tablasCenso.sexoEdad, nacionalidad: tablasCenso.nacionalidad },
+          demografia.indicadoresPresentes,
+          (tabla) => `https://www.ine.es/jaxiT3/Tabla.htm?t=${tabla}`,
+        )
+      : []),
+  ]
+
+  const periodosPorIndicador = new Map<string, number[]>()
+  for (const porIndicador of Object.values(observations)) {
+    for (const [indicadorId, porPeriodo] of Object.entries(porIndicador)) {
+      const set = new Set(periodosPorIndicador.get(indicadorId) ?? [])
+      for (const p of Object.keys(porPeriodo)) set.add(Number(p))
+      periodosPorIndicador.set(indicadorId, [...set].sort((a, b) => a - b))
+    }
+  }
+  const periodosDeIndicador = (id: string): number[] => periodosPorIndicador.get(id) ?? []
+
   const cobertura: SeccionIndicadorCobertura[] = indicadores.map((ind) => {
+    const periodosInd = periodosDeIndicador(ind.id)
     let conDato = 0
     let sinDifundir = 0
     for (const seccion of clavesGeometria) {
       const obs = observations[seccion]?.[ind.id]
       if (!obs) continue
-      for (const per of periodosDisponibles) {
+      for (const per of periodosInd) {
         const o = obs[String(per)]
         if (!o) continue
         if (o.status === 'observado') conDato++
@@ -305,12 +424,12 @@ async function construirAtlas(
       }
     }
     // Periodo por defecto: el ÚLTIMO COMPLETO publicado para ese indicador.
-    const conAlgunDato = periodosDisponibles.filter((per) =>
+    const conAlgunDato = periodosInd.filter((per) =>
       [...clavesGeometria].some((s) => observations[s]?.[ind.id]?.[String(per)]?.status === 'observado'),
     )
     return {
       indicatorId: ind.id,
-      periodos: periodosDisponibles,
+      periodos: periodosInd,
       periodoPorDefecto: conAlgunDato.length ? conAlgunDato[conAlgunDato.length - 1]! : null,
       seccionesConDato: conDato,
       seccionesSinDifundir: sinDifundir,
@@ -336,7 +455,8 @@ async function construirAtlas(
     vistas.add(k)
   }
 
-  const hayDesfaseTemporal = geo.geometryYear !== (periodosDisponibles.at(-1) ?? geo.geometryYear)
+  const ultimoAdrh = [...new Set(parseo.periodos)].sort((a, b) => a - b).at(-1) ?? geo.geometryYear
+  const hayDesfaseTemporal = geo.geometryYear !== ultimoAdrh
   const territoryMatch: SeccionesCalidad['territoryMatch'] =
     poligonosInvalidos.length === 0 ? 'exact' : 'invalid'
 
@@ -355,9 +475,12 @@ async function construirAtlas(
       `Agregados de distrito EXCLUIDOS: ${geo.agregadosDistrito.length}`,
       `Filas de sección en el CSV: ${parseo.totalFilasSeccion}; no difundidas: ${parseo.totalNoDifundidas}`,
       `Filas de sección con CUSEC inválido o de otro municipio: ${parseo.clavesInvalidas + parseo.ajenasAlMunicipio}`,
+      demografia
+        ? `Demografía (Censo anual): ${demografia.indicadoresPresentes.length} indicadores presentes a nivel de sección.`
+        : 'Demografía (Censo anual): sin tablas provinciales para esta provincia.',
       hayDesfaseTemporal
-        ? `AVISO: la geometría es de ${geo.geometryYear} y el último dato es de ${periodosDisponibles.at(-1)}. Se muestran por separado.`
-        : 'Geometría y último dato del mismo año.',
+        ? `AVISO: la geometría es de ${geo.geometryYear} y el último dato del ADRH es de ${ultimoAdrh}. Se muestran por separado.`
+        : 'Geometría y último dato del ADRH del mismo año.',
     ],
     status: 'passed',
   }
@@ -366,6 +489,13 @@ async function construirAtlas(
   for (const [indId, porAnio] of Object.entries(parseo.municipal)) {
     for (const [anio, valor] of Object.entries(porAnio)) {
       municipalReference[`${indId}|${anio}`] = valor
+    }
+  }
+  if (demografia) {
+    for (const [indId, porAnio] of Object.entries(demografia.municipal)) {
+      for (const [anio, valor] of Object.entries(porAnio)) {
+        municipalReference[`${indId}|${anio}`] = valor
+      }
     }
   }
 
@@ -412,6 +542,7 @@ async function construirAtlas(
       adrhProvincial: csv.sha256,
       adrhTablaRenta: String(tablas.renta),
       adrhTablaGini: String(tablas.gini),
+      ...censoChecksums,
     },
     generatedAt,
   }

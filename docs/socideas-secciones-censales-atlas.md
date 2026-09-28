@@ -50,6 +50,27 @@ No se publica ningún indicador que el INE no difunda a ese grano. Un municipio 
 datos por sección se sirve con geometría y un estado vacío explícito, nunca con una
 coropleta inventada.
 
+### 2.1 Indicadores demográficos (Censo anual de población, operación `1254736176992`)
+
+Tablas provinciales de secciones censales (mapa en `src/lib/censo-province-tables.json`):
+«Población por sexo y edad (grupos quinquenales)» y «Población por sexo y nacionalidad
+(española/extranjera)». Periodos 2021-2025. Mismo formato TSV UTF-8 y misma regla de
+millares que el ADRH.
+
+| id | Etiqueta | Unidad |
+|---|---|---|
+| `poblacion_total` | Población total | personas |
+| `poblacion_hombres` / `poblacion_mujeres` | Población por sexo | personas |
+| `poblacion_0_14` | 0 a 14 años (suma de 0-4, 5-9 y 10-14) | personas |
+| `poblacion_65_mas` / `poblacion_80_mas` | 65+ / 80+ (suma de quinquenios) | personas |
+| `pct_65_mas` / `pct_80_mas` / `pct_0_14` | % sobre la población total de la misma sección, tabla y año | % |
+| `poblacion_extranjera` / `pct_extranjera` | Nacionalidad extranjera | personas / % |
+
+No se inventan tramos: 0-14 y 65+ salen de sumar los quinquenales publicados, con el
+denominador de la MISMA operación, año y sección. La UI los agrupa en pestañas
+«Económico» (ADRH) y «Demografía» (censo), de modo que el selector no mezcla unidades
+ni años de operaciones distintas.
+
 ## 3. Fallos del diseño anterior que esta versión corrige
 
 1. **Truncamiento silencioso.** La ruta anterior pedía `limit=1000` sin paginar.

@@ -146,8 +146,14 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   }, [atlas]);
 
   const indicadorPorDefecto = useMemo(() => {
+    // Indicador inicial: renta neta media por persona (el de referencia del
+    // producto y mejor cobertura), no el primero alfabético. Si no existe, el
+    // primer indicador publicado por sección; en su defecto, el primero.
+    const preferido = indicadores.find(
+      (i) => i.id === "renta_neta_media_persona" && i.publicadoPorSeccion,
+    );
     const publicado = indicadores.find((i) => i.publicadoPorSeccion);
-    return (publicado ?? indicadores[0])?.id ?? null;
+    return (preferido ?? publicado ?? indicadores[0])?.id ?? null;
   }, [indicadores]);
 
   const periodosDe = useCallback(
@@ -366,7 +372,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
         const blob = await blobDeLienzo(enlazado);
         if (!blob) throw new Error("El navegador no ha podido generar el archivo PNG.");
         const archivo = plano
-          ? nombreArchivoPngSecciones(codigoINE, "plano-secciones", atlas?.geometryYear ?? null)
+          ? nombreArchivoPngSecciones(codigoINE, "plano-secciones", atlas?.geometryYear ?? datos?.anio_delimitacion ?? null)
           : nombreArchivoPngSecciones(codigoINE, params.indicatorId ?? "sin-indicador", params.anio);
         descargar(blob, archivo);
         setExportNotice(

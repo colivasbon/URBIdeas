@@ -76,9 +76,17 @@ async function main() {
   check('distingue el año de la cartografía', /delimitaci|geometr/i.test(texto), '')
   check('expone el estado de difusión / ND', /\bND\b|No difundido|Sin cobertura/i.test(texto))
 
-  // 2. Leyenda como lista con texto (no solo color).
+  // 2. Leyenda como lista con texto (no solo color). En estado «plano» (sin
+  //    indicadores cargados) no hay escala de color: se acepta el mensaje
+  //    honesto de solo contornos en lugar de una leyenda vacía.
   const leyenda = page.locator('ul, [role="list"]').filter({ hasText: /euros|puntos|ratio|ND|m/i })
-  check('hay leyenda con texto', (await leyenda.count()) > 0, `${await leyenda.count()} bloques`)
+  const hayLeyenda = (await leyenda.count()) > 0
+  const hayPlano = /solo contornos|indicadores cargados|plano de secciones|aún no se ha cargado|todavía no hemos cargado/i.test(texto)
+  check(
+    'hay leyenda con texto o estado «plano» explícito',
+    hayLeyenda || hayPlano,
+    `${await leyenda.count()} bloques${hayPlano ? ' · estado plano declarado' : ''}`,
+  )
 
   // 3. Tabla accesible (obligatoria: debe funcionar SIN mapa).
   const tablas = page.locator('table')
@@ -97,8 +105,8 @@ async function main() {
   }
 
   // 4. Controles de edición de la vista (presentación, no datos).
-  const btnPng = page.getByRole('button', { name: /descargar mapa png/i })
-  check('existe el botón "Descargar mapa PNG"', (await btnPng.count()) > 0)
+  const btnPng = page.getByRole('button', { name: /descargar (mapa coroplético png|plano de secciones)/i })
+  check('existe el botón de exportación PNG (coropleta o plano)', (await btnPng.count()) > 0)
   const btnReset = page.getByRole('button', { name: /restablecer/i })
   check('existe "Restablecer vista"', (await btnReset.count()) > 0)
 
@@ -160,7 +168,7 @@ async function main() {
       const esDelAtlas =
         !!el.closest('.leaflet-container') ||
         !!el.closest('[role="region"][aria-label*="Tabla de secciones"]') ||
-        /^(Acercar|Descargar mapa PNG|Restablecer)/.test(etiqueta)
+        /^(Acercar|Descargar mapa coroplético PNG|Descargar plano de secciones|Descargar datos seccionales|Restablecer)/.test(etiqueta)
       const msg = `${etiqueta || el.tagName}:${Math.round(r.width)}x${Math.round(r.height)}`
       if (esDelAtlas) dentro.push(msg)
       else fuera.push(msg)
@@ -219,7 +227,7 @@ async function main() {
         descarga.suggestedFilename(),
       )
     } catch (e) {
-      check('el botón "Descargar mapa PNG" produce un fichero', false, e instanceof Error ? e.message : String(e))
+      check('el botón de exportación produce un fichero', false, e instanceof Error ? e.message : String(e))
     }
   }
 

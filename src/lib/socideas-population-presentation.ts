@@ -290,17 +290,17 @@ export function buildEstructuraView(
     }, 0);
   };
 
-  const band0_14 = dto.bands.filter((b) => /^(0-4|5-9|10-14)$/.test(b.band));
-  const band15_64 = dto.bands.filter((b) => /^(15-19|20-24|25-29|30-34|35-39|40-44|45-49|50-54|55-59|60-64)$/.test(b.band));
-  const band65plus = dto.bands.filter((b) => /^(65-69|70-74|75-79|80-84|85-89|90-94|95-99|100\+)/.test(b.band));
+  const band0_14 = dto.bands.filter((b) => /^(0 a 4 años|5 a 9 años|10 a 14 años)$/.test(b.band));
+  const band15_64 = dto.bands.filter((b) => /^(15 a 19 años|20 a 24 años|25 a 29 años|30 a 34 años|35 a 39 años|40 a 44 años|45 a 49 años|50 a 54 años|55 a 59 años|60 a 64 años)$/.test(b.band));
+  const band65plus = dto.bands.filter((b) => /^(65 a 69 años|70 a 74 años|75 a 79 años|80 a 84 años|85 a 89 años|90 a 94 años|95 a 99 años|100 y más años)$/.test(b.band));
 
   const total0_14 = sumBands(band0_14);
   const total15_64 = sumBands(band15_64);
   const total65plus = sumBands(band65plus);
 
-  const refBand0_14 = ref === null ? [] : ref.bands.filter((b) => /^(0-4|5-9|10-14)$/.test(b.band));
-  const refBand15_64 = ref === null ? [] : ref.bands.filter((b) => /^(15-19|20-24|25-29|30-34|35-39|40-44|45-49|50-54|55-59|60-64)$/.test(b.band));
-  const refBand65plus = ref === null ? [] : ref.bands.filter((b) => /^(65-69|70-74|75-79|80-84|85-89|90-94|95-99|100\+)/.test(b.band));
+  const refBand0_14 = ref === null ? [] : ref.bands.filter((b) => /^(0 a 4 años|5 a 9 años|10 a 14 años)$/.test(b.band));
+  const refBand15_64 = ref === null ? [] : ref.bands.filter((b) => /^(15 a 19 años|20 a 24 años|25 a 29 años|30 a 34 años|35 a 39 años|40 a 44 años|45 a 49 años|50 a 54 años|55 a 59 años|60 a 64 años)$/.test(b.band));
+  const refBand65plus = ref === null ? [] : ref.bands.filter((b) => /^(65 a 69 años|70 a 74 años|75 a 79 años|80 a 84 años|85 a 89 años|90 a 94 años|95 a 99 años|100 y más años)$/.test(b.band));
 
   const refTotal0_14 = sumBands(refBand0_14);
   const refTotal15_64 = sumBands(refBand15_64);

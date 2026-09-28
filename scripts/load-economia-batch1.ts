@@ -249,7 +249,8 @@ export async function main() {
         if (!/^\d{5}$/.test(code)) continue
         const raw = String(r[2] ?? '').trim()
         if (raw === '<5' || raw === '< 5') { markSin(code, 'SEPE: <5 (secreto)'); continue }
-        const v = raw === '' ? 0 : Number(raw)
+        if (raw === '') { markSin(code, 'SEPE: celda vacía → sin dato'); continue }
+        const v = Number(raw)
         if (!Number.isFinite(v) || v < 0) continue
         pushRow(code, { slug: 'paro_registrado', anio: 2026, valor: v, unidad: 'personas', dim: { ambito: 'municipio', periodo: '2026-07', estado: 'consolidado' }, src: 'sepe', url: `https://www.sepe.es${href}`, table: 'sepe_2026_07', serie: null })
       }

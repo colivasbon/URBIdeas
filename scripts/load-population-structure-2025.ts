@@ -146,6 +146,39 @@ interface FileScan<A> {
   ms: number
 }
 
+/** Detecta los períodos disponibles en 68535 (pasada ligera, sin acumular). */
+async function scanPeriods68535(): Promise<Set<string>> {
+  const periods = new Set<string>()
+  const lines = readLines(CSV_68535)
+  const first = await lines.next()
+  if (first.done) throw new Error(`Fichero vacío: ${CSV_68535}`)
+  assertHeader(CSV_68535, first.value, HEADER_68535)
+  for await (const line of lines) {
+    const c = line.split('\t')
+    if (c.length < 8) continue
+    if (c[5] !== 'Total') continue
+    const periodo = (c[6] ?? '').trim()
+    if (/^\d{4}$/.test(periodo)) periods.add(periodo)
+  }
+  return periods
+}
+
+/** Detecta los períodos disponibles en 68534 (pasada ligera, sin acumular). */
+async function scanPeriods68534(): Promise<Set<string>> {
+  const periods = new Set<string>()
+  const lines = readLines(CSV_68534)
+  const first = await lines.next()
+  if (first.done) throw new Error(`Fichero vacío: ${CSV_68534}`)
+  assertHeader(CSV_68534, first.value, HEADER_68534)
+  for await (const line of lines) {
+    const c = line.split('\t')
+    if (c.length < 6) continue
+    const periodo = (c[4] ?? '').trim()
+    if (/^\d{4}$/.test(periodo)) periods.add(periodo)
+  }
+  return periods
+}
+
 /** Primera pasada por 68535: quinquenios + totales por sexo del período pedido. */
 async function scan68535(
   targets: ReadonlySet<string> | null,
@@ -552,6 +585,27 @@ async function main(): Promise<void> {
   }
   const sha68535 = await timedSha(CSV_68535)
   const sha68065 = await timedSha(CSV_68065)
+
+  // Fail-closed: detectar el último período completo y validar que coincide.
+  const periods35 = await scanPeriods68535()
+  const periods34 = await scanPeriods68534()
+  const allPeriods = [...new Set([...periods35, ...periods34])].sort()
+  const latestPeriod = allPeriods[allPeriods.length - 1]
+  if (latestPeriod === undefined) {
+    throw new Error('Ningún período completo en 68535/68534 (fail-closed)')
+  }
+  if (latestPeriod !== periodo) {
+    throw new Error(
+      `El período más reciente completo es ${latestPeriod}, no ${periodo}. Revisar la fuente antes de continuar (fail-closed).`,
+    )
+  }
+  // Verificar que el período más reciente tiene datos suficientes (al menos 100 municipios).
+  const scanCheck = await scan68535(null, latestPeriod, [])
+  if (scanCheck.acc.size < 100) {
+    throw new Error(
+      `El período ${latestPeriod} tiene solo ${scanCheck.acc.size} municipios en 68535; no se considera completo (fail-closed).`,
+    )
+  }
 
   const scan35 = await scan68535(todos ? null : new Set(solicitados), periodo, warnings)
   const ineList = todos ? [...scan35.acc.keys()].sort() : solicitados

@@ -171,6 +171,20 @@ export function GalBloque({ data, municipio }: GalBloqueProps) {
                     "—"
                   )}
                 </Fila>
+                <Fila etiqueta="Estado del enlace">
+                  {gal.estado_enlace === "verificado" ? (
+                    <span className="text-[var(--color-secondary)]">Verificado</span>
+                  ) : gal.estado_enlace === "pendiente" ? (
+                    <span className="text-[var(--color-text-muted)]">Pendiente de verificación</span>
+                  ) : gal.estado_enlace === "no_verificado" ? (
+                    <span className="text-[var(--color-text-muted)]">No verificado</span>
+                  ) : (
+                    <span className="text-[var(--color-text-muted)]">Fuente caída</span>
+                  )}
+                </Fila>
+                {gal.fecha_verificacion && (
+                  <Fila etiqueta="Fecha de verificación">{fmtFecha(gal.fecha_verificacion)}</Fila>
+                )}
                 <Fila etiqueta="Correo electrónico">
                   {mailSeguro(gal.email) ? (
                     <a

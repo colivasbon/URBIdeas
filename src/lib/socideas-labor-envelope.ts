@@ -292,6 +292,11 @@ export interface LaborWarning {
   detalle: string
 }
 
+export interface LaborCoherenciaResult {
+  coherente: boolean
+  warnings: LaborWarning[]
+}
+
 function sumAll(vals: (number | null)[]): number | null {
   if (vals.some((v) => v === null)) return null
   return (vals as number[]).reduce((a, b) => a + b, 0)
@@ -304,6 +309,41 @@ function sumAll(vals: (number | null)[]): number | null {
  * Las celdas suprimidas NO generan tupla (ausencia = ND en UI).
  * Las incoherencias de suma generan warnings, nunca correcciones.
  */
+export function evaluaCoherenciaSepe(row: SepeMonthRow): LaborCoherenciaResult {
+  const warnings: LaborWarning[] = []
+  const totalH = sumAll(row.hombres)
+  const totalM = sumAll(row.mujeres)
+  if (row.total !== null && totalH !== null && totalM !== null && totalH + totalM !== row.total) {
+    const diff = row.total - (totalH + totalM)
+    const secretosH = row.hombres.filter((v) => v === null).length
+    const secretosM = row.mujeres.filter((v) => v === null).length
+    const causa = secretosH + secretosM > 0
+      ? `diferencia ${diff} atribuida a ${secretosH + secretosM} celda(s) "<5" (secreto estadístico)`
+      : `diferencia ${diff} sin celdas secretas`
+    warnings.push({
+      codigoIne: row.codigoIne,
+      periodo: row.periodo,
+      regla: 'sepe_sexo_suma_total',
+      detalle: `H(${totalH})+M(${totalM})=${totalH + totalM} ≠ total ${row.total} · ${causa}`,
+    })
+  }
+  const secSum = sumAll(LABOR_SECTORS.map((s) => row.sectores[s]))
+  if (row.total !== null && secSum !== null && secSum !== row.total) {
+    const diff = row.total - secSum
+    const secretosSec = LABOR_SECTORS.filter((s) => row.sectores[s] === null).length
+    const causa = secretosSec > 0
+      ? `diferencia ${diff} atribuida a ${secretosSec} celda(s) "<5" (secreto estadístico)`
+      : `diferencia ${diff} sin celdas secretas`
+    warnings.push({
+      codigoIne: row.codigoIne,
+      periodo: row.periodo,
+      regla: 'sepe_sector_suma_total',
+      detalle: `sectores=${secSum} ≠ total ${row.total} · ${causa}`,
+    })
+  }
+  return { coherente: warnings.length === 0, warnings }
+}
+
 export function buildSepeTuples(
   row: SepeMonthRow,
   sourceUrl: string,
@@ -358,6 +398,25 @@ export function buildSepeTuples(
  * Emite: total (si exacto) + 6 regímenes (los exactos). Rangos ">=X"/" <5"
  * NO generan tupla. Suma de regímenes vs total: solo warning.
  */
+export function evaluaCoherenciaTgss(row: TgssMuniRow, periodo: string): LaborCoherenciaResult {
+  const warnings: LaborWarning[] = []
+  const regSum = sumAll(LABOR_REGIMENES.map((r) => row.regimenes[r]))
+  if (row.total !== null && regSum !== null && regSum !== row.total) {
+    const diff = row.total - regSum
+    const secretosReg = LABOR_REGIMENES.filter((r) => row.regimenes[r] === null).length
+    const causa = secretosReg > 0
+      ? `diferencia ${diff} atribuida a ${secretosReg} celda(s) no publicadas (secreto "<5" o rango ">=X")`
+      : `diferencia ${diff} sin celdas secretas`
+    warnings.push({
+      codigoIne: row.codigoIne,
+      periodo,
+      regla: 'tgss_regimen_suma_total',
+      detalle: `regímenes=${regSum} ≠ total ${row.total} · ${causa}`,
+    })
+  }
+  return { coherente: warnings.length === 0, warnings }
+}
+
 export function buildTgssTuples(
   row: TgssMuniRow,
   anio: number,

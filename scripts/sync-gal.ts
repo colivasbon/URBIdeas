@@ -367,6 +367,11 @@ interface FilaGal {
   periodo_programacion: string | null
   fuente_url: string
   fuente_fecha: string
+  url_fuente: string | null
+  url_declarada: string | null
+  url_oficial_verificada: string | null
+  fecha_verificacion: string | null
+  estado_enlace: 'verificado' | 'pendiente' | 'no_verificado' | 'fuente_caida'
   raw_data: Record<string, unknown>
 }
 
@@ -443,19 +448,25 @@ async function cargarRedPac(): Promise<FuenteRrn> {
     const idCcaa = limpia(p.id_ccaa)
     const ccaa = /^\d{11}$/.test(idCcaa) ? idCcaa.slice(2, 4) : null
     const nombre = limpia(p.nombregal) || `GAL ${idGal}`
+    const webFuente = limpia(p.paginaweb) || null
     filas.push({
       codigo_gal: `RRN-${idGal}`,
       nombre,
       ccaa_code: ccaa,
       ambito_territorial: limpia(p.region) || null,
       municipios_codigo_ine: [...set].sort(),
-      web_oficial: limpia(p.paginaweb) || null,
+      web_oficial: webFuente,
       email: limpia(p.email) || null,
       telefono: limpia(p.telefono) || null,
       // Sin periodo publicado en la fuente: NO se infiere (las fichas datan de 2018).
       periodo_programacion: null,
       fuente_url: VISOR_RED_PAC,
       fuente_fecha: HOY,
+      url_fuente: webFuente,
+      url_declarada: webFuente,
+      url_oficial_verificada: null,
+      fecha_verificacion: null,
+      estado_enlace: 'pendiente',
       raw_data: {
         fuente: 'redpac_wfs',
         capa_gal: 'RRN:GAL',
@@ -675,6 +686,11 @@ async function cargarClm(): Promise<FuenteClm> {
       periodo_programacion: '2023-2027',
       fuente_url: CLM_POBLACIONES,
       fuente_fecha: HOY,
+      url_fuente: null,
+      url_declarada: null,
+      url_oficial_verificada: null,
+      fecha_verificacion: null,
+      estado_enlace: 'pendiente',
       raw_data: {
         fuente: 'datos_abiertos_clm',
         dataset: DATASET_CLM,

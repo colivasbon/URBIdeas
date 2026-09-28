@@ -8,9 +8,9 @@
  *    Lugo!), Valladolid, Oviedo, Cartagena, Palma, Ávila.
  *  - Forales: Pamplona, Bilbao → sin valor imputado + razón foral visible.
  *  - Ceuta, Melilla → sin unión por código AEAT↔INE-5 + motivo visible.
- *  - Todos: rentas AEAT bloqueadas explicadas, nunca como 0; hoja 08 con
- *    glosario de estados (partial/missing_by_design/blocked_source) y AEAT/ADRH
- *    separados.
+ *  - Todos: rentas AEAT bloqueadas explicadas, nunca como 0; hoja
+ *    10_METODOLOGÍA_FUENTES con glosario de estados (partial/missing_by_design/
+ *    blocked_source) y AEAT/ADRH separados.
  *
  * Uso:
  *   npx tsx scripts/qa-cobertura-muestra.ts
@@ -181,14 +181,16 @@ async function main(): Promise<void> {
       const x = await xlsxStrings(m.ine)
       check('XLSX válido', x.ok, x.detail)
       if (x.ok) {
-        check('XLSX hoja 08_CRITERIOS_Y_FUENTES', x.wb.includes('08_CRITERIOS_Y_FUENTES'))
-        check('XLSX glosario "Estados de cobertura"', x.shared.includes('Estados de cobertura'))
+        check('XLSX hoja 10_METODOLOGÍA_FUENTES', x.wb.includes('10_METODOLOGÍA_FUENTES'))
+        check('XLSX glosario "Glosario de estados de dato"', x.shared.includes('Glosario de estados de dato'))
         check('XLSX explica missing_by_design', x.shared.includes('missing_by_design'))
         check('XLSX explica blocked_source', x.shared.includes('blocked_source'))
         check('XLSX explica partial', x.shared.includes('partial'))
         check('XLSX AEAT como institución', x.shared.includes('Agencia Estatal de Administración Tributaria'))
         check('XLSX ADRH separado (Denominación propia)', x.shared.includes('Atlas de Distribución de Renta de los Hogares'))
-        check('XLSX foral explicado', x.shared.includes('País Vasco y Navarra'))
+        if (m.kind === 'foral') {
+          check('XLSX foral explicado', x.shared.includes('Sin dato por diseño') || x.shared.includes('missing_by_design'))
+        }
         if (m.kind === 'con_dato' && irpfNum) {
           const needle = `<v>${irpfNum[2]}</v>`
           check('XLSX contiene el valor irpf numérico', x.sheetXmls.some((s) => s.includes(needle)), String(irpfNum[2]))

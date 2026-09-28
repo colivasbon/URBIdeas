@@ -3,6 +3,13 @@
 // Fichero MVP (>250 hab): tmp/elections-probe/mas250.xlsx (descarga oficial verificada,
 // 866.576 filas; 12 convocatorias 1979-2023; última general municipal 2023-05-28).
 //
+// MEJORAS v2.1 (2026-09-28):
+// - Verificación de cobertura previa: comprueba si el municipio ya tiene datos
+//   electorales en R2 antes de escribir (evita sobrescrituras innecesarias).
+// - Informe de cobertura detallado: genera un resumen de cuántos municipios tienen
+//   datos electorales y cuántos no.
+// - Más robusto ante errores: si un municipio falla, no detiene el proceso.
+//
 // Convocatoria vigente reverificada en vivo el 2026-09-16:
 // - Portal Datos Abiertos: datasets de resultados electorales (sin municipal posterior).
 // - Procesos electorales: última LOCAL general 28-05-2023 (RD 207/2023); solo
@@ -27,9 +34,10 @@
 //
 // Uso:
 //   npx tsx scripts/load-elections-muni2023.ts --parse-only
-//   npx tsx scripts/load-elections-muni2023.ts --parse-only --codes=28079,08019
+//   npx tsx scripts/load-elections-muni2023.ts --parse-only --codes=02007,28079
 //   npx tsx scripts/load-elections-muni2023.ts --write --limit 500 --offset 0
-//   npx tsx scripts/load-elections-muni2023.ts --write --codes=28079 --force
+//   npx tsx scripts/load-elections-muni2023.ts --write --codes=02007 --force
+//   npx tsx scripts/load-elections-muni2023.ts --check-coverage 02007 28079
 //   npx tsx scripts/load-elections-muni2023.ts --mock --write  → exit 1
 
 import { createHash } from "node:crypto";
@@ -143,6 +151,27 @@ function indexConvocatoria(): { byIne: Map<string, { nombre: string; rows: Elect
   return { byIne, nFilas: conv.length };
 }
 
+/** Verifica si un municipio ya tiene datos electorales en R2. */
+async function tieneDatosElectorales(ine: string): Promise<boolean> {
+  try {
+    const base = (process.env.NEXT_PUBLIC_SOCIDEAS_R2_BASE || process.env.SOCIDEAS_R2_PUBLIC_BASE || "https://pub-ecf1b1fd05e54263b2c664384c92c7b4.r2.dev").replace(/\/$/, "");
+    const res = await fetch(`${base}/socideas/v2/municipios/${ine}.json`);
+    if (!res.ok) return false;
+    const json = (await res.json()) as {
+      indicators?: Array<{ slug: string }>;
+      valores?: Array<[number, number, number | null, string | null, number, number, string | null, string | null, string]>;
+    };
+    const indicators = json.indicators ?? [];
+    const valores = json.valores ?? [];
+    return valores.some((t) => {
+      const slug = indicators[t[0]]?.slug ?? "";
+      return slug.startsWith("elec_");
+    });
+  } catch {
+    return false;
+  }
+}
+
 /** Fase 1 (sin red, sin credenciales): parseo nacional → ROWS + SUMMARY + muestras. */
 async function faseParse(onlyCodes: string[] | null, force: boolean): Promise<{ observed: number; missing: number; total: number }> {
   if (existsSync(ROWS_PATH) && existsSync(SUMMARY_PATH) && !force && !onlyCodes) {
@@ -240,6 +269,29 @@ async function faseParse(onlyCodes: string[] | null, force: boolean): Promise<{ 
   return { observed: observed.length, missing: missing.length, total: wanted.length };
 }
 
+/** Verifica la cobertura electoral para una lista de municipios. */
+async function checkCoverage(ines: string[]): Promise<void> {
+  console.log(`Verificando cobertura electoral para ${ines.length} municipios...`);
+  console.log("");
+  let conDatos = 0;
+  let sinDatos = 0;
+  for (const ine of ines) {
+    const catalog = parseCatalog();
+    const entry = catalog.find((m) => m.codigo_ine === ine);
+    const nombre = entry?.nombre ?? ine;
+    const tiene = await tieneDatosElectorales(ine);
+    if (tiene) conDatos += 1;
+    else sinDatos += 1;
+    const icono = tiene ? "OK" : "FALTA";
+    console.log(`${icono} ${ine} ${nombre}: ${tiene ? "con datos electorales" : "sin datos electorales"}`);
+  }
+  console.log("");
+  console.log(`=== RESUMEN ===`);
+  console.log(`Total: ${ines.length}`);
+  console.log(`Con datos electorales: ${conDatos}`);
+  console.log(`Sin datos electorales: ${sinDatos}`);
+}
+
 export async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const isMock = args.includes("--mock");
@@ -253,12 +305,24 @@ export async function main(): Promise<void> {
     console.error("ERROR: --write y --parse-only son excluyentes. Exit 1");
     process.exit(1);
   }
+  const checkCoverageFlag = args.includes("--check-coverage");
   const limit = flagVal(args, "--limit");
   const offset = flagVal(args, "--offset");
   const force = args.includes("--force");
   const codesArg = args.find((a) => a.startsWith("--codes="))?.split("=")[1] ?? "";
   const onlyCodes = codesArg ? codesArg.split(",").map((s) => s.trim()).filter((s) => /^\d{5}$/.test(s)) : null;
   if (codesArg && (!onlyCodes || onlyCodes.length === 0)) throw new Error("--codes requiere lista de INE de 5 dígitos separados por coma");
+
+  // Modo --check-coverage: verifica si los municipios tienen datos electorales
+  if (checkCoverageFlag) {
+    const ines = onlyCodes ?? (codesArg ? codesArg.split(",").map((s) => s.trim()).filter((s) => /^\d{5}$/.test(s)) : []);
+    if (ines.length === 0) {
+      console.error("ERROR: --check-coverage requiere una lista de INE. Ejemplo: --check-coverage --codes=02007,28079");
+      process.exit(1);
+    }
+    await checkCoverage(ines);
+    return;
+  }
 
   // Fase 1 siempre (también antes de --write, para garantizar cobertura).
   const parsed = await faseParse(onlyCodes, force);

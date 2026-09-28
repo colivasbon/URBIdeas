@@ -15,6 +15,18 @@
 //     error inesperado. La ficha NUNCA se rompe y NUNCA se muestra «0» como
 //     si fuera un hecho: el bloque lo reformula como «Sin datos publicados».
 //
+// VERIFICACIÓN DE ENLACES INDIVIDUALES:
+//   · association_id: identificador único de la asociación en el registro
+//   · registro: nombre de la asociación
+//   · web_verificada: URL web verificada (null si no hay o no se ha verificado)
+//   · social_verificado: URL de red social verificada (null si no hay)
+//   · tipo_enlace: 'web' | 'social' | 'web_y_social' | 'ninguno'
+//   · fecha_verificacion: fecha de la última verificación
+//   · estado: 'verificado' | 'pendiente' | 'no_verificado'
+//
+// NUNCA se inventan enlaces. Si no hay enlace verificado, se muestra
+// "Sin enlace individual verificado".
+//
 // Esta función NUNCA lanza.
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -26,6 +38,11 @@ export interface AsociacionItem {
   fuente_url: string
   fuente_fecha: string
   aviso_verificacion: string
+  web_verificada: string | null
+  social_verificada: string | null
+  tipo_enlace: 'web' | 'social' | 'web_y_social' | 'ninguno'
+  fecha_verificacion: string | null
+  enlace_estado: 'verificado' | 'pendiente' | 'no_verificado'
 }
 
 export interface AsociacionesMunicipio {
@@ -89,6 +106,11 @@ interface AsocRow {
   fuente_url: string | null
   fuente_fecha: string | null
   aviso_verificacion: string | null
+  web_verificada: string | null
+  social_verificada: string | null
+  tipo_enlace: string | null
+  fecha_verificacion: string | null
+  enlace_estado: string | null
 }
 
 /** Tope duro de filas recuperadas (la API de Supabase devuelve como mucho
@@ -162,7 +184,8 @@ export async function readAsociacionesMunicipio(
       const { data, error } = await supabase
         .from('asociaciones')
         .select(
-          'nombre, tipo, estado, fecha_inscripcion, fuente_url, fuente_fecha, aviso_verificacion',
+          'nombre, tipo, estado, fecha_inscripcion, fuente_url, fuente_fecha, aviso_verificacion, ' +
+          'web_verificada, social_verificada, tipo_enlace, fecha_verificacion, enlace_estado',
         )
         .eq('codigo_ine', ine)
         .order('tipo', { ascending: true })
@@ -192,6 +215,11 @@ export async function readAsociacionesMunicipio(
       fuente_url: r.fuente_url ?? '',
       fuente_fecha: r.fuente_fecha ?? '',
       aviso_verificacion: r.aviso_verificacion || ASOC_AVISO_POR_DEFECTO,
+      web_verificada: r.web_verificada,
+      social_verificada: r.social_verificada,
+      tipo_enlace: (r.tipo_enlace as AsociacionItem['tipo_enlace']) || 'ninguno',
+      fecha_verificacion: r.fecha_verificacion,
+      enlace_estado: (r.enlace_estado as AsociacionItem['enlace_estado']) || 'pendiente',
     }))
 
     // Distribución por tipo: «Sin tipo publicado» agrupa los nulos.

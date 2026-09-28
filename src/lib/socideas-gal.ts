@@ -15,6 +15,13 @@
 //     con datos publicados».
 //   · `pertenece` → hay fila cuyo `municipios_codigo_ine` contiene el INE.
 //
+// VERIFICACIÓN DE ENLACES:
+//   · url_fuente: URL tal como aparece en la fuente (Red PAC WFS o CLM)
+//   · url_declarada: URL declarada en la tabla (puede diferir de la fuente)
+//   · url_oficial_verificada: URL verificada por sonda HTTP (puede ser null)
+//   · fecha_verificacion: fecha de la última verificación
+//   · estado_enlace: 'verificado' | 'pendiente' | 'no_verificado' | 'fuente_caida'
+//
 // Esta función NUNCA lanza: cualquier error se degrada a `sin_datos`.
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -29,6 +36,11 @@ export interface GalInfo {
   aviso: string
   fuenteUrl: string
   fuenteFecha: string
+  url_fuente: string | null
+  url_declarada: string | null
+  url_oficial_verificada: string | null
+  fecha_verificacion: string | null
+  estado_enlace: 'verificado' | 'pendiente' | 'no_verificado' | 'fuente_caida'
 }
 
 export interface GalMunicipio {
@@ -43,7 +55,8 @@ export const GAL_AVISO_POR_DEFECTO =
 
 const SELECT_GAL =
   'nombre, codigo_gal, ambito_territorial, periodo_programacion, web_oficial, ' +
-  'email, telefono, aviso, fuente_url, fuente_fecha'
+  'email, telefono, aviso, fuente_url, fuente_fecha, ' +
+  'url_fuente, url_declarada, url_oficial_verificada, fecha_verificacion, estado_enlace'
 
 const SIN_DATOS: GalMunicipio = { estado: 'sin_datos', gal: null, totalGalEnTerritorio: 0 }
 
@@ -58,6 +71,11 @@ interface GalRow {
   aviso: string | null
   fuente_url: string | null
   fuente_fecha: string | null
+  url_fuente: string | null
+  url_declarada: string | null
+  url_oficial_verificada: string | null
+  fecha_verificacion: string | null
+  estado_enlace: string | null
 }
 
 function aGalInfo(row: GalRow): GalInfo {
@@ -72,6 +90,11 @@ function aGalInfo(row: GalRow): GalInfo {
     aviso: row.aviso || GAL_AVISO_POR_DEFECTO,
     fuenteUrl: row.fuente_url || '',
     fuenteFecha: row.fuente_fecha || '',
+    url_fuente: row.url_fuente || null,
+    url_declarada: row.url_declarada || null,
+    url_oficial_verificada: row.url_oficial_verificada || null,
+    fecha_verificacion: row.fecha_verificacion || null,
+    estado_enlace: (row.estado_enlace as GalInfo['estado_enlace']) || 'pendiente',
   }
 }
 

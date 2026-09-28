@@ -60,6 +60,22 @@ function EstadoLinea({ estado }: { estado: string }) {
   );
 }
 
+function WarningList({ warnings }: { warnings: { regla: string; detalle: string }[] }) {
+  if (warnings.length === 0) return null;
+  return (
+    <div className="mt-3 rounded-[6px] border border-amber-300 bg-amber-50 px-4 py-3" role="alert">
+      <p className="text-xs font-semibold text-amber-800">Advertencias de reconciliación</p>
+      <ul className="mt-1 space-y-1">
+        {warnings.map((w, i) => (
+          <li key={i} className="text-xs text-amber-700">
+            <span className="font-medium">{w.regla}:</span> {w.detalle}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function Barra({ etiqueta, valor, pct, color }: { etiqueta: string; valor: string; pct: number | null; color: string }) {
   return (
     <div>
@@ -167,6 +183,7 @@ export function ParoRegistradoBlock({ data }: { data: ParoPresentationData }) {
           </div>
         </div>
       )}
+      <WarningList warnings={data.warnings} />
       <Trace label="Servicio Público de Empleo Estatal" tableId={data.tableId} period={data.etiquetaPeriodo} />
       <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
         La ausencia de dato se muestra como ND; nunca como 0.
@@ -209,6 +226,7 @@ export function AfiliacionBlock({ data }: { data: AfiliacionPresentationData }) 
           </div>
         </div>
       )}
+      <WarningList warnings={data.warnings} />
       <Trace label="Tesorería General de la Seguridad Social" tableId={data.tableId} period={data.etiquetaPeriodo} />
       <p className="mt-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
         La ausencia de dato se muestra como ND; nunca como 0.

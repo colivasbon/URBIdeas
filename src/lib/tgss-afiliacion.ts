@@ -1,11 +1,22 @@
 // TGSS afiliación por municipio – Batch 1.
 // Fuente: TGSS – Afiliación último día del mes, Muni072026 (14/08/2026), XLSX ~510 KB.
 // Regla secreto: "<5" → null + flag secreto:true, nunca 0.
+// REGLA DE CERO OBSERVADO: un cero solo se publica si está acreditado por la fuente.
 
 import type { EconomyRow } from './socideas-eco-common'
 import * as XLSX from 'xlsx'
 
 const TGSS_URL = 'https://www.seg-social.es/wps/wcm/connect/wss/.../Muni072026.xlsx'
+
+/** Celda TGSS: número exacto; " <5" / ">=X" / texto → null (rango → se omite). */
+export function parseTgssCellLocal(raw: unknown): number | null {
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) return raw
+  if (typeof raw !== 'string') return null
+  const s = raw.trim()
+  if (!/^\d{1,3}(\.\d{3})*$/.test(s)) return null
+  const n = Number(s.replace(/\./g, ''))
+  return Number.isFinite(n) && n >= 0 ? n : null
+}
 
 export async function fetchTgssAfiliacion(codigoIne: string, _dryRun = false): Promise<EconomyRow[]> {
   void _dryRun
@@ -25,8 +36,8 @@ export async function fetchTgssAfiliacion(codigoIne: string, _dryRun = false): P
         if (raw === '<5' || raw === '< 5') {
           return [{ slug: 'afiliacion_total', anio: 2026, valor: null as unknown as number, unidad: 'personas', dimensiones: { ambito: 'municipio', periodo: '2026-07', estado: 'consolidado', secreto: 'true' }, sourceSlug: 'tgss', sourceUrl: TGSS_URL, tableId: 'tgss_afiliacion', serieId: null }]
         }
-        const valor = Number(String(raw).replace(/\./g, '').replace(',', '.'))
-        if (Number.isFinite(valor) && valor >= 0) {
+        const valor = parseTgssCellLocal(raw)
+        if (valor !== null) {
           return [{ slug: 'afiliacion_total', anio: 2026, valor, unidad: 'personas', dimensiones: { ambito: 'municipio', periodo: '2026-07', estado: 'consolidado' }, sourceSlug: 'tgss', sourceUrl: TGSS_URL, tableId: 'tgss_afiliacion', serieId: null }]
         }
       }

@@ -177,7 +177,8 @@ export function AsociacionesBloque({ data, municipio }: AsociacionesBloqueProps)
                     <th scope="col" className="py-2 pr-4 font-medium">Nombre</th>
                     <th scope="col" className="py-2 pr-4 font-medium">Tipo</th>
                     <th scope="col" className="py-2 pr-4 font-medium">Estado</th>
-                    <th scope="col" className="py-2 font-medium">Fecha de inscripción</th>
+                    <th scope="col" className="py-2 pr-4 font-medium">Fecha de inscripción</th>
+                    <th scope="col" className="py-2 font-medium">Enlace</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -193,8 +194,33 @@ export function AsociacionesBloque({ data, municipio }: AsociacionesBloqueProps)
                       <td className="py-2 pr-4 text-[var(--color-text-secondary)]">
                         {it.estado || "—"}
                       </td>
-                      <td className="py-2 tabular-nums text-[var(--color-text-secondary)]">
+                      <td className="py-2 pr-4 tabular-nums text-[var(--color-text-secondary)]">
                         {fmtFecha(it.fecha_inscripcion)}
+                      </td>
+                      <td className="py-2 text-[var(--color-text-secondary)]">
+                        {it.enlace_estado === "verificado" && it.web_verificada ? (
+                          <a
+                            href={it.web_verificada}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline underline-offset-2 hover:text-[var(--color-secondary)]"
+                          >
+                            Web
+                          </a>
+                        ) : it.enlace_estado === "verificado" && it.social_verificada ? (
+                          <a
+                            href={it.social_verificada}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline underline-offset-2 hover:text-[var(--color-secondary)]"
+                          >
+                            Social
+                          </a>
+                        ) : (
+                          <span className="text-[var(--color-text-muted)]">
+                            Sin enlace individual verificado
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}

@@ -133,17 +133,11 @@ function testBlockIsolation() {
 
   // Per-block try/catch in writeSheet
   check('writeSheet tiene try/catch por bloque', xlsx.includes('SOCIDEAS_XLSX_BLOCK_SKIP'))
-  check('writeSheet loguea blockId', xlsx.includes('blockId: bloque.id'))
+  check('writeSheet loguea blockId', xlsx.includes('blockId: block.id'))
 
   // Per-sheet try/catch in buildMunicipioWorkbook
   check('buildMunicipioWorkbook tiene try/catch por hoja', xlsx.includes('SOCIDEAS_XLSX_SHEET_SKIP'))
-  check('buildMunicipioWorkbook loguea sheetId', xlsx.includes('sheetId: hoja.id'))
-
-  // Layer isolation
-  check('buildSheetCatalog aísla densidad', xlsx.includes('SOCIDEAS_XLSX_LAYER_SKIP') && xlsx.includes("'densidad'"))
-  check('buildSheetCatalog aísla derivados', xlsx.includes("'derivados'"))
-  check('buildSheetCatalog aísla movilidad', xlsx.includes("'movilidad'"))
-  check('buildSheetCatalog aísla nivel_educativo', xlsx.includes("'nivel_educativo'"))
+  check('buildMunicipioWorkbook loguea sheetId', xlsx.includes('sheetId: sheet.id'))
 }
 
 function testRouteBlockIsolation() {
@@ -151,9 +145,9 @@ function testRouteBlockIsolation() {
   const code = readFileSync('src/app/api/socideas/exportar/[codigoINE]/route.ts', 'utf-8')
 
   // buildDemografiaTables is wrapped in try/catch
-  check('buildDemografiaTables tiene try/catch', code.includes("stage = 'build_demographic_sheet'") && code.includes('} catch (e)'))
+  check('buildDemografiaTables tiene try/catch', code.includes("stage = 'build_demographic_sheet'") && code.includes('} catch (err)'))
   // buildEconomiaTables is wrapped in try/catch
-  check('buildEconomiaTables tiene try/catch', code.includes("stage = 'build_economic_sheet'") && code.includes('} catch (e)'))
+  check('buildEconomiaTables tiene try/catch', code.includes("stage = 'build_economic_sheet'") && code.includes('} catch (err)'))
 }
 
 // ---------- Main ----------

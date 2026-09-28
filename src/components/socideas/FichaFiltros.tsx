@@ -548,7 +548,7 @@ export default function FichaFiltros({
                 <DataTableMeta meta={{ fuente: "INE · Padrón Continuo", periodo: perfil.piramide.anio ? String(perfil.piramide.anio) : null, unidad: "personas" }} />
               </div>
               <div className="mt-3">
-                <PyramidChart grupos={pirGrupos} anio={perfil.piramide.anio} />
+                <PyramidChart data={estructuraPoblacion} municipioNombre={perfil.municipio.nombre} provinciaNombre={perfil.municipio.provincia} ccaaNombre={perfil.municipio.comunidad_autonoma} />
               </div>
             </div>
           }

@@ -28,6 +28,13 @@ export interface ParoSexoDetalle {
   tramos: (number | null)[] // [<25, 25-45, >=45]
 }
 
+export interface LaborWarning {
+  codigoIne: string
+  periodo: string
+  regla: string
+  detalle: string
+}
+
 export interface ParoPresentationData {
   periodo: string // "2026-07"
   etiquetaPeriodo: string // "Julio de 2026"
@@ -39,6 +46,7 @@ export interface ParoPresentationData {
   status: LaborStatus
   tableId: string
   sourceUrl: string | null
+  warnings: LaborWarning[]
 }
 
 export interface AfiliacionPresentationData {
@@ -50,6 +58,7 @@ export interface AfiliacionPresentationData {
   status: LaborStatus
   tableId: string
   sourceUrl: string | null
+  warnings: LaborWarning[]
 }
 
 const MESES_ES = [
@@ -67,6 +76,86 @@ export function etiquetaPeriodoLabor(periodo: string): string {
 
 const NOTA_TEMPORAL =
   'Dato mensual de coyuntura; no es comparable con los bloques anuales de la ficha.'
+
+/**
+ * Genera warnings de reconciliación a partir de los datos del envelope.
+ * Recalcula las sumas y emite warnings si hay inconsistencias.
+ */
+export function generateLaborWarnings(rows: LaborExpandedRow[]): LaborWarning[] {
+  const warnings: LaborWarning[] = []
+  const paroRows = pickRows(rows, { slug: 'paro_registrado', prefix: 'sepe' })
+  const afiliacionRows = pickRows(rows, { slug: 'afiliacion_total', prefix: 'tgss' })
+
+  // Warnings de paro: H+M=Total, sectores=Total
+  if (paroRows.length > 0) {
+    const periodo = latestPeriodo(paroRows) ?? 'desconocido'
+    const inPeriod = paroRows.filter((r) => r.dimensiones?.periodo === periodo)
+    const total = cell(inPeriod, periodo, {})
+    const hTotal = cell(inPeriod, periodo, { sexo: 'hombres' })
+    const mTotal = cell(inPeriod, periodo, { sexo: 'mujeres' })
+    if (total !== null && hTotal !== null && mTotal !== null && hTotal + mTotal !== total) {
+      const diff = total - (hTotal + mTotal)
+      const hTramos = ['<25', '25-45', '>=45'].map((t) => cell(inPeriod, periodo, { sexo: 'hombres', tramo_edad: t }))
+      const mTramos = ['<25', '25-45', '>=45'].map((t) => cell(inPeriod, periodo, { sexo: 'mujeres', tramo_edad: t }))
+      const secretosH = hTramos.filter((v) => v === null).length
+      const secretosM = mTramos.filter((v) => v === null).length
+      const causa = secretosH + secretosM > 0
+        ? `diferencia ${diff} atribuida a ${secretosH + secretosM} celda(s) "<5" (secreto estadístico)`
+        : `diferencia ${diff} sin celdas secretas`
+      warnings.push({
+        codigoIne: '',
+        periodo,
+        regla: 'sepe_sexo_suma_total',
+        detalle: `H(${hTotal})+M(${mTotal})=${hTotal + mTotal} ≠ total ${total} · ${causa}`,
+      })
+    }
+    const secSum = LABOR_SECTORS.reduce((acc, s) => {
+      const v = cell(inPeriod, periodo, { sector: s })
+      return v !== null ? acc + v : acc
+    }, 0)
+    const secCount = LABOR_SECTORS.filter((s) => cell(inPeriod, periodo, { sector: s }) !== null).length
+    if (total !== null && secCount === LABOR_SECTORS.length && secSum !== total) {
+      const diff = total - secSum
+      const secretosSec = LABOR_SECTORS.filter((s) => cell(inPeriod, periodo, { sector: s }) === null).length
+      const causa = secretosSec > 0
+        ? `diferencia ${diff} atribuida a ${secretosSec} celda(s) "<5" (secreto estadístico)`
+        : `diferencia ${diff} sin celdas secretas`
+      warnings.push({
+        codigoIne: '',
+        periodo,
+        regla: 'sepe_sector_suma_total',
+        detalle: `sectores=${secSum} ≠ total ${total} · ${causa}`,
+      })
+    }
+  }
+
+  // Warnings de afiliación: regímenes=Total
+  if (afiliacionRows.length > 0) {
+    const periodo = latestPeriodo(afiliacionRows) ?? 'desconocido'
+    const inPeriod = afiliacionRows.filter((r) => r.dimensiones?.periodo === periodo)
+    const total = cell(inPeriod, periodo, {})
+    const regSum = LABOR_REGIMENES.reduce((acc, r) => {
+      const v = cell(inPeriod, periodo, { regimen: r })
+      return v !== null ? acc + v : acc
+    }, 0)
+    const regCount = LABOR_REGIMENES.filter((r) => cell(inPeriod, periodo, { regimen: r }) !== null).length
+    if (total !== null && regCount === LABOR_REGIMENES.length && regSum !== total) {
+      const diff = total - regSum
+      const secretosReg = LABOR_REGIMENES.filter((r) => cell(inPeriod, periodo, { regimen: r }) === null).length
+      const causa = secretosReg > 0
+        ? `diferencia ${diff} atribuida a ${secretosReg} celda(s) "<5" (secreto estadístico)`
+        : `diferencia ${diff} sin celdas secretas`
+      warnings.push({
+        codigoIne: '',
+        periodo,
+        regla: 'tgss_regimen_suma_total',
+        detalle: `regímenes=${regSum} ≠ total ${total} · ${causa}`,
+      })
+    }
+  }
+
+  return warnings
+}
 
 function tablePrefix(tableId: string | null): 'sepe' | 'tgss' | null {
   if (!tableId) return null
@@ -120,7 +209,7 @@ function statusOf(vals: (number | null)[]): LaborStatus {
 }
 
 /** Construye el DTO de paro registrado. null si no hay filas SEPE. Puro. */
-export function buildParoPresentation(rows: LaborExpandedRow[]): ParoPresentationData | null {
+export function buildParoPresentation(rows: LaborExpandedRow[], warnings: LaborWarning[] = []): ParoPresentationData | null {
   const cands = pickRows(rows, { slug: 'paro_registrado', prefix: 'sepe' })
   if (cands.length === 0) return null
   const periodo = latestPeriodo(cands) ?? 'desconocido'
@@ -154,12 +243,14 @@ export function buildParoPresentation(rows: LaborExpandedRow[]): ParoPresentatio
     status: statusOf(all),
     tableId,
     sourceUrl: inPeriod[0]?.source_url ?? null,
+    warnings,
   }
 }
 
 /** Construye el DTO de afiliación. null si no hay filas TGSS. Puro. */
 export function buildAfiliacionPresentation(
   rows: LaborExpandedRow[],
+  warnings: LaborWarning[] = [],
 ): AfiliacionPresentationData | null {
   const cands = pickRows(rows, { slug: 'afiliacion_total', prefix: 'tgss' })
   if (cands.length === 0) return null
@@ -179,5 +270,6 @@ export function buildAfiliacionPresentation(
     status: statusOf([total, ...Object.values(regimenes)]),
     tableId,
     sourceUrl: inPeriod[0]?.source_url ?? null,
+    warnings,
   }
 }

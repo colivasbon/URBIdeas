@@ -72,13 +72,13 @@ export const XLSX_PALETTE = {
 const FONT_NAME = 'Poppins'
 const MAX_COL_WIDTH = 42
 const MIN_COL_WIDTH = 10
-const MIN_COL_A_WIDTH = 26
+const MIN_COL_A_WIDTH = 30
 const POPPINS_CHAR_FACTOR = 1.2
 const CELL_WIDTH_PADDING = 2
-const LINE_HEIGHT_BODY = 16
-const LINE_HEIGHT_SMALL = 14
-const LINE_HEIGHT_TITLE = 20
-const LINE_HEIGHT_SECTION = 18
+const LINE_HEIGHT_BODY = 18
+const LINE_HEIGHT_SMALL = 16
+const LINE_HEIGHT_TITLE = 22
+const LINE_HEIGHT_SECTION = 20
 const CHART_COL_WIDTH = 12
 const CHART_SPAN_COLS = 9
 const MAX_CHARTS_PER_SHEET = 2
@@ -160,7 +160,7 @@ function paintTitle(
   const c = row.getCell(1)
   c.value = text
   c.font = { name: FONT_NAME, size, bold: true, color: { argb: HUESO } }
-  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: lines > 1 }
+  c.alignment = { vertical: 'top', horizontal: 'left', indent: 1, wrapText: true }
   c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MUSGO } }
   c.border = { bottom: { style: 'thin', color: { argb: CONIFERA } } }
   for (let i = 2; i <= nCols; i += 1) {
@@ -193,7 +193,7 @@ function paintSourceLine(
   const c = row.getCell(1)
   c.value = text
   c.font = { name: FONT_NAME, size: 10, color: { argb: CARBON } }
-  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: lines > 1 }
+  c.alignment = { vertical: 'top', horizontal: 'left', indent: 1, wrapText: true }
   for (let i = 1; i <= nCols; i += 1) {
     row.getCell(i).border = { bottom: { style: 'thin', color: { argb: LIMO } } }
   }
@@ -207,7 +207,7 @@ function paintSourceLine(
   link.font = { name: FONT_NAME, size: 10, bold: true, underline: true, color: { argb: CONIFERA } }
   link.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HUESO } }
   link.border = thinLimoBorders()
-  link.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false }
+  link.alignment = { vertical: 'top', horizontal: 'right', wrapText: true }
 }
 
 /** Formato numérico por cabecera y valor (años enteros sin separador, % 1
@@ -251,7 +251,7 @@ function paintHeaderRow(row: ExcelJS.Row, widths: number[], nCols: number, heade
     const header = headers[i - 1] ?? ''
     const lines = wrappedLines(header, widths[i - 1] ?? MAX_COL_WIDTH)
     if (lines > maxLines) maxLines = lines
-    c.alignment = { vertical: 'middle', horizontal: cellAlign(header, i === 1), wrapText: lines > 1 }
+    c.alignment = { vertical: 'top', horizontal: cellAlign(header, i === 1), wrapText: true }
   }
   row.height = Math.max(20, maxLines * LINE_HEIGHT_BODY)
 }
@@ -508,9 +508,9 @@ function writeBlock(
       const lines = wrappedLines(cell?.text ?? '', widths[ci] ?? MIN_COL_WIDTH)
       if (lines > maxLines) maxLines = lines
       c.alignment = {
-        vertical: 'middle',
+        vertical: 'top',
         horizontal: cellAlign(colName, ci === 0),
-        wrapText: lines > 1,
+        wrapText: true,
         indent: ci === 0 ? 1 : undefined,
       }
     }
@@ -535,7 +535,7 @@ function writeBlock(
     const nc = noteRow.getCell(1)
     nc.value = noteText
     nc.font = { name: FONT_NAME, size: 10, italic: true, color: { argb: CARBON } }
-    nc.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 }
+    nc.alignment = { vertical: 'top', horizontal: 'left', wrapText: true, indent: 1 }
     band(noteRow, nCols, HUESO)
     for (let i = 1; i <= nCols; i += 1) {
       const cc = noteRow.getCell(i)
@@ -570,7 +570,7 @@ function writeSheetHeader(
   const c = row.getCell(1)
   c.value = scope
   c.font = { name: FONT_NAME, size: 10, color: { argb: CARBON } }
-  c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: lines > 1 }
+  c.alignment = { vertical: 'top', horizontal: 'left', indent: 1, wrapText: true }
   band(row, maxCols, HUESO)
   for (let i = 1; i <= maxCols; i += 1) {
     row.getCell(i).border = { bottom: { style: 'thin', color: { argb: LIMO } } }
@@ -583,7 +583,7 @@ function writeSheetHeader(
       tooltip: 'Volver al resumen ejecutivo',
     }
     link.font = { name: FONT_NAME, size: 10, bold: true, underline: true, color: { argb: CONIFERA } }
-    link.alignment = { vertical: 'middle', horizontal: 'right' }
+    link.alignment = { vertical: 'top', horizontal: 'right' }
   }
 }
 
@@ -616,16 +616,16 @@ function writeIndexBlock(ws: ExcelJS.Worksheet, book: SocideasBookV2, startRow: 
     const linkCell = row.getCell(1)
     linkCell.value = { text: sheet.id, hyperlink: `#'${sheet.id}'!A1`, tooltip: `Ir a ${sheet.titulo}` }
     linkCell.font = { name: FONT_NAME, size: 11, bold: true, underline: true, color: { argb: CONIFERA } }
-    linkCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+    linkCell.alignment = { vertical: 'top', horizontal: 'left', indent: 1 }
     row.getCell(2).value = sheet.titulo
     row.getCell(2).font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-    row.getCell(2).alignment = { vertical: 'middle', horizontal: 'left' }
+    row.getCell(2).alignment = { vertical: 'top', horizontal: 'left' }
     row.getCell(3).value = sheet.bloques.length
     row.getCell(4).value = publicables
     for (let i = 3; i <= nCols; i += 1) {
       const cc = row.getCell(i)
       cc.font = { name: FONT_NAME, size: 11, color: { argb: CARBON } }
-      cc.alignment = { vertical: 'middle', horizontal: 'right' }
+      cc.alignment = { vertical: 'top', horizontal: 'right' }
       cc.numFmt = '#,##0'
     }
     band(row, nCols, HUESO)

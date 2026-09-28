@@ -255,6 +255,8 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
           <>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
               Bienes con figura de protección declarada en el término municipal (Wikidata, propiedad P1435).
+              <strong> Nota:</strong> Wikidata complementa, no sustituye, los registros oficiales de BIC.
+              No se interpreta P1435 sin calificación específica.
             </p>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[32rem] text-sm">
@@ -269,6 +271,9 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
                     <th scope="col" className="py-2 pr-4 font-medium">
                       Figura de protección
                     </th>
+                    <th scope="col" className="py-2 pr-4 font-medium">
+                      Fuente
+                    </th>
                     <th scope="col" className="py-2 font-medium">
                       Ficha
                     </th>
@@ -279,9 +284,12 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
                     <tr key={site.qid} className="border-t border-[var(--color-border-subtle)]">
                       <td className="py-2 pr-4">{site.title}</td>
                       <td className="py-2 pr-4">{site.heritageType}</td>
+                      <td className="py-2 pr-4 text-[var(--color-text-muted)]">
+                        Wikidata (P1435)
+                      </td>
                       <td className="py-2">
                         <a href={site.url} target="_blank" rel="noopener noreferrer" className={LINK_INLINE}>
-                          Wikidata
+                          Ver
                         </a>
                       </td>
                     </tr>
@@ -289,11 +297,16 @@ export function PatrimonioBloque({ data, municipio }: PatrimonioBloqueProps) {
                 </tbody>
               </table>
             </div>
+            <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
+              <strong>Prioridad:</strong> Registros oficiales de BIC de la comunidad autónoma correspondiente.
+              Wikidata es una fuente complementaria y puede no estar actualizada.
+            </p>
           </>
         ) : (
           <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
             Sin bienes con figura de protección declarados en Wikidata para este municipio. El inventario puede estar
             incompleto: los registros oficiales de protección dependen de las comunidades autónomas.
+            <strong> Prioridad:</strong> Consultar el registro oficial de BIC de la comunidad autónoma.
           </p>
         )}
       </div>

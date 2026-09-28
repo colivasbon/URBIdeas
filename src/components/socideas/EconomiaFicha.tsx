@@ -35,6 +35,7 @@ import { ParoRegistradoBlock, AfiliacionBlock } from "./LaborBlocks";
 import {
   buildAfiliacionPresentation,
   buildParoPresentation,
+  generateLaborWarnings,
   type LaborExpandedRow,
 } from "@/lib/socideas-labor-summary";
 
@@ -115,8 +116,9 @@ export default function EconomiaFicha({
       source_table_id: v.source_table_id,
       source_url: v.source_url,
     }));
-  const paro = buildParoPresentation(laborRows);
-  const afiliacion = buildAfiliacionPresentation(laborRows);
+  const laborWarnings = generateLaborWarnings(laborRows);
+  const paro = buildParoPresentation(laborRows, laborWarnings);
+  const afiliacion = buildAfiliacionPresentation(laborRows, laborWarnings);
 
   // Controles integrados de renta: solo métricas con filas reales (capacidades),
   // sin mezclar AEAT (por declaración) con ADRH (persona/hogar). Hooks siempre

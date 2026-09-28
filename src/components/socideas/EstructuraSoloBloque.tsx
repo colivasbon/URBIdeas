@@ -36,7 +36,7 @@ export default function EstructuraSoloBloque({
   estModo?: string;
 }) {
   const [ref, setRef] = useState<EstructuraRefKey>(() =>
-    isEstructuraRefKey(estRef) ? estRef : "espana",
+    isEstructuraRefKey(estRef) ? estRef : "none",
   );
   const [modo, setModo] = useState<EstructuraModo>(() =>
     isEstructuraModo(estModo) ? estModo : "perfil",

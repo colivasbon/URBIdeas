@@ -1,16 +1,17 @@
 import type { MunicipalStructureWithBenchmarks, TerritorialBenchmark } from "./socideas-population-runtime";
 import type { StructureValueStatus } from "./socideas-population-structure";
 
-export const ESTRUCTURA_REF_KEYS = ["espana", "provincia", "ccaa"] as const;
+export const ESTRUCTURA_REF_KEYS = ["none", "provincia", "ccaa", "espana"] as const;
 export type EstructuraRefKey = (typeof ESTRUCTURA_REF_KEYS)[number];
 
 export const ESTRUCTURA_MODOS = ["perfil", "diferencia"] as const;
 export type EstructuraModo = (typeof ESTRUCTURA_MODOS)[number];
 
 export const ESTRUCTURA_REF_LABEL: Record<EstructuraRefKey, string> = {
-  espana: "España",
+  none: "Sin comparación",
   provincia: "Provincia",
   ccaa: "Comunidad autónoma",
+  espana: "España",
 };
 
 export function isEstructuraRefKey(value: unknown): value is EstructuraRefKey {
@@ -25,6 +26,7 @@ export function benchmarkFor(
   dto: MunicipalStructureWithBenchmarks,
   key: EstructuraRefKey,
 ): TerritorialBenchmark | null {
+  if (key === "none") return null;
   if (key === "espana") return dto.benchmarks.nacional;
   if (key === "provincia") return dto.benchmarks.provincia;
   return dto.benchmarks.ccaa;
@@ -45,6 +47,15 @@ export function estructuraRefOptions(
   return ESTRUCTURA_REF_KEYS.map((key) => {
     const benchmark = benchmarkFor(dto, key);
     const fallback = fallbackNames[key];
+    if (key === "none") {
+      return {
+        key,
+        label: ESTRUCTURA_REF_LABEL[key],
+        name: ESTRUCTURA_REF_LABEL[key],
+        available: true,
+        total: null,
+      };
+    }
     return {
       key,
       label: ESTRUCTURA_REF_LABEL[key],

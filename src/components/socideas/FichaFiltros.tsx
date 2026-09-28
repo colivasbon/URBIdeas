@@ -101,7 +101,7 @@ function filtrosIniciales(sp: URLSearchParams, d: PerfilDemografico["disponibles
     comparar: compararRaw.length > 0 ? compararRaw : [...DEFAULT_COMPARAR],
     pirAnio,
     pirModo,
-    estRef: isEstructuraRefKey(estRefRaw) ? estRefRaw : "espana",
+    estRef: isEstructuraRefKey(estRefRaw) ? estRefRaw : "none",
     estModo: isEstructuraModo(estModoRaw) ? estModoRaw : "perfil",
   };
 }
@@ -483,38 +483,26 @@ export default function FichaFiltros({
         </div>
       </section>
 
-      {/* Bloque 3: pirámide */}
-      <section aria-label="Población por edad y sexo" className="premium-card mb-10 p-5 sm:p-6">
-        <div className="flex flex-wrap items-end gap-3">
-          <h2 className="ideas-h2">
-            Población por edad y sexo{perfil.piramide.anio ? ` (${perfil.piramide.anio})` : ""}
-          </h2>
-          <div className="ml-auto flex flex-wrap gap-3">
-            <div>
-              <label htmlFor="f-piranio" className={labelCls}>Año</label>
-              <select id="f-piranio" value={filtros.pirAnio ?? perfil.piramide.anio ?? ""} onChange={(e) => set({ pirAnio: e.target.value ? parseInt(e.target.value, 10) : null })} className={selectCls}>
-                {d.piramide_anios.map((a) => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="f-pirmodo" className={labelCls}>Modo</label>
-              <select id="f-pirmodo" value={filtros.pirModo} onChange={(e) => set({ pirModo: e.target.value as PirModo })} className={selectCls}>
-                <option value="abs">Absolutos</option>
-                <option value="pct">Porcentaje</option>
-              </select>
-            </div>
+      {/* Bloque 3: Serie histórica del Padrón Continuo (2003–2022) - apartado secundario plegado */}
+      {perfil.piramide.anio && pirGrupos.length > 0 && (
+        <details className="mb-10 rounded-[6px] border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5 sm:p-6">
+          <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)]">
+            Serie histórica del Padrón Continuo (2003–2022)
+          </summary>
+          <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+            Datos históricos del Padrón Continuo (INE). La estructura principal de la ficha es el Censo Anual de Población 2025.
+          </p>
+          <div className="mt-4">
+            <label htmlFor="f-piranio" className={labelCls}>Año</label>
+            <select id="f-piranio" value={filtros.pirAnio ?? perfil.piramide.anio ?? ""} onChange={(e) => set({ pirAnio: e.target.value ? parseInt(e.target.value, 10) : null })} className={selectCls}>
+              {d.piramide_anios.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
           </div>
-        </div>
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Padrón Continuo (INE).{filtros.pirModo === "pct" ? " Porcentaje sobre la población total del municipio ese año." : ""}
-        </p>
-        <TableWorkspace
-          layout="half"
-          table={
+          <div className="mt-4">
             <DataTableShell
-              title={`Tabla por grupos${filtros.pirModo === "pct" ? " (%)" : ""}`}
+              title="Tabla por grupos del Padrón Continuo"
               narrow
               series={pirGrupos.length > SERIES_SCROLL_THRESHOLD}
               meta={{ fuente: "INE · Padrón Continuo", periodo: perfil.piramide.anio ? String(perfil.piramide.anio) : null, cobertura: `Municipio ${perfil.municipio.nombre}`, estado: "consolidado" }}
@@ -525,68 +513,24 @@ export default function FichaFiltros({
                 <thead>
                   <tr>
                     <th scope="col" className="socideas-table__text">Edad</th>
-                    <th scope="col" className="socideas-table__numeric">H{filtros.pirModo === "pct" ? " %" : ""}</th>
-                    <th scope="col" className="socideas-table__numeric">M{filtros.pirModo === "pct" ? " %" : ""}</th>
+                    <th scope="col" className="socideas-table__numeric">Hombres</th>
+                    <th scope="col" className="socideas-table__numeric">Mujeres</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pirGrupos.map((g) => (
                     <tr key={g.tramo}>
                       <td className="socideas-table__text">{g.tramo}</td>
-                      <td className="socideas-table__numeric">{filtros.pirModo === "pct" ? g.hombres.toLocaleString("es-ES") : fmt(g.hombres)}</td>
-                      <td className="socideas-table__numeric">{filtros.pirModo === "pct" ? g.mujeres.toLocaleString("es-ES") : fmt(g.mujeres)}</td>
+                      <td className="socideas-table__numeric">{fmt(g.hombres)}</td>
+                      <td className="socideas-table__numeric">{fmt(g.mujeres)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </DataTableShell>
-          }
-          visual={
-            <div>
-              <h3 className="socideas-table-shell__title">Pirámide de población</h3>
-              <div className="mt-2">
-                <DataTableMeta meta={{ fuente: "INE · Padrón Continuo", periodo: perfil.piramide.anio ? String(perfil.piramide.anio) : null, unidad: "personas" }} />
-              </div>
-              <div className="mt-3">
-                <PyramidChart data={estructuraPoblacion} municipioNombre={perfil.municipio.nombre} provinciaNombre={perfil.municipio.provincia} ccaaNombre={perfil.municipio.comunidad_autonoma} />
-              </div>
-            </div>
-          }
-          visualLabel="Pirámide de población por edad y sexo"
-        />
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {perfil.derivados.indice_envejecimiento !== null ? (
-            <StatCard
-              etiqueta="Índice de envejecimiento"
-              valor={`${perfil.derivados.indice_envejecimiento.toLocaleString("es-ES")} %`}
-              detalle="Población 65+ / 0-14 × 100"
-            />
-          ) : (
-            <p className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
-              Índice de envejecimiento: no disponible para el período seleccionado.
-            </p>
-          )}
-          {perfil.derivados.indice_dependencia !== null ? (
-            <StatCard
-              etiqueta="Índice de dependencia"
-              valor={`${perfil.derivados.indice_dependencia.toLocaleString("es-ES")} %`}
-              detalle="(0-14 + 65+) / 15-64 × 100"
-            />
-          ) : (
-            <p className="rounded-[6px] border border-[var(--color-border-subtle)] bg-[var(--color-input-bg)] px-4 py-3 text-xs text-[var(--color-text-muted)]" role="status">
-              Índice de dependencia: no disponible para el período seleccionado.
-            </p>
-          )}
-        </div>
-        <details className="mt-3">
-          <summary className="cursor-pointer text-sm font-semibold text-[var(--color-secondary)]">Cómo se calcula</summary>
-          <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-muted)]">
-            Envejecimiento = población de 65 o más años dividida por la de 0 a 14, por 100.
-            Dependencia = suma de 0-14 y 65+ dividida por la de 15 a 64, por 100.
-            Ambos usan la estructura por edad del año de pirámide seleccionado.
-          </p>
+          </div>
         </details>
-      </section>
+      )}
 
       {/* Bloque 3b: estructura de población 2025 (Censo Anual de Población) */}
       <EstructuraPoblacionBlock

@@ -153,14 +153,25 @@ export default function SeccionesIndicadorBuscador({
           aria-disabled={i.estado === "no"}
           disabled={i.estado === "no"}
           onClick={() => seleccionar(i)}
-          className={`flex min-h-[44px] w-full items-center gap-3 rounded-[6px] px-3 py-2 text-left text-sm transition-colors focus-visible:outline-offset-[-2px] disabled:cursor-not-allowed disabled:opacity-60 ${
+          className={`flex min-h-[44px] w-full items-center gap-3 rounded-[6px] border px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--border-focus)] ${
+            // Seleccionada: fondo + peso + filete. Indisponible: superficie
+            // hundida, borde tenue y texto secundario legible (no se opaca).
             seleccionado
-              ? "bg-[var(--musgo)] font-semibold text-[var(--hueso)]"
-              : "text-[var(--text-primary)] hover:bg-[var(--bg-surface-sunken)]"
+              ? "border-[var(--border-strong)] bg-[var(--musgo)] font-bold text-[var(--hueso)]"
+              : i.estado === "no"
+                ? "cursor-not-allowed border-[var(--border-subtle)] bg-[var(--bg-surface-sunken)] text-[var(--text-secondary)]"
+                : "border-transparent text-[var(--text-primary)] hover:border-[var(--border-default)] hover:bg-[var(--bg-surface-sunken)]"
           }`}
         >
           <span className="min-w-0 flex-1 leading-snug">{i.indicador.etiqueta}</span>
-          <span className="tnum flex-none text-xs opacity-80">{i.periodo ?? ""}</span>
+          {/* El periodo hereda el color de la fila. Si fijara su propio tono
+              Secondary sobre el musgo de la fila seleccionada caería a 1,2:1 en
+              modo claro: el año desaparecía justo en la fila activa. */}
+          <span
+            className={`tnum flex-none text-xs ${seleccionado ? "" : "text-[var(--text-secondary)]"}`}
+          >
+            {i.periodo ?? ""}
+          </span>
           <span
             title={est.texto}
             className="tnum flex-none rounded-[6px] border border-current px-1.5 text-[11px] leading-5"
@@ -186,7 +197,7 @@ export default function SeccionesIndicadorBuscador({
           onChange={(e) => setConsulta(e.target.value)}
           placeholder="Renta, población, Gini…"
           autoComplete="off"
-          className="min-h-[44px] w-full rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] hover:border-[var(--border-strong)]"
+          className="min-h-[44px] w-full rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] hover:border-[var(--border-strong)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)]"
         />
       </div>
 
@@ -214,14 +225,15 @@ export default function SeccionesIndicadorBuscador({
                   tabIndex={sel ? 0 : -1}
                   onClick={() => setPestana(g.id)}
                   onKeyDown={(e) => teclasPestanas(e, idx)}
-                  className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-[6px] border px-2.5 py-1 text-xs transition-colors ${
+                  className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-[6px] border px-2.5 py-1 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] ${
+                    // La pestaña activa se distingue por fondo, peso Y filete.
                     sel
-                      ? "border-[var(--musgo)] bg-[var(--musgo)] font-semibold text-[var(--hueso)]"
-                      : "border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-sunken)]"
+                      ? "border-[var(--border-strong)] bg-[var(--musgo)] font-bold text-[var(--hueso)]"
+                      : "border-[var(--border-default)] bg-[var(--bg-surface)] font-medium text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-sunken)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   {g.etiqueta}
-                  <span className="tnum rounded-[6px] bg-[var(--crisopa,#C2E189)] px-1.5 text-[11px] leading-5 text-[var(--carbon-900,#1E2220)] font-medium">
+                  <span className="tnum rounded-[6px] bg-[var(--crisopa,#C2E189)] px-1.5 text-[11px] leading-5 font-semibold text-[var(--carbon-900,#1E2220)]">
                     {conteo(g.id)}
                   </span>
                 </button>

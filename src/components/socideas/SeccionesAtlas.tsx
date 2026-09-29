@@ -74,6 +74,15 @@ const MODO_POR_DEFECTO: ModoClasificacion = "cuantil";
 const ETIQUETA_SIN_DATO = "Sin dato / ND";
 const MS_ESPERA_MAPA = 4000;
 
+/** Organismo responsable de la estadística seccional: el INE. */
+const ORGANISMO_ESTADISTICA = "Instituto Nacional de Estadística (INE)";
+
+/** Cartografía base del mapa: se declara con proveedor, texto y licencia. */
+const BASEMAP_PROVEEDOR = "OpenStreetMap";
+const BASEMAP_ATRIBUCION = "© OpenStreetMap contributors";
+const BASEMAP_LICENCIA = "ODbL 1.0 — Open Database License";
+const BASEMAP_URL = "https://www.openstreetmap.org/copyright";
+
 interface RespuestaApi {
   data: {
     codigo_ine: string;
@@ -224,7 +233,13 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
     const anioNum = Number(bruto.anio);
     const anio = periodos.includes(anioNum) ? anioNum : anioPorDefecto(indicatorId);
     const modo: ModoClasificacion =
-      bruto.modo === "intervalos_iguales" || bruto.modo === "cortes_manuales" || bruto.modo === "cuantil"
+      bruto.modo === "intervalos_iguales" ||
+      bruto.modo === "cortes_manuales" ||
+      bruto.modo === "cuantil" ||
+      // `jenks` es un modo del contrato y `clasificar()` lo implementa. Sin
+      // esta rama la leyenda ofrecía Jenks pero la URL lo rechazaba y volvía
+      // a cuantiles: el método era inaplicable desde el enlace.
+      bruto.modo === "jenks"
         ? bruto.modo
         : MODO_POR_DEFECTO;
     const clasesNum = Number(bruto.clases);
@@ -286,7 +301,12 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   );
 
   // Limpieza de parámetros inválidos: una sola pasada, sin bucles.
-  const haySucios = Object.values(params.sucios).some(Boolean);
+  //
+  // Solo se limpia cuando el catálogo ya está disponible. Antes de eso
+  // `params` no puede validar nada (no hay indicadores ni periodos), y
+  // borraría un enlace profundo válido como `?ind=…&anio=…` en el primer
+  // render, antes de que llegue el atlas.
+  const haySucios = estado === "ok" && Object.values(params.sucios).some(Boolean);
   const urlCanonica = urlDesde({});
   useEffect(() => {
     if (haySucios) router.replace(urlCanonica, { scroll: false });
@@ -386,6 +406,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
             : indicador
               ? `${indicador.sourceTable} · ${indicador.operationLabel}`
               : "No consta: el municipio no tiene indicadores publicados por sección",
+          urlTabla: indicador?.url ?? null,
           anioGeometria: atlas?.geometryYear ?? datos?.anio_delimitacion ?? null,
           coleccionGeometria: atlas?.geometryCollection ?? null,
           periodo: plano ? null : params.anio,
@@ -402,6 +423,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
           // (siguen en la ficha y en el XLSX) para no convertir el pie en un
           // volcado técnico.
           avisos: vista_.avisos.filter((a) => /desfase temporal/i.test(a)),
+          notaLectura: plano ? null : vista_.descripcionMapa,
         });
         const blob = await blobDeLienzo(enlazado);
         if (!blob) throw new Error("El navegador no ha podido generar el archivo PNG.");
@@ -521,6 +543,14 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   const sinValoresObservados = vista_.modoMapa === "plano" || vista_.nConDato === 0;
   const filaSeleccionada = seleccion ? (vista_.filas.find((f) => f.key === seleccion) ?? null) : null;
 
+  // El desfase temporal solo se declara cuando AMBOS años constan y difieren.
+  // Nunca se infiere a partir de un indicador con otro periodo.
+  const anioGeometria = atlas?.geometryYear ?? datos?.anio_delimitacion ?? null;
+  const avisoDeDesfase =
+    anioGeometria !== null && params.anio !== null && anioGeometria !== params.anio
+      ? `Desfase temporal: la geometría es de ${anioGeometria} y el dato es de ${params.anio}. No son contemporáneos.`
+      : null;
+
   return (
     <div className="flex flex-col gap-8">
       <CabeceraAtlas
@@ -598,7 +628,9 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
           </div>
 
           {vista === "mapa" ? (
-            <div className="flex flex-col gap-6">
+            /* Leyenda SIEMPRE debajo del mapa y fuentes debajo de la leyenda:
+               nunca hay columna lateral para la leyenda. */
+            <div className="flex flex-col">
               <div className="relative min-w-0">
                 <SeccionesAtlasMap
                   ref={mapaRef}
@@ -638,26 +670,38 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
                 onModo={(m) => escribirParams({ modo: m })}
                 sinValores={sinValoresObservados}
               />
-            </div>
-          ) : null}
 
-          {indicador && !sinValoresObservados ? (
-            <SectionMeta
-              operacion={indicador.operation}
-              operacionEtiqueta={indicador.operationLabel}
-              tabla={indicador.sourceTable}
-              tablaEtiqueta={indicador.sourceLabel}
-              urlIneBase={indicador.url}
-              geometriaYear={atlas?.geometryYear ?? datos?.anio_delimitacion ?? null}
-              geometriaColeccion={atlas?.geometryCollection ?? null}
-              geometriaFuente={atlas?.geometrySource ?? datos?.fuente ?? null}
-              geometriaConsultada={atlas?.geometryRetrievedAt ?? null}
-              estadisticaConsultada={atlas?.statsRetrievedAt ?? null}
-              periodo={params.anio}
-              nSecciones={vista_.nSecciones}
-              nConDato={vista_.nConDato}
-              nSinDato={vista_.nSinDato}
-            />
+              {indicador && !sinValoresObservados ? (
+                <SectionMeta
+                  indicador={indicador.etiqueta}
+                  unidad={indicador.unidad}
+                  organismo={ORGANISMO_ESTADISTICA}
+                  operacion={indicador.operation}
+                  operacionEtiqueta={indicador.operationLabel}
+                  tabla={indicador.sourceTable}
+                  tablaEtiqueta={indicador.sourceLabel}
+                  urlIneBase={indicador.url}
+                  universo={indicador.universo || null}
+                  definicion={indicador.definicion || null}
+                  geometriaYear={atlas?.geometryYear ?? datos?.anio_delimitacion ?? null}
+                  geometriaColeccion={atlas?.geometryCollection ?? null}
+                  geometriaFuente={atlas?.geometrySource ?? datos?.fuente ?? null}
+                  geometriaConsultada={atlas?.geometryRetrievedAt ?? null}
+                  geometriaCrs={atlas?.geometryCrs ?? null}
+                  periodo={params.anio}
+                  fechaEstadistica={atlas?.statsRetrievedAt ?? null}
+                  nSecciones={vista_.nSecciones}
+                  nConDato={vista_.nConDato}
+                  nSinDato={vista_.nSinDato}
+                  coberturaPct={vista_.coberturaPct}
+                  basemapProveedor={BASEMAP_PROVEEDOR}
+                  basemapAtribucion={BASEMAP_ATRIBUCION}
+                  basemapLicencia={BASEMAP_LICENCIA}
+                  basemapUrl={BASEMAP_URL}
+                  desfase={avisoDeDesfase}
+                />
+              ) : null}
+            </div>
           ) : null}
         </div>
 
@@ -1162,6 +1206,7 @@ function indiceDeClase(valor: number, cortes: ResultadoClasificacion["cortes"]):
 function etiquetaModo(modo: ModoClasificacion): string {
   if (modo === "cuantil") return "Clasificación por cuantiles";
   if (modo === "intervalos_iguales") return "Clasificación por intervalos iguales";
+  if (modo === "jenks") return "Clasificación de Jenks (rupturas naturales)";
   return "Clasificación por cortes manuales";
 }
 
@@ -1201,13 +1246,16 @@ function BotonVista({
       type="button"
       onClick={onClick}
       aria-pressed={activo}
-      className={`min-h-[44px] px-4 py-2 text-sm transition-colors focus-visible:outline-offset-[-2px] ${
+      className={`min-h-[44px] px-4 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--border-focus)] ${
         separado ? "border-l border-[var(--border-default)]" : ""
       } ${
+        // Seleccionada: fondo + peso + filete interior. No depende solo del
+        // color y no altera el ancho dentro del grupo con `overflow-hidden`.
         activo
-          ? "bg-[var(--musgo)] font-semibold text-[var(--hueso)]"
+          ? "bg-[var(--musgo)] font-bold text-[var(--hueso)] shadow-[inset_0_0_0_1px_var(--border-strong)]"
           : "bg-[var(--bg-surface)] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-sunken)] hover:text-[var(--text-primary)]"
       }`}
+
     >
       {children}
     </button>

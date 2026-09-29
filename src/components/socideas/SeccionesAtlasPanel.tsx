@@ -20,16 +20,31 @@ import type { SeccionIndicador } from "@/lib/socideas-secciones";
 
 const CLASES = Array.from({ length: CLASES_MAXIMO - CLASES_MINIMO + 1 }, (_, i) => CLASES_MINIMO + i);
 
+// Los cuatro métodos del contrato. Deben coincidir con los que ofrece la
+// leyenda: si el panel no lista Jenks, el método se pierde para quien solo
+// tenga el panel abierto.
 const MODOS: Array<{ valor: ModoClasificacion; etiqueta: string; ayuda: string }> = [
   { valor: "cuantil", etiqueta: "Cuantil", ayuda: "Cada clase agrupa el mismo número de secciones." },
   { valor: "intervalos_iguales", etiqueta: "Intervalos iguales", ayuda: "Cada clase cubre el mismo tramo del rango observado." },
+  { valor: "jenks", etiqueta: "Jenks", ayuda: "Rupturas naturales: minimiza la dispersión dentro de cada clase." },
   { valor: "cortes_manuales", etiqueta: "Cortes manuales", ayuda: "Los límites los fija usted; se leen de menor a mayor." },
 ];
 
+// Botón secundario del panel. Estados separados por fondo, borde y cursor, no
+// solo por color; el deshabilitado conserva texto legible (≥4.5:1) y se
+// distingue por superficie hundida, borde tenue y `not-allowed`.
 const BOTON =
-  "inline-flex min-h-[44px] w-full items-center justify-center rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-sunken)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-[var(--border-default)] disabled:hover:bg-[var(--bg-surface)]";
+  "inline-flex min-h-[44px] w-full items-center justify-center rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors " +
+  "hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-sunken)] " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] " +
+  "disabled:cursor-not-allowed disabled:border-[var(--border-subtle)] disabled:bg-[var(--bg-surface-sunken)] disabled:text-[var(--text-secondary)] " +
+  "disabled:hover:border-[var(--border-subtle)] disabled:hover:bg-[var(--bg-surface-sunken)]";
 const BOTON_PRINCIPAL =
-  "inline-flex min-h-[44px] w-full items-center justify-center rounded-[6px] bg-[var(--action-primary-bg)] px-3 py-2 text-sm font-semibold text-[var(--action-primary-fg)] transition-colors hover:bg-[var(--action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-[44px] w-full items-center justify-center rounded-[6px] border border-transparent bg-[var(--action-primary-bg)] px-3 py-2 text-sm font-semibold text-[var(--action-primary-fg)] transition-colors " +
+  "hover:border-[var(--border-strong)] hover:bg-[var(--action-primary-hover)] " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] " +
+  "disabled:cursor-not-allowed disabled:border-[var(--border-subtle)] disabled:bg-[var(--bg-surface-sunken)] disabled:text-[var(--text-secondary)] " +
+  "disabled:hover:border-[var(--border-subtle)] disabled:hover:bg-[var(--bg-surface-sunken)]";
 const ETIQUETA = "type-label mb-1.5 block text-[var(--text-secondary)]";
 const AYUDA = "text-xs leading-relaxed text-[var(--text-muted)]";
 const TITULO_GRUPO = "type-body-sm font-semibold text-[var(--text-primary)]";
@@ -222,9 +237,12 @@ export default function SeccionesAtlasPanel({
                 className={`inline-flex min-h-[44px] min-w-[44px] flex-1 cursor-pointer items-center justify-center text-sm transition-colors focus-within:outline-2 focus-within:outline-offset-[-2px] focus-within:outline-[var(--border-focus)] ${
                   i > 0 ? "border-l border-[var(--border-default)]" : ""
                 } ${
+                  // Seleccionada: fondo + peso + filete interior. No depende
+                  // solo del color, y no altera el ancho dentro de un
+                  // contenedor con `overflow-hidden`.
                   clases === n
-                    ? "bg-[var(--musgo)] font-semibold text-[var(--hueso)]"
-                    : "bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-sunken)]"
+                    ? "bg-[var(--musgo)] font-bold text-[var(--hueso)] shadow-[inset_0_0_0_1px_var(--border-strong)]"
+                    : "bg-[var(--bg-surface)] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-sunken)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 <input

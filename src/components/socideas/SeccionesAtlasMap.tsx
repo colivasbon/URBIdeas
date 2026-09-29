@@ -759,8 +759,20 @@ export default function SeccionesAtlasMap({
   );
 }
 
+// Botón de los controles del mapa. Los CUATRO estados se distinguen sin
+// depender solo del color:
+//   normal     → superficie + texto primario + borde por defecto
+//   hover/foco → borde fuerte + fondo hundido + anillo de foco
+//   activo     → (los usa quien lo marca con aria-pressed/aria-selected)
+//   deshabilitado→ fondo hundido + borde tenue + texto secundario legible
+//                + cursor not-allowed + SIN cambio al pasar el ratón.
+// El deshabilitado no baja de opacidad: el texto sigue cumpliendo 4.5:1.
 const BOTON_MAPA =
-  "min-h-[44px] rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-sunken)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-[var(--border-default)] disabled:hover:bg-[var(--bg-surface)]";
+  "min-h-[44px] rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors " +
+  "hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-sunken)] " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] " +
+  "disabled:cursor-not-allowed disabled:border-[var(--border-subtle)] disabled:bg-[var(--bg-surface-sunken)] disabled:text-[var(--text-secondary)] " +
+  "disabled:hover:border-[var(--border-subtle)] disabled:hover:bg-[var(--bg-surface-sunken)]";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Leyenda: lista de texto. Nunca solo color.

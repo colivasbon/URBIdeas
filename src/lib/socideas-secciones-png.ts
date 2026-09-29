@@ -287,18 +287,28 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
     ANCHO_LEYENDA - 8,
   );
 
-  // El pie se envuelve algo más estrecho para dejar el hueco de la marca IMA.
-  const lineasPie = construirPie(opts, ANCHO_UTIL - 70, (texto, ancho) => envolver(ctx, texto, ancho));
+  // Fuentes compactas para columna lateral (debajo de leyenda)
+  const fuentesLaterales = construirFuentesCompactas(opts, ANCHO_LEYENDA - 8, (texto, ancho) => envolver(ctx, texto, ancho));
+
+  // Pie reducido: solo atribución cartográfica
+  ctx.font = `400 9.5px ${FAMILIA}`;
+  const pieBreve = envolver(
+    ctx,
+    opts.baseOmitida
+      ? "Mapa base no incluido. Geometría: INE. Cartografía: © OpenStreetMap."
+      : "Geometría: © INE. Cartografía: © OpenStreetMap contributors, ODbL.",
+    ANCHO_UTIL - 70,
+  );
 
   // Alto del mapa: proporción del mapa base acotada para que el documento respire.
   const base = anchoBase(opts.base);
   const relacion = base.h / Math.max(1, base.w);
-  const altoMapa = Math.round(Math.max(500, Math.min(700, relacion * ANCHO_MAPA)));
+  const altoMapa = Math.round(Math.max(500, Math.min(800, relacion * ANCHO_MAPA)));
 
   const altoCabecera = 20 + lineasTitulo.length * 28 + lineasSubtitulo.length * 17 + 30;
-  const altoLeyendaConNota = 18 + itemsLeyendaVertical.length * 18 + notaLeyendaCorta.length * 12 + 12; // compacto vertical
-  const altoLeyendaFinal = Math.max(altoLeyendaConNota, altoMapa); // leyenda se expande si es necesario
-  const altoPie = 20 + lineasPie.length * 14 + 18;
+  const altoLeyendaConFuentes = 18 + itemsLeyendaVertical.length * 18 + notaLeyendaCorta.length * 12 + 16 + fuentesLaterales.length * 10 + 12; // leyenda + fuentes
+  const altoLeyendaFinal = Math.max(altoLeyendaConFuentes, altoMapa); // misma altura que mapa
+  const altoPie = 12 + pieBreve.length * 10 + 8; // muy compacto
   const H = M + altoCabecera + altoLeyendaFinal + altoPie + M;
 
   // ── Pasada 2: dibujo ─────────────────────────────────────────────────────
@@ -413,22 +423,38 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
     leyY += 12;
   }
 
+  // Fuentes compactas bajo leyenda
+  leyY += 16;
+  ctx.fillStyle = t.textoFuerte;
+  ctx.font = `600 10px ${FAMILIA}`;
+  ctx.fillText("Fuentes", leyX, leyY + 10);
+  leyY += 14;
+
+  ctx.fillStyle = t.texto;
+  ctx.font = `400 8.5px ${FAMILIA}`;
+  for (const linea of fuentesLaterales) {
+    if (linea.trim()) {
+      ctx.fillText(linea, leyX, leyY + 8);
+    }
+    leyY += 10;
+  }
+
   y = mapY + altoLeyendaFinal;
 
-  // Pie -----------------------------------------------------------------
-  y += 20;
+  // Pie breve ---------------------------------------------------------
+  y += 12;
   ctx.strokeStyle = t.limoClaro;
   ctx.beginPath();
   ctx.moveTo(M, y + 0.5);
   ctx.lineTo(W - M, y + 0.5);
   ctx.stroke();
-  y += 20;
+  y += 10;
 
   ctx.fillStyle = t.texto;
-  ctx.font = `400 10.5px ${FAMILIA}`;
-  for (const linea of lineasPie) {
-    ctx.fillText(linea, M, y + 10);
-    y += 14;
+  ctx.font = `400 9px ${FAMILIA}`;
+  for (const linea of pieBreve) {
+    ctx.fillText(linea, M, y + 9);
+    y += 10;
   }
 
   ctx.textAlign = "right";
@@ -438,6 +464,28 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
   ctx.textAlign = "left";
 
   return lienzo;
+}
+
+/** Fuentes compactas para columna lateral (sin párrafos). */
+function construirFuentesCompactas(
+  opts: OpcionesComponerPngMapa,
+  anchoUtil: number,
+  envolver: (texto: string, ancho: number) => string[],
+): string[] {
+  const partes: string[] = [
+    "FUENTES",
+    `Estadística: ${opts.fuente || "—"}`,
+    `Tabla: ${opts.tabla || "—"}`,
+    `Periodo: ${opts.periodo ?? "—"}`,
+    "",
+    "GEOMETRÍA",
+    `Seccionado: ${opts.anioGeometria ?? "—"}${opts.coleccionGeometria ? ` · ${opts.coleccionGeometria}` : ""}`,
+    "",
+    "COBERTURA",
+    `${opts.seccionesRepresentadas}/${opts.seccionesTotales} · ${opts.coberturaPct.toLocaleString("es-ES", { maximumFractionDigits: 0 })} %`,
+    ...(opts.seccionesSinDato > 0 ? [`ND: ${opts.seccionesSinDato}`] : []),
+  ];
+  return partes.flatMap((p) => envolver(p, anchoUtil));
 }
 
 /** Filas del pie, ya envueltas al ancho útil. */

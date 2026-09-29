@@ -13,47 +13,51 @@ interface Seat {
   angle: number;
 }
 
-const ACRONYM_COLORS: [string, string][] = [
-  ["PP", "#1D84CE"],
-  ["PSOE", "#E30613"],
-  ["PSC", "#E30613"],
-  ["VOX", "#63BE21"],
-  ["SUMAR", "#E6007E"],
-  ["PODEMOS", "#6B2C91"],
-  ["IU", "#B0102B"],
-  ["CS", "#EB6109"],
-  ["ERC", "#F5B800"],
-  ["JXCAT", "#00C3B2"],
-  ["JUNTS", "#00C3B2"],
-  ["PNV", "#0B7A3B"],
-  ["EAJ", "#0B7A3B"],
-  ["BILDU", "#B5CF18"],
-  ["BNG", "#6CB4E4"],
-  ["CC", "#FFD100"],
-  ["COMPROMIS", "#E9822A"],
-  ["MASMADRID", "#0DA35B"],
+// [clave, color, posición izquierda(0) → derecha(100)]
+type PartyStyle = [string, string, number];
+
+const ACRONYM_STYLES: PartyStyle[] = [
+  ["IU", "#B0102B", 10],
+  ["PODEMOS", "#6B2C91", 12],
+  ["SUMAR", "#E6007E", 15],
+  ["MASMADRID", "#0DA35B", 16],
+  ["BILDU", "#B5CF18", 18],
+  ["BNG", "#6CB4E4", 19],
+  ["COMPROMIS", "#E9822A", 20],
+  ["ERC", "#F5B800", 22],
+  ["PSOE", "#E30613", 30],
+  ["PSC", "#E30613", 30],
+  ["JXCAT", "#00C3B2", 45],
+  ["JUNTS", "#00C3B2", 45],
+  ["PNV", "#0B7A3B", 47],
+  ["EAJ", "#0B7A3B", 47],
+  ["CC", "#FFD100", 52],
+  ["CS", "#EB6109", 60],
+  ["PP", "#1D84CE", 75],
+  ["VOX", "#63BE21", 90],
 ];
 
-const NAME_COLORS: [string, string][] = [
-  ["PARTIDOPOPULAR", "#1D84CE"],
-  ["SOCIALISTAOBRERO", "#E30613"],
-  ["SOCIALISTASDECATALUNYA", "#E30613"],
-  ["VOX", "#63BE21"],
-  ["SUMAR", "#E6007E"],
-  ["PODEMOS", "#6B2C91"],
-  ["IZQUIERDAUNIDA", "#B0102B"],
-  ["CIUDADANOS", "#EB6109"],
-  ["ESQUERRAREPUBLICANA", "#F5B800"],
-  ["JUNTS", "#00C3B2"],
-  ["NACIONALISTAVASCO", "#0B7A3B"],
-  ["BILDU", "#B5CF18"],
-  ["GALLEGO", "#6CB4E4"],
-  ["COALICIONCANARIA", "#FFD100"],
-  ["COMPROMIS", "#E9822A"],
-  ["MASMADRID", "#0DA35B"],
+const NAME_STYLES: PartyStyle[] = [
+  ["IZQUIERDAUNIDA", "#B0102B", 10],
+  ["PODEMOS", "#6B2C91", 12],
+  ["SUMAR", "#E6007E", 15],
+  ["MASMADRID", "#0DA35B", 16],
+  ["BILDU", "#B5CF18", 18],
+  ["GALLEGO", "#6CB4E4", 19],
+  ["COMPROMIS", "#E9822A", 20],
+  ["ESQUERRAREPUBLICANA", "#F5B800", 22],
+  ["SOCIALISTAOBRERO", "#E30613", 30],
+  ["SOCIALISTASDECATALUNYA", "#E30613", 30],
+  ["JUNTS", "#00C3B2", 45],
+  ["NACIONALISTAVASCO", "#0B7A3B", 47],
+  ["COALICIONCANARIA", "#FFD100", 52],
+  ["CIUDADANOS", "#EB6109", 60],
+  ["PARTIDOPOPULAR", "#1D84CE", 75],
+  ["VOX", "#63BE21", 90],
 ];
 
-const FALLBACK_COLORS = ["#3E665C", "#86B73D", "#B0BDB0", "#643335", "#C2E189", "#3C403E", "#6E6111"];
+const NEUTRAL_COLOR = "#8A948C";
+const NEUTRAL_POSITION = 50;
 
 const normKey = (v: string): string =>
   v
@@ -62,14 +66,15 @@ const normKey = (v: string): string =>
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
 
-function colorFor(acronym: string, name: string, index: number): string {
+function styleFor(acronym: string, name: string): { color: string; position: number; known: boolean } {
   const ac = normKey(acronym);
   const nm = normKey(name);
-  const byAcronym = ACRONYM_COLORS.find(([k]) => ac === k || (ac.length > 2 && ac.startsWith(k)));
-  if (byAcronym) return byAcronym[1];
-  const byName = NAME_COLORS.find(([k]) => nm.includes(k));
-  if (byName) return byName[1];
-  return FALLBACK_COLORS[index % FALLBACK_COLORS.length];
+  const hit =
+    ACRONYM_STYLES.find(([k]) => ac === k || (ac.length > 2 && ac.startsWith(k))) ??
+    NAME_STYLES.find(([k]) => nm.includes(k));
+  return hit
+    ? { color: hit[1], position: hit[2], known: true }
+    : { color: NEUTRAL_COLOR, position: NEUTRAL_POSITION, known: false };
 }
 
 function textColorFor(hex: string): string {
@@ -105,8 +110,8 @@ export function HemicycleRepresentation({ election }: HemicycleRepresentationPro
 
   const groups = election.candidacies
     .filter((c) => (c.representatives ?? 0) > 0)
-    .sort((a, b) => (b.representatives ?? 0) - (a.representatives ?? 0))
-    .map((c, i) => ({ ...c, color: colorFor(c.official_acronym, c.official_name, i) }));
+    .map((c) => ({ ...c, ...styleFor(c.official_acronym, c.official_name) }))
+    .sort((a, b) => a.position - b.position || (b.representatives ?? 0) - (a.representatives ?? 0));
 
   if (totalSeats <= 0 || groups.length === 0) return null;
 
@@ -164,6 +169,10 @@ export function HemicycleRepresentation({ election }: HemicycleRepresentationPro
       <div className={styles.info}>
         <p>
           <strong>Mayoría absoluta:</strong> {majority} de {totalSeats} concejales
+        </p>
+        <p className={styles.note}>
+          Escaños ordenados de izquierda a derecha según el posicionamiento político habitual de cada partido. Las
+          candidaturas locales o sin posicionamiento asignado se sitúan en el centro con color neutro.
         </p>
         <ul className={styles.legend}>
           {groups.map((g) => (

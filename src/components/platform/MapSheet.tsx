@@ -37,16 +37,12 @@ export default function MapSheet({ children, legend, relief = true }: Props) {
     <div className="map-sheet">
       <div className="map-sheet__ticks map-sheet__ticks--top" aria-hidden="true">
         {MERIDIANOS.map((m) => (
-          <span key={m.label} className="map-sheet__tick" style={{ left: `${m.at}%` }}>
-            {m.label}
-          </span>
+          <span key={m.label} className="map-sheet__tick" style={{ left: `${m.at}%` }} />
         ))}
       </div>
       <div className="map-sheet__ticks map-sheet__ticks--left" aria-hidden="true">
         {PARALELOS.map((p) => (
-          <span key={p.label} className="map-sheet__tick" style={{ top: `${p.at}%` }}>
-            {p.label}
-          </span>
+          <span key={p.label} className="map-sheet__tick" style={{ top: `${p.at}%` }} />
         ))}
       </div>
       <div className="map-sheet__frame">

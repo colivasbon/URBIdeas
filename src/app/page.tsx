@@ -103,15 +103,11 @@ export default function PlatformHome() {
                 Diagnóstico territorial de cualquier municipio de España
               </h1>
               <p className="mt-6 max-w-[34rem] text-[var(--fs-body-lg)] leading-[var(--lh-body-lg)] text-[var(--text-secondary)]">
-                Planeamiento, afecciones y normativa en URBideas. Demografía y economía con fuente
-                y año en SOCideas. Cada dato remite a su fuente oficial.
+                Demografía y economía con fuente y año en SOCideas. Cada dato remite a su fuente oficial.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link href="/socideas#buscador" className="btn btn-primary btn-lg">
                   Buscar un municipio
-                </Link>
-                <Link href="/urbideas/mapa" className="btn btn-secondary btn-lg">
-                  Dibujar un ámbito en el mapa
                 </Link>
               </div>
             </div>
@@ -124,37 +120,19 @@ export default function PlatformHome() {
             <h2 id="modulos" className="type-h2 max-w-[24ch] text-[var(--text-primary)]">
               Qué puede consultar
             </h2>
-            <div className="mt-10 grid gap-12 lg:grid-cols-2 lg:gap-16">
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h3 className="type-h3">
-                    <Link href="/urbideas" className="text-[var(--text-primary)]">
-                      URBideas
-                    </Link>
-                  </h3>
-                  <Badge variant="secondary" dot>
-                    Disponible
-                  </Badge>
-                </div>
-                <p className="mt-2 text-[var(--text-secondary)]">
-                  Análisis territorial, urbanístico y geoespacial.
-                </p>
-                <IndiceModulo entradas={URBIDEAS} />
+            <div className="mt-10 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="type-h3">
+                  <Link href="/socideas" className="text-[var(--text-primary)]">
+                    SOCideas
+                  </Link>
+                </h3>
+                <Badge variant="muted">Beta interna</Badge>
               </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h3 className="type-h3">
-                    <Link href="/socideas" className="text-[var(--text-primary)]">
-                      SOCideas
-                    </Link>
-                  </h3>
-                  <Badge variant="muted">Beta interna</Badge>
-                </div>
-                <p className="mt-2 text-[var(--text-secondary)]">
-                  Ficha municipal demográfica y económica. Se abre buscando el municipio.
-                </p>
-                <IndiceModulo entradas={SOCIDEAS} />
-              </div>
+              <p className="mt-2 text-[var(--text-secondary)]">
+                Ficha municipal demográfica y económica. Se abre buscando el municipio.
+              </p>
+              <IndiceModulo entradas={SOCIDEAS} />
             </div>
             <p className="mt-12 max-w-[60ch] text-sm text-[var(--text-muted)]">
               Las asistencias técnicas de sostenibilidad (caracterización territorial, comunicación,

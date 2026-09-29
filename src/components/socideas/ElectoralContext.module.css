@@ -1,0 +1,232 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2rem;
+  background: var(--color-hueso);
+  border-radius: 6px;
+}
+
+.header {
+  border-bottom: 2px solid var(--color-musgo);
+  padding-bottom: 1rem;
+}
+
+.header h2 {
+  margin: 0;
+  color: var(--color-musgo);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.header p {
+  margin: 0.5rem 0 0 0;
+  color: var(--color-carbon);
+  font-size: 1.125rem;
+}
+
+.controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.select {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-limo);
+  border-radius: 6px;
+  background: white;
+  color: var(--color-carbon);
+  font-size: 1rem;
+  font-family: Poppins, sans-serif;
+  cursor: pointer;
+}
+
+.select:hover {
+  border-color: var(--color-conifara);
+}
+
+.select:focus {
+  outline: 2px solid var(--color-conifara);
+  outline-offset: 2px;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  background: var(--color-limo);
+  padding: 1.5rem;
+  border-radius: 6px;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-size: 0.875rem;
+  color: var(--color-carbon);
+  font-weight: 500;
+}
+
+.value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-musgo);
+}
+
+.candidacies {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.candidacies h3 {
+  margin: 0;
+  color: var(--color-musgo);
+  font-size: 1.25rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.table thead {
+  background: var(--color-musgo);
+  color: var(--color-hueso);
+}
+
+.table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  border: 1px solid var(--color-limo);
+}
+
+.table td {
+  padding: 0.75rem;
+  border: 1px solid var(--color-limo);
+  color: var(--color-carbon);
+}
+
+.table tbody tr:nth-child(odd) {
+  background: var(--color-hueso);
+}
+
+.table tbody tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+.table tbody tr:hover {
+  background: var(--color-crisopa);
+}
+
+.source {
+  border-top: 2px solid var(--color-limo);
+  padding-top: 1rem;
+  font-size: 0.875rem;
+  color: var(--color-carbon);
+}
+
+.source p {
+  margin: 0.5rem 0;
+}
+
+.loading,
+.error {
+  padding: 2rem;
+  text-align: center;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.loading {
+  background: var(--color-crisopa);
+  color: var(--color-carbon);
+}
+
+.error {
+  background: var(--color-rupestre);
+  color: var(--color-hueso);
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    background: var(--color-carbon);
+  }
+
+  .header {
+    border-color: var(--color-conifara);
+  }
+
+  .header h2 {
+    color: var(--color-conifara);
+  }
+
+  .header p {
+    color: var(--color-hueso);
+  }
+
+  .select {
+    background: var(--color-carbon);
+    color: var(--color-hueso);
+    border-color: var(--color-limo);
+  }
+
+  .select:hover {
+    border-color: var(--color-conifara);
+  }
+
+  .summary {
+    background: rgba(176, 189, 176, 0.1);
+  }
+
+  .value {
+    color: var(--color-conifara);
+  }
+
+  .candidacies h3 {
+    color: var(--color-conifara);
+  }
+
+  .table thead {
+    background: var(--color-musgo);
+  }
+
+  .table td {
+    color: var(--color-hueso);
+    border-color: rgba(176, 189, 176, 0.2);
+  }
+
+  .table tbody tr:nth-child(odd) {
+    background: rgba(62, 102, 92, 0.1);
+  }
+
+  .table tbody tr:nth-child(even) {
+    background: rgba(62, 102, 92, 0.05);
+  }
+
+  .table tbody tr:hover {
+    background: rgba(194, 225, 137, 0.1);
+  }
+
+  .source {
+    border-color: rgba(176, 189, 176, 0.2);
+    color: var(--color-hueso);
+  }
+
+  .loading {
+    background: rgba(194, 225, 137, 0.1);
+    color: var(--color-hueso);
+  }
+
+  .error {
+    background: var(--color-rupestre);
+    color: var(--color-hueso);
+  }
+}

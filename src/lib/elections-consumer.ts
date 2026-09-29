@@ -39,7 +39,7 @@ export async function getMunicipalElection(
   try {
     const res = await fetch(
       `${R2_PUBLIC_BASE}/socideas/elections/normalized/municipal/${electionDate}/${municipalityCode}.json`,
-      { cache: "no-store" }
+      { next: { revalidate: 300 } }
     );
     if (!res.ok) return null;
 
@@ -53,21 +53,19 @@ export async function getMunicipalElection(
   }
 }
 
+export const MUNICIPAL_ELECTION_DATES = ["2023-05-28", "2019-05-26"] as const;
+
 export async function getMunicipalElectionSeries(
   municipalityCode: string
 ): Promise<MunicipalElection[]> {
   if (!/^\d{5}$/.test(municipalityCode)) return [];
 
-  const catalog = await getElectionCatalog();
-  if (!catalog) return [];
-
-  const elections: MunicipalElection[] = [];
-  for (const entry of catalog.entries) {
-    if (entry.election_type !== "municipal") continue;
-    const obj = await getMunicipalElection(municipalityCode, entry.election_date);
-    if (obj) elections.push(obj);
-  }
-  return elections.sort((a, b) => b.election_year - a.election_year);
+  const found = await Promise.all(
+    MUNICIPAL_ELECTION_DATES.map((date) => getMunicipalElection(municipalityCode, date))
+  );
+  return found
+    .filter((e): e is MunicipalElection => e !== null)
+    .sort((a, b) => b.election_year - a.election_year);
 }
 
 export async function compareMunicipalElections(

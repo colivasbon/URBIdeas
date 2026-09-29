@@ -6,6 +6,8 @@ import { SheetPlaceholder, FreshnessLine } from "./SheetShell";
 import { SheetStatusGlyph } from "./DataStatusBadge";
 import { PatrimonioBloque } from "./PatrimonioBloque";
 import { GalBloque } from "./GalBloque";
+import { ElectoralContext } from "./ElectoralContext";
+import { getMunicipalElectionSeries } from "@/lib/elections-consumer";
 import { FICHA_SHEETS, type FichaSheetKey } from "./ficha-sheets";
 import { buildElectoralPresentation } from "@/lib/socideas-elections";
 import type { ElectoralProvincialBundle } from "@/lib/socideas-electoral-provincial-store";
@@ -68,19 +70,25 @@ export function ProyectoSheet({ codigoINE }: { codigoINE: string }) {
 }
 
 /** Hoja 02: contexto político (elecciones municipales + circunscripción). */
-export function ContextoPoliticoSheet({
+export async function ContextoPoliticoSheet({
+  codigoINE,
   valores,
   municipio,
   provincial,
 }: {
+  codigoINE: string;
   valores: IndicatorValue[];
   municipio: string;
   provincial: ElectoralProvincialBundle | null;
 }) {
-  const data = buildElectoralPresentation(valores, municipio);
+  const elections = await getMunicipalElectionSeries(codigoINE).catch(() => []);
   return (
     <div>
-      <BloqueElectoral data={data} />
+      {elections.length > 0 ? (
+        <ElectoralContext elections={elections} municipalityName={municipio} />
+      ) : (
+        <BloqueElectoral data={buildElectoralPresentation(valores, municipio)} />
+      )}
       <ElectoralProvincialBloques bundle={provincial} municipio={municipio} />
       {!provincial && (
         <SheetPlaceholder
@@ -90,7 +98,7 @@ export function ContextoPoliticoSheet({
         />
       )}
       <FreshnessLine
-        periodo="2023"
+        periodo={elections.length > 0 ? elections.map((e) => e.election_year).sort().join(", ") : "2023"}
         fuente="Ministerio del Interior, Infoelectoral; Junta de Comunidades de Castilla-La Mancha"
         actualizado="2026-09-25"
         nota="Municipales: ámbito municipal. Autonómico, Congreso y Senado: ámbito de la circunscripción provincial."

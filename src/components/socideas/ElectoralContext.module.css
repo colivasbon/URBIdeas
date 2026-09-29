@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: 1.5rem;
   padding: 2rem;
-  background: var(--color-hueso);
+  background: var(--bg-surface);
   border-radius: 6px;
 }
 
@@ -14,14 +14,14 @@
 
 .header h2 {
   margin: 0;
-  color: var(--color-musgo);
+  color: var(--text-primary);
   font-size: 1.5rem;
   font-weight: 600;
 }
 
 .header p {
   margin: 0.5rem 0 0 0;
-  color: var(--color-carbon);
+  color: var(--text-primary);
   font-size: 1.125rem;
 }
 
@@ -35,19 +35,19 @@
   padding: 0.5rem 1rem;
   border: 1px solid var(--color-limo);
   border-radius: 6px;
-  background: white;
-  color: var(--color-carbon);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   font-size: 1rem;
-  font-family: Poppins, sans-serif;
+  font-family: var(--font-family);
   cursor: pointer;
 }
 
 .select:hover {
-  border-color: var(--color-conifara);
+  border-color: var(--conifera-700);
 }
 
 .select:focus {
-  outline: 2px solid var(--color-conifara);
+  outline: 2px solid var(--conifera-700);
   outline-offset: 2px;
 }
 
@@ -55,7 +55,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1rem;
-  background: var(--color-limo);
+  background: var(--bg-surface-sunken);
   padding: 1.5rem;
   border-radius: 6px;
 }
@@ -68,14 +68,14 @@
 
 .label {
   font-size: 0.875rem;
-  color: var(--color-carbon);
+  color: var(--text-primary);
   font-weight: 500;
 }
 
 .value {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--color-musgo);
+  color: var(--text-primary);
 }
 
 .candidacies {
@@ -86,7 +86,7 @@
 
 .candidacies h3 {
   margin: 0;
-  color: var(--color-musgo);
+  color: var(--text-primary);
   font-size: 1.25rem;
 }
 
@@ -111,26 +111,26 @@
 .table td {
   padding: 0.75rem;
   border: 1px solid var(--color-limo);
-  color: var(--color-carbon);
+  color: var(--text-primary);
 }
 
 .table tbody tr:nth-child(odd) {
-  background: var(--color-hueso);
+  background: var(--bg-surface);
 }
 
 .table tbody tr:nth-child(even) {
-  background: #f9f9f9;
+  background: var(--bg-surface-sunken);
 }
 
 .table tbody tr:hover {
-  background: var(--color-crisopa);
+  background: var(--bg-surface-sunken);
 }
 
 .source {
   border-top: 2px solid var(--color-limo);
   padding-top: 1rem;
   font-size: 0.875rem;
-  color: var(--color-carbon);
+  color: var(--text-primary);
 }
 
 .source p {
@@ -146,8 +146,8 @@
 }
 
 .loading {
-  background: var(--color-crisopa);
-  color: var(--color-carbon);
+  background: var(--bg-surface-sunken);
+  color: var(--text-primary);
 }
 
 .error {
@@ -155,78 +155,4 @@
   color: var(--color-hueso);
 }
 
-@media (prefers-color-scheme: dark) {
-  .container {
-    background: var(--color-carbon);
-  }
 
-  .header {
-    border-color: var(--color-conifara);
-  }
-
-  .header h2 {
-    color: var(--color-conifara);
-  }
-
-  .header p {
-    color: var(--color-hueso);
-  }
-
-  .select {
-    background: var(--color-carbon);
-    color: var(--color-hueso);
-    border-color: var(--color-limo);
-  }
-
-  .select:hover {
-    border-color: var(--color-conifara);
-  }
-
-  .summary {
-    background: rgba(176, 189, 176, 0.1);
-  }
-
-  .value {
-    color: var(--color-conifara);
-  }
-
-  .candidacies h3 {
-    color: var(--color-conifara);
-  }
-
-  .table thead {
-    background: var(--color-musgo);
-  }
-
-  .table td {
-    color: var(--color-hueso);
-    border-color: rgba(176, 189, 176, 0.2);
-  }
-
-  .table tbody tr:nth-child(odd) {
-    background: rgba(62, 102, 92, 0.1);
-  }
-
-  .table tbody tr:nth-child(even) {
-    background: rgba(62, 102, 92, 0.05);
-  }
-
-  .table tbody tr:hover {
-    background: rgba(194, 225, 137, 0.1);
-  }
-
-  .source {
-    border-color: rgba(176, 189, 176, 0.2);
-    color: var(--color-hueso);
-  }
-
-  .loading {
-    background: rgba(194, 225, 137, 0.1);
-    color: var(--color-hueso);
-  }
-
-  .error {
-    background: var(--color-rupestre);
-    color: var(--color-hueso);
-  }
-}

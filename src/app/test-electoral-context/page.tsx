@@ -30,7 +30,7 @@ export default async function TestPage() {
 
       <section style={{ marginTop: "2rem" }}>
         <h2>Contexto electoral actual</h2>
-        <ElectoralContext municipalityCode="02003" municipalityName="Albacete" />
+        <ElectoralContext elections={elections} municipalityName="Albacete" />
       </section>
 
       <section style={{ marginTop: "2rem" }}>

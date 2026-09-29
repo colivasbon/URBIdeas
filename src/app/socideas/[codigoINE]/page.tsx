@@ -350,6 +350,7 @@ export default async function SocideasFicha({
 
             {hojaActiva === "politico" && (
               <ContextoPoliticoSheet
+                codigoINE={municipio.codigo_ine}
                 valores={perfil.valores}
                 municipio={municipio.nombre}
                 provincial={electoralProvincial}

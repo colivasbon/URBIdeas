@@ -147,16 +147,24 @@ function buildElectionObject(
   convocatoria: (typeof ELECTIONS_CONVOCATORIAS)[number],
   filas: ReturnType<typeof buildFilasMunicipio>,
 ): MunicipalElection {
+  const agg = (slug: string): number | null => {
+    const f = filas.filas.find((x) => x.indicator.slug === slug && !x.dimensiones.candidatura);
+    return f?.valor_numerico ?? null;
+  };
+  const validVotes = agg("elec_votos_validos");
+  const census = filas.resumen.censo;
+  const voters = filas.resumen.votantes;
+
   const summary: ElectionSummary = {
-    census: filas.resumen.censo,
-    voters: filas.resumen.votantes,
-    abstentions: null,
+    census,
+    voters,
+    abstentions: census !== null && voters !== null ? census - voters : null,
     participation_percentage: filas.resumen.participacion,
-    valid_votes: null,
-    blank_votes: null,
-    null_votes: null,
-    votes_to_candidacies: null,
-    representatives_total: null,
+    valid_votes: validVotes,
+    blank_votes: agg("elec_votos_blanco"),
+    null_votes: agg("elec_votos_nulos"),
+    votes_to_candidacies: agg("elec_votos_candidaturas"),
+    representatives_total: filas.resumen.totalConcejales > 0 ? filas.resumen.totalConcejales : null,
     majority_threshold: filas.resumen.totalConcejales > 0 ? Math.floor(filas.resumen.totalConcejales / 2) + 1 : null,
     candidacies_total: filas.resumen.nCandidaturas,
   };
@@ -192,14 +200,18 @@ function buildElectionObject(
   }
 
   for (const cand of aggregated.values()) {
+    if (validVotes !== null && validVotes > 0 && cand.votes !== null) {
+      cand.percentage_valid_votes = Math.round((cand.votes / validVotes) * 1000) / 10;
+    }
     candidacies.push(cand);
   }
+  candidacies.sort((a, b) => (b.votes ?? -1) - (a.votes ?? -1));
 
   const validation: ValidationReport = {
-    status: "valid",
+    status: filas.warnings.length > 0 ? "valid_with_warnings" : "valid",
     rules: [],
-    warnings: [],
-    errors: filas.warnings,
+    warnings: filas.warnings,
+    errors: [],
   };
 
   return {

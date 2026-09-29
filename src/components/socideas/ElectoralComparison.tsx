@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { MunicipalElection } from "@/lib/elections-schema";
+import type { Candidacy, MunicipalElection } from "@/lib/elections-schema";
 import styles from "./ElectoralComparison.module.css";
 
 interface ElectoralComparisonProps {
@@ -11,119 +11,118 @@ interface ElectoralComparisonProps {
 
 type MetricType = "votes" | "percentage" | "representatives";
 
+const norm = (v: string): string =>
+  v
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+
+interface Row {
+  current: Candidacy | null;
+  previous: Candidacy | null;
+}
+
+function buildRows(current: MunicipalElection, previous: MunicipalElection): Row[] {
+  const remaining = [...previous.candidacies];
+  const rows: Row[] = [];
+  for (const c of current.candidacies) {
+    const idx = remaining.findIndex(
+      (p) =>
+        norm(p.official_name) === norm(c.official_name) ||
+        (norm(p.official_acronym) !== "" && norm(p.official_acronym) === norm(c.official_acronym)),
+    );
+    const match = idx >= 0 ? remaining.splice(idx, 1)[0] : null;
+    rows.push({ current: c, previous: match });
+  }
+  for (const p of remaining) rows.push({ current: null, previous: p });
+  const relevant = (c: Candidacy | null) => c !== null && ((c.representatives ?? 0) > 0 || (c.percentage_valid_votes ?? 0) >= 1);
+  return rows
+    .filter((r) => relevant(r.current) || relevant(r.previous))
+    .sort((a, b) => (b.current?.votes ?? b.previous?.votes ?? 0) - (a.current?.votes ?? a.previous?.votes ?? 0));
+}
+
+const nf = new Intl.NumberFormat("es-ES");
+const pf = new Intl.NumberFormat("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+function value(c: Candidacy | null, metric: MetricType): number | null {
+  if (!c) return null;
+  if (metric === "votes") return c.votes;
+  if (metric === "percentage") return c.percentage_valid_votes;
+  return c.representatives;
+}
+
+function fmt(v: number | null, metric: MetricType): string {
+  if (v === null) return "ND";
+  return metric === "percentage" ? `${pf.format(v)} %` : nf.format(v);
+}
+
 export function ElectoralComparison({ current, previous }: ElectoralComparisonProps) {
   const [metric, setMetric] = useState<MetricType>("percentage");
-
-  const comparisonData = useMemo(() => {
-    const allCandidacies = new Map<string, { current: any; previous: any }>();
-
-    for (const c of current.candidacies) {
-      if (!allCandidacies.has(c.official_name)) {
-        allCandidacies.set(c.official_name, { current: c, previous: null });
-      } else {
-        const item = allCandidacies.get(c.official_name)!;
-        item.current = c;
-      }
-    }
-
-    for (const c of previous.candidacies) {
-      if (!allCandidacies.has(c.official_name)) {
-        allCandidacies.set(c.official_name, { current: null, previous: c });
-      } else {
-        const item = allCandidacies.get(c.official_name)!;
-        item.previous = c;
-      }
-    }
-
-    return Array.from(allCandidacies.values()).sort((a, b) => {
-      const aValue = a.current?.votes ?? a.previous?.votes ?? 0;
-      const bValue = b.current?.votes ?? b.previous?.votes ?? 0;
-      return (bValue as number) - (aValue as number);
-    });
-  }, [current, previous]);
-
-  const getValue = (cand: any, type: MetricType): number => {
-    if (!cand) return 0;
-    switch (type) {
-      case "votes":
-        return cand.votes ?? 0;
-      case "percentage":
-        return cand.percentage_valid_votes ?? 0;
-      case "representatives":
-        return cand.representatives ?? 0;
-      default:
-        return 0;
-    }
-  };
+  const rows = useMemo(() => buildRows(current, previous), [current, previous]);
 
   const maxValue = Math.max(
-    ...comparisonData.map((d) => Math.max(getValue(d.current, metric), getValue(d.previous, metric)))
+    0,
+    ...rows.flatMap((r) => [value(r.current, metric) ?? 0, value(r.previous, metric) ?? 0]),
   );
+
+  const options: { key: MetricType; label: string }[] = [
+    { key: "percentage", label: "Porcentaje" },
+    { key: "votes", label: "Votos" },
+    { key: "representatives", label: "Concejales" },
+  ];
 
   return (
     <div className={styles.container}>
-      <div className={styles.controls}>
-        <label>
-          <input
-            type="radio"
-            value="percentage"
-            checked={metric === "percentage"}
-            onChange={(e) => setMetric(e.target.value as MetricType)}
-          />
-          Porcentaje
-        </label>
-        <label>
-          <input
-            type="radio"
-            value="votes"
-            checked={metric === "votes"}
-            onChange={(e) => setMetric(e.target.value as MetricType)}
-          />
-          Votos
-        </label>
-        <label>
-          <input
-            type="radio"
-            value="representatives"
-            checked={metric === "representatives"}
-            onChange={(e) => setMetric(e.target.value as MetricType)}
-          />
-          Concejales
-        </label>
+      <div className={styles.controls} role="radiogroup" aria-label="Magnitud a comparar">
+        {options.map((o) => (
+          <label key={o.key}>
+            <input type="radio" name="comparison-metric" checked={metric === o.key} onChange={() => setMetric(o.key)} />
+            {o.label}
+          </label>
+        ))}
       </div>
 
       <div className={styles.bars}>
-        {comparisonData.map((d, idx) => {
-          const currentValue = getValue(d.current, metric);
-          const previousValue = getValue(d.previous, metric);
-          const currentPct = maxValue > 0 ? (currentValue / maxValue) * 100 : 0;
-          const previousPct = maxValue > 0 ? (previousValue / maxValue) * 100 : 0;
-
+        {rows.map((r) => {
+          const cv = value(r.current, metric);
+          const pv = value(r.previous, metric);
+          const both = cv !== null && pv !== null;
+          const delta = both ? cv - pv : null;
+          const name = r.current?.official_name ?? r.previous?.official_name ?? "";
           return (
-            <div key={idx} className={styles.barRow}>
-              <div className={styles.label}>{d.current?.official_name || d.previous?.official_name}</div>
+            <div key={`${name}-${r.current ? "c" : "p"}`} className={styles.barRow}>
+              <div className={styles.label} title={name}>
+                {r.current?.official_acronym || name}
+              </div>
               <div className={styles.barContainer}>
-                <div
-                  className={`${styles.bar} ${styles.current}`}
-                  style={{ width: `${currentPct}%` }}
-                  title={`${current.election_year}: ${currentValue}`}
-                >
-                  {currentPct > 15 && <span className={styles.barLabel}>{currentValue}</span>}
+                <div className={styles.barLine} title={`${current.election_year}: ${fmt(cv, metric)}`}>
+                  <div
+                    className={`${styles.bar} ${styles.current}`}
+                    style={{ width: `${maxValue > 0 && cv ? (cv / maxValue) * 88 : 0}%` }}
+                  />
+                  <span className={styles.barLabel}>{fmt(cv, metric)}</span>
                 </div>
-                <div
-                  className={`${styles.bar} ${styles.previous}`}
-                  style={{ width: `${previousPct}%` }}
-                  title={`${previous.election_year}: ${previousValue}`}
-                >
-                  {previousPct > 15 && <span className={styles.barLabel}>{previousValue}</span>}
+                <div className={styles.barLine} title={`${previous.election_year}: ${fmt(pv, metric)}`}>
+                  <div
+                    className={`${styles.bar} ${styles.previous}`}
+                    style={{ width: `${maxValue > 0 && pv ? (pv / maxValue) * 88 : 0}%` }}
+                  />
+                  <span className={styles.barLabel}>{fmt(pv, metric)}</span>
                 </div>
               </div>
               <div className={styles.change}>
-                {currentValue !== previousValue && (
-                  <span className={currentValue > previousValue ? styles.increase : styles.decrease}>
-                    {currentValue > previousValue ? "+" : ""}
-                    {currentValue - previousValue}
+                {delta === null ? (
+                  <span title="Candidatura sin equivalente directo en la otra convocatoria: no se calcula variación">
+                    sin equiv.
                   </span>
+                ) : delta !== 0 ? (
+                  <span className={delta > 0 ? styles.increase : styles.decrease}>
+                    {delta > 0 ? "+" : "−"}
+                    {metric === "percentage" ? `${pf.format(Math.abs(delta))} pp` : nf.format(Math.abs(delta))}
+                  </span>
+                ) : (
+                  <span>0</span>
                 )}
               </div>
             </div>
@@ -141,6 +140,10 @@ export function ElectoralComparison({ current, previous }: ElectoralComparisonPr
           {previous.election_year}
         </div>
       </div>
+      <p className={styles.note}>
+        Solo se calcula variación entre candidaturas equivalentes (mismo nombre oficial o mismas siglas). Coaliciones o
+        listas con denominación distinta se muestran sin variación.
+      </p>
     </div>
   );
 }

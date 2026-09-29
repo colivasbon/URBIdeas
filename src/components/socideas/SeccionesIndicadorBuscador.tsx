@@ -26,6 +26,7 @@ export const GRUPOS_TEMA: ReadonlyArray<GrupoTema> = [
   { id: "economico", etiqueta: "Económico", temas: ["renta", "desigualdad"] },
   { id: "demografia", etiqueta: "Población", temas: ["demografia"] },
   { id: "educacion", etiqueta: "Educación", temas: ["educacion"] },
+  { id: "politica", etiqueta: "Política", temas: ["politica"] },
   { id: "vivienda", etiqueta: "Vivienda", temas: ["vivienda"] },
   { id: "laboral", etiqueta: "Laboral", temas: ["laboral"] },
 ];

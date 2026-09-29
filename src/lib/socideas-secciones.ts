@@ -53,7 +53,7 @@ export function admiteValor(status: SeccionValorStatus): boolean {
 // Catálogo de indicadores
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type SeccionTema = 'renta' | 'desigualdad' | 'demografia' | 'educacion' | 'vivienda' | 'laboral'
+export type SeccionTema = 'renta' | 'desigualdad' | 'demografia' | 'educacion' | 'politica' | 'vivienda' | 'laboral'
 
 export interface SeccionIndicador {
   /** Identificador estable en SOCideas. */
@@ -67,8 +67,8 @@ export interface SeccionIndicador {
   sourceTable: string
   /** Etiqueta literal de la columna "Indicador…" en el CSV del INE. */
   sourceLabel: string
-  /** Familia de tabla provincial: renta, gini o censo (sexo/edad, nacionalidad). */
-  tableFamily: 'renta' | 'gini' | 'censo_sexo_edad' | 'censo_nacionalidad'
+  /** Familia de tabla provincial: renta, gini o censo (sexo/edad, nacionalidad, educación), electoral. */
+  tableFamily: 'renta' | 'gini' | 'censo_sexo_edad' | 'censo_nacionalidad' | 'censo_educacion' | 'electoral'
   url: string
   unidad: string
   /** Universo sobre el que se calcula el indicador, si la fuente lo define. */

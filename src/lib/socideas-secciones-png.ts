@@ -231,10 +231,10 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
 
   await esperarFuente();
 
-  const W = 1400; // ancho lógico aumentado para acomodar mapa + leyenda lado a lado
-  const M = 30;
-  const ANCHO_MAPA = 1000; // ancho del mapa (izquierda)
-  const ANCHO_LEYENDA = W - M * 2 - ANCHO_MAPA - 20; // ancho de leyenda (derecha, con gap)
+  const W = 1300; // ancho lógico optimizado: mapa 80% + leyenda 20%
+  const M = 20; // margen mínimo
+  const ANCHO_MAPA = 1060; // ancho del mapa (izquierda, ~80%)
+  const ANCHO_LEYENDA = W - M * 2 - ANCHO_MAPA - 15; // ancho de leyenda (derecha, ~20%, con gap)
   const ANCHO_UTIL = W - M * 2; // ancho total útil (para títulos, pie)
   const t = {
     hueso: token("--hueso"),
@@ -290,26 +290,15 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
   // Fuentes compactas para columna lateral (debajo de leyenda)
   const fuentesLaterales = construirFuentesCompactas(opts, ANCHO_LEYENDA - 8, (texto, ancho) => envolver(ctx, texto, ancho));
 
-  // Pie reducido: solo atribución cartográfica
-  ctx.font = `400 9.5px ${FAMILIA}`;
-  const pieBreve = envolver(
-    ctx,
-    opts.baseOmitida
-      ? "Mapa base no incluido. Geometría: INE. Cartografía: © OpenStreetMap."
-      : "Geometría: © INE. Cartografía: © OpenStreetMap contributors, ODbL.",
-    ANCHO_UTIL - 70,
-  );
-
   // Alto del mapa: proporción del mapa base acotada para que el documento respire.
   const base = anchoBase(opts.base);
   const relacion = base.h / Math.max(1, base.w);
-  const altoMapa = Math.round(Math.max(500, Math.min(800, relacion * ANCHO_MAPA)));
+  const altoMapa = Math.round(Math.max(550, Math.min(850, relacion * ANCHO_MAPA))); // aumentado: 550-850
 
   const altoCabecera = 20 + lineasTitulo.length * 28 + lineasSubtitulo.length * 17 + 30;
   const altoLeyendaConFuentes = 18 + itemsLeyendaVertical.length * 18 + notaLeyendaCorta.length * 12 + 16 + fuentesLaterales.length * 10 + 12; // leyenda + fuentes
   const altoLeyendaFinal = Math.max(altoLeyendaConFuentes, altoMapa); // misma altura que mapa
-  const altoPie = 12 + pieBreve.length * 10 + 8; // muy compacto
-  const H = M + altoCabecera + altoLeyendaFinal + altoPie + M;
+  const H = M + altoCabecera + altoLeyendaFinal + M; // SIN PIE: margen mínimo inferior
 
   // ── Pasada 2: dibujo ─────────────────────────────────────────────────────
   lienzo.width = Math.round(W * escala);
@@ -425,42 +414,41 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
 
   // Fuentes compactas bajo leyenda
   leyY += 16;
-  ctx.fillStyle = t.textoFuerte;
-  ctx.font = `600 10px ${FAMILIA}`;
-  ctx.fillText("Fuentes", leyX, leyY + 10);
-  leyY += 14;
+
+  // Separador
+  ctx.strokeStyle = t.limo;
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(leyX, leyY - 4);
+  ctx.lineTo(leyX + ANCHO_LEYENDA - 16, leyY - 4);
+  ctx.stroke();
+  leyY += 8;
 
   ctx.fillStyle = t.texto;
-  ctx.font = `400 8.5px ${FAMILIA}`;
+  ctx.font = `400 9px ${FAMILIA}`;
   for (const linea of fuentesLaterales) {
     if (linea.trim()) {
-      ctx.fillText(linea, leyX, leyY + 8);
+      // Encabezados de sección (Estadística, Geometría, Cartografía, Cobertura)
+      if (/^(Estadística|Geometría|Cartografía|Cobertura)$/.test(linea)) {
+        ctx.fillStyle = t.textoFuerte;
+        ctx.font = `600 9px ${FAMILIA}`;
+        ctx.fillText(linea, leyX, leyY + 8);
+        ctx.fillStyle = t.texto;
+        ctx.font = `400 9px ${FAMILIA}`;
+      } else {
+        ctx.fillText(linea, leyX, leyY + 8);
+      }
     }
     leyY += 10;
   }
 
   y = mapY + altoLeyendaFinal;
 
-  // Pie breve ---------------------------------------------------------
-  y += 12;
-  ctx.strokeStyle = t.limoClaro;
-  ctx.beginPath();
-  ctx.moveTo(M, y + 0.5);
-  ctx.lineTo(W - M, y + 0.5);
-  ctx.stroke();
-  y += 10;
-
-  ctx.fillStyle = t.texto;
-  ctx.font = `400 9px ${FAMILIA}`;
-  for (const linea of pieBreve) {
-    ctx.fillText(linea, M, y + 9);
-    y += 10;
-  }
-
+  // Margen inferior mínimo con marca IMA en esquina
   ctx.textAlign = "right";
   ctx.fillStyle = t.limoMedio;
-  ctx.font = `400 9.5px ${FAMILIA}`;
-  ctx.fillText("IMA", W - M, y + 10);
+  ctx.font = `400 9px ${FAMILIA}`;
+  ctx.fillText("IMA", W - M, y + M - 5);
   ctx.textAlign = "left";
 
   return lienzo;
@@ -473,17 +461,20 @@ function construirFuentesCompactas(
   envolver: (texto: string, ancho: number) => string[],
 ): string[] {
   const partes: string[] = [
-    "FUENTES",
-    `Estadística: ${opts.fuente || "—"}`,
-    `Tabla: ${opts.tabla || "—"}`,
-    `Periodo: ${opts.periodo ?? "—"}`,
+    "Estadística",
+    `INE · ${opts.fuente || "—"}`,
+    `Tabla ${opts.tabla || "—"}`,
+    `Período ${opts.periodo ?? "—"}`,
     "",
-    "GEOMETRÍA",
-    `Seccionado: ${opts.anioGeometria ?? "—"}${opts.coleccionGeometria ? ` · ${opts.coleccionGeometria}` : ""}`,
+    "Geometría",
+    `INE · Seccionado ${opts.anioGeometria ?? "—"}${opts.coleccionGeometria ? ` · ${opts.coleccionGeometria}` : ""}`,
     "",
-    "COBERTURA",
-    `${opts.seccionesRepresentadas}/${opts.seccionesTotales} · ${opts.coberturaPct.toLocaleString("es-ES", { maximumFractionDigits: 0 })} %`,
-    ...(opts.seccionesSinDato > 0 ? [`ND: ${opts.seccionesSinDato}`] : []),
+    "Cartografía",
+    "© OpenStreetMap contributors · ODbL",
+    "",
+    "Cobertura",
+    `${opts.seccionesRepresentadas}/${opts.seccionesTotales} secciones · ${opts.coberturaPct.toLocaleString("es-ES", { maximumFractionDigits: 0 })} %`,
+    ...(opts.seccionesSinDato > 0 ? [`ND: ${opts.seccionesSinDato}`] : [`ND: 0`]),
   ];
   return partes.flatMap((p) => envolver(p, anchoUtil));
 }

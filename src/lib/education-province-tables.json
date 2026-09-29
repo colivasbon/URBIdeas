@@ -1,0 +1,262 @@
+{
+  "10": {
+    "provincia": "Cáceres",
+    "formacion": 66681,
+    "actividad": 66683
+  },
+  "11": {
+    "provincia": "Cádiz",
+    "formacion": 66685,
+    "actividad": 66687
+  },
+  "12": {
+    "provincia": "Castellón/Castelló",
+    "formacion": 66693,
+    "actividad": 66695
+  },
+  "13": {
+    "provincia": "Ciudad Real",
+    "formacion": 66697,
+    "actividad": 66699
+  },
+  "14": {
+    "provincia": "Córdoba",
+    "formacion": 66701,
+    "actividad": 66703
+  },
+  "15": {
+    "provincia": "Coruña, A",
+    "formacion": 66705,
+    "actividad": 66707
+  },
+  "16": {
+    "provincia": "Cuenca",
+    "formacion": 66709,
+    "actividad": 66711
+  },
+  "17": {
+    "provincia": "Girona",
+    "formacion": 66717,
+    "actividad": 66719
+  },
+  "18": {
+    "provincia": "Granada",
+    "formacion": 66721,
+    "actividad": 66723
+  },
+  "19": {
+    "provincia": "Guadalajara",
+    "formacion": 66725,
+    "actividad": 66727
+  },
+  "20": {
+    "provincia": "Gipuzkoa",
+    "formacion": 66713,
+    "actividad": 66715
+  },
+  "21": {
+    "provincia": "Huelva",
+    "formacion": 66729,
+    "actividad": 66731
+  },
+  "22": {
+    "provincia": "Huesca",
+    "formacion": 66733,
+    "actividad": 66735
+  },
+  "23": {
+    "provincia": "Jaén",
+    "formacion": 66737,
+    "actividad": 66739
+  },
+  "24": {
+    "provincia": "León",
+    "formacion": 66741,
+    "actividad": 66743
+  },
+  "25": {
+    "provincia": "Lleida",
+    "formacion": 66745,
+    "actividad": 66747
+  },
+  "26": {
+    "provincia": "Rioja, La",
+    "formacion": 66785,
+    "actividad": 66787
+  },
+  "27": {
+    "provincia": "Lugo",
+    "formacion": 66749,
+    "actividad": 66751
+  },
+  "28": {
+    "provincia": "Madrid",
+    "formacion": 66753,
+    "actividad": 66755
+  },
+  "29": {
+    "provincia": "Málaga",
+    "formacion": 66757,
+    "actividad": 66759
+  },
+  "30": {
+    "provincia": "Murcia",
+    "formacion": 66761,
+    "actividad": 66763
+  },
+  "31": {
+    "provincia": "Navarra",
+    "formacion": 66765,
+    "actividad": 66767
+  },
+  "32": {
+    "provincia": "Ourense",
+    "formacion": 66769,
+    "actividad": 66771
+  },
+  "33": {
+    "provincia": "Asturias",
+    "formacion": 66649,
+    "actividad": 66651
+  },
+  "34": {
+    "provincia": "Palencia",
+    "formacion": 66773,
+    "actividad": 66775
+  },
+  "35": {
+    "provincia": "Palmas, Las",
+    "formacion": 66777,
+    "actividad": 66779
+  },
+  "36": {
+    "provincia": "Pontevedra",
+    "formacion": 66781,
+    "actividad": 66783
+  },
+  "37": {
+    "provincia": "Salamanca",
+    "formacion": 66789,
+    "actividad": 66791
+  },
+  "38": {
+    "provincia": "Santa Cruz de Tenerife",
+    "formacion": 66793,
+    "actividad": 66795
+  },
+  "39": {
+    "provincia": "Cantabria",
+    "formacion": 66689,
+    "actividad": 66691
+  },
+  "40": {
+    "provincia": "Segovia",
+    "formacion": 66797,
+    "actividad": 66799
+  },
+  "41": {
+    "provincia": "Sevilla",
+    "formacion": 66801,
+    "actividad": 66803
+  },
+  "42": {
+    "provincia": "Soria",
+    "formacion": 66805,
+    "actividad": 66807
+  },
+  "43": {
+    "provincia": "Tarragona",
+    "formacion": 66809,
+    "actividad": 66811
+  },
+  "44": {
+    "provincia": "Teruel",
+    "formacion": 66813,
+    "actividad": 66815
+  },
+  "45": {
+    "provincia": "Toledo",
+    "formacion": 66817,
+    "actividad": 66819
+  },
+  "46": {
+    "provincia": "Valencia/València",
+    "formacion": 66821,
+    "actividad": 66823
+  },
+  "47": {
+    "provincia": "Valladolid",
+    "formacion": 66825,
+    "actividad": 66827
+  },
+  "48": {
+    "provincia": "Bizkaia",
+    "formacion": 66673,
+    "actividad": 66675
+  },
+  "49": {
+    "provincia": "Zamora",
+    "formacion": 66829,
+    "actividad": 66831
+  },
+  "50": {
+    "provincia": "Zaragoza",
+    "formacion": 66833,
+    "actividad": 66835
+  },
+  "51": {
+    "provincia": "Ceuta",
+    "formacion": 66837,
+    "actividad": 66839
+  },
+  "52": {
+    "provincia": "Melilla",
+    "formacion": 66841,
+    "actividad": 66843
+  },
+  "02": {
+    "provincia": "Albacete",
+    "formacion": 66645,
+    "actividad": 66647
+  },
+  "03": {
+    "provincia": "Alicante/Alacant",
+    "formacion": 66657,
+    "actividad": 66659
+  },
+  "04": {
+    "provincia": "Almería",
+    "formacion": 66637,
+    "actividad": 66639
+  },
+  "01": {
+    "provincia": "Araba/Álava",
+    "formacion": 66641,
+    "actividad": 66643
+  },
+  "05": {
+    "provincia": "Ávila",
+    "formacion": 66653,
+    "actividad": 66655
+  },
+  "06": {
+    "provincia": "Badajoz",
+    "formacion": 66661,
+    "actividad": 66663
+  },
+  "07": {
+    "provincia": "Balears, Illes",
+    "formacion": 66665,
+    "actividad": 66667
+  },
+  "08": {
+    "provincia": "Barcelona",
+    "formacion": 66669,
+    "actividad": 66671
+  },
+  "09": {
+    "provincia": "Burgos",
+    "formacion": 66677,
+    "actividad": 66679
+  }
+}

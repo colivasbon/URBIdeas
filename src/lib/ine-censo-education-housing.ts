@@ -1,0 +1,78 @@
+// Indicadores de Educación y Vivienda del Censo 2021 (operación 249).
+// ESTADO: Solo disponibles a nivel municipal en Tempus3, NO a nivel de sección censal.
+// Se marcan como "— No disponible" en las pestañas de secciones.
+
+import type { SeccionIndicador } from './socideas-secciones';
+
+export const INDICADORES_NO_SECCIONALES: SeccionIndicador[] = [
+  // Educación (Censo 2021)
+  {
+    id: 'educacion_sin_estudios',
+    etiqueta: '% sin estudios (≥16 años)',
+    tema: 'educacion',
+    operation: '249',
+    operationLabel: 'Censo de Población y Viviendas 2021 (operación 249)',
+    sourceTable: '55249',
+    sourceLabel: 'No disponible a nivel de sección censal',
+    tableFamily: 'censo_sexo_edad',
+    url: 'https://www.ine.es/dyngs/INEbase/es/operacion.htm?c=Estadistica_C&cid=1254736176951&menu=resultados&idp=1254735572981',
+    unidad: '%',
+    universo: 'Población ≥16 años (Censo 2021)',
+    denominador: 'Población ≥16 años',
+    definicion: 'Porcentaje de población de 16 años y más sin estudios. Disponible a nivel municipal únicamente.',
+    publicadoPorSeccion: false,
+    etiquetaNoDifundido: 'No disponible a nivel de sección',
+  },
+  {
+    id: 'educacion_primaria',
+    etiqueta: '% educación primaria',
+    tema: 'educacion',
+    operation: '249',
+    operationLabel: 'Censo de Población y Viviendas 2021 (operación 249)',
+    sourceTable: '55249',
+    sourceLabel: 'No disponible a nivel de sección censal',
+    tableFamily: 'censo_sexo_edad',
+    url: 'https://www.ine.es/dyngs/INEbase/es/operacion.htm?c=Estadistica_C&cid=1254736176951&menu=resultados&idp=1254735572981',
+    unidad: '%',
+    universo: 'Población ≥16 años (Censo 2021)',
+    denominador: 'Población ≥16 años',
+    definicion: 'Porcentaje de población de 16 años y más con educación primaria. Disponible a nivel municipal únicamente.',
+    publicadoPorSeccion: false,
+    etiquetaNoDifundido: 'No disponible a nivel de sección',
+  },
+  // Vivienda (Censo 2021)
+  {
+    id: 'viviendas_principales',
+    etiqueta: '% viviendas principales',
+    tema: 'vivienda',
+    operation: '249',
+    operationLabel: 'Censo de Población y Viviendas 2021 (operación 249)',
+    sourceTable: '55249',
+    sourceLabel: 'No disponible a nivel de sección censal',
+    tableFamily: 'censo_sexo_edad',
+    url: 'https://www.ine.es/dyngs/INEbase/es/operacion.htm?c=Estadistica_C&cid=1254736176951&menu=resultados&idp=1254735572981',
+    unidad: '%',
+    universo: 'Total de viviendas (Censo 2021)',
+    denominador: 'Total de viviendas',
+    definicion: 'Porcentaje de viviendas principales sobre el total. Disponible a nivel municipal únicamente.',
+    publicadoPorSeccion: false,
+    etiquetaNoDifundido: 'No disponible a nivel de sección',
+  },
+  {
+    id: 'viviendas_vacías',
+    etiqueta: '% viviendas vacías',
+    tema: 'vivienda',
+    operation: '249',
+    operationLabel: 'Censo de Población y Viviendas 2021 (operación 249)',
+    sourceTable: '55249',
+    sourceLabel: 'No disponible a nivel de sección censal',
+    tableFamily: 'censo_sexo_edad',
+    url: 'https://www.ine.es/dyngs/INEbase/es/operacion.htm?c=Estadistica_C&cid=1254736176951&menu=resultados&idp=1254735572981',
+    unidad: '%',
+    universo: 'Total de viviendas (Censo 2021)',
+    denominador: 'Total de viviendas',
+    definicion: 'Porcentaje de viviendas vacías sobre el total. Disponible a nivel municipal únicamente.',
+    publicadoPorSeccion: false,
+    etiquetaNoDifundido: 'No disponible a nivel de sección',
+  },
+];

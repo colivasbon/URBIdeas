@@ -16,6 +16,7 @@ import type { EntradaLeyendaAtlas } from "./SeccionesAtlasMap";
 const MODOS: Array<{ valor: ModoClasificacion; etiqueta: string }> = [
   { valor: "cuantil", etiqueta: "Cuantiles" },
   { valor: "intervalos_iguales", etiqueta: "Intervalos iguales" },
+  { valor: "jenks", etiqueta: "Jenks" },
   { valor: "cortes_manuales", etiqueta: "Manual" },
 ];
 

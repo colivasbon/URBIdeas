@@ -12,6 +12,7 @@ import { useId, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import Link from "next/link";
 import type { SeccionesAtlasV1, SeccionIndicador, SeccionIndicadorCobertura, SeccionTema } from "@/lib/socideas-secciones";
+import { INDICADORES_NO_SECCIONALES } from "@/lib/ine-censo-education-housing";
 
 export interface GrupoTema {
   id: string;
@@ -24,9 +25,9 @@ export interface GrupoTema {
 export const GRUPOS_TEMA: ReadonlyArray<GrupoTema> = [
   { id: "economico", etiqueta: "Económico", temas: ["renta", "desigualdad"] },
   { id: "demografia", etiqueta: "Población", temas: ["demografia"] },
-  { id: "educacion", etiqueta: "Educación", temas: [] },
-  { id: "vivienda", etiqueta: "Vivienda", temas: [] },
-  { id: "laboral", etiqueta: "Laboral", temas: [] },
+  { id: "educacion", etiqueta: "Educación", temas: ["educacion"] },
+  { id: "vivienda", etiqueta: "Vivienda", temas: ["vivienda"] },
+  { id: "laboral", etiqueta: "Laboral", temas: ["laboral"] },
 ];
 
 type EstadoIndicador = "ok" | "nd" | "no";
@@ -88,15 +89,17 @@ export default function SeccionesIndicadorBuscador({
 }) {
   const baseId = useId().replace(/[^a-zA-Z0-9]/g, "");
   const items = useMemo<ItemIndicador[]>(
-    () =>
-      indicadores.map((indicador) => {
+    () => {
+      const todosLosIndicadores = [...indicadores, ...INDICADORES_NO_SECCIONALES];
+      return todosLosIndicadores.map((indicador) => {
         const cob = cobertura.find((c) => c.indicatorId === indicador.id);
         const periodo = cob && cob.periodos.length ? Math.max(...cob.periodos) : null;
         let estado: EstadoIndicador = "ok";
         if (!indicador.publicadoPorSeccion || periodo === null) estado = "no";
         else if (hayNd(observaciones, indicador.id, periodo)) estado = "nd";
         return { indicador, grupoId: grupoDe(indicador.tema), periodo, estado };
-      }),
+      });
+    },
     [indicadores, cobertura, observaciones],
   );
 

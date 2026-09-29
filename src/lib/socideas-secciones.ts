@@ -53,7 +53,7 @@ export function admiteValor(status: SeccionValorStatus): boolean {
 // Catálogo de indicadores
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type SeccionTema = 'renta' | 'desigualdad' | 'demografia'
+export type SeccionTema = 'renta' | 'desigualdad' | 'demografia' | 'educacion' | 'vivienda' | 'laboral'
 
 export interface SeccionIndicador {
   /** Identificador estable en SOCideas. */
@@ -431,7 +431,7 @@ export function notaCotaSuperior(nota: string | null | undefined): string | null
 // Clasificación coroplética
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type ModoClasificacion = 'cuantil' | 'intervalos_iguales' | 'cortes_manuales'
+export type ModoClasificacion = 'cuantil' | 'intervalos_iguales' | 'cortes_manuales' | 'jenks'
 
 export const CLASES_MINIMO = 3
 export const CLASES_MAXIMO = 7
@@ -495,6 +495,57 @@ export function colorDeClase(indice: number, total: number, divergente = false):
   return rampa[Math.min(rampa.length - 1, Math.max(0, pos))]
 }
 
+/** Algoritmo de Jenks Natural Breaks: optimiza los puntos de corte
+ *  minimizando la varianza dentro de las clases. Implementación simplificada
+ *  O(n·k²) que funciona bien para n < 1000 y k ≤ 7. */
+function clasificarJenks(valores: number[], numClases: number): number[] {
+  if (valores.length < numClases || numClases < 2) return []
+  const n = valores.length
+  const k = numClases
+  // Matriz de sumas cuadradas: matriz[i][j] = suma de cuadrados de valores[i..j]
+  const sums = Array.from({ length: n + 1 }, () => 0)
+  const sumSq = Array.from({ length: n + 1 }, () => 0)
+  for (let i = 0; i < n; i++) {
+    sums[i + 1] = sums[i] + valores[i]
+    sumSq[i + 1] = sumSq[i] + valores[i] * valores[i]
+  }
+  // Función auxiliar: varianza del rango [a, b)
+  const varianza = (a: number, b: number): number => {
+    const count = b - a
+    if (count <= 1) return 0
+    const mean = sums[b] - sums[a]
+    const variance = (sumSq[b] - sumSq[a]) - (mean * mean) / count
+    return Math.max(0, variance)
+  }
+  // Tablas dinámicas: D[i][j] = mínima varianza total para particionar valores[0..i) en j clases
+  const D = Array.from({ length: n + 1 }, () => Array(k + 1).fill(Infinity))
+  const P = Array.from({ length: n + 1 }, () => Array(k + 1).fill(0))
+  // Base: 0 elementos en 0 clases
+  for (let i = 0; i <= n; i++) D[i][0] = i === 0 ? 0 : Infinity
+  for (let j = 0; j <= k; j++) D[0][j] = 0
+  // Rellenar tablas: para cada posición y número de clases
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= Math.min(i, k); j++) {
+      // Probar todos los puntos de corte posibles
+      for (let m = j - 1; m < i; m++) {
+        const cost = D[m][j - 1] + varianza(m, i)
+        if (cost < D[i][j]) {
+          D[i][j] = cost
+          P[i][j] = m
+        }
+      }
+    }
+  }
+  // Reconstruir los puntos de corte desde la tabla P
+  const cortes: number[] = []
+  let pos = n
+  for (let j = k; j > 1; j--) {
+    pos = P[pos][j]
+    if (pos > 0) cortes.unshift(valores[pos - 1])
+  }
+  return cortes
+}
+
 function formatoNumero(v: number, unidad: string): string {
   const abs = Math.abs(v)
   const decimales = abs >= 100 ? 0 : abs >= 10 ? 1 : 2
@@ -535,12 +586,16 @@ export function clasificar(
     // Menos valores distintos que clases pedidas → se reduce (no se repite color).
     const n = Math.max(1, Math.min(pedidas, distintos))
     cortes = []
-    for (let i = 1; i < n; i++) {
-      if (opciones.modo === 'cuantil') {
-        const idx = Math.floor((ordenados.length * i) / n)
-        cortes.push(ordenados[Math.min(ordenados.length - 1, idx)])
-      } else {
-        cortes.push(min + ((max - min) * i) / n)
+    if (opciones.modo === 'jenks') {
+      cortes = clasificarJenks(ordenados, n)
+    } else {
+      for (let i = 1; i < n; i++) {
+        if (opciones.modo === 'cuantil') {
+          const idx = Math.floor((ordenados.length * i) / n)
+          cortes.push(ordenados[Math.min(ordenados.length - 1, idx)])
+        } else {
+          cortes.push(min + ((max - min) * i) / n)
+        }
       }
     }
     // Cortes duplicados en cuantiles → se deduplican y se reduce el nº de clases.

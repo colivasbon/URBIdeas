@@ -73,6 +73,8 @@ export interface SeccionesAtlasPanelProps {
   /** Lectura del mapa (leyenda y sección seleccionada), bajo el selector de
    *  indicador y año. */
   lectura?: ReactNode;
+  /** Buscador de indicadores por pestañas; sustituye al desplegable plano. */
+  selectorIndicador?: ReactNode;
   /** En móvil, los ajustes de clasificación y presentación se pliegan. En
    *  escritorio están siempre visibles. */
   ajustesAbiertos?: boolean;
@@ -104,6 +106,7 @@ export default function SeccionesAtlasPanel({
   onExportarPlano,
   urlXlsx,
   lectura,
+  selectorIndicador,
   ajustesAbiertos = true,
   onAlternarAjustes,
 }: SeccionesAtlasPanelProps) {
@@ -114,6 +117,7 @@ export default function SeccionesAtlasPanel({
   const sinClasificar = sinIndicadores || plano;
   return (
     <div className="flex flex-col gap-5">
+      {selectorIndicador ?? (
       <fieldset disabled={sinIndicadores} className="flex flex-col">
         <legend className="sr-only">Indicador</legend>
         <label htmlFor="atlas-indicador" className={ETIQUETA}>
@@ -138,6 +142,7 @@ export default function SeccionesAtlasPanel({
           se representa: no existe dato oficial a ese grano.
         </p>
       </fieldset>
+      )}
 
       <fieldset disabled={!opciones} className="flex flex-col">
         <legend className="sr-only">Año de referencia</legend>

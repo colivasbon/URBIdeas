@@ -557,13 +557,12 @@ export function clasificar(
     conteo[clase] += 1
   }
 
-  const resultado: CorteClase[] = cortes.map((c, i) => {
+  // Una clase por intervalo: `cortes.length + 1`. Mapear solo `cortes` perdía la
+  // clase superior (y sus secciones) de la leyenda.
+  const resultado: CorteClase[] = Array.from({ length: nClases }, (_, i) => {
     const inf = limites[i]
     const sup = limites[i + 1]
-    const ultima = i === nClases - 1
-    const etq = ultima
-      ? `${formatoNumero(inf, opciones.unidad)} o más`
-      : `${formatoNumero(inf, opciones.unidad)} – ${formatoNumero(sup, opciones.unidad)}`
+    const etq = `${formatoNumero(inf, opciones.unidad)} – ${formatoNumero(sup, opciones.unidad)}`
     return {
       min: inf,
       max: sup,

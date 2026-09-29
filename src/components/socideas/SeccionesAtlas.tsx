@@ -22,7 +22,7 @@
 //  - No convierte un ND en 0 ni lo mete en una clase de color.
 //  - Ningún control de presentación cambia un dato.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -47,14 +47,12 @@ import type {
   SeccionFeature,
   SeccionIndicador,
   SeccionPorPeriodo,
-  SeccionTema,
   SeccionValorStatus,
   SeccionesAtlasV1,
 } from "@/lib/socideas-secciones";
 import { componerPngMapa, nombreArchivoPngSecciones, tokenIma, type EscalaPng } from "@/lib/socideas-secciones-png";
 import SeccionesAtlasMap, {
   COLOR_CONTORNO_CLASE,
-  LeyendaAtlas,
   centroideGeometria,
   type EntradaLeyendaAtlas,
   type FilaAtlas,
@@ -65,6 +63,9 @@ import SeccionesAtlasMap, {
 import SeccionesAtlasPanel, { avisoDeCortes } from "./SeccionesAtlasPanel";
 import SeccionesAtlasTable from "./SeccionesAtlasTable";
 import SeccionesAtlasDetalle from "./SeccionesAtlasDetalle";
+import SeccionesIndicadorBuscador, { GRUPOS_TEMA } from "./SeccionesIndicadorBuscador";
+import SectionLegend from "./SectionLegend";
+import SectionMeta from "./SectionMeta";
 
 type Estado = "idle" | "cargando" | "ok" | "error";
 
@@ -72,13 +73,6 @@ const CLASES_POR_DEFECTO = 5;
 const MODO_POR_DEFECTO: ModoClasificacion = "cuantil";
 const ETIQUETA_SIN_DATO = "Sin dato / ND";
 const MS_ESPERA_MAPA = 4000;
-
-/** Agrupación de los indicadores en pestañas. Cada grupo reúne temas completos
- *  de una misma operación estadística para no mezclar unidades ni años. */
-const GRUPOS_TEMA: ReadonlyArray<{ id: string; etiqueta: string; temas: SeccionTema[] }> = [
-  { id: "economico", etiqueta: "Económico", temas: ["renta", "desigualdad"] },
-  { id: "demografia", etiqueta: "Demografía", temas: ["demografia"] },
-];
 
 interface RespuestaApi {
   data: {
@@ -120,6 +114,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const mapaRef = useRef<HandleAtlas | null>(null);
+  const [aplicando, iniciarTransicion] = useTransition();
 
   // ── Carga bajo demanda ──────────────────────────────────────────────────
   const cargar = useCallback(async () => {
@@ -285,7 +280,8 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   );
 
   const escribirParams = useCallback(
-    (parche: Parameters<typeof urlDesde>[0]) => router.replace(urlDesde(parche), { scroll: false }),
+    (parche: Parameters<typeof urlDesde>[0]) =>
+      iniciarTransicion(() => router.replace(urlDesde(parche), { scroll: false })),
     [router, urlDesde],
   );
 
@@ -581,25 +577,6 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
         </div>
       )}
 
-      {!sinAtlas && gruposDisponibles.length > 1 && (
-        <div
-          role="radiogroup"
-          aria-label="Tema de los datos"
-          className="inline-flex flex-wrap overflow-hidden rounded-[6px] border border-[var(--border-default)]"
-        >
-          {gruposDisponibles.map((g, i) => (
-            <BotonVista
-              key={g.id}
-              activo={grupoActivo === g.id}
-              separado={i > 0}
-              onClick={() => escribirParams({ g: g.id, ind: null, anio: null })}
-            >
-              {g.etiqueta}
-            </BotonVista>
-          ))}
-        </div>
-      )}
-
       {/* Maquetación: el mapa manda. En escritorio, mapa y tabla a la izquierda
           y panel lateral fijo a la derecha; en móvil, el panel se apila bajo el
           mapa y la tabla queda al final. */}
@@ -621,21 +598,65 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
           </div>
 
           {vista === "mapa" ? (
-            <SeccionesAtlasMap
-              ref={mapaRef}
-              features={featuresGeo}
-              filas={vista_.filas}
-              municipioNombre={nombre}
-              tituloLeyenda={vista_.tituloLeyenda}
-              subtituloLeyenda={vista_.subtituloLeyenda}
-              entradasLeyenda={vista_.entradasLeyenda}
-              descripcion={vista_.descripcionMapa}
-              presentacion={presentacion}
-              seleccion={seleccion}
-              hovered={hovered}
-              onSeleccionar={(key) => escribirParams({ sec: key })}
-              onHover={setHovered}
-              sinLeyenda
+            <div className="relative grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(11rem,1fr)]">
+              <div className="relative min-w-0">
+                <SeccionesAtlasMap
+                  ref={mapaRef}
+                  features={featuresGeo}
+                  filas={vista_.filas}
+                  municipioNombre={nombre}
+                  tituloLeyenda={vista_.tituloLeyenda}
+                  subtituloLeyenda={vista_.subtituloLeyenda}
+                  entradasLeyenda={vista_.entradasLeyenda}
+                  descripcion={vista_.descripcionMapa}
+                  presentacion={presentacion}
+                  seleccion={seleccion}
+                  hovered={hovered}
+                  onSeleccionar={(key) => escribirParams({ sec: key })}
+                  onHover={setHovered}
+                  sinLeyenda
+                />
+                {aplicando && (
+                  <div
+                    role="status"
+                    className="absolute inset-0 z-[800] flex items-center justify-center bg-[var(--hueso)]/70"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--border-subtle)] border-t-[var(--moss-ink)] motion-reduce:animate-none"
+                    />
+                    <span className="sr-only">Aplicando indicador…</span>
+                  </div>
+                )}
+              </div>
+              <SectionLegend
+                titulo={indicador?.etiqueta ?? vista_.tituloLeyenda}
+                unidad={indicador?.unidad ?? ""}
+                anio={params.anio}
+                entradas={vista_.entradasLeyenda}
+                modo={params.modo}
+                onModo={(m) => escribirParams({ modo: m })}
+                sinValores={sinValoresObservados}
+              />
+            </div>
+          ) : null}
+
+          {indicador && !sinValoresObservados ? (
+            <SectionMeta
+              operacion={indicador.operation}
+              operacionEtiqueta={indicador.operationLabel}
+              tabla={indicador.sourceTable}
+              tablaEtiqueta={indicador.sourceLabel}
+              urlIneBase={indicador.url}
+              geometriaYear={atlas?.geometryYear ?? datos?.anio_delimitacion ?? null}
+              geometriaColeccion={atlas?.geometryCollection ?? null}
+              geometriaFuente={atlas?.geometrySource ?? datos?.fuente ?? null}
+              geometriaConsultada={atlas?.geometryRetrievedAt ?? null}
+              estadisticaConsultada={atlas?.statsRetrievedAt ?? null}
+              periodo={params.anio}
+              nSecciones={vista_.nSecciones}
+              nConDato={vista_.nConDato}
+              nSinDato={vista_.nSinDato}
             />
           ) : null}
         </div>
@@ -647,6 +668,20 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
         >
           <SeccionesAtlasPanel
             codigoINE={codigoINE}
+            selectorIndicador={
+              atlas ? (
+                <SeccionesIndicadorBuscador
+                  codigoINE={codigoINE}
+                  municipioNombre={nombre}
+                  indicadores={todosLosIndicadores}
+                  cobertura={atlas.cobertura}
+                  observaciones={atlas.observations}
+                  indicadorId={params.indicatorId}
+                  cargando={aplicando}
+                  onSeleccionar={(ind, g) => escribirParams({ g, ind: ind.id, anio: null })}
+                />
+              ) : undefined
+            }
             indicadores={indicadores}
             indicadorId={params.indicatorId}
             periodos={params.periodos}
@@ -682,18 +717,6 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
             }
             lectura={
               <>
-                <div className="border-t border-[var(--border-subtle)] pt-5">
-                  <LeyendaAtlas
-                    titulo={vista_.tituloLeyenda}
-                    subtitulo={vista_.subtituloLeyenda}
-                    entradas={vista_.entradasLeyenda}
-                    fuente={
-                      indicador && params.anio !== null && !sinValoresObservados
-                        ? `Fuente: ${indicador.operationLabel}, tabla ${indicador.sourceTable}. Periodo ${params.anio}.`
-                        : null
-                    }
-                  />
-                </div>
                 <SeccionesAtlasDetalle
                   fila={filaSeleccionada}
                   indicador={indicador}

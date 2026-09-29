@@ -231,9 +231,11 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
 
   await esperarFuente();
 
-  const W = 1200; // ancho lógico fijo: el PNG es un documento, no una captura.
+  const W = 1400; // ancho lógico aumentado para acomodar mapa + leyenda lado a lado
   const M = 30;
-  const ANCHO_UTIL = W - M * 2;
+  const ANCHO_MAPA = 1000; // ancho del mapa (izquierda)
+  const ANCHO_LEYENDA = W - M * 2 - ANCHO_MAPA - 20; // ancho de leyenda (derecha, con gap)
+  const ANCHO_UTIL = W - M * 2; // ancho total útil (para títulos, pie)
   const t = {
     hueso: token("--hueso"),
     texto: token("--carbon-600"),
@@ -271,32 +273,18 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
   }
   const lineasSubtitulo = subtitulos.flatMap((s) => envolver(ctx, s, ANCHO_UTIL));
 
-  // Filas de leyenda: se miden con la misma fuente con la que se dibujan, para
-  // que el reparto en filas no se descuadre.
-  ctx.font = `400 11.5px ${FAMILIA}`;
-  const itemsLeyenda = opts.entradasLeyenda.map((e) => {
+  // Leyenda vertical compacta (derecha del mapa): una entrada por línea
+  ctx.font = `400 11px ${FAMILIA}`;
+  const itemsLeyendaVertical = opts.entradasLeyenda.map((e) => {
     const n = e.secciones === null ? "" : ` (${e.secciones})`;
-    return { entrada: e, texto: `${e.etiqueta}${n}`, ancho: 28 + 7 + ctx.measureText(`${e.etiqueta}${n}`).width + 18 };
+    return { entrada: e, texto: `${e.etiqueta}${n}` };
   });
-  const filas: (typeof itemsLeyenda)[] = [];
-  let actual: typeof itemsLeyenda = [];
-  let anchoFila = 0;
-  for (const item of itemsLeyenda) {
-    if (actual.length && anchoFila + item.ancho > ANCHO_UTIL) {
-      filas.push(actual);
-      actual = [];
-      anchoFila = 0;
-    }
-    actual.push(item);
-    anchoFila += item.ancho;
-  }
-  if (actual.length) filas.push(actual);
 
-  ctx.font = `400 10.5px ${FAMILIA}`;
-  const notaLeyenda = envolver(
+  ctx.font = `400 9.5px ${FAMILIA}`;
+  const notaLeyendaCorta = envolver(
     ctx,
-    "La trama diagonal marca las secciones sin dato (ND). El ND no equivale a cero y nunca forma parte de las clases de la escala.",
-    ANCHO_UTIL,
+    "ND: sin dato (≠ cero)",
+    ANCHO_LEYENDA - 8,
   );
 
   // El pie se envuelve algo más estrecho para dejar el hueco de la marca IMA.
@@ -305,12 +293,13 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
   // Alto del mapa: proporción del mapa base acotada para que el documento respire.
   const base = anchoBase(opts.base);
   const relacion = base.h / Math.max(1, base.w);
-  const altoMapa = Math.round(Math.max(430, Math.min(780, relacion * W)));
+  const altoMapa = Math.round(Math.max(500, Math.min(700, relacion * ANCHO_MAPA)));
 
   const altoCabecera = 20 + lineasTitulo.length * 28 + lineasSubtitulo.length * 17 + 30;
-  const altoLeyenda = 18 + notaLeyenda.length * 14 + filas.length * 22 + 16;
+  const altoLeyendaConNota = 18 + itemsLeyendaVertical.length * 18 + notaLeyendaCorta.length * 12 + 12; // compacto vertical
+  const altoLeyendaFinal = Math.max(altoLeyendaConNota, altoMapa); // leyenda se expande si es necesario
   const altoPie = 20 + lineasPie.length * 14 + 18;
-  const H = M + altoCabecera + altoMapa + altoLeyenda + altoPie + M;
+  const H = M + altoCabecera + altoLeyendaFinal + altoPie + M;
 
   // ── Pasada 2: dibujo ─────────────────────────────────────────────────────
   lienzo.width = Math.round(W * escala);
@@ -362,69 +351,69 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
   ctx.lineTo(W - M, y + 0.5);
   ctx.stroke();
 
-  // Mapa ----------------------------------------------------------------
-  const marcoX = M;
-  const marcoY = y + 22;
-  ctx.fillStyle = t.hueso;
-  ctx.fillRect(marcoX, marcoY, ANCHO_UTIL, altoMapa);
+  // Mapa + Leyenda lado a lado =====================================================
+  const mapY = y + 22;
+  const mapX = M;
+  const leyX = mapX + ANCHO_MAPA + 20; // gap de 20px entre mapa y leyenda
 
-  const escalaAjuste = Math.min(ANCHO_UTIL / base.w, altoMapa / base.h);
+  // Mapa (izquierda) -------------------------------------------------------
+  ctx.fillStyle = t.hueso;
+  ctx.fillRect(mapX, mapY, ANCHO_MAPA, altoMapa);
+
+  const escalaAjuste = Math.min(ANCHO_MAPA / base.w, altoMapa / base.h);
   const anchoDibujo = base.w * escalaAjuste;
   const altoDibujo = base.h * escalaAjuste;
   try {
     ctx.drawImage(
       opts.base,
-      marcoX + (ANCHO_UTIL - anchoDibujo) / 2,
-      marcoY + (altoMapa - altoDibujo) / 2,
+      mapX + (ANCHO_MAPA - anchoDibujo) / 2,
+      mapY + (altoMapa - altoDibujo) / 2,
       anchoDibujo,
       altoDibujo,
     );
   } catch {
-    // Si el mapa base fuera ilegible, el marco queda en hueso: nunca un hueco
-    // negro ni un error silencioso. El pie lo declara.
+    // Si el mapa base fuera ilegible, el marco queda en hueso.
   }
   ctx.strokeStyle = t.limoClaro;
   ctx.lineWidth = 1;
-  ctx.strokeRect(marcoX + 0.5, marcoY + 0.5, ANCHO_UTIL - 1, altoMapa - 1);
+  ctx.strokeRect(mapX + 0.5, mapY + 0.5, ANCHO_MAPA - 1, altoMapa - 1);
 
-  y = marcoY + altoMapa;
+  // Leyenda (derecha) ------------------------------------------------------
+  let leyY = mapY;
 
-  // Leyenda -------------------------------------------------------------
-  y += 18;
+  // Título de leyenda
   ctx.fillStyle = t.textoFuerte;
-  ctx.font = `600 11.5px ${FAMILIA}`;
-  ctx.fillText(
-    `Leyenda · ${opts.indicador}${opts.unidad ? ` (${opts.unidad})` : ""}${opts.anio !== null ? ` · ${opts.anio}` : ""}`,
-    M,
-    y + 12,
-  );
-  y += 18;
+  ctx.font = `600 11px ${FAMILIA}`;
+  const tituloLey = `Leyenda${opts.unidad ? ` (${opts.unidad})` : ""}`;
+  ctx.fillText(tituloLey, leyX, leyY + 12);
+  leyY += 18;
 
+  // Entradas de leyenda (vertical, una por línea)
+  const tramaND = patronTramaSinDato(ctx, opts.colorSinDato, opts.colorContornoSinDato, 6);
+  ctx.font = `400 10px ${FAMILIA}`;
+  for (const item of itemsLeyendaVertical) {
+    const e = item.entrada;
+    ctx.fillStyle = e.esSinDato ? tramaND : e.color;
+    ctx.fillRect(leyX, leyY, 18, 12);
+    ctx.strokeStyle = t.texto;
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(leyX + 0.5, leyY + 0.5, 17, 11);
+    ctx.fillStyle = t.texto;
+    ctx.font = `400 9.5px ${FAMILIA}`;
+    ctx.fillText(item.texto, leyX + 22, leyY + 9);
+    leyY += 18;
+  }
+
+  // Nota sobre ND
+  leyY += 8;
   ctx.fillStyle = t.texto;
-  ctx.font = `400 10.5px ${FAMILIA}`;
-  for (const linea of notaLeyenda) {
-    ctx.fillText(linea, M, y + 10);
-    y += 14;
+  ctx.font = `400 9px ${FAMILIA}`;
+  for (const linea of notaLeyendaCorta) {
+    ctx.fillText(linea, leyX, leyY + 9);
+    leyY += 12;
   }
 
-  const tramaND = patronTramaSinDato(ctx, opts.colorSinDato, opts.colorContornoSinDato, 8);
-  for (const fila of filas) {
-    y += 22;
-    let x = M;
-    for (const item of fila) {
-      const e = item.entrada;
-      ctx.fillStyle = e.esSinDato ? tramaND : e.color;
-      ctx.fillRect(x, y, 28, 14);
-      ctx.strokeStyle = t.texto;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, y + 0.5, 27, 13);
-      ctx.fillStyle = t.texto;
-      ctx.font = `400 11.5px ${FAMILIA}`;
-      ctx.fillText(item.texto, x + 35, y + 11);
-      x += item.ancho;
-    }
-  }
-  y += 16;
+  y = mapY + altoLeyendaFinal;
 
   // Pie -----------------------------------------------------------------
   y += 20;

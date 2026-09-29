@@ -598,7 +598,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
           </div>
 
           {vista === "mapa" ? (
-            <div className="relative grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(11rem,1fr)]">
+            <div className="flex flex-col gap-6">
               <div className="relative min-w-0">
                 <SeccionesAtlasMap
                   ref={mapaRef}
@@ -619,7 +619,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
                 {aplicando && (
                   <div
                     role="status"
-                    className="absolute inset-0 z-[800] flex items-center justify-center bg-[var(--hueso)]/70"
+                    className="absolute inset-0 z-[800] flex items-center justify-center bg-[var(--bg-canvas)]/80"
                   >
                     <span
                       aria-hidden="true"

@@ -220,7 +220,7 @@ export default function SeccionesIndicadorBuscador({
                   }`}
                 >
                   {g.etiqueta}
-                  <span className="tnum rounded-[6px] bg-[var(--crisopa,#C2E189)] px-1.5 text-[11px] leading-5 text-[var(--carbon-600,#3C403E)]">
+                  <span className="tnum rounded-[6px] bg-[var(--crisopa,#C2E189)] px-1.5 text-[11px] leading-5 text-[var(--carbon-900,#1E2220)] font-medium">
                     {conteo(g.id)}
                   </span>
                 </button>
@@ -317,7 +317,7 @@ export default function SeccionesIndicadorBuscador({
           type="button"
           aria-label="Cerrar selector de indicadores"
           onClick={() => setHoja(false)}
-          className="fixed inset-0 z-[1090] bg-[var(--carbon-600,#3C403E)]/50 md:hidden"
+          className="fixed inset-0 z-[1090] bg-[var(--carbon-900,#1E2220)]/60 md:hidden"
         />
       )}
       <div

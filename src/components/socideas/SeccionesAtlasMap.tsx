@@ -722,7 +722,7 @@ export default function SeccionesAtlasMap({
         ref={hostRef}
         role="img"
         aria-label={descripcion}
-        className="relative h-[62vh] min-h-[22rem] w-full overflow-hidden rounded-[6px] border border-[var(--border-default)] bg-[var(--hueso)] sm:min-h-[28rem] lg:h-[36rem]"
+        className="relative h-[62vh] min-h-[22rem] w-full overflow-hidden rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] sm:min-h-[28rem] lg:h-[36rem]"
       >
         {presentacion.mostrarEtiquetas && etiquetasVisibles.length > 0 && (
           <ul aria-hidden="true" className="pointer-events-none absolute inset-0 z-[400] m-0 list-none p-0">

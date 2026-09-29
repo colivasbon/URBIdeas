@@ -58,7 +58,7 @@ export default function SectionLegend({
         onClick={() => setAbiertaMovil((v) => !v)}
         aria-expanded={abiertaMovil}
         aria-controls={idPanel}
-        className="absolute bottom-3 left-3 z-[500] min-h-[44px] rounded-[6px] border border-[var(--border-strong)] bg-[var(--hueso)] px-3 text-sm font-medium text-[var(--carbon-600,#3C403E)] md:hidden"
+        className="absolute bottom-3 left-3 z-[500] min-h-[44px] rounded-[6px] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm font-medium text-[var(--text-primary)] md:hidden"
       >
         {abiertaMovil ? "Ocultar leyenda" : "Ver leyenda"}
       </button>
@@ -66,7 +66,7 @@ export default function SectionLegend({
       <section
         id={idPanel}
         aria-label="Leyenda del mapa"
-        className={`min-w-0 rounded-[6px] border border-[var(--border-default)] bg-[var(--hueso)] p-3 text-[var(--carbon-600,#3C403E)] max-md:absolute max-md:inset-x-3 max-md:bottom-16 max-md:z-[500] max-md:max-h-[60%] max-md:overflow-y-auto md:flex md:flex-wrap md:items-start md:gap-x-6 md:gap-y-2 lg:block lg:h-[36rem] lg:self-end lg:overflow-y-auto ${
+        className={`min-w-0 rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-3 text-[var(--text-primary)] max-md:absolute max-md:inset-x-3 max-md:bottom-16 max-md:z-[500] max-md:max-h-[60%] max-md:overflow-y-auto md:flex md:flex-wrap md:items-start md:gap-x-6 md:gap-y-2 ${
           abiertaMovil ? "" : "max-md:hidden"
         }`}
       >
@@ -155,7 +155,7 @@ export default function SectionLegend({
               onKeyDown={(e) => {
                 if (e.key === "Escape") setPopover(false);
               }}
-              className="absolute bottom-full left-0 z-[600] mb-1 w-full min-w-[12rem] rounded-[6px] border border-[var(--border-strong)] bg-[var(--hueso)] p-1 shadow-none"
+              className="absolute bottom-full left-0 z-[600] mb-1 w-full min-w-[12rem] rounded-[6px] border border-[var(--border-strong)] bg-[var(--bg-surface)] p-1 shadow-none"
             >
               {MODOS.map((m) => (
                 <button

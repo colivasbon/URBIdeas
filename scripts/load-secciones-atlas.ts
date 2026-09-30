@@ -65,6 +65,10 @@ import { expandirAtlas } from '../src/lib/socideas-secciones-store'
 import PROVINCE_TABLES from '../src/lib/adrh-province-tables.json'
 import CENSO_TABLES from '../src/lib/censo-province-tables.json'
 import {
+  recorrerRangoPostgrest,
+  totalDesdeContentRange,
+} from './lib/paginacion-postgrest'
+import {
   construirCatalogoCenso,
   construirDemografiaCenso,
   parsearCenso,
@@ -662,13 +666,35 @@ async function municipiosFiltrados(
     `&codigo_ine=not.is.null&order=codigo_ine.asc`
   if (ines?.length) q += `&codigo_ine=in.(${ines.join(',')})`
   if (provincias?.length) q += `&codigo_ine=like.(${provincias.map((p) => `${p}%`).join(',')})`
-  const res = await fetch(q, { headers: { apikey: key, Authorization: `Bearer ${key}` } })
-  if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`)
-  const filas = (await res.json()) as {
-    codigo_ine: string
-    nombre: string
-    provincia: { nombre: string } | null
-  }[]
+
+  // PostgREST devuelve SOLO 1.000 filas por defecto y lo dice en Content-Range.
+  // Sin paginar, una carga nacional publicaría 1.000 de 8.132 municipios y no
+  // fallaría: parecería completa. `recorrerRangoPostgrest` recorre el rango
+  // entero y falla en cerrado ante cualquier recorte no explicable.
+  const filas = await recorrerRangoPostgrest<
+    { codigo_ine: string; nombre: string; provincia: { nombre: string } | null }
+  >(
+    async (desde, hasta) => {
+      const res = await fetch(q, {
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          Range: `${desde}-${hasta}`,
+        },
+      })
+      if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`)
+      const lote = (await res.json()) as {
+        codigo_ine: string
+        nombre: string
+        provincia: { nombre: string } | null
+      }[]
+      return { filas: lote, total: totalDesdeContentRange(res.headers.get('content-range')) }
+    },
+    {
+      pagina: 1000,
+      clave: (f) => f.codigo_ine,
+    },
+  )
   let out = filas
     .filter((f) => isValidIne5(f.codigo_ine))
     .map((f) => ({

@@ -1,0 +1,5 @@
+cod_elec,nombre_elec,cod_mesa,cod_municipio,cod_distrito,votantes_e,abstencion_e,nulos_e,blancos_e,candidatura_e,electores_e,validos_e,certificaciones_e,municipio,cod_comarca,comarca,cod_provincia,provincia
+CA2023,CORTES DE ARAGÓN 2023,5012601002B,50126,1,389,95,5,9,375,484,384,0,ILLUECA,14,Aranda,50,Zaragoza
+CA2023,CORTES DE ARAGÓN 2023,5012601002A,50126,1,402,169,4,4,394,571,398,0,ILLUECA,14,Aranda,50,Zaragoza
+CA2023,CORTES DE ARAGÓN 2023,5012601001B,50126,1,394,140,10,4,380,534,384,0,ILLUECA,14,Aranda,50,Zaragoza
+CA2023,CORTES DE ARAGÓN 2023,5012601001A,50126,1,404,123,2,4,398,527,402,0,ILLUECA,14,Aranda,50,Zaragoza

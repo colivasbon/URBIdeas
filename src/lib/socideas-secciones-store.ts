@@ -93,6 +93,32 @@ export async function leerAtlasCompacto(
   }
 }
 
+/** Tamaño del objeto en R2, o `null` si no existe. */
+async function tamanoObjeto(codigoIne: string, timeoutMs = 10000): Promise<number | null> {
+  const url = `${seccionesR2Base()}/${seccionesR2Key(codigoIne)}`
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(url, { method: 'HEAD', signal: controller.signal, cache: 'no-store' })
+    if (res.status === 404) return null
+    if (!res.ok) return null
+    const n = Number(res.headers.get('content-length'))
+    return Number.isFinite(n) && n > 0 ? n : null
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** El Data Cache de Next.js rechaza elementos de más de 2 MB. El atlas de un
+ *  municipio grande lo es con holgura (Madrid, 22 MB), así que probar la caché
+ *  a ciegas abortaba la respuesta entera con
+ *  «items over 2MB can not be cached». Por eso el tamaño se consulta ANTES:
+ *  el objeto pequeño se cachea con su etiqueta de invalidación y el grande se
+ *  lee siempre fresco de R2. */
+const LIMITE_DATA_CACHE = 1_800_000
+
 /** Expande el objeto compacto al contrato completo, con un año por defecto. */
 export function expandirAtlas(
   compacto: SeccionesAtlasR2V1,
@@ -186,9 +212,7 @@ export async function leerAtlasParaApi(
   const inds = (opciones.indicadores ?? []).join(',')
   const tag = `socideas-muni-${codigoIne}`
 
-  const leer = async (): Promise<SeccionesAtlasV1 | null> => {
-    const compacto = await leerAtlasCompacto(codigoIne).catch(() => null)
-    if (!compacto) return null
+  const expande = (compacto: SeccionesAtlasR2V1): SeccionesAtlasV1 => {
     const atlas = expandirAtlas(compacto, {
       anio: anio === -1 ? undefined : anio,
       indicadores: inds ? inds.split(',') : undefined,
@@ -196,16 +220,11 @@ export async function leerAtlasParaApi(
     // La validación se hace sobre lo que se va a servir, no sobre el bruto.
     const v = validarSeccionesAtlas(atlas)
     if (!v.ok) {
-      throw new AtlasInvalido(
-        `Atlas de ${codigoIne} no valida: ${v.errores.slice(0, 3).join(' | ')}`,
-      )
+      throw new AtlasInvalido(`Atlas de ${codigoIne} no valida: ${v.errores.slice(0, 3).join(' | ')}`)
     }
     return atlas
   }
 
-  // `unstable_cache` solo puede cachear funciones sin argumentos no serializables;
-  // el tag se fija en la clave de caché.
-  //
   // Un municipio SIN atlas publicado NO debe quedar cacheado como «null» durante
   // una hora: si la ingesta llega después, Vercel seguiría sirviendo la ausencia
   // (y el usuario leería «no publicado» en vez de «todavía no cargado»). Por eso
@@ -213,17 +232,33 @@ export async function leerAtlasParaApi(
   // resultados de una función que lanza, así que la próxima petición vuelve a
   // comprobar R2 y recoge el objeto en cuanto exista. Solo el atlas presente se
   // cachea (y se puede invalidar por tag tras una ingesta).
-  const cached = unstable_cache(
-    async () => {
-      const atlas = await leer()
-      if (!atlas) throw new AtlasNoPublicado(`Sin atlas publicado para ${codigoIne}`)
-      return atlas
-    },
-    [codigoIne, String(anio), inds],
-    { revalidate: 3600, tags: [tag] },
-  )
+  const leer = async (): Promise<SeccionesAtlasV1 | null> => {
+    const bytes = await tamanoObjeto(codigoIne)
+    if (bytes !== null && bytes > LIMITE_DATA_CACHE) {
+      // Objeto grande: se lee fresco. La etiqueta de invalidación sigue sirviendo
+      // para los municipios pequeños.
+      const compacto = await leerAtlasCompacto(codigoIne).catch(() => null)
+      return compacto ? expande(compacto) : null
+    }
+    const cached = unstable_cache(
+      async () => {
+        const compacto = await leerAtlasCompacto(codigoIne).catch(() => null)
+        if (!compacto) throw new AtlasNoPublicado(`Sin atlas publicado para ${codigoIne}`)
+        return compacto
+      },
+      [`compacto-${codigoIne}`],
+      { revalidate: 3600, tags: [tag] },
+    )
+    try {
+      return expande(await cached())
+    } catch (e) {
+      if (e instanceof AtlasNoPublicado || (e as { noPublicado?: boolean })?.noPublicado) return null
+      throw e
+    }
+  }
+
   try {
-    return await cached()
+    return await leer()
   } catch (e) {
     if (e instanceof AtlasNoPublicado || (e as { noPublicado?: boolean })?.noPublicado) return null
     throw e

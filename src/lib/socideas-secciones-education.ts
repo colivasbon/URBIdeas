@@ -239,9 +239,195 @@ export const EDUCATION_INDICATORS: readonly EducationIndicator[] = [
     '100 * act_personas_estudiantes / act_personas_total_16'),
 ]
 // ─────────────────────────────────────────────────────────────────────────────
-// Objetos por municipio
+// Objeto publicado en R2 — CONTRATO REAL
+//
+// Es exactamente lo que escribe `scripts/load-section-education.ts` en
+//   socideas/secciones/v1/education/normalized/{period}/{codigoINE}.json
+// y lo que leen la API y el atlas. Claves en snake_case, como el resto de
+// objetos de ingesta. No lleva geometría: la geometría es la del atlas base
+// (`socideas/secciones/v1/municipal/{codigoINE}.json`) y se une por CUSEC.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Estado de una celda educativa. Subconjunto de `SeccionValorStatus`. */
+export type EducationObservationStatus =
+  | 'observado'
+  | 'derivado_verificable'
+  | 'no_difundido'
+  | 'sin_cobertura'
+  | 'error_ingesta'
+
+/** Una observación sección × indicador. `value` es null salvo observado/derivado. */
+export interface EducationObservation {
+  value: number | null
+  /** Recuento del numerador. En los absolutos coincide con `value`. */
+  numerator: number | null
+  /** Recuento del denominador (sólo porcentajes). */
+  denominator: number | null
+  status: EducationObservationStatus
+  /** true si la celda no se difundió (vacío o '.' en el CSV del INE). */
+  nd_flag: boolean
+  /** true si el motivo es el secreto estadístico (sección < 50 habitantes). */
+  suppression_flag: boolean
+  /** 'statistical_confidentiality' | 'denominador_cero' | 'componente_no_disponible' | … */
+  reason: string | null
+}
+
+export interface EducationSection {
+  /** CUSEC oficial de 10 dígitos. */
+  sectionCode: string
+  /** INE municipal de 5 dígitos (= prefijo del CUSEC). */
+  municipalityCode: string
+  provinceCode: string
+  /** Denominación literal de la sección en el CSV. */
+  sourceLabel: string
+  /** indicatorId → observación. */
+  values: Record<string, EducationObservation>
+}
+
+/** Disponibilidad real de un indicador en un municipio o en el catálogo. */
+export interface EducationIndicatorAvailability {
+  /** Secciones con valor observado o derivado. */
+  observed_sections: number
+  /** Secciones ND (secreto estadístico o denominador cero). */
+  nd_sections: number
+  /** Secciones con `sin_cobertura`. */
+  no_coverage_sections: number
+}
+
+export interface EducationMunicipalObject {
+  schema_version: typeof EDUCATION_SCHEMA_VERSION
+  domain: typeof EDUCATION_DOMAIN
+  period: number
+  municipality_code: string
+  municipality_name: string
+  province_code: string
+  parser_version: string
+  mapping_version: string
+  source: {
+    url: string
+    operation: string
+    education_table: number
+    activity_table: number
+    education_sha256: string
+    activity_sha256: string
+    /** Fecha de descarga del CSV original (estable entre ejecuciones con el mismo SHA). */
+    retrieved_at: string
+  }
+  sections: EducationSection[]
+  coverage: {
+    result_sections: number
+    sections_with_data: number
+    sections_suppressed: number
+    indicators: number
+    observations: number
+    nd: number
+    suppressed: number
+  }
+  /** indicatorId → disponibilidad en ESTE municipio. Base del badge. */
+  indicator_availability: Record<string, EducationIndicatorAvailability>
+  validation: {
+    leading_zeros_preserved: boolean
+    municipalities_matched: boolean
+    percentages_in_range: boolean
+    denominators_resolved: boolean
+    issues: string[]
+  }
+  quality_flags: string[]
+  /** SHA-256 del contenido sin campos volátiles. Base de la idempotencia. */
+  content_sha256: string
+}
+
+/** Catálogo publicado en `socideas/secciones/v1/education/catalog.json`. */
+export interface EducationCatalog {
+  schema_version: typeof EDUCATION_SCHEMA_VERSION
+  domain: typeof EDUCATION_DOMAIN
+  parser_version: string
+  mapping_version: string
+  /** Periodo por defecto (el más reciente publicado). */
+  period: number
+  /** Todos los periodos realmente publicados. */
+  periods: number[]
+  source: {
+    url: string
+    index_url: string
+    operation: string
+    label: string
+    organism: string
+    licence: string
+  }
+  indicators: Array<{
+    id: string
+    label: string
+    group: 'formacion' | 'actividad'
+    unit: string
+    population_base: string
+    definition: string
+    denominator: string | null
+    calculation_method: string | null
+    /** Tabla jaxiT3 por provincia: provinceCode → tableId. */
+    tables: Record<string, number>
+    availability: EducationIndicatorAvailability & { municipalities_with_data: number }
+  }>
+  exclusions: Array<{ id: string; reason: string }>
+  totals: {
+    provinces: number
+    provinces_ok: number
+    provinces_failed: number
+    municipalities: number
+    sections: number
+    observations: number
+    nd: number
+    suppressed: number
+  }
+  /** Códigos INE (5 dígitos) con objeto publicado para `period`. */
+  municipalities: string[]
+  geometry: {
+    join_key: 'CUSEC'
+    source: string
+    note: string
+  }
+  synced_at: string
+}
+
+export function isEducationMunicipalObject(obj: unknown): obj is EducationMunicipalObject {
+  if (!obj || typeof obj !== 'object') return false
+  const o = obj as Partial<EducationMunicipalObject>
+  return (
+    o.schema_version === EDUCATION_SCHEMA_VERSION &&
+    o.domain === EDUCATION_DOMAIN &&
+    typeof o.municipality_code === 'string' &&
+    /^\d{5}$/.test(o.municipality_code) &&
+    typeof o.period === 'number' &&
+    Array.isArray(o.sections)
+  )
+}
+
+/** Indicadores con al menos una sección observada en el municipio. Un indicador
+ *  con todas las celdas ND o sin cobertura NO cuenta para el badge. */
+export function educationIndicatorsWithData(obj: EducationMunicipalObject): string[] {
+  const out: string[] = []
+  const disp = obj.indicator_availability ?? {}
+  for (const ind of EDUCATION_INDICATORS) {
+    const a = disp[ind.id]
+    if (a) {
+      if (a.observed_sections > 0) out.push(ind.id)
+      continue
+    }
+    // Objetos sin `indicator_availability`: se calcula sobre las secciones.
+    if (obj.sections.some((s) => {
+      const v = s.values[ind.id]
+      return !!v && v.value !== null && (v.status === 'observado' || v.status === 'derivado_verificable')
+    })) out.push(ind.id)
+  }
+  return out
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Objetos por municipio — FORMA ANTIGUA (fixtures). Pendiente de eliminar junto
+// con SeccionesEducationExtension y socideas-test-data-local.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** @deprecated Usar `EducationMunicipalObject`. */
 export interface EducationSectionValue {
   sectionCode: string
   indicatorId: string

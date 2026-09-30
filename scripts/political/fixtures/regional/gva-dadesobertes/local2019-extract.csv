@@ -1,0 +1,27 @@
+ANYO;NUM_ELEC;COD_PROV;PROVINCIA;COD_COMARCA;COMARCA;COD_MUNICIPIO;MUNICIPIO;DISTRITO;SECCION;MESA;CANDIDATURAS;CENSO;VOTANTES;VALIDOS;BLANCOS;ABSTENCIONES;NULOS;CANDIDATO_COD;CANDIDATO_SIGLAS;CANDIDATO_DESC;VOTOS
+2019;1;3;Alicante;30;La Marina Alta;3001;Atzúbia, l';1;1;U;360;510;364;361;1;146;3;319;PP;Partido Popular;145
+2019;1;3;Alicante;30;La Marina Alta;3001;Atzúbia, l';1;1;U;360;510;364;361;1;146;3;445;IAF;Iniciativa per L'Atzúbia i Forna;215
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;3;A;383;494;389;385;2;105;4;3;AIA-COMPROMÍS;AIA – Compromís per Agost: Compromís Municipal;82
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;3;A;383;494;389;385;2;105;4;319;PP;Partido Popular;191
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;3;A;383;494;389;385;2;105;4;322;PSOE;Partido Socialista Obrero Español;74
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;3;A;383;494;389;385;2;105;4;587;CS;Ciudadanos-Partido de la Ciudadanía;36
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;3;B;364;529;374;368;4;155;6;3;AIA-COMPROMÍS;AIA – Compromís per Agost: Compromís Municipal;80
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;3;B;364;529;374;368;4;155;6;319;PP;Partido Popular;192
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;3;B;364;529;374;368;4;155;6;322;PSOE;Partido Socialista Obrero Español;73
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;3;B;364;529;374;368;4;155;6;587;CS;Ciudadanos-Partido de la Ciudadanía;19
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;1;A;402;633;408;406;4;225;2;3;AIA-COMPROMÍS;AIA – Compromís per Agost: Compromís Municipal;66
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;1;A;402;633;408;406;4;225;2;319;PP;Partido Popular;173
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;1;A;402;633;408;406;4;225;2;322;PSOE;Partido Socialista Obrero Español;127
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;1;A;402;633;408;406;4;225;2;587;CS;Ciudadanos-Partido de la Ciudadanía;36
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;2;A;505;630;514;507;2;116;7;3;AIA-COMPROMÍS;AIA – Compromís per Agost: Compromís Municipal;71
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;2;A;505;630;514;507;2;116;7;319;PP;Partido Popular;280
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;2;A;505;630;514;507;2;116;7;322;PSOE;Partido Socialista Obrero Español;97
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;2;A;505;630;514;507;2;116;7;587;CS;Ciudadanos-Partido de la Ciudadanía;57
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;2;B;551;708;558;556;5;150;2;3;AIA-COMPROMÍS;AIA – Compromís per Agost: Compromís Municipal;105
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;2;B;551;708;558;556;5;150;2;319;PP;Partido Popular;283
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;2;B;551;708;558;556;5;150;2;322;PSOE;Partido Socialista Obrero Español;122
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;2;B;551;708;558;556;5;150;2;587;CS;Ciudadanos-Partido de la Ciudadanía;41
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;1;B;438;696;453;443;5;243;10;3;AIA-COMPROMÍS;AIA – Compromís per Agost: Compromís Municipal;77
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;1;B;438;696;453;443;5;243;10;319;PP;Partido Popular;214
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;1;B;438;696;453;443;5;243;10;322;PSOE;Partido Socialista Obrero Español;108
+2019;1;3;Alicante;32;L'Alacantí;3002;Agost;1;1;B;438;696;453;443;5;243;10;587;CS;Ciudadanos-Partido de la Ciudadanía;39

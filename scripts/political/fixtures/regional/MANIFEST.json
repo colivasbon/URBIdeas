@@ -1,0 +1,160 @@
+{
+  "generatedAt": "2026-09-29T19:53:38.974Z",
+  "rule": "extractos literales de ficheros oficiales; ver selection",
+  "fixtures": [
+    {
+      "fixture": "gva-dadesobertes/local2023-sheets-extract.json",
+      "source": "tmp/political-raw/regional/gva-dadesobertes/resultados-elecciones-locales_2023.ods",
+      "sourceSha256": "85c75cffe6a02f125a80fe667961cb72272575831ba2f98f4e91c6adb3b0325d",
+      "selection": "filas 1-2 de cada hoja + municipios 03001, 03002, 03008 y mesas 03019 03-005 / 04-002; hoja Candidaturas filtrada a las siglas usadas",
+      "bytes": 11641
+    },
+    {
+      "fixture": "gva-dadesobertes/autonomic2023-extract.csv",
+      "source": "tmp/political-raw/regional/gva-dadesobertes/resultados-elecciones-autonomicas-1-2023.csv",
+      "sourceSha256": "3a457408c7d9f01048e066ead0c76177d413cc4ae01281e68982c2f6707a486d",
+      "selection": "cabecera + Codimuni 3001, 3990 (CERA) y 12139 (incoherente)",
+      "bytes": 6713
+    },
+    {
+      "fixture": "gva-dadesobertes/local2019-extract.csv",
+      "source": "tmp/political-raw/regional/gva-dadesobertes/resultados-elecciones-locales-1-2019.csv",
+      "sourceSha256": "9660d92189b78f33dbbb1d5081a28a8baea1e4e316f01412f299b1cd152d133b",
+      "selection": "cabecera + COD_MUNICIPIO 3001 y 3002",
+      "bytes": 3391
+    },
+    {
+      "fixture": "gencat-dadeselectorals/A20241-Columnes-ME-extract.csv",
+      "source": "tmp/political-raw/regional/gencat-dadeselectorals/gencat_A20241_ME.zip!A20241-Columnes-ME.csv",
+      "sourceSha256": "c1006647374745fc251b5f6712817e9b433e94e59505f84701c18024a5dacf65",
+      "selection": "cabecera + Codi Municipi 08001/25001 y 08998 (Residents Absents)",
+      "bytes": 2944
+    },
+    {
+      "fixture": "gencat-dadeselectorals/A20241-Vots-ME-extract.csv",
+      "source": "tmp/political-raw/regional/gencat-dadeselectorals/gencat_A20241_ME.zip!A20241-Vots-ME.csv",
+      "sourceSha256": "c1006647374745fc251b5f6712817e9b433e94e59505f84701c18024a5dacf65",
+      "selection": "cabecera + mesa 08001 01-001-A",
+      "bytes": 1795
+    },
+    {
+      "fixture": "gencat-dadeselectorals/G20231-Columnes-ME-extract.csv",
+      "source": "tmp/political-raw/regional/gencat-dadeselectorals/gencat_G20231_ME.zip!G20231-Columnes-ME.csv",
+      "sourceSha256": "f362d44fe9a5c60fe94fedebdd7b4cd4755ba40b8b4ef73b6e2fb7244b1f6951",
+      "selection": "cabecera + Codi Municipi 08001/25001 y 08998 (Residents Absents)",
+      "bytes": 841
+    },
+    {
+      "fixture": "gencat-dadeselectorals/M20231-Columnes-ME-header.csv",
+      "source": "tmp/audit/political/dl/gencat_M20231_ME.zip!M20231-Columnes-ME.csv",
+      "sourceSha256": "a41c9b3580e531bac635c2439193bc981639bdb353292df2d78f44b6c8ed0e8e",
+      "selection": "cabecera + primera mesa (siglas repetidas en cabecera)",
+      "bytes": 30108
+    },
+    {
+      "fixture": "euskadi-descargas/MesPv24-extract.csv",
+      "source": "tmp/political-raw/regional/euskadi-descargas/Cas-csv.zip!MesPv24_c.csv",
+      "sourceSha256": "0f7c564bb7296af1c0209d93168bf72c4ebd139c3fb7d67915d61d261ad05dc1",
+      "selection": "rótulo + cabecera + Agurain 01-001 + mesas 999 (C.E.R.A.)",
+      "bytes": 2357
+    },
+    {
+      "fixture": "euskadi-descargas/MesP20-extract.csv",
+      "source": "tmp/political-raw/regional/euskadi-descargas/P20_c.zip!P20_c/MesP20_c.csv",
+      "sourceSha256": "e06973b081a979200f997dbf105cf7c923ff04071714a2d82b227af1a6f4cec0",
+      "selection": "rótulo + cabecera + Agurain 01-001 + mesas 999 (C.E.R.A.)",
+      "bytes": 931
+    },
+    {
+      "fixture": "navarra-datosabiertos/mesas_2023-extract.csv",
+      "source": "tmp/political-raw/regional/navarra-datosabiertos/escrutinio_parlamento_mesas_2023.csv",
+      "sourceSha256": "e2ac72bdb83f0fb9b026bf5bf44f9060f1be27921d3e5e6a641f524e33dd6fa2",
+      "selection": "cabecera + Codmun 1, 6, 990 (C.E.R.A.) y fila Total",
+      "bytes": 1099
+    },
+    {
+      "fixture": "navarra-datosabiertos/mesas_2019-extract.csv",
+      "source": "tmp/political-raw/regional/navarra-datosabiertos/escrutinio_parlamento_mesas_2019.csv",
+      "sourceSha256": "0d53310ab13ac959a6f33c73a8f8898707f306b3ddb4e02f54cae59728b4c107",
+      "selection": "cabecera + Codmun 1, 6, 990 (C.E.R.A.) y fila Total",
+      "bytes": 824
+    },
+    {
+      "fixture": "larioja-ias/cd374-extract.csv",
+      "source": "tmp/political-raw/regional/larioja-ias/larioja_cd374_mesas_ancho.csv",
+      "sourceSha256": "512f7e41a19166c866966579b1928f15e2d2aaf84229ad43fd5133c3a331979c",
+      "selection": "cabecera + 2023 municipios 1 y 2",
+      "bytes": 1699
+    },
+    {
+      "fixture": "larioja-ias/cd400-extract.csv",
+      "source": "tmp/political-raw/regional/larioja-ias/larioja_cd400_mesas_detalle.csv",
+      "sourceSha256": "7aab9496af2aaefc4aafcec65509c6f4f9905dcc7645a729ad0a1cb21d9d44a7",
+      "selection": "cabecera + 2023 municipios 1 y 2",
+      "bytes": 2209
+    },
+    {
+      "fixture": "aragon-opendata/CA2023_resource380-extract.csv",
+      "source": "tmp/political-raw/regional/aragon-opendata/aragon_CA2023_resource380.csv",
+      "sourceSha256": "34be880e596df3be5e02ea99dfd6ff94147904f06583b6573d34aead20d13e0f",
+      "selection": "cabecera + cod_municipio 50126 (Illueca)",
+      "bytes": 636
+    },
+    {
+      "fixture": "aragon-opendata/CA2023_resource381-extract.csv",
+      "source": "tmp/political-raw/regional/aragon-opendata/aragon_CA2023_resource381.csv",
+      "sourceSha256": "9e25bd81d084a62575e04adb3c496cfe7ce7c0c92dd86f6b28da16cf866cad12",
+      "selection": "cabecera + cod_municipio 50126 (Illueca)",
+      "bytes": 6560
+    },
+    {
+      "fixture": "aragon-opendata/CA2019_resource380-extract.csv",
+      "source": "tmp/political-raw/regional/aragon-opendata/aragon_CA2019_resource380.csv",
+      "sourceSha256": "bc55702f7ac608d637d39c41ef61be0fbb96de56cce4e369afb18ce93cb533d4",
+      "selection": "cabecera + cod_municipio 50126 (Illueca)",
+      "bytes": 640
+    },
+    {
+      "fixture": "aragon-opendata/CA2019_resource381-extract.csv",
+      "source": "tmp/political-raw/regional/aragon-opendata/aragon_CA2019_resource381.csv",
+      "sourceSha256": "cbd3d44f4d702d772cd93d483c768a012dc1dc094c0f32423160b79fbeda53e8",
+      "selection": "cabecera + cod_municipio 50126 (Illueca)",
+      "bytes": 7423
+    },
+    {
+      "fixture": "xunta-abertos/parlamento_2024_mesas_15-extract.csv",
+      "source": "tmp/political-raw/regional/xunta-abertos/xunta_parlamento_2024_mesas_15.csv",
+      "sourceSha256": "b763e5648136b80d805378532bd03dfe49025b063c9c17a1b6b1f365148735d1",
+      "selection": "cabecera + concello 007 (A Baña), primera mesa C.E.R.A. y fila Total",
+      "bytes": 1099
+    },
+    {
+      "fixture": "xunta-abertos/parlamento_2020_mesas_15-extract.csv",
+      "source": "tmp/political-raw/regional/xunta-abertos/xunta_parlamento_2020_mesas_15.csv",
+      "sourceSha256": "39d090b70d0df408f41fef97b9c86311fe12b4cc9220064004ce6e9889206684",
+      "selection": "cabecera + concello 007 (A Baña), primera mesa C.E.R.A. y fila Total",
+      "bytes": 1248
+    },
+    {
+      "fixture": "carm-datosabiertos/ELEC_09051905-extract.json",
+      "source": "tmp/political-raw/regional/carm-datosabiertos/ELEC_09051905.xlsx",
+      "sourceSha256": "6ded8e87d7efd3767aa250ad475957d19fa7566eef5b1afc0a94454f9d7a1c8f",
+      "selection": "cabecera + C.Municipio 001 y 999 (C.E.R.A.)",
+      "bytes": 2374
+    },
+    {
+      "fixture": "carm-datosabiertos/ELEC_10051905-extract.json",
+      "source": "tmp/political-raw/regional/carm-datosabiertos/ELEC_10051905.xlsx",
+      "sourceSha256": "d65d9567aa2e0767adeef2f30b03f1ebf091f63da49f1d9536b469ffd9469460",
+      "selection": "cabecera + C.Municipio 001 y 999",
+      "bytes": 17388
+    },
+    {
+      "fixture": "carm-datosabiertos/ELEC_03051905.json",
+      "source": "tmp/political-raw/regional/carm-datosabiertos/ELEC_03051905.xlsx",
+      "sourceSha256": "c861770c206b23f84c94eb328c1fab3e3ed8fa4b1f7c1cf7591e37f8878b445e",
+      "selection": "fichero completo (15 candidaturas)",
+      "bytes": 1901
+    }
+  ]
+}

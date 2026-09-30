@@ -11,6 +11,7 @@
 import { useId, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import Link from "next/link";
+import { admiteValor } from "@/lib/socideas-secciones";
 import type { SeccionesAtlasV1, SeccionIndicador, SeccionIndicadorCobertura, SeccionTema } from "@/lib/socideas-secciones";
 import { INDICADORES_NO_SECCIONALES } from "@/lib/ine-censo-education-housing";
 
@@ -26,9 +27,12 @@ export const GRUPOS_TEMA: ReadonlyArray<GrupoTema> = [
   { id: "economico", etiqueta: "Económico", temas: ["renta", "desigualdad"] },
   { id: "demografia", etiqueta: "Población", temas: ["demografia"] },
   { id: "educacion", etiqueta: "Educación", temas: ["educacion"] },
+  // La relación con la actividad del Censo Anual se presenta como «Actividad»:
+  // su base es la población de 16 años o más y sus denominadores NO son los de
+  // Educación, así que mezclarlas en una sola pestaña sería un error de lectura.
+  { id: "laboral", etiqueta: "Actividad", temas: ["laboral"] },
   { id: "politica", etiqueta: "Política", temas: ["politica"] },
   { id: "vivienda", etiqueta: "Vivienda", temas: ["vivienda"] },
-  { id: "laboral", etiqueta: "Laboral", temas: ["laboral"] },
 ];
 
 type EstadoIndicador = "ok" | "nd" | "no";
@@ -53,13 +57,24 @@ function normalizar(s: string): string {
     .replace(/[̀-ͯ]/g, "");
 }
 
-/** ND en el último periodo: alguna sección sin valor observado. Se mira el
- *  periodo mostrado, no la cobertura agregada de todos los periodos. */
+/** ND en el último periodo: alguna sección CON observación para ese indicador y
+ *  ese periodo se queda sin valor. Se mira el periodo mostrado, no la cobertura
+ *  agregada de todos los periodos.
+ *
+ *  Dos precisiones que importan para no marcar casi todo como ND:
+ *   · Una sección SIN observación no es una celda sin dato: es que la fuente no
+ *     publica ese indicador a ese grano para ella (agregado de distrito, otra
+ *     vintage, otro dominio). Contarla como ND llenaba la lista de distintivos.
+ *   · Un valor derivado con numerador y denominador (porcentajes del Censo
+ *     Anual, ratios del ADRH) es publicable: se admite con `admiteValor`. */
 function hayNd(obs: SeccionesAtlasV1["observations"], indicatorId: string, periodo: number): boolean {
   for (const sec of Object.keys(obs ?? {})) {
-    if (!/^d{10}$/.test(sec) || sec.endsWith("000")) continue;
-    const o = obs[sec]?.[indicatorId]?.[String(periodo)];
-    if (!o || o.status !== "observado" || typeof o.value !== "number") return true;
+    if (!/^\d{10}$/.test(sec) || sec.endsWith("000")) continue;
+    const porIndicador = obs[sec]?.[indicatorId];
+    if (!porIndicador) continue;
+    const o = porIndicador[String(periodo)];
+    if (!o) continue; // esa sección no publica este indicador en este periodo
+    if (!admiteValor(o.status) || typeof o.value !== "number") return true;
   }
   return false;
 }

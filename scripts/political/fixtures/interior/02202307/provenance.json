@@ -1,0 +1,76 @@
+{
+ "source": "https://infoelectoral.interior.gob.es/estaticos/docxl/apliextr/02202307_MESA.zip",
+ "zipSha256": "e78fc231326a03cf67bbec87b7100ea0c8c46859daa1b2a631c06daaaf1717f8",
+ "extractedAt": "2026-09-29T19:51:07.466Z",
+ "files": {
+  "03022307.DAT": {
+   "lines": 8,
+   "sourceLineNumbers": [
+    1,
+    2,
+    3,
+    5,
+    6,
+    7,
+    9,
+    10
+   ]
+  },
+  "05022307.DAT": {
+   "lines": 1,
+   "sourceLineNumbers": [
+    1892
+   ]
+  },
+  "06022307.DAT": {
+   "lines": 8,
+   "sourceLineNumbers": [
+    661,
+    662,
+    663,
+    664,
+    665,
+    666,
+    667,
+    668
+   ]
+  },
+  "09022307.DAT": {
+   "lines": 3,
+   "sourceLineNumbers": [
+    19224,
+    19225,
+    19519
+   ]
+  },
+  "10022307.DAT": {
+   "lines": 24,
+   "sourceLineNumbers": [
+    197316,
+    197317,
+    197318,
+    197319,
+    197320,
+    197321,
+    197322,
+    197323,
+    197324,
+    197325,
+    197326,
+    197327,
+    197328,
+    197329,
+    197330,
+    197331,
+    199676,
+    199677,
+    199678,
+    199679,
+    199680,
+    199681,
+    199682,
+    199683
+   ]
+  }
+ }
+}

@@ -1,20 +1,22 @@
-// Lectura de resultados electorales desde R2 — SOLO SERVIDOR.
+// Lectura de resultados electorales por sección desde R2 — SOLO SERVIDOR.
 //
 // Complementa al atlas base de secciones. Se obtiene bajo demanda cuando
 // el usuario selecciona la pestaña Política.
 
 import {
-  POLITICAL_DOMAIN,
   POLITICAL_R2_PREFIX,
-  POLITICAL_SCHEMA_VERSION,
-  isValidPoliticalDataset,
-  type PoliticalMunicipalDataset,
+  isPoliticalMunicipalObject,
   type ElectionType,
+  type PoliticalCatalog,
+  type PoliticalCoverageFile,
+  type PoliticalMunicipalObject,
 } from './socideas-secciones-political'
 
 export function politicalR2Key(codigoIne: string, electionType: ElectionType, electionDate: string): string {
   return `${POLITICAL_R2_PREFIX}/normalized/${electionType}/${electionDate}/${codigoIne}.json`
 }
+
+export const POLITICAL_CATALOG_KEY = `${POLITICAL_R2_PREFIX}/catalog.json`
 
 export function politicalR2Base(): string {
   return (
@@ -23,17 +25,7 @@ export function politicalR2Base(): string {
   )
 }
 
-class PoliticalDatasetInvalid extends Error {
-  readonly invalid = true as const
-}
-
-export async function leerResultadosElectorales(
-  codigoIne: string,
-  electionType: ElectionType,
-  electionDate: string,
-  timeoutMs = 10000,
-): Promise<PoliticalMunicipalDataset | null> {
-  const url = `${politicalR2Base()}/${politicalR2Key(codigoIne, electionType, electionDate)}`
+async function leerJson(url: string, timeoutMs: number): Promise<unknown | null> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
@@ -43,15 +35,55 @@ export async function leerResultadosElectorales(
       cache: 'no-store',
     })
     if (!res.ok) return null
-    const obj = await res.json()
-    if (!isValidPoliticalDataset(obj)) {
-      throw new PoliticalDatasetInvalid('Schema inválido')
-    }
-    return obj
-  } catch (err) {
-    if (err instanceof PoliticalDatasetInvalid) return null
+    return await res.json()
+  } catch {
     return null
   } finally {
     clearTimeout(timer)
   }
+}
+
+export async function leerCatalogoPolitico(timeoutMs = 10000): Promise<PoliticalCatalog | null> {
+  const obj = await leerJson(`${politicalR2Base()}/${POLITICAL_CATALOG_KEY}`, timeoutMs)
+  if (!obj || typeof obj !== 'object' || !Array.isArray((obj as PoliticalCatalog).elections)) return null
+  return obj as PoliticalCatalog
+}
+
+export async function leerResultadosElectorales(
+  codigoIne: string,
+  electionType: ElectionType,
+  electionDate: string,
+  timeoutMs = 10000,
+): Promise<PoliticalMunicipalObject | null> {
+  const obj = await leerJson(`${politicalR2Base()}/${politicalR2Key(codigoIne, electionType, electionDate)}`, timeoutMs)
+  return isPoliticalMunicipalObject(obj) ? obj : null
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// (Aditivo) Claves de manifiestos, cobertura, fuentes y originales, y lectura
+// de la cobertura por convocatoria (explica por qué un municipio no se publica).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const POLITICAL_SOURCES_KEY = `${POLITICAL_R2_PREFIX}/sources.json`
+
+export function politicalManifestKey(electionType: ElectionType, electionDate: string): string {
+  return `${POLITICAL_R2_PREFIX}/manifests/${electionType}-${electionDate}.json`
+}
+
+export function politicalCoverageKey(electionType: ElectionType, electionDate: string): string {
+  return `${POLITICAL_R2_PREFIX}/coverage/${electionType}/${electionDate}.json`
+}
+
+export function politicalRawKey(electionType: ElectionType, electionDate: string, sourceId: string, fileName: string): string {
+  return `${POLITICAL_R2_PREFIX}/raw/${electionType}/${electionDate}/${sourceId}/${fileName}`
+}
+
+export async function leerCoberturaPolitica(
+  electionType: ElectionType,
+  electionDate: string,
+  timeoutMs = 10000,
+): Promise<PoliticalCoverageFile | null> {
+  const obj = await leerJson(`${politicalR2Base()}/${politicalCoverageKey(electionType, electionDate)}`, timeoutMs)
+  if (!obj || typeof obj !== 'object' || typeof (obj as PoliticalCoverageFile).municipalities !== 'object') return null
+  return obj as PoliticalCoverageFile
 }

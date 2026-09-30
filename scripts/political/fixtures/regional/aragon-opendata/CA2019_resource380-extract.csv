@@ -1,0 +1,5 @@
+cod_elec,nombre_elec,cod_mesa,cod_municipio,cod_distrito,votantes_e,abstencion_e,nulos_e,blancos_e,candidatura_e,electores_e,validos_e,certificaciones_e,municipio,cod_comarca,comarca,cod_provincia,provincia
+CA2019,Cortes de Aragón 2019,5012601002 B,50126,1,395,117,2,3,390,512,393,0,ILLUECA,14,Aranda,50,Zaragoza
+CA2019,Cortes de Aragón 2019,5012601002 A,50126,1,431,156,3,9,419,587,428,0,ILLUECA,14,Aranda,50,Zaragoza
+CA2019,Cortes de Aragón 2019,5012601001 B,50126,1,432,143,8,5,419,575,424,0,ILLUECA,14,Aranda,50,Zaragoza
+CA2019,Cortes de Aragón 2019,5012601001 A,50126,1,444,143,6,8,430,587,438,0,ILLUECA,14,Aranda,50,Zaragoza

@@ -66,6 +66,15 @@ import SeccionesAtlasDetalle from "./SeccionesAtlasDetalle";
 import SeccionesIndicadorBuscador, { GRUPOS_TEMA } from "./SeccionesIndicadorBuscador";
 import SectionLegend from "./SectionLegend";
 import SectionMeta from "./SectionMeta";
+import SeccionesPoliticaExtension from "./SeccionesPoliticaExtension";
+import type { ConvocatoriaCatalogo } from "./SeccionesPoliticaSelector";
+import type { SeccionGanadora } from "@/lib/socideas-secciones-extension";
+import type { Candidacy } from "@/lib/socideas-secciones-political";
+
+/** La pestaña Política tiene su propio componente: mapa categórico de la
+ *  ganadora, mapas continuos y ficha electoral. El resto de pestañas usan el
+ *  motor numérico del atlas. */
+const GRUPO_POLITICA = "politica";
 
 type Estado = "idle" | "cargando" | "ok" | "error";
 
@@ -89,8 +98,29 @@ interface RespuestaApi {
     anio_delimitacion: number;
     fuente: string;
     n_secciones: number;
+    via: string;
     geojson: { type: string; features: Array<{ type: string; properties: Record<string, unknown>; geometry: unknown }> };
     atlas?: SeccionesAtlasV1 | null;
+    dominios?: {
+      educacion?: {
+        periodos: number[];
+        indicadores: number;
+        observaciones?: number;
+        nd?: number;
+        supresiones?: number;
+        secciones_all_nd?: number;
+      };
+      actividad?: { periodos: number[]; indicadores: number };
+      politica?: {
+        catalog: ConvocatoriaCatalogo[];
+        electionId: string;
+        status: string;
+        mesas_agregadas: number;
+        candidaturas: Candidacy[];
+        ganadoras: Record<string, SeccionGanadora>;
+      };
+    };
+    avisos?: string[];
   } | null;
   error: string | null;
   count?: number;
@@ -163,10 +193,17 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   // El atlas agrupa varias operaciones (ADRH de renta/desigualdad y Censo
   // anual de población). Cada pestaña muestra SOLO los indicadores de su tema:
   // así el selector no mezcla unidades ni años de fuentes distintas.
-  const gruposDisponibles = useMemo(
-    () => GRUPOS_TEMA.filter((g) => todosLosIndicadores.some((i) => g.temas.includes(i.tema))),
-    [todosLosIndicadores],
-  );
+  const gruposDisponibles = useMemo(() => {
+    const conIndicadores = GRUPOS_TEMA.filter((g) => todosLosIndicadores.some((i) => g.temas.includes(i.tema)));
+    // La pestaña Política aparece siempre que el CATÁLOGO declare alguma
+    // convocatoria, aunque este municipio no tenga objeto: es entonces la
+    // vía para ver por qué no hay dato, no un hueco invisible.
+    const catalogoPolitico = datos?.dominios?.politica?.catalog ?? [];
+    if (catalogoPolitico.length > 0 && !conIndicadores.some((g) => g.id === GRUPO_POLITICA)) {
+      return [...conIndicadores, GRUPOS_TEMA.find((g) => g.id === GRUPO_POLITICA)!].filter(Boolean);
+    }
+    return conIndicadores;
+  }, [todosLosIndicadores, datos]);
   const grupoActivo = useMemo(() => {
     const g = searchParams.get("g");
     if (g && gruposDisponibles.some((x) => x.id === g)) return g;
@@ -178,16 +215,24 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   }, [todosLosIndicadores, grupoActivo]);
 
   const indicadorPorDefecto = useMemo(() => {
-    // Indicador inicial por tema: renta neta media por persona en económico y
-    // población total en demografía (los de referencia del producto), no el
-    // primero alfabético.
-    const preferidoId = grupoActivo === "demografia" ? "poblacion_total" : "renta_neta_media_persona";
+    // Indicador inicial por tema: el de referencia del producto en económico y
+    // población, y el que la propia fuente señala como principal en Educación
+    // (% de educación superior) y Actividad (% de población ocupada). No el
+    // primero alfabético: mezclaría denominadores distintos.
+    const PREFERIDO: Record<string, string> = {
+      demografia: "poblacion_total",
+      economico: "renta_neta_media_persona",
+      educacion: "edu_pct_educacion_superior",
+      laboral: "act_pct_ocupados",
+    };
+    const preferidoId = PREFERIDO[grupoActivo] ?? PREFERIDO.economico;
     const preferido = indicadores.find(
       (i) => i.id === preferidoId && i.publicadoPorSeccion,
     );
+    const conDato = indicadores.find((i) => i.publicadoPorSeccion && (atlas?.cobertura ?? []).some((c) => c.indicatorId === i.id && c.seccionesConDato > 0));
     const publicado = indicadores.find((i) => i.publicadoPorSeccion);
-    return (preferido ?? publicado ?? indicadores[0])?.id ?? null;
-  }, [indicadores, grupoActivo]);
+    return (preferido ?? conDato ?? publicado ?? indicadores[0])?.id ?? null;
+  }, [indicadores, grupoActivo, atlas]);
 
   const periodosDe = useCallback(
     (indicatorId: string | null): number[] => {
@@ -537,6 +582,23 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   }
 
   const sinAtlas = !atlas;
+  // La pestaña Política se resuelve con su propio componente: el mapa de la
+  // ganadora es CATEGÓRICO (color por candidatura) y no cabe en el motor
+  // numérico de clases que usan el resto de pestañas.
+  const enPestanaPolitica = grupoActivo === GRUPO_POLITICA;
+  if (enPestanaPolitica) {
+    return (
+      <div className="flex flex-col gap-8">
+        <SeccionesPoliticaExtension
+          codigoINE={codigoINE}
+          nombre={nombre}
+          catalog={datos?.dominios?.politica?.catalog ?? []}
+          eleccionInicial={datos?.dominios?.politica?.electionId ?? ""}
+        />
+      </div>
+    );
+  }
+
   const sinPeriodos = sinAtlas || params.periodos.length === 0;
   // Sin valores observados no hay coropleta que dibujar ni exportar: el mapa es
   // un plano de contornos y los controles de escala se retiran.
@@ -962,9 +1024,16 @@ function construirVista(
   }
 
   const claves = secciones.map((s) => s.properties.CUSEC);
+  // Regla de la fuente, no del rótulo: entra en la escala toda observación cuyo
+  // estado ADMITE número (`admiteValor`), sea `observado` o
+  // `derivado_verificable`. Filtrar solo por `observado` vaciaba el mapa de
+  // todos los porcentajes del Censo Anual, que son precisamente los derivados
+  // con numerador y denominador de la misma sección.
+  const admitida = (o: SeccionPorPeriodo[string] | undefined): boolean =>
+    !!o && admiteValor(o.status) && typeof o.value === "number" && Number.isFinite(o.value);
   const valores = claves.map((k) => {
     const o = porSeccion[k]?.[String(anio)];
-    return o && o.status === "observado" && typeof o.value === "number" && Number.isFinite(o.value) ? o.value : null;
+    return o && admitida(o) ? o.value : null;
   });
 
   const modoEfectivo: ModoClasificacion =
@@ -1092,12 +1161,6 @@ function construirVista(
   };
 }
 
-const STATUS_SIN_NUMERO: ReadonlySet<SeccionValorStatus> = new Set<SeccionValorStatus>([
-  "no_difundido",
-  "sin_cobertura",
-  "no_aplicable",
-  "error_ingesta",
-]);
 
 function filaVacia(feature: SeccionFeature, motivo: string, texto = "Sin dato"): FilaAtlas {
   return {
@@ -1149,14 +1212,13 @@ function construirFila(
 ): FilaAtlas {
   const status: SeccionValorStatus = observacion?.status ?? "sin_cobertura";
   const bruto = observacion?.value ?? null;
-  // Regla dura: solo `observado` con número entra en la escala. Todo lo demás
-  // es ND, con su propio color, su propio contorno y su propia trama.
+  // Regla dura: entra en la escala toda observación cuyo estado ADMITE número
+  // (`observado` o `derivado_verificable`). Un ND —secreto estadístico, celda
+  // vacía, sin cobertura, error— es estado sin número y NUNCA entra.
   const esSinDato =
     !observacion ||
-    status !== "observado" ||
     bruto === null ||
     !Number.isFinite(bruto) ||
-    STATUS_SIN_NUMERO.has(status) ||
     !admiteValor(status);
 
   let clase = -1;
@@ -1355,8 +1417,11 @@ function CabeceraAtlas({
             {validacion.errores.length === 1 ? "error" : "errores"})
           </p>
           <ul className="mt-1.5 flex list-disc flex-col gap-0.5 pl-5 text-xs leading-relaxed text-[var(--text-secondary)]">
-            {validacion.errores.slice(0, 8).map((e) => (
-              <li key={e}>{e}</li>
+            {/* El índice forma parte de la clave: el mismo texto de error puede
+                repetirse para varias secciones y una clave por texto duplicaría
+                nodos en React. */}
+            {validacion.errores.slice(0, 8).map((e, i) => (
+              <li key={`${i}-${e}`}>{e}</li>
             ))}
           </ul>
         </div>

@@ -728,7 +728,14 @@ export function validarSeccionesAtlas(objeto: unknown): ResultadoValidacion {
         if (oo.sectionKey !== seccion) {
           errores.push(`sectionKey ${oo.sectionKey} no coincide con la clave ${seccion}`)
         }
-        if (oo.referencePeriod !== Number(periodo)) {
+        // La clave de periodo puede ser el año estadístico (`2023`) o la fecha
+        // completa de la convocatoria (`2023-05-28`): las elecciones políticas se
+        // indexan por convocatoria, no por año, porque en un mismo año puede
+        // haber municipales y congressionales. En ambos casos se compara el
+        // AÑO, que es lo que declara `referencePeriod`.
+        if (!CLAVE_PERIODO.test(periodo)) {
+          avisos.push(`Clave de periodo no reconocida: "${periodo}" en ${seccion}/${indicadorId}`)
+        } else if (Number(periodo.slice(0, 4)) !== oo.referencePeriod) {
           errores.push(`referencePeriod ${oo.referencePeriod} no coincide con la clave ${periodo}`)
         }
         if (municipioDeSeccion(seccion) !== o.municipalityIne) {
@@ -752,6 +759,9 @@ export function validarSeccionesAtlas(objeto: unknown): ResultadoValidacion {
 // ─────────────────────────────────────────────────────────────────────────────
 // Utilidades de presentación compartidas por mapa, PNG y XLSX
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Clave de periodo admitida: año estadístico o fecha completa de convocatoria. */
+const CLAVE_PERIODO = /^(\d{4}|\d{4}-\d{2}-\d{2})$/
 
 export function etiquetaEstado(status: SeccionValorStatus): string {
   switch (status) {
@@ -818,10 +828,15 @@ export function coberturaDePeriodo(
     const obs = porSeccion?.[f.properties.CUSEC]?.[String(periodo)]
     if (!obs) {
       sinCobertura++
-    } else if (obs.status === 'observado') {
-      observados++
     } else if (obs.status === 'no_difundido') {
       noDifundidos++
+    } else if (admiteValor(obs.status) && obs.value !== null && Number.isFinite(obs.value)) {
+      // Cuenta como dato TODO estado que admite número, no sólo `observado`:
+      // los porcentajes del Censo Anual y los ratios del ADRH son
+      // `derivado_verificable` y son dato igual. Contarlos como sin cobertura
+      // hacía que un municipio con 2.443 de 2.462 secciones con dato anunciara
+      // «Cobertura del indicador 0 %».
+      observados++
     } else {
       sinCobertura++
     }

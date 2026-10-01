@@ -148,11 +148,50 @@ demás no se persiste).
   comillas (las convierte en array).
 - Métricas R2/dashboard tardan ~24 h (0B no significa vacío); medir por API.
 
-## 6. Pendiente
+## 6. INCideas — auditoría de calidad (2026-10-01)
+
+- **Fase 0 completada.** Auditoría en `docs/incideas-auditoria-calidad.md`.
+- **Diagnóstico central:** el libro exporta el identificador interno como primer
+  dato. `src/lib/incideas/exportacion.ts` proyecta `COLUMNAS_SELECT`, que empieza por
+  `id` (UUID) y acaba en `posible_baja_desde`; el libro reproduce la fila de la base
+  de datos en vez de construir una ficha. `huella` y `crs` (constante, y falsa en 437
+  filas) son columnas sin información.
+- **Cifras reales comprobadas** (Supabase `nkfepxuyrbcxolljykwk`, 03031):
+  1.378 registros · 66 columnas · cobertura 1 de 8.132 municipios (0,017 %).
+  `confianza` 0/1378 · `calidad` 0/1378 · `capacidad` 0/1378 · `accesibilidad` 0/1378
+  · `horario` 45 (3,3 %) · `telefono_publico` 119 (8,6 %) · `posible_duplicado` 0
+  · geometría PostGIS solo 1/1378 (el límite). `incideas_ext_albergue` y
+  `incideas_ext_veterinaria` vacías.
+- **42 registros con nombre numérico** (`nombre_oficial` = "1", "2", "24", "26"…); el
+  primero que devuelve la API pública es uno de ellos. Importación municipal: la clave
+  de partidas degenera y el nombre se sustituye por el número del área.
+- **`crs_original` siempre `EPSG:4326`**, incluso en las 437 filas de la plantilla
+  municipal que están en UTM 30N. El sistema de referencia de origen no se conserva.
+- **Despliegue:** `urb-ideas` READY en producción desde `main`. `vercel.json` vacío
+  (`{}`), sin `maxDuration`. Exportación sí funciona en Vercel (json 4,8 s · csv 2,1 s
+  · geojson 2,5 s · xlsx 2,9 s); la ingesta no (Overpass ya pide 100 s de espera).
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` está en `.env.example` pero no en `.env.local`.
+- **Documentos de referencia leídos:** `25B0335 PTM Benidorm - v2.docx` (275 págs,
+  87.080 palabras, 142 tablas → 94 esquemas, 64 imágenes; coordenadas en formato
+  `coord. (749923; 4269043)` y columna «Mapa de encuadre nº») y `Limpieza info.xlsx`
+  (9 hojas; Hoja6 = **Catastro INSPIRE** con `N_PLANTAS`/`N_SOTANOS`/`REFCAT`;
+  436 hipervínculos a la web del operador).
+- **Decisiones ya tomadas:** identificador técnico a columna final «ID técnico» + hoja
+  oculta; migración aditiva reversible para UTM/huso/precisión/fecha de edición en
+  origen/enlace OSM/`refcat`/confianza y geometría PostGIS real; ingesta por lotes
+  fuera de la web (Overpass + Geofabrik) escribiendo en Supabase y R2, la web solo
+  lee; el modelo de salida se construye desde las tablas del PTM, que prevalecen
+  sobre la lista del encargo; estilo heredado de `socideas-xlsx.ts` (no se crea un
+  segundo estilo de libro).
+- **Rama de trabajo:** `feat/incideas-calidad`. No tocar `src/components/socideas/SeccionesAtlas.tsx`
+  (modificación ajena previa).
+
+## 7. Pendiente
 
 - Probar última preview con datos; merge a `main`; Fase 2B (economía:
   renta/AEAT, paro/SEPE, empresas, afiliación, agrario); dominio
   `sostenibilidad.ideasmedioambientales.com`; re-batch anual; auditoría de
   seguridad pre-apertura; `.env.local` conserva R2_* y tokens (no commitear).
+- INCideas: Fases 1 a 6 según `docs/incideas-auditoria-calidad.md`.
 - Convenciones con el usuario: push/merge/deploy/migraciones/remoto solo con
   orden expresa; sin datos ficticios; informe final por entrega.

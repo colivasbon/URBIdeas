@@ -249,7 +249,7 @@ export default function SocideasSearch() {
                     href={`/socideas/${m.codigo_ine}`}
                     onClick={() => onResultadoClick(m)}
                     aria-disabled={!!abriendo}
-                    className={`flex items-center justify-between gap-4 rounded-[6px] px-5 py-4 transition-colors hover:bg-[var(--musgo-50)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${abriendo ? "pointer-events-none opacity-60" : ""}`}
+                    className={`flex items-center justify-between gap-4 rounded-[6px] px-5 py-4 transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${abriendo ? "pointer-events-none opacity-60" : ""}`}
                   >
                     <span>
                       <span className="block text-sm font-semibold text-[var(--text-primary)]">

@@ -222,10 +222,19 @@
   --action-primary-fg: var(--carbon-900);
   --action-secondary-border: var(--musgo);
   --action-secondary-fg: var(--musgo);
-  --action-secondary-hover-bg: var(--musgo-50);
+  --action-secondary-hover-bg: var(--surface-hover);
   --action-danger-bg: var(--rupestre);
   --action-danger-hover: var(--rupestre-600);
   --action-danger-fg: var(--hueso);
+
+  /* Superficies de realce (hover, foco, filas activas). El musgo-50 es casi
+     blanco: válido sobre claro, pero en tema oscuro producía texto claro
+     sobre fondo claro. Aquí se resuelve el color por tema una sola vez. */
+  --surface-hover: var(--musgo-50);
+  --surface-note: var(--musgo-50);
+  /* Estado activo/seleccionado (pestañas, segmentados, file input). */
+  --surface-selected: var(--musgo-50);
+  --surface-selected-hover: var(--musgo-100);
 
   --status-success-fg: var(--conifera-800);
   --status-success-bg: var(--crisopa-200);
@@ -290,7 +299,7 @@
   --color-card-bg: var(--bg-surface);
   --color-card-bg-solid: var(--bg-surface);
   --color-input-bg: var(--bg-surface);
-  --color-input-bg-hover: var(--musgo-50);
+  --color-input-bg-hover: var(--surface-hover);
   --color-overlay: rgba(30, 34, 32, 0.55);
 
   --background: var(--bg-canvas);
@@ -374,6 +383,12 @@
   --action-danger-hover: var(--rupestre-300);
   --action-danger-fg: var(--carbon-900);
 
+  /* Velo translúcido: mantiene el texto claro legible sobre el hover en oscuro. */
+  --surface-hover: rgba(176, 189, 176, 0.08);
+  --surface-note: rgba(105, 158, 144, 0.16);
+  --surface-selected: rgba(105, 158, 144, 0.20);
+  --surface-selected-hover: rgba(105, 158, 144, 0.30);
+
   --status-success-fg: var(--carbon-900);
   --status-success-bg: var(--crisopa-400);
   --status-warning-fg: var(--carbon-900);
@@ -395,7 +410,6 @@
   --shadow-2: 0 4px 12px -2px rgba(2, 10, 8, 0.45);
   --shadow-3: 0 16px 40px -8px rgba(2, 10, 8, 0.55);
   --color-overlay: rgba(2, 8, 6, 0.7);
-  --color-input-bg-hover: #2E3A34;
 
   --color-accent: var(--retama);
   --color-accent-light: var(--retama);
@@ -830,8 +844,7 @@
   }
   .data-table tbody tr:first-child td { border-top: none; }
   @media (hover: hover) {
-    .data-table tbody tr:hover td { background: var(--musgo-50); }
-  [data-theme="dark"] .data-table tbody tr:hover td { background: rgba(176, 189, 176, 0.06); }
+    .data-table tbody tr:hover td { background: var(--surface-hover); }
   }
   .data-table .num { text-align: right; font-variant-numeric: tabular-nums lining-nums; }
   .data-table .meta { color: var(--text-secondary); }
@@ -879,7 +892,7 @@
 
   /* Nota / aviso legal */
   .note {
-    background: var(--musgo-50);
+    background: var(--surface-note);
     border-left: 3px solid var(--musgo);
     border-radius: var(--radius);
     padding: var(--space-4);
@@ -936,18 +949,15 @@
 
   .theme-toggle { color: inherit; transition: background var(--dur-fast) var(--ease-out), transform var(--dur-instant) var(--ease-out); }
   @media (hover: hover) {
-    .theme-toggle:hover { background: var(--musgo-50); }
-    [data-theme="dark"] .theme-toggle:hover { background: rgba(176, 189, 176, 0.12); }
+    .theme-toggle:hover { background: var(--surface-hover); }
   }
   .theme-toggle:active { transform: scale(0.95); }
 
   /* Hover de navegación: en tema oscuro el musgo-50 (casi blanco) sobre
-     fondo oscuro se lee como un pegote claro. Se usa un velo translúcido
-     que funciona en ambos temas. */
-  .nav-link:hover { background: var(--musgo-50); }
-  [data-theme="dark"] .nav-link:hover { background: rgba(176, 189, 176, 0.08); }
-  .nav-icon-btn:hover { background: var(--musgo-50); }
-  [data-theme="dark"] .nav-icon-btn:hover { background: rgba(176, 189, 176, 0.12); }
+     fondo oscuro se leía como un pegote claro. --surface-hover ya resuelve
+     el velo translúcido correcto para cada tema. */
+  .nav-link:hover { background: var(--surface-hover); }
+  .nav-icon-btn:hover { background: var(--surface-hover); }
 
   /* Skip link */  .skip-link {
     position: fixed;
@@ -1028,9 +1038,8 @@
 }
 .leaflet-popup-close-button:hover {
   color: var(--text-primary) !important;
-  background: var(--musgo-50) !important;
+  background: var(--surface-hover) !important;
 }
-[data-theme="dark"] .leaflet-popup-close-button:hover { background: rgba(176, 189, 176, 0.12) !important; }
 
 .leaflet-control-zoom a {
   background: var(--bg-surface) !important;
@@ -1039,8 +1048,7 @@
   border-radius: var(--radius) !important;
   box-shadow: var(--shadow-2) !important;
 }
-.leaflet-control-zoom a:hover { background: var(--musgo-50) !important; }
-[data-theme="dark"] .leaflet-control-zoom a:hover { background: var(--color-input-bg-hover) !important; }
+.leaflet-control-zoom a:hover { background: var(--surface-hover) !important; }
 
 /* Atlas de secciones censales: zoom táctil ≥ 44 px (WCAG 2.2 AA, 2.5.8).
    Acotado a `.socideas-atlas-map` para no alterar el visor de URBideas, que

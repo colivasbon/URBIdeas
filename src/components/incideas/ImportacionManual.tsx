@@ -71,7 +71,7 @@ export default function ImportacionManual({ codigoINE, categoria }: ImportacionM
             type="file"
             accept=".xlsx,.xls,.csv"
             onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-[var(--text-secondary)] file:mr-4 file:rounded-[6px] file:border-0 file:bg-[var(--musgo-50)] file:px-4 file:py-2 file:text-sm file:font-medium file:text-[var(--musgo-ink)] hover:file:bg-[var(--musgo-100)]"
+            className="block w-full text-sm text-[var(--text-secondary)] file:mr-4 file:rounded-[6px] file:border-0 file:bg-[var(--surface-selected)] file:px-4 file:py-2 file:text-sm file:font-medium file:text-[var(--moss-ink)] hover:file:bg-[var(--surface-selected-hover)]"
           />
         </div>
 

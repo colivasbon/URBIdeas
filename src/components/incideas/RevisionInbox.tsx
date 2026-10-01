@@ -159,8 +159,8 @@ export default function RevisionInbox({ codigoINE }: { codigoINE: string }) {
                     aria-current={activa ? "true" : undefined}
                     className={`flex w-full items-center justify-between gap-3 rounded-[6px] px-3 py-2 text-left text-sm transition-colors ${
                       activa
-                        ? "bg-[var(--musgo-50)] font-semibold text-[var(--musgo-ink)]"
-                        : "text-[var(--text-secondary)] hover:bg-[var(--musgo-50)]"
+                        ? "bg-[var(--surface-selected)] font-semibold text-[var(--moss-ink)]"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                     }`}
                   >
                     <span>{b.label}</span>

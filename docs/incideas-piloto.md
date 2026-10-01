@@ -1,6 +1,6 @@
 # INCideas — Piloto de carga de datos reales (Benidorm, 03031)
 
-Rama: `feat/incideas-benidorm-piloto`. Iteración centrada en demostrar el flujo
+Rama de origen: `feat/incideas-benidorm-piloto` (código integrado en `feat/incideas-piloto-datos`). Iteración centrada en demostrar el flujo
 completo **fuente → extracción → transformación → normalización → almacenamiento →
 detección de errores → revisión → exportación** con fuentes reales verificadas.
 
@@ -8,6 +8,10 @@ detección de errores → revisión → exportación** con fuentes reales verifi
 > migraciones `038_incideas_core.sql` y `039_incideas_pipeline.sql` en el proyecto
 > Supabase `nkfepxuyrbcxolljykwk` y se ha ejecutado la carga real de Benidorm con `--go`.
 > Los resultados reales están en las secciones 7 y 8-bis.
+
+Documentación relacionada: [incideas-cerebro.md](./incideas-cerebro.md) (arquitectura,
+orígenes de datos y ciclo de vida; versión web en `/incideas/arquitectura`) y
+[incideas-agente-prompt.md](./incideas-agente-prompt.md) (prompt de continuación).
 
 ---
 
@@ -191,7 +195,7 @@ PTM de Benidorm) de forma idempotente y con reproyección **UTM 30N → WGS84**
 |---|---|---|
 | Núcleos_partidas | territorio / partida | 58 |
 | Hoja4 | infraestructuras / parada_autobus | 199 |
-| Farmacias | equipamientos / farmacia | 41 |
+| Farmacias | equipamientos / farmacia | 41 (5 hasta la corrección de claves de 2026-10-01) |
 | Enseñanza | equipamientos / colegio·instituto·escuela_infantil·centro_formacion | 35 |
 
 Fuente registrada como «Plantilla municipal — Limpieza info (PTM Benidorm)», estado
@@ -243,7 +247,7 @@ selector de categoría y de estado, y popup con fuente, fecha y estado. Uso de c
 
 ## 13. Exportaciones
 
-`GET /api/incideas/exportar?codigo_ine=03031&formato=geojson|csv|json`
+`GET /api/incideas/exportar?codigo_ine=03031&formato=geojson|csv|json|xlsx`
 Conserva id, INE, categoría, nombre, dirección, coordenadas, geometría, CRS, fuente,
 id_origen, huella, fechas, estado, advertencias y licencia. **Excluye datos restringidos.**
 
@@ -251,7 +255,7 @@ id_origen, huella, fechas, estado, advertencias y licencia. **Excluye datos rest
 
 ## 14-15. Pruebas realizadas y resultado
 
-`npx tsx --test scripts/tests/incideas-pipeline.test.ts` → **17/17 pasan**.
+`npx tsx --test scripts/tests/incideas-pipeline.test.ts` → **40/40 pasan** (pipeline, conectores, exportación y memoria).
 
 | Prueba | Resultado |
 |---|---|
@@ -319,6 +323,51 @@ reales de albergue, contactos operativos, cartografía oficial de riesgos (PATRI
 
 ---
 
+## 17-bis. Ampliación de fuentes (2026-10-01)
+
+Detalle completo en [incideas-cerebro.md](./incideas-cerebro.md). Resumen:
+
+| Conector | Fuente | Tipo | Benidorm |
+|---|---|---|---|
+| `gva-centros-docentes` | GVA, centros docentes (ICV WFS, CC BY 4.0) | oficial | 36 |
+| `gva-centros-sanitarios` | GVA, Sistema Valenciano de Salud (ICV WFS, CC BY 4.0) | oficial | 4 |
+| `minetur-carburantes` | MITECO, Geoportal de Gasolineras (REST) | oficial | 10 |
+| `osm-movilidad` | OSM Overpass, área `ine:municipio` | colaborativa | 247 |
+| `osm-emergencias` | OSM Overpass, área `ine:municipio` | colaborativa | 6 |
+
+Cargados con `--go` y verificada la idempotencia en Supabase (segunda pasada: `sin_cambios`).
+`--nombre-municipio` ya no es necesario si hay credenciales: el nombre se lee de `municipios`.
+
+Correcciones del pipeline:
+
+- **Comparación de campos**: JSONB reordena claves y `JSON.stringify` es sensible al orden,
+  por lo que cada pasada real marcaba `atributos` como actualizado (versión e historial
+  espurios). Ahora la comparación es canónica.
+- **Ámbito de bajas por conector**: antes se acotaba por la categoría declarada del conector, de
+  modo que `osm-pois` nunca marcaba bajas en infraestructuras, servicios básicos ni animales, y
+  un segundo conector Overpass habría marcado como bajas los registros del primero.
+- **Respuesta vacía con errores** (Nominatim sin resultados, límite ausente): ya no genera bajas.
+- **Titularidad**: errata «pubica» de la plantilla, «privado concertado» → mixta, y OSM toma
+  `operator:type` en lugar de inferir «privada» de `operator`.
+
+Encontrados al verificar con datos reales:
+
+- **Truncado a 1.000 filas**: memoria, exportaciones, ficha y listados leían una sola página de
+  PostgREST; con 1.238 registros, la memoria mostraba 7 de 10 gasolineras y la exportación se
+  cortaba. Ahora todas las lecturas masivas paginan (`paginar.ts`).
+- **Importación de la plantilla**: la clave de farmacia era el nombre, y casi todas las filas se
+  llaman «Farmacia»: 41 filas colapsaban en 5 registros. La de partidas omitía el área. Claves
+  corregidas (dirección; distrito, partida y área); los registros colapsados quedan como posibles
+  bajas para revisión (63), sin borrar. Resultado: 41 farmacias y 58 partidas vigentes.
+- **Huella como respaldo**: emparejaba homónimos sin coordenadas aunque tuvieran distinto
+  `id_origen`, sobrescribiéndolos en cada pasada. Ahora solo empareja registros sin identificador.
+- **Fecha de posible baja**: se reescribía en cada pasada; ahora conserva la primera ausencia.
+- **CSV**: `nombre_oficial`, `fuente_principal`, `observaciones` y `crs_original` salían vacías
+  (se buscaban con claves distintas). El CSV usa ahora las mismas claves que GeoJSON y XLSX.
+- **Página pública de categoría**: no filtraba visibilidad restringida ni bajas.
+
+La memoria sigue ahora la numeración del PTM de referencia y elige fuente por subcategoría.
+
 ## 18. Procedimiento para añadir otro municipio
 
 ```bash
@@ -363,7 +412,7 @@ no es automática. El componente `ImportacionManual` está disponible para incru
 ## Cómo ejecutar
 
 ```bash
-npm run incideas:test           # 17 tests del pipeline
+npm run incideas:test           # 40 tests (pipeline, conectores, exportación y memoria)
 npm run incideas:seed-fuentes   # dry-run del catálogo de fuentes (--go para escribir)
 npm run incideas:dry-run        # pipeline completo contra fuentes reales, 2 pasadas, sin escribir
 ```

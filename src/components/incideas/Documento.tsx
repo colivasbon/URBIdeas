@@ -3,6 +3,11 @@ import type { ReactNode } from "react";
 /** Primitivas de presentación documental (estilo memoria de PTM).
  *  Sin estado: se pueden usar desde Server Components. */
 
+/** Id de ancla de una sección: «Anexo II» → «sec-Anexo-II». */
+export function anclaSeccion(numero: string): string {
+  return `sec-${numero.trim().replace(/\s+/g, "-")}`;
+}
+
 export function SeccionDoc({
   numero,
   titulo,
@@ -13,7 +18,7 @@ export function SeccionDoc({
   children: ReactNode;
 }) {
   return (
-    <section className="mt-10 scroll-mt-24" id={`sec-${numero}`}>
+    <section className="mt-10 scroll-mt-24" id={anclaSeccion(numero)}>
       <h2 className="flex items-baseline gap-3 border-b border-[var(--border-subtle)] pb-2">
         <span className="tnum text-[var(--moss-ink)] font-semibold">{numero}</span>
         <span className="type-h3 text-[var(--text-primary)]">{titulo}</span>
@@ -33,7 +38,7 @@ export function SubseccionDoc({
   children: ReactNode;
 }) {
   return (
-    <div className="mt-6 scroll-mt-24" id={`sec-${numero}`}>
+    <div className="mt-6 scroll-mt-24" id={anclaSeccion(numero)}>
       <h3 className="flex items-baseline gap-2">
         <span className="tnum text-sm text-[var(--text-muted)]">{numero}</span>
         <span className="type-h4 text-[var(--text-primary)]">{titulo}</span>

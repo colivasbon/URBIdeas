@@ -11,7 +11,7 @@ import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 
-import { normalizeFeature } from "../../src/lib/incideas/pipeline/normalize";
+import { normalizeFeature, normalizeName } from "../../src/lib/incideas/pipeline/normalize";
 import { validarEspacial } from "../../src/lib/incideas/pipeline/geo";
 import { procesarLote } from "../../src/lib/incideas/pipeline/upsert";
 import { utmToLatLng } from "../../src/lib/incideas/pipeline/utm";
@@ -74,7 +74,8 @@ function construirFeatures(wb: XLSX.WorkBook): RawFeature[] {
     const distrito = txt(r[2]);
     const area = txt(r[3]);
     out.push({
-      id_origen: `partida|${distrito}|${partida}`,
+      // Una partida puede abarcar varias áreas: el área forma parte de la clave.
+      id_origen: `partida|${distrito}|${partida}|${area}`,
       nombre: partida,
       categoria: "territorio",
       subcategoria: "partida",
@@ -90,9 +91,15 @@ function construirFeatures(wb: XLSX.WorkBook): RawFeature[] {
     if (!nombre || nombre.toLowerCase().startsWith("farmacia (nombre)")) continue;
     const direccion = txt(r[1]);
     const titular = txt(r[2]);
+    // La mayoría de filas se llaman solo «Farmacia»: la clave es la dirección.
+    const generico = normalizeName(nombre) === "farmacia";
     out.push({
-      id_origen: `farmacia|${nombre}`,
-      nombre: nombre.startsWith("Farmacia") ? nombre : `Farmacia ${nombre}`,
+      id_origen: `farmacia|${normalizeName(direccion) || normalizeName(nombre)}`,
+      nombre: generico
+        ? `Farmacia · ${direccion || "sin dirección"}`
+        : nombre.startsWith("Farmacia")
+          ? nombre
+          : `Farmacia ${nombre}`,
       categoria: "equipamientos",
       subcategoria: "farmacia",
       direccion: direccion || undefined,
@@ -179,11 +186,21 @@ async function main() {
   const ctx: EjecucionContext = {
     id: "import-xlsx",
     conector: "import-xlsx",
-    version_conector: "1.0.0",
+    version_conector: "1.1.0",
     codigo_ine: args.ine,
-    categoria: "import_xlsx",
+    categoria: "equipamientos",
     fuente: FUENTE,
     parametros: { archivo: args.file },
+    // La plantilla es la fuente completa de estas subcategorías: lo que no aparece en ella
+    // (p. ej. registros colapsados por claves antiguas) se marca como posible baja.
+    ambito: [
+      { categoria: "territorio", subcategorias: ["partida"] },
+      { categoria: "infraestructuras", subcategorias: ["parada_autobus"] },
+      {
+        categoria: "equipamientos",
+        subcategorias: ["farmacia", "colegio", "instituto", "escuela_infantil", "centro_formacion"],
+      },
+    ],
   };
 
   const normalized = features.map((raw) => {
@@ -201,7 +218,7 @@ async function main() {
   const idFuente = deps.resolverFuente ? await deps.resolverFuente(FUENTE.nombre) : undefined;
   const ejecucionId = await deps.iniciarEjecucion({
     conector: "import-xlsx",
-    version_conector: "1.0.0",
+    version_conector: "1.1.0",
     codigo_ine: args.ine,
     categoria: "import_xlsx",
     id_fuente: idFuente,
@@ -210,7 +227,7 @@ async function main() {
   ctx.id = ejecucionId;
 
   const counts = await procesarLote(deps.store, ctx, normalized, {
-    permitirBajas: false,
+    permitirBajas: true,
     usuario: "import:plantilla-municipal",
   });
 
@@ -221,7 +238,7 @@ async function main() {
     registros_insertados: counts.insertados,
     registros_actualizados: counts.actualizados,
     registros_sin_cambios: counts.sin_cambios,
-    posibles_bajas: 0,
+    posibles_bajas: counts.posibles_bajas,
     registros_rechazados: counts.rechazados,
     errores: counts.errores,
     resumen_calidad: {
@@ -235,7 +252,7 @@ async function main() {
 
   console.log(
     `  insertados=${counts.insertados} actualizados=${counts.actualizados} ` +
-      `sin_cambios=${counts.sin_cambios} rechazados=${counts.rechazados}`
+      `sin_cambios=${counts.sin_cambios} posibles_bajas=${counts.posibles_bajas} rechazados=${counts.rechazados}`
   );
   const resumen = normalized.reduce<Record<string, number>>((acc, r) => {
     const k = `${r.categoria}/${r.subcategoria}`;

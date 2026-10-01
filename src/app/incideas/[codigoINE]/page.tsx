@@ -140,6 +140,12 @@ export default async function IncideasFichaPage({
               Mapa de control de calidad
             </Link>
             <a
+              href={`/api/incideas/exportar?codigo_ine=${codigoINE}&formato=xlsx`}
+              className="btn btn-ghost"
+            >
+              Exportar XLSX
+            </a>
+            <a
               href={`/api/incideas/exportar?codigo_ine=${codigoINE}&formato=geojson`}
               className="btn btn-ghost"
             >

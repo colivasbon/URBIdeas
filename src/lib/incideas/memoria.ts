@@ -1,6 +1,14 @@
 import { createSupabaseServerSafe } from "@/lib/supabase-server";
 import { getIndicadoresSocideas, type IndicadoresSocideas } from "./fuentes-socideas";
+import { leerTodas } from "./paginar";
 import type { RegistroINCideas } from "./types";
+
+export {
+  pieFuentes,
+  rangoTipoFuente,
+  seleccionarPorFuente,
+  type SeleccionFuentes,
+} from "./seleccion-fuentes";
 
 export interface MunicipioMemoria {
   codigo_ine: string;
@@ -19,6 +27,10 @@ export interface MemoriaMunicipal {
   porSubcategoria: Record<string, RegistroINCideas[]>;
   boundary: GeoJSON.Geometry | null;
   totalRegistros: number;
+  /** Posibles bajas pendientes de revisión: no se presentan como inventario vigente. */
+  posiblesBajas: number;
+  /** Tipo de cada fuente según el catálogo incideas_fuentes (nombre → tipo). */
+  tiposFuente: Map<string, string>;
 }
 
 /** Ensambla todo lo necesario para la memoria documental de un municipio,
@@ -56,15 +68,19 @@ export async function getMemoriaMunicipal(codigoINE: string): Promise<MemoriaMun
     }
   }
 
-  const { data: regs } = await supabase
-    .from("incideas_registros")
-    .select("*")
-    .eq("codigo_ine", codigoINE)
-    .is("eliminado_en", null)
-    .not("visibilidad", "in", "(restringida,personal_protegida)")
-    .order("nombre_oficial", { ascending: true });
-
-  const registros = (regs ?? []) as unknown as RegistroINCideas[];
+  const { data: todos } = await leerTodas<RegistroINCideas>((desde, hasta) =>
+    supabase
+      .from("incideas_registros")
+      .select("*")
+      .eq("codigo_ine", codigoINE)
+      .is("eliminado_en", null)
+      .not("visibilidad", "in", "(restringida,personal_protegida)")
+      .order("nombre_oficial", { ascending: true })
+      .order("id", { ascending: true })
+      .range(desde, hasta)
+  );
+  const posiblesBajas = todos.filter((r) => r.desactualizado_desde).length;
+  const registros = todos.filter((r) => !r.desactualizado_desde);
   const porCategoria: Record<string, RegistroINCideas[]> = {};
   const porSubcategoria: Record<string, RegistroINCideas[]> = {};
   let boundary: GeoJSON.Geometry | null = null;
@@ -82,6 +98,11 @@ export async function getMemoriaMunicipal(codigoINE: string): Promise<MemoriaMun
 
   const indicadores = await getIndicadoresSocideas(codigoINE);
 
+  const { data: fuentes } = await supabase.from("incideas_fuentes").select("nombre,tipo");
+  const tiposFuente = new Map<string, string>(
+    ((fuentes ?? []) as { nombre: string; tipo: string }[]).map((f) => [f.nombre, f.tipo])
+  );
+
   return {
     municipio: {
       codigo_ine: mun.codigo_ine,
@@ -97,6 +118,8 @@ export async function getMemoriaMunicipal(codigoINE: string): Promise<MemoriaMun
     porSubcategoria,
     boundary,
     totalRegistros: registros.length,
+    posiblesBajas,
+    tiposFuente,
   };
 }
 

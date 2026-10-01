@@ -46,11 +46,25 @@ export const ESTADOS_PROTEGIDOS = new Set<string>([
   "personal_protegida",
 ]);
 
-function igual(a: unknown, b: unknown): boolean {
+/** JSON con claves ordenadas y sin claves undefined: JSONB no conserva el orden de inserción. */
+function canonico(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonico);
+  if (v && typeof v === "object") {
+    return Object.fromEntries(
+      Object.entries(v as Record<string, unknown>)
+        .filter(([, x]) => x !== undefined)
+        .sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0))
+        .map(([k, x]) => [k, canonico(x)])
+    );
+  }
+  return v;
+}
+
+export function igual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (a === null || a === undefined) return b === null || b === undefined;
   if (typeof a === "object" || typeof b === "object") {
-    return JSON.stringify(a) === JSON.stringify(b);
+    return JSON.stringify(canonico(a)) === JSON.stringify(canonico(b));
   }
   return false;
 }
@@ -92,6 +106,8 @@ export async function procesarLote(
     claves_vistas: [],
   };
   const vistas = new Set<string>();
+  /** Ids de registros existentes emparejados en esta ejecución (aunque su clave guardada difiera). */
+  const idsVistos = new Set<string>();
   const ahora = new Date().toISOString();
 
   for (const record of records) {
@@ -107,7 +123,13 @@ export async function procesarLote(
         );
       }
       if (!existing) {
-        existing = await store.findByHuella(ctx.codigo_ine, record.categoria, record.huella);
+        const porHuella = await store.findByHuella(ctx.codigo_ine, record.categoria, record.huella);
+        // La huella solo sustituye al identificador de origen cuando el registro guardado no lo
+        // tiene (o es el mismo). Si tiene otro, es otra entidad con el mismo nombre y sin
+        // coordenadas (p. ej. una partida que abarca varias áreas): no se fusionan.
+        if (porHuella && (!porHuella.id_origen || porHuella.id_origen === record.id_origen)) {
+          existing = porHuella;
+        }
       }
 
       if (!existing) {
@@ -119,12 +141,14 @@ export async function procesarLote(
           observaciones: `Creado por ${ctx.conector} v${ctx.version_conector}`,
         });
         counts.insertados++;
+        idsVistos.add(inserted.id);
         vistas.add(clave);
         counts.claves_vistas.push(clave);
         continue;
       }
 
       vistas.add(clave);
+      idsVistos.add(existing.id);
       counts.claves_vistas.push(clave);
 
       if (ESTADOS_PROTEGIDOS.has(existing.estado_validacion)) {
@@ -194,15 +218,19 @@ export async function procesarLote(
   }
 
   if (permitirBajas) {
-    const existentes = await store.listarClavesFuente(
-      ctx.codigo_ine,
-      ctx.categoria,
-      ctx.fuente.nombre
-    );
-    for (const e of existentes) {
-      if (!vistas.has(e.clave)) {
-        await store.marcarPosibleBaja(e.id, `No aparece en la ejecución ${ctx.id}`, ahora);
-        counts.posibles_bajas++;
+    const ambito = ctx.ambito ?? [{ categoria: ctx.categoria }];
+    for (const a of ambito) {
+      const existentes = await store.listarClavesFuente(
+        ctx.codigo_ine,
+        a.categoria,
+        ctx.fuente.nombre,
+        a.subcategorias
+      );
+      for (const e of existentes) {
+        if (!vistas.has(e.clave) && !idsVistos.has(e.id)) {
+          await store.marcarPosibleBaja(e.id, `No aparece en la ejecución ${ctx.id}`, ahora);
+          counts.posibles_bajas++;
+        }
       }
     }
   }

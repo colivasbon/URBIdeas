@@ -102,6 +102,7 @@ export async function ejecutarConector(
       categoria: connector.categoria,
       fuente: connector.fuente,
       parametros: args.parametros ?? {},
+      ambito: connector.ambito,
     };
 
     const normalized = res.features.map((raw) => {
@@ -119,8 +120,10 @@ export async function ejecutarConector(
       return rec;
     });
 
+    // Una respuesta vacía con errores no es una fuente vacía: no autoriza bajas.
+    const respuestaFallida = res.features.length === 0 && res.errores.length > 0;
     const upsert = await procesarLote(deps.store, ctx, normalized, {
-      permitirBajas: !res.parcial,
+      permitirBajas: !res.parcial && !respuestaFallida,
       usuario: args.usuario ?? `conector:${connector.id}`,
     });
     Object.assign(counts, upsert);
@@ -136,7 +139,8 @@ export async function ejecutarConector(
     }));
     duplicados = detectarDuplicados(candidatos);
 
-    const estado: RunnerResultado["estado"] = res.parcial ? "parcial" : "completada";
+    const estado: RunnerResultado["estado"] =
+      res.parcial || respuestaFallida ? "parcial" : "completada";
     await deps.finalizarEjecucion(ejecucionId, {
       estado,
       fecha_fin: new Date().toISOString(),

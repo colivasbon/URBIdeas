@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { leerTodas } from "../paginar";
 import type {
   HistorialEntrada,
   NormalizedRecord,
@@ -44,9 +45,12 @@ export class SupabaseRegistroStore implements RegistroStore {
       .eq("categoria", categoria)
       .eq("huella", huella)
       .is("eliminado_en", null)
-      .maybeSingle();
+      .limit(50);
     if (error) throw new Error(error.message);
-    return (data as RegistroExistente) ?? null;
+    // Puede haber homónimos sin coordenadas con distinto id_origen: se prefiere el registro
+    // sin identificador (el único que la huella puede emparejar).
+    const filas = (data ?? []) as RegistroExistente[];
+    return filas.find((r) => !r.id_origen) ?? filas[0] ?? null;
   }
 
   async insert(record: NormalizedRecord): Promise<RegistroExistente> {
@@ -92,17 +96,26 @@ export class SupabaseRegistroStore implements RegistroStore {
   async listarClavesFuente(
     codigoINE: string,
     categoria: string,
-    fuente: string
+    fuente: string,
+    subcategorias?: string[]
   ): Promise<{ clave: string; id: string }[]> {
-    const { data, error } = await this.client
-      .from("incideas_registros")
-      .select("id,id_origen,huella")
-      .eq("codigo_ine", codigoINE)
-      .eq("categoria", categoria)
-      .eq("fuente_principal", fuente)
-      .is("eliminado_en", null);
-    if (error) throw new Error(error.message);
-    return (data ?? []).map((r) => ({
+    // Paginado: con más de 1000 registros por fuente y categoría, una lectura simple se
+    // truncaría y las bajas quedarían sin detectar.
+    const { data, error } = await leerTodas<{ id: string; id_origen: string | null; huella: string | null }>(
+      (desde, hasta) => {
+        let query = this.client
+          .from("incideas_registros")
+          .select("id,id_origen,huella")
+          .eq("codigo_ine", codigoINE)
+          .eq("categoria", categoria)
+          .eq("fuente_principal", fuente)
+          .is("eliminado_en", null);
+        if (subcategorias?.length) query = query.in("subcategoria", subcategorias);
+        return query.order("id", { ascending: true }).range(desde, hasta);
+      }
+    );
+    if (error) throw new Error(error);
+    return data.map((r) => ({
       clave: (r.id_origen as string) ?? (r.huella as string),
       id: r.id as string,
     }));
@@ -116,7 +129,9 @@ export class SupabaseRegistroStore implements RegistroStore {
     const { error } = await this.client
       .from("incideas_registros")
       .update({ desactualizado_desde: desactualizadoDesde, motivo_baja: motivo })
-      .eq("id", id);
+      .eq("id", id)
+      // Conserva la fecha de la primera ausencia: no se reescribe en pasadas posteriores.
+      .is("desactualizado_desde", null);
     if (error) throw new Error(error.message);
   }
 }

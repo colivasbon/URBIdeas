@@ -87,7 +87,10 @@ export default function IncideasMetodologiaPage() {
               </ul>
             </div>
 
-            <p className="mt-8">
+            <p className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
+              <Link href="/incideas/arquitectura" className="link text-sm">
+                Ver arquitectura del sistema
+              </Link>
               <Link href="/incideas/fuentes" className="link text-sm">
                 Ver registro de fuentes
               </Link>

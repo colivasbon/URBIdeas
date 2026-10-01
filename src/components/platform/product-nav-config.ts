@@ -176,6 +176,7 @@ export function incideasNavConfig(ctx: IncideasContext = {}): ProductNavbarConfi
         items: [
           { label: "Metodología", href: "/incideas/metodologia", description: "Arquitectura y procesos" },
           { label: "Fuentes", href: "/incideas/fuentes", description: "Registro de fuentes y conectores" },
+          { label: "Arquitectura", href: "/incideas/arquitectura", description: "Capas, flujo de datos y ciclo de vida" },
         ],
       },
     ],

@@ -54,6 +54,13 @@ export const PLATFORM_HOME_ARIA_LABEL = "Ir a la página principal de Ideas Sost
 const SCROLLED_AFTER_PX = 8;
 const INDICATOR_BASE = 100;
 
+/** Logotipo de cada marca junto a su nombre en navegación. */
+const BRAND_LOGOS: Record<string, string> = {
+  urbideas: "/logo/urbideas.png",
+  socideas: "/logo/socideas.png",
+  incideas: "/logo/incideas.png",
+};
+
 function useScrolled(): boolean {
   const [scrolled, setScrolled] = useState(false);
   const ticking = useRef(false);
@@ -259,12 +266,24 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                 aria-label={`${config.productLabel} — inicio del módulo`}
                 className="flex min-w-0 items-center gap-2 rounded-[6px] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
-                <span
-                  aria-hidden="true"
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-[var(--musgo)] text-xs font-bold text-[var(--hueso)]"
-                >
-                  {config.productMark}
-                </span>
+                {BRAND_LOGOS[config.product] ? (
+                  <span className="brand-logo-pill" aria-hidden="true">
+                    <Image
+                      src={BRAND_LOGOS[config.product]}
+                      alt=""
+                      width={60}
+                      height={55}
+                      className="h-6 w-auto"
+                    />
+                  </span>
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-[var(--musgo)] text-xs font-bold text-[var(--hueso)]"
+                  >
+                    {config.productMark}
+                  </span>
+                )}
                 <span className="min-w-0 leading-tight">
                   <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">
                     {config.productLabel}
@@ -288,6 +307,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
         >
           {config.navigation.map((item) => {
             const active = isItemActive(pathname, item);
+            const brandLogo = BRAND_LOGOS[item.id];
             if (!item.items || item.items.length === 0) {
               return (
                 <Link
@@ -299,6 +319,17 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                   aria-current={active ? "page" : undefined}
                   className={linkClasses(active)}
                 >
+                  {brandLogo && (
+                    <span className="brand-logo-pill" aria-hidden="true">
+                      <Image
+                        src={brandLogo}
+                        alt=""
+                        width={60}
+                        height={55}
+                        className="h-5 w-auto"
+                      />
+                    </span>
+                  )}
                   {item.label}
                 </Link>
               );
@@ -490,6 +521,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
               )}
               {config.navigation.map((item, index) => {
                 const active = isItemActive(pathname, item);
+                const brandLogo = BRAND_LOGOS[item.id];
                 const stagger = { animationDelay: `${index * 30}ms` } as React.CSSProperties;
                 if (!item.items || item.items.length === 0) {
                   return (
@@ -507,6 +539,17 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                           : "text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)]",
                       ].join(" ")}
                     >
+                      {brandLogo && (
+                        <span className="brand-logo-pill" aria-hidden="true">
+                          <Image
+                            src={brandLogo}
+                            alt=""
+                            width={60}
+                            height={55}
+                            className="h-5 w-auto"
+                          />
+                        </span>
+                      )}
                       {item.label}
                     </Link>
                   );

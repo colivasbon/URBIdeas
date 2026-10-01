@@ -3,8 +3,7 @@ import Link from "next/link";
 import PlatformHeader, { CORPORATE_URL } from "@/components/platform/PlatformHeader";
 import PlatformFooter from "@/components/platform/PlatformFooter";
 import MapSheet from "@/components/platform/MapSheet";
-import ModuleBrandGrid from "@/components/platform/ModuleBrandGrid";
-import { BRAND_MODULES } from "@/components/platform/brand-modules";
+import Badge from "@/components/ui/Badge";
 
 export const metadata: Metadata = {
   title: "IDEAS Sostenibilidad | Ideas Medioambientales",
@@ -121,9 +120,18 @@ export default function PlatformHome() {
             <h2 id="modulos" className="type-h2 max-w-[24ch] text-[var(--text-primary)]">
               Qué puede consultar
             </h2>
-            <ModuleBrandGrid modules={BRAND_MODULES} />
-            <div className="mt-12 max-w-2xl">
-              <h3 className="type-h3 text-[var(--text-primary)]">SOCideas</h3>
+            <div className="mt-10 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="type-h3">
+                  <Link href="/socideas" className="text-[var(--text-primary)]">
+                    SOCideas
+                  </Link>
+                </h3>
+                <Badge variant="muted">Beta interna</Badge>
+              </div>
+              <p className="mt-2 text-[var(--text-secondary)]">
+                Ficha municipal demográfica y económica. Se abre buscando el municipio.
+              </p>
               <IndiceModulo entradas={SOCIDEAS} />
             </div>
             <p className="mt-12 max-w-[60ch] text-sm text-[var(--text-muted)]">

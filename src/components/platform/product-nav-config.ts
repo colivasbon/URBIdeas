@@ -156,6 +156,16 @@ export function incideasNavConfig(ctx: IncideasContext = {}): ProductNavbarConfi
                   href: `/incideas/${ine}${qs}`,
                   description: "Volver a la ficha del municipio actual",
                 },
+                {
+                  label: "Memoria municipal",
+                  href: `/incideas/${ine}/memoria`,
+                  description: "Memoria documental estilo PTM",
+                },
+                {
+                  label: "Revisión de datos",
+                  href: `/incideas/${ine}/revision`,
+                  description: "Bandeja de validación",
+                },
               ]
             : []),
         ],

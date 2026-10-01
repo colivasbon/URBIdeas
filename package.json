@@ -17,7 +17,10 @@
     "qa:cobertura": "npx tsx scripts/qa-cobertura-muestra.ts",
     "qa:revalidacion": "npx tsx scripts/verify-revalidate-muestra.ts",
     "verify:revalidate": "npx tsx scripts/verify-revalidate.ts",
-    "conprel:dry-run": "npx tsx scripts/load-conprel.ts --muestra"
+    "conprel:dry-run": "npx tsx scripts/load-conprel.ts --muestra",
+    "incideas:test": "npx tsx --test scripts/tests/incideas-pipeline.test.ts",
+    "incideas:seed-fuentes": "npx tsx scripts/incideas/seed-fuentes.ts",
+    "incideas:dry-run": "npx tsx scripts/incideas/run-connector.ts --conector all --ine 03031 --nombre-municipio Benidorm --repeticion 2"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1125.0",

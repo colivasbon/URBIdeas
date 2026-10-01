@@ -89,6 +89,7 @@ export interface RegistroINCideas {
   observaciones?: string;
   posible_duplicado?: boolean;
   dato_sensible?: boolean;
+  atributos?: Record<string, unknown>;
   visibilidad: Visibilidad;
   nivel_automatizacion: NivelAutomatizacion;
   creado_en: string;

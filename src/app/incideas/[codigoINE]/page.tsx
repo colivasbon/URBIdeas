@@ -128,6 +128,24 @@ export default async function IncideasFichaPage({
               </dl>
             </div>
           </div>
+
+          <nav aria-label="Herramientas de control" className="mt-8 flex flex-wrap gap-3">
+            <Link href={`/incideas/${codigoINE}/memoria`} className="btn btn-primary">
+              Memoria municipal
+            </Link>
+            <Link href={`/incideas/${codigoINE}/revision`} className="btn btn-secondary">
+              Bandeja de revisión
+            </Link>
+            <Link href={`/incideas/${codigoINE}/mapa`} className="btn btn-secondary">
+              Mapa de control de calidad
+            </Link>
+            <a
+              href={`/api/incideas/exportar?codigo_ine=${codigoINE}&formato=geojson`}
+              className="btn btn-ghost"
+            >
+              Exportar GeoJSON
+            </a>
+          </nav>
         </section>
 
         <section aria-labelledby="categorias" className="border-t border-[var(--border-subtle)]">

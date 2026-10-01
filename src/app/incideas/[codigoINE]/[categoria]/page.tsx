@@ -27,11 +27,11 @@ const INE_RE = /^\d{5}$/;
 const CATEGORIAS_VALIDAS = [
   "territorio",
   "poblacion",
-  "necesidades-especiales",
+  "necesidades_especiales",
   "animales",
   "infraestructuras",
   "equipamientos",
-  "servicios-basicos",
+  "servicios_basicos",
   "riesgos",
   "medios_recursos",
   "evacuacion",
@@ -52,7 +52,7 @@ export default async function IncideasCategoriaPage({
   const cat = getCategoria(categoria);
   if (!cat) notFound();
 
-  const registros = await getRegistrosCategoria(codigoINE, categoria as any);
+  const registros = await getRegistrosCategoria(codigoINE, cat.id);
 
   return (
     <div className="flex min-h-screen flex-col">

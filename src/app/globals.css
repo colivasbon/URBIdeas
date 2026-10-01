@@ -941,6 +941,14 @@
   }
   .theme-toggle:active { transform: scale(0.95); }
 
+  /* Hover de navegación: en tema oscuro el musgo-50 (casi blanco) sobre
+     fondo oscuro se lee como un pegote claro. Se usa un velo translúcido
+     que funciona en ambos temas. */
+  .nav-link:hover { background: var(--musgo-50); }
+  [data-theme="dark"] .nav-link:hover { background: rgba(176, 189, 176, 0.08); }
+  .nav-icon-btn:hover { background: var(--musgo-50); }
+  [data-theme="dark"] .nav-icon-btn:hover { background: rgba(176, 189, 176, 0.12); }
+
   /* Skip link */  .skip-link {
     position: fixed;
     top: var(--space-2);

@@ -7,19 +7,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 
 /* ============================================================
-   ProductNavbar â€” navegaciÃ³n de plataforma y mÃ³dulos (IMA)
-   - Una sola lÃ³gica de contracciÃ³n al scroll (listener pasivo + rAF).
-   - SubmenÃºs click-to-open (Escape / click-fuera / navegaciÃ³n).
-   - Drawer mÃ³vil con focus trap, Escape, bloqueo de scroll y stagger.
-   - Cabecera clara: 64px desktop / 56px mÃ³vil; blur + borde al scrollear.
+   ProductNavbar — navegación de plataforma y módulos (IMA)
+   - Una sola lógica de contracción al scroll (listener pasivo + rAF).
+   - Submenús click-to-open (Escape / click-fuera / navegación).
+   - Drawer móvil con focus trap, Escape, bloqueo de scroll y stagger.
+   - Cabecera clara: 64px desktop / 56px móvil; blur + borde al scrollear.
    ============================================================ */
 
 export type ProductNavSubItem = {
   label: string;
-  /** Sin href â†’ Ãtem no navegable (p. ej. Â«PrÃ³ximamenteÂ»). Nunca usar "#". */
+  /** Sin href → Ítem no navegable (p. ej. «Próximamente»). Nunca usar "#". */
   href?: string;
   description?: string;
-  badge?: "PrÃ³ximamente";
+  badge?: "Próximamente";
   disabled?: boolean;
 };
 
@@ -37,24 +37,24 @@ export type ProductTone = "platform" | "urban" | "social" | "assistance" | "emer
 export type ProductNavbarConfig = {
   product: "platform" | "urbideas" | "socideas" | "incideas";
   productLabel: string;
-  /** Inicial del distintivo del mÃ³dulo (p. ej. "U", "S", "A"). */
+  /** Inicial del distintivo del módulo (p. ej. "U", "S", "A"). */
   productMark: string;
   productHref: string;
   productDescription?: string;
   navigation: ProductNavItem[];
   tone?: ProductTone;
-  /** Etiqueta del menÃº mÃ³vil (p. ej. "Abrir menÃº de SOCideas"). */
+  /** Etiqueta del menú móvil (p. ej. "Abrir menú de SOCideas"). */
   mobileMenuLabel?: string;
   /** Enlace corporativo externo existente (solo plataforma). */
   corporateUrl?: string;
 };
 
-export const PLATFORM_HOME_ARIA_LABEL = "Ir a la pÃ¡gina principal de Ideas Sostenibilidad";
+export const PLATFORM_HOME_ARIA_LABEL = "Ir a la página principal de Ideas Sostenibilidad";
 
 const SCROLLED_AFTER_PX = 8;
 const INDICATOR_BASE = 100;
 
-/** SÃ­mbolo de cada marca junto a su nombre en navegaciÃ³n. */
+/** Símbolo de cada marca junto a su nombre en navegación. */
 const BRAND_SYMBOLS: Record<string, string> = {
   urbideas: "/logo/urbideas-symbol.png",
   socideas: "/logo/socideas-symbol.png",
@@ -164,7 +164,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
     };
   }, [openMenu, mobileOpen]);
 
-  // Bloqueo de scroll + focus trap del drawer mÃ³vil.
+  // Bloqueo de scroll + focus trap del drawer móvil.
   useEffect(() => {
     if (!mobileOpen) return;
     const prev = document.body.style.overflow;
@@ -212,12 +212,12 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
       "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
       active
         ? "text-[var(--moss-ink)] font-semibold"
-        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--musgo-50)]",
+        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] nav-link",
     ].join(" ");
 
   const mobileMenuLabel = mobileOpen
-    ? `Cerrar menÃº${isPlatform ? "" : ` de ${config.productLabel}`}`
-    : (config.mobileMenuLabel ?? (isPlatform ? "Abrir menÃº" : `Abrir menÃº de ${config.productLabel}`));
+    ? `Cerrar menú${isPlatform ? "" : ` de ${config.productLabel}`}`
+    : (config.mobileMenuLabel ?? (isPlatform ? "Abrir menú" : `Abrir menú de ${config.productLabel}`));
 
   return (
     <header
@@ -297,11 +297,11 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
           )}
         </div>
 
-        {/* NavegaciÃ³n desktop */}
+        {/* Navegación desktop */}
         <nav
           ref={navRef}
           className="relative hidden items-center gap-0.5 md:flex"
-          aria-label={isPlatform ? "NavegaciÃ³n de la plataforma" : `NavegaciÃ³n del mÃ³dulo ${config.productLabel}`}
+          aria-label={isPlatform ? "Navegación de la plataforma" : `Navegación del módulo ${config.productLabel}`}
         >
           {config.navigation.map((item) => {
             const active = isItemActive(pathname, item);
@@ -393,7 +393,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                                   "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
                                   subActive
                                     ? "bg-[var(--status-info-bg)] font-medium text-[var(--status-info-fg)]"
-                                    : "text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)]",
+                                    : "text-[var(--text-secondary)] nav-link hover:text-[var(--text-primary)]",
                                 ].join(" ")}
                               >
                                 <span>
@@ -451,7 +451,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
           </span>
         </nav>
 
-        {/* Controles mÃ³viles */}
+        {/* Controles móviles */}
         <div className="flex items-center gap-1 md:hidden">
           <ThemeToggle />
           <button
@@ -461,7 +461,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
             aria-label={mobileMenuLabel}
             aria-expanded={mobileOpen}
             aria-controls="productnav-drawer"
-            className="flex h-11 w-11 items-center justify-center rounded-[6px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+            className="nav-icon-btn flex h-11 w-11 items-center justify-center rounded-[6px] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
           >
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
               {mobileOpen ? (
@@ -474,7 +474,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
         </div>
       </div>
 
-      {/* Drawer mÃ³vil */}
+      {/* Drawer móvil */}
       {mobileOpen && (
         <div className="fixed inset-0 z-[300] md:hidden">
           <div
@@ -487,7 +487,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
             id="productnav-drawer"
             role="dialog"
             aria-modal="true"
-            aria-label={isPlatform ? "MenÃº de navegaciÃ³n" : `MenÃº de ${config.productLabel}`}
+            aria-label={isPlatform ? "Menú de navegación" : `Menú de ${config.productLabel}`}
             className="absolute inset-y-0 right-0 flex w-[min(20rem,88vw)] flex-col overflow-y-auto bg-[var(--bg-surface)] shadow-[var(--shadow-3)]"
           >
             <div className="flex h-14 items-center justify-between border-b border-[var(--border-subtle)] px-4 sm:px-6">
@@ -497,20 +497,20 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
               <button
                 type="button"
                 onClick={closeMobile}
-                aria-label="Cerrar menÃº"
-                className="flex h-11 w-11 items-center justify-center rounded-[6px] text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                aria-label="Cerrar menú"
+                className="nav-icon-btn flex h-11 w-11 items-center justify-center rounded-[6px] text-[var(--text-secondary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <nav className="flex-1 p-3" aria-label={isPlatform ? "NavegaciÃ³n de la plataforma" : `NavegaciÃ³n del mÃ³dulo ${config.productLabel}`}>
+            <nav className="flex-1 p-3" aria-label={isPlatform ? "Navegación de la plataforma" : `Navegación del módulo ${config.productLabel}`}>
               {!isPlatform && (
                 <Link
                   href="/"
                   onClick={closeMobile}
-                  className="mb-1 block rounded-[6px] px-4 py-3 text-sm font-semibold text-[var(--text-link)] hover:bg-[var(--musgo-50)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  className="nav-link mb-1 block rounded-[6px] px-4 py-3 text-sm font-semibold text-[var(--text-link)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                 >
                   Volver a IDEAS Sostenibilidad
                 </Link>
@@ -532,7 +532,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                         "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
                         active
                           ? "bg-[var(--status-info-bg)] font-semibold text-[var(--status-info-fg)]"
-                          : "text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)]",
+                          : "text-[var(--text-secondary)] nav-link hover:text-[var(--text-primary)]",
                       ].join(" ")}
                     >
                       {brandLogo && (
@@ -562,7 +562,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                         "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
                         active
                           ? "font-semibold text-[var(--moss-ink)]"
-                          : "text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)]",
+                          : "text-[var(--text-secondary)] nav-link hover:text-[var(--text-primary)]",
                       ].join(" ")}
                     >
                       <span className="flex-1 text-left">{item.label}</span>
@@ -602,7 +602,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                                     "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
                                     subActive
                                       ? "bg-[var(--status-info-bg)] font-medium text-[var(--status-info-fg)]"
-                                      : "text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)]",
+                                      : "text-[var(--text-secondary)] nav-link hover:text-[var(--text-primary)]",
                                   ].join(" ")}
                                 >
                                   {sub.label}
@@ -622,7 +622,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                   href={config.corporateUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="link-external mt-1 flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                  className="link-external nav-link mt-1 flex items-center gap-3 rounded-[6px] px-4 py-3 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
                 >
                   Ideas Medioambientales
                 </a>

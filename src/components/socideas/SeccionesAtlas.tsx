@@ -61,6 +61,17 @@ import type {
   SeccionesAtlasBootstrap,
   SeccionesDatasetBloque,
 } from "@/lib/socideas-secciones-dataset";
+// Retención ACOTADA de los bloques ya descargados. Antes se acumulaban todos en
+// un único `observations` gigante (312 674 observaciones y ~130 MB en Madrid al
+// recorrer los 127 indicadores), y el mapa, la tabla y el PNG solo leen uno. La
+// clave y los límites, con su medición, están en el propio módulo.
+import {
+  CacheDatasetsSecciones,
+  bytesSerializados,
+  claveDataset,
+  crearEntradaCacheDataset,
+  type EjesDataset,
+} from "@/lib/socideas-secciones-cache";
 import { componerPngMapa, nombreArchivoPngSecciones, tokenIma, type EscalaPng } from "@/lib/socideas-secciones-png";
 import SeccionesAtlasMap, {
   COLOR_CONTORNO_CLASE,
@@ -187,6 +198,18 @@ type AtlasParaVista = Omit<SeccionesAtlasV1, "sections">;
  *  que la vista indexa. */
 export type ObservacionesHidrátadas = Record<string, SeccionIndicadorObservaciones>;
 
+/** Un dataset materializado para pintar: el que la vista está leyendo, con sus
+ *  filas expandidas y con la clave que lo identifica en la caché. Se SUSTITUYE
+ *  entero al cambiar de dataset, nunca se fusiona con el anterior. */
+interface Materializacion {
+  clave: string;
+  /** Con la que se indexó dentro de cada sección, y por la que la vista lee. */
+  indicadorId: string;
+  observaciones: ObservacionesHidrátadas;
+  /** Celdas realmente expandidas. Lo dice el panel de estado, no la vista. */
+  nObservaciones: number;
+}
+
 /** Un bloque pedido. `periodo` y `convocatoria` pueden faltar: el servidor usa
  *  entonces el `periodo_por_defecto` de la cobertura y la convocatoria más
  *  reciente, y lo dice en la respuesta. */
@@ -221,12 +244,30 @@ export interface EstadoBloque {
 const MAX_INTENTOS_POR_BLOQUE = 3;
 
 /** Clave estable de un bloque. Incluye TODOS los ejes que cambian el contenido
- *  (dominio, bloque, indicador, periodo, convocatoria) para que la caché de
- *  cliente no mezcle dos respuestas distintas. */
-function claveDeBloque(p: PeticionBloque): string {
-  return [p.dominio, p.bloque ?? "-", p.indicadorId, p.periodo ?? "defecto", p.convocatoria ?? "defecto"].join(
-    "|",
-  );
+ *  REMOTO (municipio, dominio, bloque, indicador, periodo, convocatoria) para
+ *  que la caché de cliente no mezcle dos respuestas distintas, y nada más.
+ *
+ *  DELIBERADAMENTE NO incluye la clasificación. Cuantil, Jenks, intervalos
+ *  iguales y cortes manuales reparten los MISMOS valores en clases distintas, y
+ *  la clasificación se aplica en el render, sobre el vector ya en memoria: no
+ *  viaja en la consulta (`urlDeBloque` no manda `modo` ni `clases`), no cambia
+ *  el endpoint y no puede alterar la respuesta del servidor. Incluirla haría
+ *  que abrir la leyenda provocara una descarga que no puede devolver nada
+ *  nuevo. El porqué, punto por punto, está en la cabecera de
+ *  `socideas-secciones-cache`. */
+function ejesDeBloque(p: PeticionBloque, municipio: string): EjesDataset {
+  return {
+    municipio,
+    dominio: p.dominio,
+    bloque: p.bloque ?? null,
+    indicador: p.indicadorId,
+    periodo: p.periodo ?? null,
+    convocatoria: p.convocatoria ?? null,
+  };
+}
+
+function claveDeBloque(p: PeticionBloque, municipio: string): string {
+  return claveDataset(ejesDeBloque(p, municipio));
 }
 
 /** Dominio al que pertenece un indicador, según el tema que declara el catálogo.
@@ -287,20 +328,21 @@ function causaDeFalloBootstrap(status: number, mensaje: string | null | undefine
   return `No se pudieron cargar las secciones de ${municipio} (HTTP ${status})${sufijo}`;
 }
 
-/** Mergea un bloque YA expandido dentro del estado local. Nunca reemplaza: el
- *  mapa se va llenando indicador a indicador y periodo a periodo, y perder lo
- *  ya pedido al cambiar de año sería tirar datos que ya se han pagado. */
-function fusionarBloqueHidrátado(
-  base: ObservacionesHidrátadas,
+/** Indexa un bloque YA expandido como un dataset, con la forma que lee la
+ *  vista: sección → indicador → clave de periodo → observación.
+ *
+ *  A diferencia de la antigua fusión, esto NO se mezcla con lo anterior: es el
+ *  contenido ÍNTEGRO de un solo dataset. La vista lee un indicador y un periodo
+ *  cada vez, así que un dataset basta para pintar, y lo que se pinta se puede
+ *  soltar entero al cambiar de dataset. Esa es la diferencia entre 312 674
+ *  observaciones retenidas y 2 462. */
+function indexarBloqueHidrátado(
   indicadorId: string,
   porSeccion: Record<string, SeccionPorPeriodo>,
 ): ObservacionesHidrátadas {
-  if (Object.keys(porSeccion).length === 0) return base;
-  const salida: ObservacionesHidrátadas = { ...base };
+  const salida: ObservacionesHidrátadas = {};
   for (const [seccion, porPeriodo] of Object.entries(porSeccion)) {
-    const porIndicador: SeccionIndicadorObservaciones = { ...(salida[seccion] ?? {}) };
-    porIndicador[indicadorId] = { ...(porIndicador[indicadorId] ?? {}), ...porPeriodo };
-    salida[seccion] = porIndicador;
+    salida[seccion] = { [indicadorId]: porPeriodo };
   }
   return salida;
 }
@@ -329,9 +371,15 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   /** El bootstrap no trajo veredicto de validación. Se declara, porque un atlas
    *  sin veredicto NO es lo mismo que un atlas validado. */
   const [validacionAusente, setValidacionAusente] = useState(false);
-  /** Valores ya hidratados, bloque a bloque. El bootstrap llega con
-   *  `observations: {}`; esta es la única fuente de valores que pinta el mapa. */
-  const [observaciones, setObservaciones] = useState<ObservacionesHidrátadas>({});
+  /** Valores ya hidratados, POR DATASET. El bootstrap llega con
+   *  `observations: {}`; esta es la única fuente de valores que pinta el mapa.
+   *
+   *  No es un acumulador: es SOLO el dataset que la vista está leyendo, y se
+   *  sustituye entero al cambiar de indicador, periodo, convocatoria o dominio.
+   *  Antes se pegaba cada bloque encima del anterior y recorrerse los 127
+   *  indicadores de Madrid dejaba 312 674 observaciones retenidas (~130 MB)
+   *  para pintar de dos en dos. */
+  const [materializacion, setMaterializacion] = useState<Materializacion | null>(null);
   /** Estado de carga/error POR BLOQUE, indexado por `claveDeBloque`. Vive en el
    *  atlas y no en la pestaña que lo pidió: Política se desmonta al salir de la
    *  pestaña y su bloque debe seguir disponible y legible. */
@@ -349,11 +397,24 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   const mapaRef = useRef<HandleAtlas | null>(null);
   const [aplicando, iniciarTransicion] = useTransition();
 
-  // ── Caché de bloques (refs, no estado) ──────────────────────────────────
-  // Vive en refs a propósito: cambiar la caché NO puede provocar render, ni
-  // que un efecto se dispare por un bloque ya descargado, ni un bucle.
-  /** Claves ya servidas: pedirlas otra vez no vuelve a llamar a la red. */
-  const bloquesCargados = useRef<Set<string>>(new Set());
+  // ── Caché de datasets (acotada, LRU) ───────────────────────────────────
+  //
+  // Las referencias (`useRef`) son a propósito: mutar la caché NO es un cambio
+  // de estado de React, así que insertar o expulsar un dataset no puede
+  // provocar un render, ni que un efecto se dispare por un bloque ya
+  // descargado, ni un bucle. Lo que sí es estado (y por tanto sí renderiza) es
+  // `materializacion`, el único dataset materializado para pintar.
+  /** Datasets retenidos, por encima de los topes de entradas y de bytes. */
+  const [cache] = useState(() => new CacheDatasetsSecciones());
+  /** Clave del dataset que la vista está leyendo. Cambia al pedir un bloque,
+   *  incluso si venía de la caché: es lo que dispara la materialización. */
+  const [claveActiva, setClaveActiva] = useState<string | null>(null);
+  /** Último dataset pedido, para que una respuesta tardía de un dataset que ya
+   *  no interesa NO se materialice por encima del actual. */
+  const interesRef = useRef<string | null>(null);
+  /** Clave ya materializada. Corta la re-expansión: cambiar de render no
+   *  vuelve a expandir, y volver al mismo dataset tampoco. */
+  const claveMaterializada = useRef<string | null>(null);
   /** Peticiones EN VOLO por clave. Es la deduplicación: dos efectos que piden
    *  el mismo bloque antes de que llegue el primero comparten una sola promesa. */
   const bloquesEnVuelo = useRef<Map<string, { promesa: Promise<void>; control: AbortController }>>(new Map());
@@ -401,10 +462,15 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
       // Los bloques que siguieran en vuelo se cancelan: si llegaran después de
       // vaciar el estado, escribirían valores de una carga que ya se descartó.
       for (const { control } of bloquesEnVuelo.current.values()) control.abort();
-      setObservaciones({});
+      // La caché se suelta por municipio, no entera: es la única operación que
+      // la vacía por completo, y deja constancia de por qué.
+      cache.soltarMunicipio(codigoINE);
+      setMaterializacion(null);
+      setClaveActiva(null);
       setGanadoras({});
       setBloques({});
-      bloquesCargados.current.clear();
+      interesRef.current = null;
+      claveMaterializada.current = null;
       bloquesEnVuelo.current.clear();
       intentosPorBloque.current.clear();
       setEstado("ok");
@@ -417,18 +483,90 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
       setError(err instanceof Error ? err.message : "Error al cargar las secciones");
       setEstado("error");
     }
-  }, [codigoINE, nombre]);
+  }, [codigoINE, nombre, cache]);
+
+  // ── Materialización: UN dataset expandido, el que se pinta ──────────────
+  //
+  // La caché guarda la forma COMPACTA que llegó del servidor. Aquí, y solo
+  // aquí, se expande un dataset —con `expandirIndicadorCompacto`, el mismo
+  // camino que usa el servidor para publicar— y se publica como estado para el
+  // render. Al materializar otro se SUELTA el anterior: no se fusiona con él.
+  //
+  // Por qué la vista no lo nota: mapa, tabla, ficha y PNG leen un indicador y
+  // un periodo cada vez (`construirVista` indexa por `observations[seccion]
+  // [indicador][año]`, y la capa Política por `[indicador][convocatoria]`), así
+  // que con el dataset activo basta y sobra.
+  const materializar = useCallback(
+    (clave: string): void => {
+      if (claveMaterializada.current === clave) return;
+      const entrada = cache.tocar(clave);
+      if (!entrada) return; // todavía en vuelo: materializará su respuesta
+      // Sin ficha ni clave de periodo no hay nada que expandir: un bloque así
+      // no se indexa en ninguna parte, así que no puede ser el dataset activo.
+      const meta = entrada.indicadorMeta;
+      if (!meta || !entrada.periodoClave) return;
+      const porSeccion = expandirIndicadorCompacto(entrada.serie, {
+        indicador: meta,
+        municipalityIne: entrada.ejes.municipio,
+        geometryYear: datos?.atlas?.geometryYear ?? datos?.anio_delimitacion ?? 0,
+        periodoClave: entrada.periodoClave,
+        retrievedAt: datos?.atlas?.statsRetrievedAt ?? "",
+      });
+      const observaciones = indexarBloqueHidrátado(meta.id, porSeccion);
+      let nObservaciones = 0;
+      for (const porIndicador of Object.values(observaciones)) {
+        for (const porPeriodo of Object.values(porIndicador)) nObservaciones += Object.keys(porPeriodo).length;
+      }
+      // El peso de la materialización entra en el presupuesto de la caché: son
+      // bytes vivos, no una promesa.
+      cache.anotarExpandido(clave, bytesSerializados(observaciones));
+      // Se suelta la anterior ANTES de publicar la nueva: nunca hay dos
+      // materializaciones vivas a la vez.
+      const anterior = claveMaterializada.current;
+      if (anterior && anterior !== clave) cache.liberarExpandido(anterior);
+      // Lo que se está pintando no se expulsa. Se fija aquí, y también en el
+      // camino de caché en `pedirBloque`: las dos son idempotentes y están las
+      // dos porque entre fijar y materializar hay un render, y en ese render
+      // puede llegar otra respuesta.
+      cache.fijar([clave]);
+      claveMaterializada.current = clave;
+      setMaterializacion({ clave, indicadorId: meta.id, observaciones, nObservaciones });
+      if (process.env.NODE_ENV !== "production") {
+        // Métrica dev-only: sin geometrías ni datos personales. Sirve para ver
+        // en el navegador que lo retenido está acotado y no crece con cada
+        // indicador que se recorre.
+        const s = cache.estadisticas();
+        console.debug(
+          `[socideas][secciones-cache] ${clave} obs=${nObservaciones} ` +
+            `entradas=${s.entradasRetenidas}/${s.maxEntradas} ` +
+            `bytes=${(s.bytesRetenidos / 1024).toFixed(0)}KiB/${(s.maxBytes / 1024).toFixed(0)}KiB ` +
+            `expulsados=${s.expulsados}`,
+        );
+      }
+    },
+    [cache, datos],
+  );
+
+  // Un dataset que vuelve a ser el que se lee se materializa desde la caché, sin
+  // red. El efecto depende de la CLAVE, no de la respuesta: cambiar de render no
+  // vuelve a expandir.
+  useEffect(() => {
+    if (!claveActiva) return;
+    materializar(claveActiva);
+  }, [claveActiva, materializar]);
 
   // ── Petición de un bloque de valores ────────────────────────────────────
   //
   // Reglas que resumen todo el cableado bajo demanda:
   //  · la ruta sale de `data.dataset.endpoint` del bootstrap, no del código;
-  //  · un bloque ya descargado no vuelve a pedirse (caché de cliente por clave);
+  //  · un dataset RETENIDO no vuelve a pedirse; uno EXPULSADO sí, porque la
+  //    caché es la única que sabe qué sigue en memoria (no hay un conjunto de
+  //    «claves servidas» aparte que pudiera desincronizarse y mentir);
   //  · dos peticiones del mismo bloque comparten una sola promesa (deduplicación);
   //  · la expansión la hace `expandirIndicadorCompacto`, el mismo camino que
   //    usa el servidor para publicar: aquí no se reimplementa;
-  //  · el resultado se MERGEA, nunca se sustituye: al cambiar de año no se
-  //    pierde lo ya pagado;
+  //  · la respuesta se REGISTRA en la caché (forma compacta, con sus bytes
+  //    medidos) y SOLO se materializa si sigue siendo el dataset que interesa;
   //  · el estado se escribe BAJO LA CLAVE del bloque, así que una respuesta
   //    tardía de un indicador anterior no puede pisar la del actual; y el
   //    `AbortController` cancela lo que se queda obsoleto o el componente
@@ -437,7 +575,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   //    endpoint de valores es una CAUSA, no un «sin datos» genérico.
   const pedirBloque = useCallback(
     (peticion: PeticionBloque, opciones: { forzar?: boolean } = {}): Promise<void> => {
-      const clave = claveDeBloque(peticion);
+      const clave = claveDeBloque(peticion, codigoINE);
       const endpoint = datos?.dataset?.endpoint ?? null;
 
       if (!datos || !endpoint) {
@@ -456,7 +594,20 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
         return Promise.resolve();
       }
 
-      if (!opciones.forzar && bloquesCargados.current.has(clave)) return Promise.resolve();
+      // La petición es el interés ACTUAL por este dataset, se atienda o no con
+      // red. Se declara antes de cualquier salida temprana: volver a un dataset
+      // cacheado tiene que volver a pintarlo, y volver a uno en vuelo tiene que
+      // poder ganar la carrera a la respuesta que ya venía de antes.
+      interesRef.current = clave;
+
+      if (!opciones.forzar && cache.tiene(clave)) {
+        // Servido desde la caché: cero red. Se activa y el efecto lo materializa.
+        // Se fija ya, sin esperar al efecto: la entrada que se acaba de pedir es
+        // la que se va a pintar y no puede salir en el hueco entre medias.
+        cache.fijar([clave]);
+        setClaveActiva(clave);
+        return Promise.resolve();
+      }
       // Reintento explícito: se aborta lo que siguiera en vuelo para que su
       // respuesta tardía no se adjudique el estado del intento nuevo.
       const anterior = bloquesEnVuelo.current.get(clave);
@@ -538,19 +689,26 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
           // dejaría un plano de contornos sin explicación.
           const indexable = Boolean(meta && periodoClave);
           if (meta && periodoClave) {
-            const pegado = expandirIndicadorCompacto(bloque.series, {
-              indicador: meta,
-              municipalityIne: bloque.codigo_ine,
-              geometryYear: datos.atlas?.geometryYear ?? datos.anio_delimitacion,
-              periodoClave,
-              retrievedAt: datos.atlas?.statsRetrievedAt ?? "",
-            });
-            // La clave de indicador es la del propio `indicador_meta`: es la que
-            // `expandirIndicadorCompacto` usó para indexar dentro de cada sección,
-            // y con la que la vista la va a leer.
-            setObservaciones((prev) => fusionarBloqueHidrátado(prev, meta.id, pegado));
+            // Se REGISTRA en la caché en forma compacta, con sus bytes medidos.
+            // Aquí no se expande: expandirse es trabajo de `materializar`, que
+            // solo lo hace con el dataset que la vista está leyendo. Insertar
+            // puede expulsar el menos reciente, y esa es la operación que acota
+            // la memoria: por eso va antes de decidir nada de la vista.
+            cache.insertar(
+              crearEntradaCacheDataset({
+                ejes: ejesDeBloque(peticion, bloque.codigo_ine || codigoINE),
+                serie: bloque.series ?? {},
+                indicadorMeta: meta,
+                periodoClave,
+                nValores: bloque.n_valores,
+                nSecciones: bloque.n_secciones,
+              }),
+            );
           }
-          bloquesCargados.current.add(clave);
+          // Solo se materializa lo que sigue interesando. Una respuesta tardía
+          // de un dataset que el usuario ya dejó se queda en la caché (compacto,
+          // reutilizable) y no desplaza lo que se está pintando.
+          if (indexable && interesRef.current === clave) setClaveActiva(clave);
           const nValores = esBloqueGanadoras ? bloque.n_secciones : bloque.n_valores;
           setBloques((b) => ({
             ...b,
@@ -591,14 +749,14 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
       bloquesEnVuelo.current.set(clave, { promesa, control });
       return promesa;
     },
-    [datos],
+    [datos, codigoINE, cache],
   );
 
   /** Estado de un bloque, o `undefined` si nunca se ha pedido. Lo consume la
    *  pestaña Política, que pide sus propios bloques con su convocatoria. */
   const estadoDeBloque = useCallback(
-    (peticion: PeticionBloque): EstadoBloque | undefined => bloques[claveDeBloque(peticion)],
-    [bloques],
+    (peticion: PeticionBloque): EstadoBloque | undefined => bloques[claveDeBloque(peticion, codigoINE)],
+    [bloques, codigoINE],
   );
 
   // ── Geometría normalizada ───────────────────────────────────────────────
@@ -642,6 +800,13 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
     return todosLosIndicadores.filter((i) => temas.includes(i.tema));
   }, [todosLosIndicadores, grupoActivo]);
 
+  // Lo que ve la vista: el dataset materializado, o nada. Nunca la suma de
+  // todos los datasets visitados.
+  const observaciones = useMemo<ObservacionesHidrátadas>(
+    () => materializacion?.observaciones ?? {},
+    [materializacion],
+  );
+
   // El atlas con los valores HIDRATADOS. Todo lo que lee valores —mapa, tabla,
   // ficha, PNG, cobertura— pasa por aquí en lugar de por `atlas.observations`,
   // que el bootstrap deja vacío. El tipo es el del atlas completo menos
@@ -656,14 +821,14 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   // badges de las pestañas y el listado del buscador, de una sola cuenta.
   //
   // ND: ya no se puede detectar escaneando observaciones, porque el bootstrap
-  // las trae vacías y solo se hidrata un indicador a la vez —escanear daría
-  // «sin celdas sin dato» a todos menos al visible, que es una mentira en
-  // la dirección contraria. Se usa el dato que el bootstrap SÍ publica:
+  // las trae vacías y solo se hidrata un dataset a la vez —escanear daría
+  // «sin celdas sin dato» a todos menos al visible, que es una mentira en la
+  // dirección contraria. Se usa el dato que el bootstrap SÍ publica:
   // `cobertura[].seccionesSinDifundir` de cada indicador. Cuando el bloque del
   // indicador está hidratado, la cobertura manda igual, así que el distintivo no
   // parpadea al pedir el bloque.
   const items = useMemo(() => {
-    if (!atlas) return [];
+    if (!atlas) return [];
     const base = construirItemsIndicadores(todosLosIndicadores, atlas.cobertura, observaciones);
     const conNd = new Set(
       (atlas.cobertura ?? [])
@@ -864,7 +1029,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
     if (!ind) return null;
     return { dominio: dominioDeIndicador(ind), indicadorId: ind.id, periodo: params.anio };
   }, [estado, datos, enPestanaPolitica, params.indicatorId, params.anio, todosLosIndicadores]);
-  const claveVisible = peticionVisible ? claveDeBloque(peticionVisible) : null;
+  const claveVisible = peticionVisible ? claveDeBloque(peticionVisible, codigoINE) : null;
   const estadoVisible = claveVisible ? bloques[claveVisible] : undefined;
 
   useEffect(() => {
@@ -1226,7 +1391,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
 
       {avisoBloqueVisible}
 
-
+
       {sinAtlas && (
         <div className="ideas-status" data-state="pending" role="status">
           <div className="ideas-status__head">

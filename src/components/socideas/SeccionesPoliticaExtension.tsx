@@ -610,6 +610,7 @@ export default function SeccionesPoliticaExtension({
       cortes,
       esVariacion,
       nombre,
+      datos?.atlas?.provinceName,
     ]);
 
   const filaSel = useMemo(
@@ -652,6 +653,9 @@ export default function SeccionesPoliticaExtension({
         domain: 'political',
         municipalityCode: codigoINE,
         municipalityName: nombre,
+        // La provincia vive en el atlas; sin ella el pie del PNG decía
+        // "Provincia: no consta" aunque el bootstrap la trajera.
+        provinceName: datos?.atlas?.provinceName ?? null,
         electionId: pol.electionId,
         electionType: pol.electionType,
         electionDate: pol.electionDate,

@@ -63,7 +63,7 @@ import {
   type SeccionValorCompacto,
   type SeccionFeature,
 } from './socideas-secciones'
-import type { Candidacy } from './socideas-secciones-political'
+import type { Candidacy, ElectionType, PoliticalCatalog } from './socideas-secciones-political'
 import type { MetadatosDominio } from './socideas-secciones-extension'
 
 export const SECCIONES_BOOTSTRAP_SCHEMA = 'secciones-bootstrap-v1'
@@ -534,4 +534,37 @@ export function featuresComoGeoJson(
   filtrar: (f: SeccionFeature) => boolean,
 ): GeoJsonFeatureCollection {
   return { type: 'FeatureCollection', features: features.filter(filtrar) }
+}
+/**
+ * Elige la convocatoria electoral que se sirve por defecto para un municipio.
+ *
+ * Regla: la más reciente PARA ESE MUNICIPIO, no la más reciente del catálogo.
+ * `municipalityCodes` son los INE con objeto publicable en esa convocatoria. Sin
+ * este filtro, un municipio cuyo objeto de la convocatoria más reciente no es
+ * publicable se quedaba sin ningún indicador político aunque tuviera
+ * resultados publicados en otras varias convocatorias (caso real de 46250
+ * València: la más reciente, `european-2024-06-09`, es la única de las catorce
+ * con `correspondenceStatus: unresolved`).
+ *
+ * Si el municipio no aparece en ninguna convocatoria con datos, se conserva el
+ * comportamiento anterior (la más reciente del catálogo) en lugar de fallar:
+ * que el consumidor decida y pueda mostrar la causa.
+ */
+export function elegirConvocatoria(
+  cat: PoliticalCatalog | null,
+  pedido: string | undefined,
+  ines: string,
+): { electionId: string; electionType: ElectionType; electionDate: string } | null {
+  const lista = cat?.elections ?? []
+  if (lista.length === 0) return null
+  if (pedido) {
+    const enc = lista.find((e) => e.electionId === pedido)
+    if (enc) return { electionId: enc.electionId, electionType: enc.electionType, electionDate: enc.electionDate }
+  }
+  const conDatos = lista.filter((e) => e.municipalityCodes.includes(ines))
+  const orden = (a: (typeof lista)[number], b: (typeof lista)[number]) =>
+    a.electionDate < b.electionDate ? 1 : a.electionDate > b.electionDate ? -1 : 0
+  const copia = [...(conDatos.length > 0 ? conDatos : lista)].sort(orden)
+  const elegida = copia[0] as (typeof lista)[number]
+  return { electionId: elegida.electionId, electionType: elegida.electionType, electionDate: elegida.electionDate }
 }

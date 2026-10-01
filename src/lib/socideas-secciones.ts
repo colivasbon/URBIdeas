@@ -49,6 +49,22 @@ export function admiteValor(status: SeccionValorStatus): boolean {
   return !ESTADOS_SIN_NUMERO.has(status)
 }
 
+/** Vocabulario cerrado de estados. Sirve para validar la forma COMPACTA, donde
+ *  `s` llega como `string` sin narrowed type y no puede pasar por
+ *  `admiteValor` sin comprobar antes que el estado existe. */
+const VOCABULARIO_ESTADOS: ReadonlySet<string> = new Set<string>([
+  'observado',
+  'derivado_verificable',
+  'no_difundido',
+  'no_aplicable',
+  'sin_cobertura',
+  'error_ingesta',
+])
+
+export function esEstadoValido(value: unknown): value is SeccionValorStatus {
+  return typeof value === 'string' && VOCABULARIO_ESTADOS.has(value)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Catálogo de indicadores
 // ─────────────────────────────────────────────────────────────────────────────
@@ -243,6 +259,14 @@ export type SeccionesSeriesCompactas = Record<
   Record<string, SeccionValorCompacto[]>
 >
 
+/** UN indicador, todas sus secciones: series[sectionKey] = valores.
+ *
+ *  Es la forma del BLOQUE que sirve la API (`socideas-secciones-dataset.ts`):
+ *  como el bloque ya es de un solo indicador, repetir su id en las 2 462
+ *  secciones de Madrid costaría ~60 KB de los ~150 KB del bloque, y no aportaría
+ *  nada. Es también la forma que recibe `expandirSerieIndicador`. */
+export type SeccionesSeriesDeIndicador = Record<string, SeccionValorCompacto[]>
+
 export interface SeccionesAtlasR2V1
   extends Omit<SeccionesAtlasV1, 'observations' | 'schemaVersion' | 'schemaChecksum'> {
   schemaVersion: 'secciones-atlas-r2-v1'
@@ -265,6 +289,62 @@ export interface ContextoObservacion {
   checksum: string
 }
 
+/** Construye UNA observación del contrato completo a partir de su valor
+ *  compacto. Es el único sitio donde se rehidrata: el bootstrap no lo usa, la
+ *  API ya no lo usa y el cliente (mapa, tabla, PNG) sí lo usa al pegar un bloque.
+ *
+ *  La clave con la que se indexa la decide quien la guarda: el año (`2023`) o,
+ *  en política, la fecha de convocatoria (`2023-05-28`), porque en un mismo año
+ *  hay municipales y congressionales. El año sigue siendo `referencePeriod`. */
+export function construirObservacion(
+  sectionKey: string,
+  indicatorId: string,
+  ctx: ContextoObservacion,
+  valor: SeccionValorCompacto,
+): SeccionObservacion {
+  return {
+    sectionKey,
+    municipalityIne: ctx.municipalityIne,
+    geometryYear: ctx.geometryYear,
+    referencePeriod: valor.p,
+    operation: ctx.operation,
+    sourceTable: ctx.sourceTable,
+    indicatorId,
+    dimensions: { ambito: 'seccion_censal' },
+    value: valor.v,
+    unit: ctx.unit,
+    denominator: ctx.denominator,
+    status: valor.s,
+    sourceUrl: ctx.sourceUrl,
+    publishedAt: ctx.publishedAt,
+    retrievedAt: ctx.retrievedAt,
+    checksum: ctx.checksum,
+    methodologyNote: valor.n ?? null,
+  }
+}
+
+/** Expande UN indicador (sectionKey → valores) al contrato completo. Hermano de
+ *  `expandirObservaciones` para cuando el indicador ya viene aislado, y produce
+ *  exactamente las mismas observaciones. */
+export function expandirSerieIndicador(
+  serie: SeccionesSeriesDeIndicador,
+  ctx: ContextoObservacion,
+  opciones: { indicatorId: string; anio?: number; clavePeriodo?: string } = { indicatorId: '' },
+): Record<string, SeccionPorPeriodo> {
+  const salida: Record<string, SeccionPorPeriodo> = {}
+  for (const [sectionKey, valores] of Object.entries(serie ?? {})) {
+    if (!Array.isArray(valores) || valores.length === 0) continue
+    const porPeriodo: SeccionPorPeriodo = {}
+    for (const valor of valores) {
+      if (opciones.anio !== undefined && valor.p !== opciones.anio) continue
+      const clave = opciones.clavePeriodo ?? String(valor.p)
+      porPeriodo[clave] = construirObservacion(sectionKey, opciones.indicatorId, ctx, valor)
+    }
+    if (Object.keys(porPeriodo).length > 0) salida[sectionKey] = porPeriodo
+  }
+  return salida
+}
+
 /** Expande la forma compacta a observaciones completas del contrato.
  *
  *  `anio` filtra por periodo: la interfaz solo necesita un año a la vez, y así
@@ -285,26 +365,7 @@ export function expandirObservaciones(
       const porPeriodo: SeccionPorPeriodo = {}
       for (const val of valores) {
         if (opciones.anio !== undefined && val.p !== opciones.anio) continue
-        const obs: SeccionObservacion = {
-          sectionKey,
-          municipalityIne: ctx.municipalityIne,
-          geometryYear: ctx.geometryYear,
-          referencePeriod: val.p,
-          operation: ctx.operation,
-          sourceTable: ctx.sourceTable,
-          indicatorId,
-          dimensions: { ambito: 'seccion_censal' },
-          value: val.v,
-          unit: ctx.unit,
-          denominator: ctx.denominator,
-          status: val.s,
-          sourceUrl: ctx.sourceUrl,
-          publishedAt: ctx.publishedAt,
-          retrievedAt: ctx.retrievedAt,
-          checksum: ctx.checksum,
-          methodologyNote: val.n ?? null,
-        }
-        porPeriodo[String(val.p)] = obs
+        porPeriodo[String(val.p)] = construirObservacion(sectionKey, indicatorId, ctx, val)
       }
       if (Object.keys(porPeriodo).length) destino[indicatorId] = porPeriodo
     }
@@ -658,39 +719,12 @@ export interface ResultadoValidacion {
   avisos: string[]
 }
 
-export function validarSeccionesAtlas(objeto: unknown): ResultadoValidacion {
+/** Reglas de geometría, comunes a los dos validadores (expandido y compacto):
+ *  un solo lugar decide qué es una sección válida, para que el servidor no
+ *  pueda validar una cosa que el cliente validate de otra. Devuelve además el
+ *  conjunto de claves, que las observaciones usan para detectar huérfanas. */
+function validarGeometriaAtlas(sections: SeccionFeature[], municipalityIne: string): { errores: string[]; claves: Set<string> } {
   const errores: string[] = []
-  const avisos: string[] = []
-  if (!objeto || typeof objeto !== 'object') {
-    return { ok: false, errores: ['El objeto no es un objeto JSON'], avisos }
-  }
-  const o = objeto as Partial<SeccionesAtlasV1>
-  if (o.schemaVersion !== SECCIONES_ATLAS_SCHEMA) {
-    errores.push(`schemaVersion esperado "${SECCIONES_ATLAS_SCHEMA}", recibido "${String(o.schemaVersion)}"`)
-  }
-  if (!isValidIne5(o.municipalityIne)) {
-    errores.push(`municipalityIne inválido: "${String(o.municipalityIne)}"`)
-  }
-  if (typeof o.geometryYear !== 'number' || o.geometryYear < 2000 || o.geometryYear > 2100) {
-    errores.push(`geometryYear inválido: "${String(o.geometryYear)}"`)
-  }
-  if (!Array.isArray(o.sections)) {
-    errores.push('sections ausente o no es un array')
-  }
-  if (!Array.isArray(o.indicators)) {
-    errores.push('indicators ausente o no es un array')
-  }
-  if (!o.observations || typeof o.observations !== 'object') {
-    errores.push('observations ausente')
-  }
-
-  if (errores.length) return { ok: false, errores, avisos }
-
-  const sections = o.sections as SeccionFeature[]
-  const observations = o.observations as Record<string, SeccionIndicadorObservaciones>
-  const indicadores = o.indicators as SeccionIndicador[]
-
-  // 1. Geometría: todo polígono debe ser del municipio y tener CUSEC válido.
   const claves = new Set<string>()
   for (const f of sections) {
     const cusec = f?.properties?.CUSEC
@@ -702,21 +736,69 @@ export function validarSeccionesAtlas(objeto: unknown): ResultadoValidacion {
       errores.push(`Polígono agregado de distrito (${cusec}) publicado como sección`)
       continue
     }
-    if (municipioDeSeccion(cusec) !== o.municipalityIne) {
-      errores.push(`Polígono ${cusec} NO pertenece al municipio ${o.municipalityIne}`)
+    if (municipioDeSeccion(cusec) !== municipalityIne) {
+      errores.push(`Polígono ${cusec} NO pertenece al municipio ${municipalityIne}`)
     }
-    if (f?.properties?.CUMUN !== o.municipalityIne) {
-      errores.push(`CUMUN ${String(f?.properties?.CUMUN)} != ${o.municipalityIne} (${cusec})`)
+    if (f?.properties?.CUMUN !== municipalityIne) {
+      errores.push(`CUMUN ${String(f?.properties?.CUMUN)} != ${municipalityIne} (${cusec})`)
     }
     if (claves.has(cusec)) errores.push(`CUSEC duplicado: ${cusec}`)
     claves.add(cusec)
     if (!f?.geometry) errores.push(`Geometría vacía en ${cusec}`)
   }
+  return { errores, claves }
+}
+
+/** Comprobaciones de cabecera comunes a ambos contratos. */
+function validarCabeceraAtlas(
+  o: Record<string, unknown>,
+  errores: string[],
+  schemaVersionEsperado: string,
+): boolean {
+  if (o.schemaVersion !== schemaVersionEsperado) {
+    errores.push(`schemaVersion esperado "${schemaVersionEsperado}", recibido "${String(o.schemaVersion)}"`)
+  }
+  if (!isValidIne5(o.municipalityIne)) {
+    errores.push(`municipalityIne inválido: "${String(o.municipalityIne)}"`)
+  }
+  if (typeof o.geometryYear !== 'number' || o.geometryYear < 2000 || o.geometryYear > 2100) {
+    errores.push(`geometryYear inválido: "${String(o.geometryYear)}"`)
+  }
+  return errores.length === 0
+}
+
+export function validarSeccionesAtlas(objeto: unknown): ResultadoValidacion {
+  const errores: string[] = []
+  const avisos: string[] = []
+  if (!objeto || typeof objeto !== 'object') {
+    return { ok: false, errores: ['El objeto no es un objeto JSON'], avisos }
+  }
+  const o = objeto as Partial<SeccionesAtlasV1>
+  if (!Array.isArray(o.sections)) {
+    errores.push('sections ausente o no es un array')
+  }
+  if (!Array.isArray(o.indicators)) {
+    errores.push('indicators ausente o no es un array')
+  }
+  if (!o.observations || typeof o.observations !== 'object') {
+    errores.push('observations ausente')
+  }
+  if (!validarCabeceraAtlas(o as Record<string, unknown>, errores, SECCIONES_ATLAS_SCHEMA)) {
+    return { ok: false, errores, avisos }
+  }
+
+  const sections = o.sections as SeccionFeature[]
+  const observations = o.observations as Record<string, SeccionIndicadorObservaciones>
+  const indicadores = o.indicators as SeccionIndicador[]
+
+  // 1. Geometría: todo polígono debe ser del municipio y tener CUSEC válido.
+  const geo = validarGeometriaAtlas(sections, o.municipalityIne as string)
+  errores.push(...geo.errores)
 
   // 2. Observaciones: nunca un 0 disfrazado de ND ni una clave huérfana.
   const idsValidos = new Set(indicadores.map((i) => i.id))
   for (const [seccion, porIndicador] of Object.entries(observations)) {
-    if (!claves.has(seccion)) {
+    if (!geo.claves.has(seccion)) {
       avisos.push(`Observaciones para ${seccion}, que no está en la geometría`)
     }
     for (const [indicadorId, obs] of Object.entries(porIndicador ?? {})) {
@@ -752,6 +834,145 @@ export function validarSeccionesAtlas(objeto: unknown): ResultadoValidacion {
       }
     }
   }
+
+  return { ok: errores.length === 0, errores, avisos }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Validación de la forma COMPACTA (fail-closed, sin rehidratar)
+//
+// `leerAtlasParaApi` valida el contrato EXPANDIDO, que exige materializar 521 944
+// observaciones: para Madrid son 1,5–2,5 GB de heap y era la causa del HTTP 500
+// intermitente. Como la forma compacta contiene la MISMA información (solo
+// repartida entre `series` y el catálogo), las mismas reglas se comprueban
+// sobre ella recorriendo `{p,v,s}` — sin asignar un solo objeto de observación.
+// El servidor valida lo que sirve; el cliente ya no puede (no ve `observations`).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface OpcionesValidacionSeries {
+  /** Municipio esperado; cada clave de sección debe pertenecerle. */
+  municipalityIne: string
+  /** Indicadores conocidos. Si se omite, no se comprueba la pertenencia. */
+  indicatorIds?: ReadonlySet<string>
+  /** Secciones con polígono. Si se omite, no se comprueba la pertenencia. */
+  sectionKeys?: ReadonlySet<string>
+}
+
+/** Reglas de UNA celda compacta `{p,v,s,n?}`, compartidas por el validador del
+ *  objeto publicado (2 niveles) y el del bloque servido (1 nivel): un ND nunca
+ *  lleva número, un `observado` siempre lo lleva, y el estado pertenece al
+ *  vocabulario. `donde` solo identifica la celda en el mensaje. */
+export function validarValorCompacto(valor: unknown, donde: string, errores: string[]): void {
+  if (!valor || typeof valor !== 'object') {
+    errores.push(`Valor no objeto en ${donde}`)
+    return
+  }
+  const v = valor as SeccionValorCompacto
+  if (!Number.isInteger(v.p) || v.p < 1900 || v.p > 2100) {
+    errores.push(`Periodo inválido ${String(v.p)} en ${donde}`)
+  }
+  if (!esEstadoValido(v.s)) {
+    errores.push(`Estado "${String(v.s)}" desconocido en ${donde}`)
+    return
+  }
+  if (!admiteValor(v.s) && v.v !== null) {
+    errores.push(`Estado "${v.s}" con value=${String(v.v)} en ${donde}: un ND nunca lleva número`)
+  }
+  if (v.s === 'observado' && v.v === null) {
+    errores.push(`Estado "observado" sin valor en ${donde}`)
+  }
+  if (v.n !== undefined && v.n !== null && typeof v.n !== 'string') {
+    errores.push(`Nota metodológica no textual en ${donde}`)
+  }
+}
+
+/** Valida `series` (columnar) con las mismas reglas que `validarSeccionesAtlas`
+ *  aplica a `observations`. Es la validación que acompaña a la lectura del
+ *  objeto publicado. */
+export function validarSeriesCompactas(series: unknown, opciones: OpcionesValidacionSeries): ResultadoValidacion {
+  const errores: string[] = []
+  const avisos: string[] = []
+  if (!series || typeof series !== 'object' || Array.isArray(series)) {
+    return { ok: false, errores: ['series ausente o no es un objeto'], avisos }
+  }
+  for (const [seccion, porIndicador] of Object.entries(series as SeccionesSeriesCompactas)) {
+    if (!isValidSeccionKey(seccion)) {
+      errores.push(`CUSEC inválido en series: "${seccion}"`)
+      continue
+    }
+    if (municipioDeSeccion(seccion) !== opciones.municipalityIne) {
+      errores.push(`Observación ${seccion} de otro municipio`)
+    }
+    if (opciones.sectionKeys && !opciones.sectionKeys.has(seccion)) {
+      avisos.push(`Observaciones para ${seccion}, que no está en la geometría`)
+    }
+    if (!porIndicador || typeof porIndicador !== 'object') {
+      errores.push(`Indicadores ausentes para ${seccion}`)
+      continue
+    }
+    for (const [indicadorId, valores] of Object.entries(porIndicador)) {
+      if (opciones.indicatorIds && !opciones.indicatorIds.has(indicadorId)) {
+        errores.push(`Observación con indicador desconocido "${indicadorId}" en ${seccion}`)
+      }
+      if (!Array.isArray(valores)) {
+        errores.push(`Valores no lista para ${seccion}/${indicadorId}`)
+        continue
+      }
+      for (const v of valores) {
+        validarValorCompacto(v, `${seccion}/${indicadorId}`, errores)
+      }
+    }
+  }
+  return { ok: errores.length === 0, errores, avisos }
+}
+
+/** Valida el objeto COMPACTO publicado en R2. Mismo criterio fail-closed que
+ *  `validarSeccionesAtlas`, aplicado a `secciones-atlas-r2-v1`. */
+export function validarAtlasCompacto(objeto: unknown): ResultadoValidacion {
+  const errores: string[] = []
+  const avisos: string[] = []
+  if (!objeto || typeof objeto !== 'object') {
+    return { ok: false, errores: ['El objeto no es un objeto JSON'], avisos }
+  }
+  const o = objeto as Partial<SeccionesAtlasR2V1>
+  if (!Array.isArray(o.sections) || o.sections.length === 0) {
+    errores.push('sections ausente o vacío')
+  }
+  if (!Array.isArray(o.indicators) || o.indicators.length === 0) {
+    errores.push('indicators ausente')
+  }
+  if (!o.series || typeof o.series !== 'object' || Array.isArray(o.series)) {
+    errores.push('series ausente')
+  }
+  if (!validarCabeceraAtlas(o as Record<string, unknown>, errores, 'secciones-atlas-r2-v1')) {
+    return { ok: false, errores, avisos }
+  }
+  if (!Array.isArray(o.cobertura)) {
+    // No es error: el bloque se puede servir sin ella. Es aviso porque el
+    // `periodo_por_defecto` se deduce del propio bloque y no del catálogo.
+    avisos.push('cobertura ausente: el periodo por defecto se deducirá del bloque servido')
+  }
+  if (errores.length) return { ok: false, errores, avisos }
+
+  const secciones = o.sections as SeccionFeature[]
+  const indicadores = o.indicators as SeccionIndicador[]
+
+  const geo = validarGeometriaAtlas(secciones, o.municipalityIne as string)
+  errores.push(...geo.errores)
+
+  const idsValidos = new Set(indicadores.map((i) => i.id))
+  for (const id of idsValidos) {
+    const n = indicadores.filter((i) => i.id === id).length
+    if (n > 1) errores.push(`Indicador duplicado en el catálogo: "${id}"`)
+  }
+
+  const serie = validarSeriesCompactas(o.series, {
+    municipalityIne: o.municipalityIne as string,
+    indicatorIds: idsValidos,
+    sectionKeys: geo.claves,
+  })
+  errores.push(...serie.errores)
+  avisos.push(...serie.avisos)
 
   return { ok: errores.length === 0, errores, avisos }
 }

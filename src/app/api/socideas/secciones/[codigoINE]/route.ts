@@ -3,23 +3,31 @@ import { createSupabaseServer } from '@/lib/supabase-server'
 import { descargarSeccionesConFallback } from '@/lib/ine-secciones-geometry'
 import {
   SECCIONES_ATRIBUCION,
-  SECCIONES_ATLAS_SCHEMA,
   esPoligonoDistrito,
   isValidSeccionKey,
-  type GeoJsonFeatureCollection,
   type SeccionFeature,
-  type SeccionesAtlasV1,
 } from '@/lib/socideas-secciones'
-import { leerAtlasParaApi } from '@/lib/socideas-secciones-store'
+import { leerCompactoValidado } from '@/lib/socideas-secciones-store'
+import {
+  SECCIONES_BOOTSTRAP_SCHEMA,
+  SECCIONES_DATASET_PATH,
+  atlasBootstrapDe,
+  featuresComoGeoJson,
+  type SeccionesAtlasBootstrap,
+  type SeccionesBootstrap,
+  type SeccionesBootstrapDominios,
+  type DominioSecciones,
+} from '@/lib/socideas-secciones-dataset'
 import {
   construirAtlasMinimo,
-  fusionarAtlas,
+  fusionarCatalogos,
   fusionarEducacion,
   fusionarPolitica,
-  ganadorasPorSeccion,
   metadatosEducacion,
   metadatosPolitica,
   type MetadatosDominio,
+  type ResultadoFusionEducacion,
+  type ResultadoFusionPolitica,
 } from '@/lib/socideas-secciones-extension'
 import {
   educationR2Key,
@@ -36,6 +44,7 @@ import type {
   ElectionType,
   PoliticalCatalog,
   PoliticalCoverageFile,
+  PoliticalMunicipalObject,
 } from '@/lib/socideas-secciones-political'
 
 export const dynamic = 'force-dynamic'
@@ -45,7 +54,14 @@ export const dynamic = 'force-dynamic'
  *  (o «sin indicadores») después de haberlo corregido en R2, porque
  *  `revalidateTag` purga la Data Cache del servidor pero no la copia CDN de
  *  esta respuesta. La caché real vive en `unstable_cache`, en el servidor, y se
- *  invalida por tag; aquí no se añade una segunda capa que pueda quedar obsoleta. */
+ *  invalida por tag; aquí no se añade una segunda capa que pueda quedar obsoleta.
+ *
+ *  Este endpoint es el BOOTSTRAP: geometría, catálogos, cobertura, avisos y la
+ *  validación del servidor. Los VALORES viajan aparte, en
+ *  `/api/socideas/secciones-dataset/{ine}`, y ese sí se cachea en el servidor
+ *  con la misma etiqueta `socideas-muni-<ine>` porque el bloque es pequeño.
+ *  Ver `socideas-secciones-dataset.ts` para el porqué del contrato antiguo
+ *  (304,5 MB y un HTTP 500 intermitente en Madrid). */
 const CACHE_GEOMETRIA = 'private, no-store'
 
 const TOLERANCIA_SIMPLIFICACION = 8
@@ -79,18 +95,26 @@ async function leerMunicipio(ine: string): Promise<MunicipioDb | null> {
   }
 }
 
-function featuresValidas(features: SeccionFeature[]): SeccionFeature[] {
-  return features.filter((f) => isValidSeccionKey(f.properties.CUSEC) && !esPoligonoDistrito(f.properties.CUSEC))
+function esSeccionValida(f: SeccionFeature): boolean {
+  return isValidSeccionKey(f.properties.CUSEC) && !esPoligonoDistrito(f.properties.CUSEC)
 }
 
-/** GET /api/socideas/secciones/[codigoINE]: geometría de secciones censales del
- *  municipio más el atlas de indicadores cuando está publicado.
+/** GET /api/socideas/secciones/[codigoINE]: BOOTSTRAP de las secciones censales
+ *  del municipio. Geometría UNA vez, catálogos, cobertura, disponibilidad y
+ *  configuración. SIN valores.
+ *
+ *  Antes esta ruta devolvía también `atlas.observations` completo. Para Madrid
+ *  eran 298 MB de los 304,5 MB de respuesta (98,9 %) y obligaban a rehidratar
+ *  521 944 objetos × 20 propiedades en una lambda de 1 GB: 1,5–2,5 GB de heap y
+ *  un HTTP 500 intermitente (~30 %). Ningún componente lee más de un indicador y
+ *  un periodo a la vez, así que el ~99,5 % de esos bytes no lo usaba nadie.
  *
  *  1. Atlas base en R2 (`socideas/secciones/v1/municipal/`), si existe.
  *  2. Educación y Actividad del Censo Anual del INE, para los periodos
- *     realmente publicados (2021–2024).
- *  3. Política: resultados electorales por mesa agregados a sección, para la
- *     convocatoria pedida o, si no se pide, la más reciente del catálogo.
+ *     realmente publicados.
+ *  3. Política: estado real de la convocatoria pedida o, si no se pide, de la más
+ *     reciente del catálogo. Las ganadoras por sección (0,9 MB en Madrid) NO
+ *     van aquí: se piden con `?dominio=politica&bloque=ganadoras`.
  *
  *  Si NO hay atlas base pero sí hay datos de un dominio, se construye un atlas
  *  MÍNIMO con la geometría oficial del INE del año del dato, de modo que el
@@ -108,39 +132,51 @@ export async function GET(
   const ine = codigoINE.trim()
   const t0 = Date.now()
 
-  // Solo se expande el año pedido: no se envían nueve años que el usuario no
-  // está viendo. Rango validado para no confiar en el parámetro.
   const anioParam = request.nextUrl.searchParams.get('anio')
   const anioCrudo = anioParam ? Number.parseInt(anioParam, 10) : null
   const anioPedido =
     anioCrudo !== null && Number.isInteger(anioCrudo) && anioCrudo >= 1900 && anioCrudo <= 2100 ? anioCrudo : null
-  const indicadorPedido = request.nextUrl.searchParams.get('ind') ?? undefined
   const electionParam = request.nextUrl.searchParams.get('eleccion') ?? undefined
   const conCandidaturas = request.nextUrl.searchParams.get('cand') === '1'
 
   const avisos: string[] = []
 
-  // ── 1. Atlas base (R2) ──────────────────────────────────────────────────
-  const base = await leerAtlasParaApi(ine, {
-    anio: anioPedido ?? undefined,
-    indicadores: indicadorPedido ? [indicadorPedido] : undefined,
-  }).catch(() => null)
+  // ── 1. Atlas base (R2), en forma compacta: aquí no se rehidrata nada ───────
+  // Fail-closed: un objeto que no valida NO se sirve. Tampoco se degrada en
+  // silencio a «municipio sin atlas», porque eso leería «no publicado» cuando en
+  // realidad hay un objeto corrupto: el motivo baja en `validacion` y en `avisos`.
+  let base: Awaited<ReturnType<typeof leerCompactoValidado>> = null
+  let falloAtlas: string | null = null
+  try {
+    base = await leerCompactoValidado(ine)
+  } catch (e) {
+    base = null
+    falloAtlas = e instanceof Error ? e.message : String(e)
+    avisos.push(
+      `El atlas publicado de ${ine} no supera la validación y NO se ha servido: ${falloAtlas}. ` +
+        'Los valores de este municipio no están disponibles hasta que la ingesta se corrija.',
+    )
+  }
 
   // ── 2. Educación + Actividad ─────────────────────────────────────────────
+  // `conObservaciones: false` recorre conteos y cobertura (barato) pero NO crea
+  // un objeto de observación por celda (caro). Sin este filtro, educación y
+  // política materializaban los 20 + N indicadores completos (~40 MB) aunque el
+  // atlas base ya viniera filtrado, y el arreglo no serviría de nada.
   const catEdu = await leerCatalogoEducativo().catch(() => null)
   const periodosPedidos = anioPedido && catEdu?.periods.includes(anioPedido) ? [anioPedido] : (catEdu?.periods ?? [])
   const objetosEdu = (
     await Promise.all(periodosPedidos.map((p) => leerObjetoEducativo(ine, p).catch(() => null)))
   ).filter((o): o is NonNullable<typeof o> => o !== null)
-  const edu = fusionarEducacion(ine, objetosEdu)
-  const dominios: Array<{ indicadores: typeof edu.indicadores; cobertura: typeof edu.cobertura; observaciones: typeof edu.observaciones }> = []
+  const edu: ResultadoFusionEducacion = fusionarEducacion(ine, objetosEdu, { conObservaciones: false })
+  const dominios: Array<Pick<ResultadoFusionEducacion, 'indicadores' | 'cobertura'>> = []
   if (edu.indicadores.length > 0) dominios.push(edu)
   const metadatos: MetadatosDominio[] = metadatosEducacion(objetosEdu, catEdu)
 
   // ── 3. Política ─────────────────────────────────────────────────────────
   const catPol: PoliticalCatalog | null = await leerCatalogoPolitico().catch(() => null)
   const eleccion = elegirConvocatoria(catPol, electionParam)
-  let objetoPol = null
+  let objetoPol: PoliticalMunicipalObject | null = null
   let coberturaPol: PoliticalCoverageFile | null = null
   let entradaCobertura: Parameters<typeof fusionarPolitica>[1]['coverage'] = null
   if (eleccion) {
@@ -157,10 +193,11 @@ export async function GET(
       }
     }
   }
-  const pol = fusionarPolitica(objetoPol, {
+  const pol: ResultadoFusionPolitica = fusionarPolitica(objetoPol, {
     catalog: catPol,
     coverage: entradaCobertura,
     incluirCandidaturas: conCandidaturas,
+    conObservaciones: false,
     // La convocatoria pedida da el contexto aunque el municipio no tenga
     // objeto: sin ella, un municipio no publicable se etiquetaría como
     // «fuente no ingerida», que no es lo que ocurrió.
@@ -170,24 +207,38 @@ export async function GET(
   const metaPol = metadatosPolitica(pol)
   if (metaPol) metadatos.push(metaPol)
 
-  // ── 4. Composición del atlas ────────────────────────────────────────────
+  // ── 4. Catálogo único: base + dominios, sin observaciones ───────────────
+  const catalogo = fusionarCatalogos({
+    indicadoresBase: base?.compacto.indicators ?? [],
+    coberturaBase: base?.compacto.cobertura ?? [],
+    checksumsBase: base?.compacto.sourceChecksums ?? {},
+    dominios,
+  })
+
+  // ── 5. Composición del atlas ────────────────────────────────────────────
   const hayBase = base !== null
-  let atlas: SeccionesAtlasV1 | null = null
-  let via: 'R2' | 'R2+dominios' | 'INE+dominios' | 'ninguno' = 'ninguno'
+  let atlas: SeccionesAtlasBootstrap | null = null
+  let features: SeccionFeature[] = base?.compacto.sections ?? []
+  let via: SeccionesBootstrap['via'] = 'ninguno'
+  let municipioNombre = base?.compacto.municipalityName ?? ine
+  let provinciaNombre = base?.compacto.provinceName ?? ''
+  let comunidadNombre: string | null = null
 
   if (base) {
-    atlas = fusionarAtlas(base, dominios)
+    atlas = { ...atlasBootstrapDe(base.compacto), ...catalogo }
     via = dominios.length > 0 ? 'R2+dominios' : 'R2'
   } else if (dominios.length > 0) {
-    // Municipios SIN atlas base: geometría oficial del INE del año del dato.
+    // Municipios SIN atlas base (o con un atlas que no valida): geometría
+    // oficial del INE del año del dato.
     const anyEdu = objetosEdu[0]
-    const anioGeo = anioPedido ?? (anyEdu ? anyEdu.period : null) ?? Number.parseInt(eleccion?.electionDate.slice(0, 4) ?? '2024', 10)
+    const anioGeo =
+      anioPedido ?? (anyEdu ? anyEdu.period : null) ?? Number.parseInt(eleccion?.electionDate.slice(0, 4) ?? '2024', 10)
     const geo = await descargarSeccionesConFallback(ine, { toleranciaMetros: TOLERANCIA_SIMPLIFICACION }).catch(() => null)
     const municipio = await leerMunicipio(ine)
     if (geo && geo.features.length > 0) {
-      const feats = featuresValidas(geo.features)
-      const entradas = [
-        ...metadatosEducacion(objetosEdu, catEdu).map((m, i) => ({
+      const feats = geo.features.filter(esSeccionValida)
+      const entradas = metadatosEducacion(objetosEdu, catEdu)
+        .map((m, i) => ({
           indicador: edu.indicadores[i] ?? edu.indicadores[0],
           periodo: m.periods[0] ?? anioGeo,
           fuente: m.organism,
@@ -201,9 +252,9 @@ export async function GET(
           denominador: null,
           definicion: m.method,
           unidad: '',
-        })),
-      ].filter((e) => e.indicador)
-      atlas = construirAtlasMinimo({
+        }))
+        .filter((e) => e.indicador)
+      const minimo = construirAtlasMinimo({
         municipioIne: ine,
         municipioNombre: municipio?.nombre ?? ine,
         provinciaNombre: municipio?.provincia?.nombre ?? null,
@@ -213,12 +264,41 @@ export async function GET(
         geometrySource: SECCIONES_ATRIBUCION,
         geometryCrs: 'EPSG:4326',
         geometryRetrievedAt: new Date().toISOString(),
-        indicadores: [...edu.indicadores, ...pol.indicadores],
-        cobertura: [...edu.cobertura, ...pol.cobertura],
-        observaciones: { ...edu.observaciones, ...pol.observaciones },
+        indicadores: catalogo.indicadores,
+        cobertura: catalogo.cobertura,
+        // El bootstrap no lleva observaciones. Las secciones con dato las declara
+        // la propia fusión: sin pasarlas, `quality` diría «ninguna sección con
+        // fila» y `status: failed`, que es falso.
+        observaciones: {},
         entradas: entradas as never,
         statsRetrievedAt: new Date().toISOString(),
+        seccionesConFila: [...new Set([...edu.seccionesConDato, ...pol.seccionesConDato])],
       })
+      // El atlas mínimo solo se usa por su cabecera y su `quality`: la geometría
+      // se sirve una vez en `geojson` y los valores, en el bloque de dataset.
+      atlas = {
+        schemaVersion: minimo.schemaVersion,
+        municipalityIne: minimo.municipalityIne,
+        municipalityName: minimo.municipalityName,
+        provinceName: minimo.provinceName,
+        geometryYear: minimo.geometryYear,
+        geometryCollection: minimo.geometryCollection,
+        geometrySource: minimo.geometrySource,
+        geometryCrs: minimo.geometryCrs,
+        geometryRetrievedAt: minimo.geometryRetrievedAt,
+        statsRetrievedAt: minimo.statsRetrievedAt,
+        generatedAt: minimo.generatedAt,
+        indicators: minimo.indicators,
+        cobertura: minimo.cobertura,
+        municipalReference: minimo.municipalReference,
+        quality: minimo.quality,
+        sourceChecksums: minimo.sourceChecksums,
+        observations: {},
+      }
+      features = feats
+      municipioNombre = municipio?.nombre ?? ine
+      provinciaNombre = municipio?.provincia?.nombre ?? ''
+      comunidadNombre = municipio?.provincia?.comunidad_autonoma?.nombre ?? null
       via = 'INE+dominios'
       avisos.push(
         `Este municipio no tiene atlas base publicado; se ha construido uno en lectura con la geometría oficial ${geo.collection} y los indicadores de los dominios cargados. No se ha escrito ningún objeto nuevo.`,
@@ -229,133 +309,88 @@ export async function GET(
     }
   }
 
+  const geojson = featuresComoGeoJson(features, esSeccionValida)
+
   if (atlas) {
-    const geojson: GeoJsonFeatureCollection = { type: 'FeatureCollection', features: atlas.sections }
+    const dominiosIds: DominioSecciones[] = []
+    if (hayBase) dominiosIds.push('base')
+    if (edu.indicadores.length > 0) dominiosIds.push('educacion')
+    if (pol.indicadores.length > 0) dominiosIds.push('politica')
+    const periodosCatalogo = [
+      ...new Set([
+        ...(base?.compacto.cobertura ?? []).flatMap((c) => c.periodos),
+        ...edu.periodos,
+        ...(pol.electionDate ? [Number.parseInt(pol.electionDate.slice(0, 4), 10)] : []),
+      ]),
+    ].sort((a, b) => b - a)
+
+    const bootstrap: SeccionesBootstrap = {
+      schemaVersion: SECCIONES_BOOTSTRAP_SCHEMA,
+      codigo_ine: ine,
+      anio_delimitacion: atlas.geometryYear,
+      fuente: atlas.geometrySource || SECCIONES_ATRIBUCION,
+      n_secciones: geojson.features.length,
+      via,
+      municipio: {
+        codigo_ine: ine,
+        nombre: municipioNombre,
+        provincia: provinciaNombre || null,
+        comunidad_autonoma: comunidadNombre,
+      },
+      geojson,
+      atlas,
+      dominios: bloqueDominios(
+        ine,
+        edu,
+        pol,
+        catPol,
+        catEdu,
+        base?.compacto.indicators.length ?? 0,
+        objetoPol,
+      ),
+      metadatos,
+      avisos: avisos.concat(
+        edu.periodos.length === 0
+          ? ['Sin datos educativos publicados para este municipio en los periodos del catálogo.']
+          : [],
+        pol.status !== 'available' && eleccion ? [`Política: ${pol.status}. ${pol.notes[0] ?? ''}`.trim()] : [],
+        `Contrato bajo demanda: ${catalogo.indicadores.length} indicadores disponibles sobre ${geojson.features.length} secciones. Los valores se piden por bloque, no vienen aquí.`,
+      ),
+      config: {
+        dominios: dominiosIds,
+        periodos: periodosCatalogo,
+        periodo_por_defecto: periodoPorDefectoDeCatalogo(catalogo.cobertura),
+        n_indicadores: catalogo.indicadores.length,
+        cache: base
+          ? { via: base.via, motivo: base.motivo }
+          : { via: 'ninguno', motivo: 'Este municipio no tiene atlas base publicado: la geometría viene del INE.' },
+      },
+      // Fail-closed en el servidor. El cliente ya NO puede validar el atlas:
+      // no recibe `observations`, así que este veredicto es la única garantía.
+      validacion: falloAtlas
+        ? { ok: false, errores: [falloAtlas], avisos: [] }
+        : (base?.validacion ?? { ok: true, errores: [], avisos: [] }),
+      dataset: {
+        endpoint: `${SECCIONES_DATASET_PATH}/${ine}`,
+        params: { dominio: 'base', indicador: '<id de atlas.indicators[]>', periodo: '<YYYY>' },
+        nota:
+          'Esta respuesta no lleva valores. Se piden por indicador y periodo: ' +
+          `${SECCIONES_DATASET_PATH}/{ine}?dominio=base&ind={id}&periodo={YYYY}. ` +
+          'El cliente rehidrata {p,v,s} contra atlas.indicators[] con expandirIndicadorCompacto.',
+      },
+    }
+
     devLogSecciones(
-      `ine=${ine} via=${via} secciones=${atlas.sections.length} indicadores=${atlas.indicators.length} edu=${edu.indicadores.length} pol=${pol.indicadores.length} ms=${Date.now() - t0}`,
+      `ine=${ine} via=${via} secciones=${geojson.features.length} indicadores=${catalogo.indicadores.length} ` +
+        `edu=${edu.indicadores.length} pol=${pol.indicadores.length} ms=${Date.now() - t0}`,
     )
     return NextResponse.json(
-      {
-        data: {
-          codigo_ine: ine,
-          anio_delimitacion: atlas.geometryYear,
-          fuente: atlas.geometrySource || SECCIONES_ATRIBUCION,
-          n_secciones: atlas.sections.length,
-          via,
-          geojson,
-          dominios: {
-            educacion: {
-              periodos: edu.periodos,
-              indicadores: edu.indicadores.length,
-              observaciones: edu.observations,
-              nd: edu.nd,
-              supresiones: edu.suppressed,
-              secciones_all_nd: edu.allNdSections,
-              claves: {
-                catalogo: 'socideas/secciones/v1/education/catalog.json',
-                normalizado: edu.periodos.length ? educationR2Key(ine, edu.periodos[0] as number) : null,
-              },
-            },
-            actividad: {
-              periodos: edu.periodos,
-              indicadores: edu.indicadores.filter((i) => i.tema === 'laboral').length,
-            },
-            politica: {
-              // El catálogo se sirve entero: la interfaz nunca fija convocatorias.
-              catalog: (catPol?.elections ?? []).map((e) => ({
-                electionId: e.electionId,
-                electionType: e.electionType,
-                electionDate: e.electionDate,
-                label: e.label,
-                territoryCode: e.territoryCode,
-                municipalities: e.municipalities,
-                publishableMunicipalities: e.publishableMunicipalities,
-                sections: e.sections,
-                pollingStations: e.pollingStations,
-              })),
-              electionId: pol.electionId,
-              electionType: pol.electionType,
-              electionDate: pol.electionDate,
-              status: pol.status,
-              mesas_agregadas: pol.mesas,
-              indicadores: pol.indicadores.length,
-              candidaturas: pol.candidacies,
-              ganadoras: ganadorasPorSeccion(objetoPol),
-              totales: objetoPol
-                ? {
-                    censo: objetoPol.totals.census,
-                    votantes: objetoPol.totals.voters,
-                    validos: objetoPol.totals.validVotes,
-                    blancos: objetoPol.totals.blankVotes,
-                    nulos: objetoPol.totals.nullVotes,
-                    candidaturas: objetoPol.totals.candidacyVotes,
-                  }
-                : null,
-              conciliacion: objetoPol
-                ? {
-                    status: objetoPol.reconciliation.status,
-                    reference: objetoPol.reconciliation.reference,
-                    differences: objetoPol.reconciliation.differences,
-                    notes: objetoPol.reconciliation.notes,
-                  }
-                : null,
-              geometria: objetoPol
-                ? {
-                    year: objetoPol.geometry.geometryYear,
-                    correspondenceStatus: objetoPol.geometry.correspondenceStatus,
-                    resultSections: objetoPol.geometry.resultSections,
-                    geometrySections: objetoPol.geometry.geometrySections,
-                    matchedSections: objetoPol.geometry.matchedSections,
-                    coveragePercentage: objetoPol.geometry.coveragePercentage,
-                    notes: objetoPol.geometry.notes,
-                  }
-                : null,
-              publicacion: objetoPol ? objetoPol.publication : null,
-              notas: pol.notes.slice(0, 8),
-              claves: {
-                objeto: objetoPol ? politicalR2Key(ine, pol.electionType, pol.electionDate) : null,
-              },
-            },
-          },
-          metadatos,
-          avisos: avisos.concat(
-            edu.periodos.length === 0
-              ? ['Sin datos educativos publicados para este municipio en los periodos del catálogo.']
-              : [],
-            pol.status !== 'available' && eleccion
-              ? [`Política: ${pol.status}. ${pol.notes[0] ?? ''}`.trim()]
-              : [],
-          ),
-          atlas: {
-            schemaVersion: SECCIONES_ATLAS_SCHEMA,
-            municipalityIne: atlas.municipalityIne,
-            municipalityName: atlas.municipalityName,
-            provinceName: atlas.provinceName,
-            geometryYear: atlas.geometryYear,
-            geometryCollection: atlas.geometryCollection,
-            geometrySource: atlas.geometrySource,
-            geometryCrs: atlas.geometryCrs,
-            geometryRetrievedAt: atlas.geometryRetrievedAt,
-            statsRetrievedAt: atlas.statsRetrievedAt,
-            generatedAt: atlas.generatedAt,
-            indicators: atlas.indicators,
-            cobertura: atlas.cobertura,
-            observations: atlas.observations,
-            municipalReference: atlas.municipalReference,
-            quality: atlas.quality,
-            sourceChecksums: atlas.sourceChecksums,
-            schemaChecksum: atlas.schemaChecksum,
-            sections: atlas.sections,
-          },
-        },
-        error: null,
-        count: atlas.sections.length,
-      },
-      { headers: { 'Cache-Control': CACHE_GEOMETRIA } },
+      { data: bootstrap, error: null, count: geojson.features.length },
+      { headers: { 'Cache-Control': CACHE_GEOMETRIA, 'X-SOCIDEAS-CONTRATO': SECCIONES_BOOTSTRAP_SCHEMA } },
     )
   }
 
-  // ── 5. Fallback: geometría bajo demanda desde el INE (sin estadística) ────
+  // ── 6. Fallback: geometría bajo demanda desde el INE (sin estadística) ────
   try {
     const municipio = await leerMunicipio(ine)
     if (!municipio) {
@@ -368,33 +403,49 @@ export async function GET(
     devLogSecciones(
       `ine=${ine} via=INE coleccion=${geo.collection} n=${geo.features.length} agregados=${geo.agregadosDistrito.length} paginas=${geo.paginas} ms=${Date.now() - t0}`,
     )
+    const geoSinDistritos = featuresComoGeoJson(geo.features, esSeccionValida)
+
+    const bootstrap: SeccionesBootstrap = {
+      schemaVersion: SECCIONES_BOOTSTRAP_SCHEMA,
+      codigo_ine: ine,
+      anio_delimitacion: geo.geometryYear,
+      fuente: SECCIONES_ATRIBUCION,
+      n_secciones: geoSinDistritos.features.length,
+      via: 'INE',
+      municipio: {
+        codigo_ine: ine,
+        nombre: municipio.nombre,
+        provincia: municipio.provincia?.nombre ?? null,
+        comunidad_autonoma: municipio.provincia?.comunidad_autonoma?.nombre ?? null,
+      },
+      geojson: geoSinDistritos,
+      // `atlas: null` es explícito: la UI muestra un estado vacío útil, nunca
+      // una coropleta inventada ni valores(DB) atribuidos a secciones.
+      atlas: null,
+      dominios: bloqueDominios(ine, edu, pol, catPol, catEdu, 0, objetoPol),
+      metadatos,
+      avisos: [
+        `Geometría oficial de ${geo.collection}. Este municipio todavía no tiene indicadores por sección cargados.`,
+        `Se excluyeron ${geo.agregadosDistrito.length} polígonos agregados de distrito: no son secciones.`,
+      ].concat(avisos),
+      config: {
+        dominios: [],
+        periodos: edu.periodos,
+        periodo_por_defecto: null,
+        n_indicadores: 0,
+        cache: { via: 'ninguno', motivo: 'Sin atlas base: la geometría se descarga del INE en cada petición.' },
+      },
+      validacion: { ok: true, errores: [], avisos: [] },
+      dataset: {
+        endpoint: `${SECCIONES_DATASET_PATH}/${ine}`,
+        params: { dominio: 'base', indicador: '<id de atlas.indicators[]>' },
+        nota: 'Este municipio no tiene indicadores por sección publicados: el endpoint de dataset devolverá 404.',
+      },
+    }
 
     return NextResponse.json(
-      {
-        data: {
-          codigo_ine: ine,
-          anio_delimitacion: geo.geometryYear,
-          fuente: SECCIONES_ATRIBUCION,
-          n_secciones: geo.features.length,
-          via: 'INE',
-          geojson: { type: 'FeatureCollection', features: geo.features } as GeoJsonFeatureCollection,
-          dominios: {
-            educacion: { periodos: edu.periodos, indicadores: edu.indicadores.length },
-            politica: { status: pol.status, electionId: pol.electionId },
-          },
-          metadatos,
-          // `atlas: null` es explícito: la UI muestra un estado vacío útil,
-          // nunca una coropleta inventada ni valores(DB) atribuidos a secciones.
-          atlas: null,
-          avisos: [
-            `Geometría oficial de ${geo.collection}. Este municipio todavía no tiene indicadores por sección cargados.`,
-            `Se excluyeron ${geo.agregadosDistrito.length} polígonos agregados de distrito: no son secciones.`,
-          ].concat(avisos),
-        },
-        error: null,
-        count: geo.features.length,
-      },
-      { headers: { 'Cache-Control': CACHE_GEOMETRIA } },
+      { data: bootstrap, error: null, count: geoSinDistritos.features.length },
+      { headers: { 'Cache-Control': CACHE_GEOMETRIA, 'X-SOCIDEAS-CONTRATO': SECCIONES_BOOTSTRAP_SCHEMA } },
     )
   } catch (error) {
     const mensaje = error instanceof Error ? error.message : 'Error interno del servidor'
@@ -403,8 +454,111 @@ export async function GET(
   }
 }
 
-/** Elige la convocatoria: la pedida si existe en el catálogo; si no, la más
- *  reciente por tipo de elección. Nunca se hardcodea ninguna convocatoria. */
+/** Bloques por dominio del bootstrap. Nada de aquí lleva observaciones ni
+ *  ganadoras: son catálogos, conteos, totales y las claves de R2. */
+function bloqueDominios(
+  ine: string,
+  edu: ResultadoFusionEducacion,
+  pol: ResultadoFusionPolitica,
+  catPol: PoliticalCatalog | null,
+  catEdu: { periods: number[] } | null,
+  nIndicadoresBase: number,
+  objetoPol: PoliticalMunicipalObject | null,
+): SeccionesBootstrapDominios {
+  return {
+    educacion: {
+      periodos: edu.periodos,
+      indicadores: edu.indicadores.length,
+      indicadores_base: nIndicadoresBase,
+      // Antes era el mapa entero de observaciones (decenas de MB que ningún
+      // componente leía completo). Ahora es un recuento: el mapa son decenas de
+      // MB y su lugar es el bloque de dataset.
+      observaciones: edu.observations,
+      nd: edu.nd,
+      supresiones: edu.suppressed,
+      secciones_all_nd: edu.allNdSections,
+      secciones_con_dato: edu.seccionesConDato.length,
+      periodos_catalogo: catEdu?.periods ?? [],
+      claves: {
+        catalogo: 'socideas/secciones/v1/education/catalog.json',
+        normalizado: edu.periodos.length ? educationR2Key(ine, edu.periodos[0] as number) : null,
+      },
+    },
+    actividad: {
+      periodos: edu.periodos,
+      indicadores: edu.indicadores.filter((i) => i.tema === 'laboral').length,
+    },
+    politica: {
+      // El catálogo se sirve entero: la interfaz nunca fija convocatorias.
+      catalog: (catPol?.elections ?? []).map((e) => ({
+        electionId: e.electionId,
+        electionType: e.electionType,
+        electionDate: e.electionDate,
+        label: e.label,
+        territoryCode: e.territoryCode,
+        municipalities: e.municipalities,
+        publishableMunicipalities: e.publishableMunicipalities,
+        sections: e.sections,
+        pollingStations: e.pollingStations,
+      })),
+      electionId: pol.electionId,
+      electionType: pol.electionType,
+      electionDate: pol.electionDate,
+      status: pol.status,
+      mesas_agregadas: pol.mesas,
+      indicadores: pol.indicadores.length,
+      candidaturas: pol.candidacies,
+      // Las ganadoras salen del bootstrap: 0,9 MB en Madrid y sus votos ya
+      // están en el bloque del dataset. Solo se piden si la pestaña las pinta.
+      ganadoras_endpoint: `${SECCIONES_DATASET_PATH}/${ine}?dominio=politica&bloque=ganadoras`,
+      totales: objetoPol
+        ? {
+            censo: objetoPol.totals.census,
+            votantes: objetoPol.totals.voters,
+            validos: objetoPol.totals.validVotes,
+            blancos: objetoPol.totals.blankVotes,
+            nulos: objetoPol.totals.nullVotes,
+            candidaturas: objetoPol.totals.candidacyVotes,
+          }
+        : null,
+      conciliacion: objetoPol
+        ? {
+            status: objetoPol.reconciliation.status,
+            reference: objetoPol.reconciliation.reference,
+            differences: objetoPol.reconciliation.differences,
+            notes: objetoPol.reconciliation.notes,
+          }
+        : null,
+      geometria: objetoPol
+        ? {
+            year: objetoPol.geometry.geometryYear,
+            correspondenceStatus: objetoPol.geometry.correspondenceStatus,
+            resultSections: objetoPol.geometry.resultSections,
+            geometrySections: objetoPol.geometry.geometrySections,
+            matchedSections: objetoPol.geometry.matchedSections,
+            coveragePercentage: objetoPol.geometry.coveragePercentage,
+            notes: objetoPol.geometry.notes,
+          }
+        : null,
+      publicacion: objetoPol ? objetoPol.publication : null,
+      notas: pol.notes.slice(0, 8),
+      claves: {
+        objeto: objetoPol ? politicalR2Key(ine, pol.electionType, pol.electionDate) : null,
+      },
+    },
+  }
+}
+
+/** Periodo por defecto del catálogo: el más reciente con `periodoPorDefecto`. */
+function periodoPorDefectoDeCatalogo(
+  cobertura: Array<{ periodoPorDefecto: number | null }>,
+): number | null {
+  const definidos = cobertura
+    .map((c) => c.periodoPorDefecto)
+    .filter((p): p is number => typeof p === 'number')
+  return definidos.length > 0 ? Math.max(...definidos) : null
+}
+
 /** Elige la convocatoria: la pedida si existe en el catálogo; si no, la más
  *  reciente por tipo de elección. Nunca se hardcodea ninguna convocatoria.
  *  Devuelve también el `electionId` del catálogo, que es la clave con la que

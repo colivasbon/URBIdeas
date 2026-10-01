@@ -32,7 +32,6 @@ import {
 } from './socideas-secciones'
 import {
   EDUCATION_INDICATORS,
-  educationIndicatorsWithData,
   type EducationCatalog,
   type EducationMunicipalObject,
   type EducationObservation,
@@ -99,6 +98,23 @@ export interface ResultadoFusionEducacion {
   nd: number
   suppressed: number
   observations: number
+  /** Secciones con AL MENOS UN valor observado o derivado. Lo calcula el mismo
+   *  recorrido que la cobertura, así que el atlas mínimo puede declarar
+   *  `seccionesSinFila` sin tener las observaciones en memoria. */
+  seccionesConDato: string[]
+}
+
+/** Cómo se materializa una fusión. El bootstrap NO quiere observaciones: solo
+ *  catálogo, cobertura y avisos. El bloque de dataset quiere exactamente un
+ *  indicador. Sin este filtro, education + política seguíanMaterializando los
+ *  20 + N indicadores completos (~40 MB) aunque se filtrara el atlas base, y el
+ *  arreglo no serviría de nada. */
+export interface OpcionesFusionEducacion {
+  /** Solo estos indicadores. Sin valor: todos. */
+  indicadores?: readonly string[]
+  /** `false` no construye el mapa de observaciones (recolecta contadores y
+   *  cobertura, que es lo que necesita el bootstrap). `true` por defecto. */
+  conObservaciones?: boolean
 }
 
 /**
@@ -109,10 +125,18 @@ export interface ResultadoFusionEducacion {
 export function fusionarEducacion(
   codigoIne: string,
   objetos: EducationMunicipalObject[],
+  opciones: OpcionesFusionEducacion = {},
 ): ResultadoFusionEducacion {
+  const filtrados = opciones.indicadores?.length ? new Set(opciones.indicadores) : null
+  const conObservaciones = opciones.conObservaciones !== false
+  const indicadoresCatalogo = filtrados
+    ? EDUCATION_INDICATORS.filter((i) => filtrados.has(i.id))
+    : EDUCATION_INDICATORS
+
   const periods = [...new Set(objetos.map((o) => o.period))].sort((a, b) => b - a)
   const conDatoPorIndicador = new Map<string, Set<number>>()
   const porSeccionPorPeriodo = new Set<string>()
+  const seccionesConDato = new Set<string>()
   const observaciones: Record<string, SeccionIndicadorObservaciones> = {}
   let nd = 0
   let suppressed = 0
@@ -131,12 +155,11 @@ export function fusionarEducacion(
       retrievedAt: obj.source.retrieved_at,
       checksum: obj.content_sha256,
     }
-    const indicatoresDelMunicipio = educationIndicatorsWithData(obj)
     for (const seccion of obj.sections) {
       if (seccion.municipalityCode !== codigoIne) continue
       if (esPoligonoDistrito(seccion.sectionCode)) continue
       let algunaConDato = false
-      for (const ind of EDUCATION_INDICATORS) {
+      for (const ind of indicadoresCatalogo) {
         const obs = seccion.values[ind.id]
         if (!obs) continue
         total += 1
@@ -150,6 +173,10 @@ export function fusionarEducacion(
           set.add(obj.period)
           conDatoPorIndicador.set(ind.id, set)
         }
+        // El recorrido de conteo y cobertura SIEMPRE ocurre: el bootstrap lo
+        // necesita. Lo caro —un objeto de 20 propiedades por celda— solo si
+        // alguien va a usar las observaciones.
+        if (!conObservaciones) continue
         const observacion: SeccionObservacion = {
           sectionKey: seccion.sectionCode,
           municipalityIne: codigoIne,
@@ -174,13 +201,16 @@ export function fusionarEducacion(
           porIndicador[ind.id] ?? (porIndicador[ind.id] = {})
         porPeriodo[String(obj.period)] = observacion
       }
-      if (algunaConDato) porSeccionPorPeriodo.add(`${seccion.sectionCode}|${obj.period}`)
+      if (algunaConDato) {
+        porSeccionPorPeriodo.add(`${seccion.sectionCode}|${obj.period}`)
+        seccionesConDato.add(seccion.sectionCode)
+      }
     }
   }
 
   const indicadores: SeccionIndicador[] = []
   const cobertura: SeccionIndicadorCobertura[] = []
-  for (const ind of EDUCATION_INDICATORS) {
+  for (const ind of indicadoresCatalogo) {
     const periodos = [...(conDatoPorIndicador.get(ind.id) ?? [])].sort((a, b) => b - a)
     if (periodos.length === 0) continue // Sin ninguna sección observada: no se publica.
     indicadores.push(indicadorEducativo(ind))
@@ -225,6 +255,7 @@ export function fusionarEducacion(
     nd,
     suppressed,
     observations: total,
+    seccionesConDato: [...seccionesConDato].sort(),
   }
 }
 
@@ -257,6 +288,8 @@ export interface ResultadoFusionPolitica {
   status: PoliticalStatus
   notes: string[]
   mesas: number
+  /** Secciones con AL MENOS UN valor observado de los indicadores solicitados. */
+  seccionesConDato: string[]
 }
 
 export type PoliticalStatus =
@@ -377,6 +410,12 @@ export function idIndicadorCandidatura(candidacyId: string): string {
  * Convierte el objeto electoral municipal en indicadores + observaciones.
  * `incluirCandidaturas` añade un indicador por candidatura, para que el mapa
  * pueda pintar el voto a una lista concreta sin hardcodear partidos.
+ *
+ * `indicadores` y `conObservaciones` son el mismo filtro que en
+ * `fusionarEducacion`, y por el mismo motivo: con 5 indicadores base + N
+ * candidaturas, Madrid materializaba 2462 × (5 + N) observaciones
+ * (~40 MB) aunque el atlas base ya estuviera filtrado. El bootstrap pide el
+ * catálogo sin observaciones; el bloque de dataset pide un solo indicador.
  */
 export function fusionarPolitica(
   obj: PoliticalMunicipalObject | null,
@@ -387,6 +426,11 @@ export function fusionarPolitica(
     incluirCandidaturas?: boolean
     /** Convocatoria que ha pedido el usuario. Da el contexto aunque no haya objeto. */
     electionId?: string
+    /** Solo estos indicadores. Sin valor: todos los de la convocatoria. */
+    indicadores?: readonly string[]
+    /** `false` no construye el mapa de observaciones (sí los contadores de
+     *  cobertura, que el bootstrap necesita). `true` por defecto. */
+    conObservaciones?: boolean
   },
 ): ResultadoFusionPolitica {
   const electionLabel = obj
@@ -414,8 +458,12 @@ export function fusionarPolitica(
       status,
       notes,
       mesas: 0,
+      seccionesConDato: [],
     }
   }
+
+  const filtrados = args.indicadores?.length ? new Set(args.indicadores) : null
+  const conObservaciones = args.conObservaciones !== false
 
   const indicadores: SeccionIndicador[] = []
   const cobertura: SeccionIndicadorCobertura[] = []
@@ -423,6 +471,9 @@ export function fusionarPolitica(
   const conDato = new Map<string, number>()
   const sinDato = new Map<string, number>()
   const mesas = new Set<string>()
+  const seccionesConDato = new Set<string>()
+
+  const wanted = (id: string): boolean => !filtrados || filtrados.has(id)
 
   const idsBase: string[] = [
     POLITICAL_INDICATOR_IDS.participation,
@@ -434,8 +485,10 @@ export function fusionarPolitica(
   if (args.incluirCandidaturas !== false) {
     for (const c of obj.candidacies) idsBase.push(idIndicadorCandidatura(c.id))
   }
+  const idsPedidos = idsBase.filter(wanted)
 
   for (const id of idsBase) {
+    if (!wanted(id)) continue
     if (id !== POLITICAL_INDICATOR_IDS.winner && PREFIJOS_INDICADOR_POLITICA.has(id)) {
       indicadores.push(
         id === POLITICAL_INDICATOR_IDS.participation
@@ -455,6 +508,7 @@ export function fusionarPolitica(
   if (args.incluirCandidaturas !== false) {
     for (const c of obj.candidacies) {
       const cid = idIndicadorCandidatura(c.id)
+      if (!wanted(cid)) continue
       indicadores.push(
         indicadorPolitico(
           cid,
@@ -469,9 +523,14 @@ export function fusionarPolitica(
     }
   }
 
+  // Índice id → unidad/denominador. Antes se resolvía con
+  // `indicadores.find(...)` DENTRO del bucle sección × indicador: para Madrid,
+  // 2462 × (5 + N) × (5 + N) comparaciones.
+  const fichaPorId = new Map(indicadores.map((i) => [i.id, i]))
+
   for (const s of obj.sections) {
     for (const p of s.pollingStations) mesas.add(`${s.sectionKey}|${p}`)
-    for (const id of idsBase) {
+    for (const id of idsPedidos) {
       let value: number | null = null
       let nota: string | null = null
       let estado: SeccionObservacion['status'] = 'no_difundido'
@@ -493,8 +552,12 @@ export function fusionarPolitica(
         nota = v.nota
         estado = value === null ? 'no_difundido' : 'observado'
       }
-      if (estado === 'observado') conDato.set(id, (conDato.get(id) ?? 0) + 1)
-      else sinDato.set(id, (sinDato.get(id) ?? 0) + 1)
+      if (estado === 'observado') {
+        conDato.set(id, (conDato.get(id) ?? 0) + 1)
+        seccionesConDato.add(s.sectionKey)
+      } else sinDato.set(id, (sinDato.get(id) ?? 0) + 1)
+      if (!conObservaciones) continue
+      const ficha = fichaPorId.get(id)
       const observacion: SeccionObservacion = {
         sectionKey: s.sectionKey,
         municipalityIne: obj.municipalityCode,
@@ -511,8 +574,8 @@ export function fusionarPolitica(
           mesas: String(s.pollingStations.length),
         },
         value,
-        unit: indicadores.find((i) => i.id === id)?.unidad ?? '',
-        denominator: indicadores.find((i) => i.id === id)?.denominador ?? null,
+        unit: ficha?.unidad ?? '',
+        denominator: ficha?.denominador ?? null,
         status: estado,
         sourceUrl: url,
         publishedAt: null,
@@ -550,6 +613,7 @@ export function fusionarPolitica(
     status,
     notes,
     mesas: mesas.size,
+    seccionesConDato: [...seccionesConDato].sort(),
   }
 }
 
@@ -594,17 +658,26 @@ export function construirAtlasMinimo(args: {
   observaciones: Record<string, SeccionIndicadorObservaciones>
   entradas: EntradaMinima[]
   statsRetrievedAt: string
+  /** Secciones con al menos un valor. El bootstrap no lleva observaciones, así
+   *  que las fusiones ya lo calculan (`seccionesConDato`) y se lo pasan: sin
+   *  esto, un atlas mínimo del bootstrap declararía «todas las secciones sin
+   *  fila» y `status: failed`, que es falso. Si se omite, se deduce de
+   *  `observaciones` como antes. */
+  seccionesConFila?: string[]
 }): SeccionesAtlasV1 {
   const claves = args.features.map((f) => f.properties.CUSEC)
-  const conFila = claves.filter((k) => {
-    const porIndicador = args.observaciones[k]
-    if (!porIndicador) return false
-    return Object.values(porIndicador).some((porPeriodo) =>
-      Object.values(porPeriodo).some((o) => typeof o.value === 'number'),
-    )
-  })
+  const conFila =
+    args.seccionesConFila ??
+    claves.filter((k) => {
+      const porIndicador = args.observaciones[k]
+      if (!porIndicador) return false
+      return Object.values(porIndicador).some((porPeriodo) =>
+        Object.values(porPeriodo).some((o) => typeof o.value === 'number'),
+      )
+    })
   const checksums: Record<string, string> = {}
   for (const e of args.entradas) if (e.checksum) checksums[e.indicador.id] = e.checksum
+  const sinFila = new Set(conFila)
   return {
     schemaVersion: SECCIONES_ATLAS_SCHEMA,
     municipalityIne: args.municipioIne,
@@ -623,7 +696,7 @@ export function construirAtlasMinimo(args: {
     municipalReference: {},
     quality: {
       territoryMatch: 'exact',
-      seccionesSinFila: claves.filter((k) => !conFila.includes(k)),
+      seccionesSinFila: claves.filter((k) => !sinFila.has(k)),
       filasSinPoligono: [],
       poligonosInvalidos: [],
       poligonosVacios: [],
@@ -848,4 +921,37 @@ export function fusionarAtlas(base: SeccionesAtlasV1, dominios: DominioFusion[])
     observations: observaciones,
     sourceChecksums: checksums,
   }
+}
+
+/**
+ * Une SOLO el catálogo: indicadores, cobertura y checksums de los dominios con
+ * los del atlas base, sin tocar observaciones.
+ *
+ * Es lo que necesitan el bootstrap (que no lleva observaciones) y el bloque de
+ * dataset (que tiene que resolver `indicador_meta` aunque el valor venga del
+ * atlas base). Mismas reglas que `fusionarAtlas`: el indicador del base gana.
+ */
+export function fusionarCatalogos(args: {
+  indicadoresBase?: SeccionIndicador[]
+  coberturaBase?: SeccionIndicadorCobertura[]
+  checksumsBase?: Record<string, string>
+  dominios: Array<Pick<DominioFusion, 'indicadores' | 'cobertura'>>
+}): { indicadores: SeccionIndicador[]; cobertura: SeccionIndicadorCobertura[]; sourceChecksums: Record<string, string> } {
+  const indicadores = [...(args.indicadoresBase ?? [])]
+  const cobertura = [...(args.coberturaBase ?? [])]
+  const ids = new Set(indicadores.map((i) => i.id))
+  const conCobertura = new Set(cobertura.map((c) => c.indicatorId))
+  for (const d of args.dominios) {
+    for (const ind of d.indicadores ?? []) {
+      if (ids.has(ind.id)) continue
+      ids.add(ind.id)
+      indicadores.push(ind)
+    }
+    for (const c of d.cobertura ?? []) {
+      if (conCobertura.has(c.indicatorId)) continue
+      conCobertura.add(c.indicatorId)
+      cobertura.push(c)
+    }
+  }
+  return { indicadores, cobertura, sourceChecksums: { ...(args.checksumsBase ?? {}) } }
 }

@@ -22,7 +22,7 @@
 //  - No convierte un ND en 0 ni lo mete en una clase de color.
 //  - Ningún control de presentación cambia un dato.
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -38,7 +38,6 @@ import {
   esPoligonoDistrito,
   formatearValor,
   isValidSeccionKey,
-  validarSeccionesAtlas,
 } from "@/lib/socideas-secciones";
 import type {
   ModoClasificacion,
@@ -46,10 +45,22 @@ import type {
   ResultadoValidacion,
   SeccionFeature,
   SeccionIndicador,
+  SeccionIndicadorCobertura,
+  SeccionIndicadorObservaciones,
   SeccionPorPeriodo,
   SeccionValorStatus,
   SeccionesAtlasV1,
 } from "@/lib/socideas-secciones";
+// Rehidratación del bloque bajo demanda. La expansión NO se reimplementa aquí:
+// `expandirIndicadorCompacto` es el mismo camino que usa el servidor para
+// publicar, así que un bloque pegado produce exactamente las mismas
+// `SeccionObservacion` que habría producido el contrato antiguo.
+import { expandirIndicadorCompacto } from "@/lib/socideas-secciones-dataset";
+import type {
+  DominioSecciones,
+  SeccionesAtlasBootstrap,
+  SeccionesDatasetBloque,
+} from "@/lib/socideas-secciones-dataset";
 import { componerPngMapa, nombreArchivoPngSecciones, tokenIma, type EscalaPng } from "@/lib/socideas-secciones-png";
 import SeccionesAtlasMap, {
   COLOR_CONTORNO_CLASE,
@@ -63,7 +74,12 @@ import SeccionesAtlasMap, {
 import SeccionesAtlasPanel, { avisoDeCortes } from "./SeccionesAtlasPanel";
 import SeccionesAtlasTable from "./SeccionesAtlasTable";
 import SeccionesAtlasDetalle from "./SeccionesAtlasDetalle";
-import SeccionesIndicadorBuscador, { GRUPOS_TEMA } from "./SeccionesIndicadorBuscador";
+import SeccionesIndicadorBuscador, {
+  GRUPOS_TEMA,
+  SeccionesDominioTabs,
+  construirItemsIndicadores,
+  conteosPorGrupo,
+} from "./SeccionesIndicadorBuscador";
 import SectionLegend from "./SectionLegend";
 import SectionMeta from "./SectionMeta";
 import SeccionesPoliticaExtension from "./SeccionesPoliticaExtension";
@@ -100,7 +116,12 @@ interface RespuestaApi {
     n_secciones: number;
     via: string;
     geojson: { type: string; features: Array<{ type: string; properties: Record<string, unknown>; geometry: unknown }> };
-    atlas?: SeccionesAtlasV1 | null;
+    /**
+     * Cabecera del atlas SIN geometría (va una vez en `geojson`) y SIN
+     * `observations` (van en el bloque de dataset). `observations` llega vacío
+     * POR CONSTRUCCIÓN: es la señal de que aquí no hay valores que pintar.
+     */
+    atlas?: SeccionesAtlasBootstrap | null;
     dominios?: {
       educacion?: {
         periodos: number[];
@@ -117,13 +138,171 @@ interface RespuestaApi {
         status: string;
         mesas_agregadas: number;
         candidaturas: Candidacy[];
-        ganadoras: Record<string, SeccionGanadora>;
+        /** Las ganadoras ya NO vienen aquí: el bootstrap publica dónde pedirlas. */
+        ganadoras_endpoint?: string;
       };
     };
     avisos?: string[];
+    /** Veredicto fail-closed ejecutado EN EL SERVIDOR. El cliente ya no puede
+     *  repetirlo: no recibe `observations`. Misma forma que
+     *  `validarSeccionesAtlas`. */
+    validacion?: ResultadoValidacion;
+    /** Cómo pedir los valores. La ruta se toma de aquí, no del código. */
+    dataset?: { endpoint: string; params: Record<string, string>; nota: string };
+    config?: {
+      dominios?: DominioSecciones[];
+      periodos?: number[];
+      periodo_por_defecto?: number | null;
+      n_indicadores?: number;
+    };
   } | null;
   error: string | null;
   count?: number;
+}
+
+/** Respuesta de `/api/socideas/secciones-dataset/{ine}`. El bloque va en
+ *  `data`; cuando no hay datos, `data` es `null` y `error` lleva el MOTIVO
+ *  exacto (404 con la razón por la que ese bloque no existe). */
+interface RespuestaDataset {
+  data: (SeccionesDatasetBloque & { bloque?: "ganadoras"; ganadoras?: Record<string, SeccionGanadora> }) | null;
+  error: string | null;
+  count?: number;
+  cache?: { via: string; motivo: string | null; tag: string };
+  validacion?: ResultadoValidacion;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Valores bajo demanda
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Lo que el motor de coropleta, la tabla y el PNG leen: el atlas del bootstrap
+ *  con `observations` sustituido por los bloques YA hidratados. Se distingue del
+ *  atlas servido porque este no lleva `sections` (la geometría viaja una vez en
+ *  `data.geojson`) y la vista nunca las usa. */
+type AtlasParaVista = Omit<SeccionesAtlasV1, "sections">;
+
+/** Bloques ya hidratados: sección → indicador → clave de periodo → observación.
+ *  La clave de periodo es el año (`"2023"`) o, en Política, la convocatoria
+ *  (`"2023-05-28"`): es lo que el servidor publica como `periodo_clave` y lo
+ *  que la vista indexa. */
+export type ObservacionesHidrátadas = Record<string, SeccionIndicadorObservaciones>;
+
+/** Un bloque pedido. `periodo` y `convocatoria` pueden faltar: el servidor usa
+ *  entonces el `periodo_por_defecto` de la cobertura y la convocatoria más
+ *  reciente, y lo dice en la respuesta. */
+export interface PeticionBloque {
+  dominio: DominioSecciones;
+  indicadorId: string;
+  periodo?: number | null;
+  convocatoria?: string;
+  bloque?: "ganadoras";
+}
+
+/** Estado de un bloque, para que la UI distinga «cargando valores» de «no hay
+ *  datos» y de «el servidor dijo que no». Un mapa vacío sin explicación es
+ *  exactamente el defecto que este contrato evita. */
+export interface EstadoBloque {
+  estado: "cargando" | "ok" | "vacio" | "error";
+  /** Motivo literal del servidor cuando el bloque no se pudo servir. */
+  error?: string;
+  status?: number | null;
+  nSecciones?: number;
+  nValores?: number;
+  /** Con la que el servidor indexa los valores: el año o la fecha de convocatoria. */
+  periodoClave?: string | null;
+  /** Convocatoria con la que el servidor respondió, si se pidió una distinta. */
+  convocatoriaServida?: string | null;
+}
+
+/** Tope de reintentos manuales por bloque. Es el interruptor de seguridad: un
+ *  fallo reintentado en bucle (por un `?forzar=1` colado en la URL o por un
+ *  efecto que se auto-dispara) no puede convertirse en un bucle de
+ *  peticiones. Pasado el tope se dice, en vez de seguir golpeando. */
+const MAX_INTENTOS_POR_BLOQUE = 3;
+
+/** Clave estable de un bloque. Incluye TODOS los ejes que cambian el contenido
+ *  (dominio, bloque, indicador, periodo, convocatoria) para que la caché de
+ *  cliente no mezcle dos respuestas distintas. */
+function claveDeBloque(p: PeticionBloque): string {
+  return [p.dominio, p.bloque ?? "-", p.indicadorId, p.periodo ?? "defecto", p.convocatoria ?? "defecto"].join(
+    "|",
+  );
+}
+
+/** Dominio al que pertenece un indicador, según el tema que declara el catálogo.
+ *  Educación y Actividad salen del MISMO objeto del Censo Anual, así que
+ *  `educacion` y `laboral` viajan por `dominio=educacion`; lo electoral va por
+ *  `politica` y el resto por el atlas base de R2. Nunca se hardcodea un id. */
+function dominioDeIndicador(indicador: SeccionIndicador): DominioSecciones {
+  if (indicador.tema === "politica") return "politica";
+  if (indicador.tema === "educacion" || indicador.tema === "laboral") return "educacion";
+  return "base";
+}
+
+/** URL del bloque. El ORIGEN sale de `data.dataset.endpoint` del bootstrap: si
+ *  el servidor publica otra ruta, el cliente la sigue. Los nombres de parámetro
+ *  son los que documenta `dataset.nota` y lee la ruta (`ind`, no `indicador`;
+ *  el `params.indicador` del bootstrap es un marcador de posición, no una
+ *  clave de consulta). */
+function urlDeBloque(endpoint: string, p: PeticionBloque): string {
+  const q = new URLSearchParams();
+  q.set("dominio", p.dominio);
+  if (p.bloque) {
+    // Un bloque como `ganadoras` NO es de un indicador: son las ganadoras de
+    // todas las secciones. Mandar `ind` ahí sugeriría un indicador que la ruta
+    // ni mira, así que no se manda.
+    q.set("bloque", p.bloque);
+  } else if (p.indicadorId) {
+    q.set("ind", p.indicadorId);
+  }
+  if (p.periodo != null) q.set("periodo", String(p.periodo));
+  if (p.convocatoria) q.set("convocatoria", p.convocatoria);
+  const separador = endpoint.includes("?") ? "&" : "?";
+  return `${endpoint}${separador}${q.toString()}`;
+}
+
+/** Motivo legible de un fallo HTTP. Un 404 del endpoint de valores NO es «sin
+ *  indicadores»: es una razón concreta y el usuario la necesita para saber si
+ *  debe consultar otro municipio, reintentar o resignarse. Se muestra literal. */
+function causaDeFallo(status: number, mensaje: string | null | undefined): string {
+  const motivo = (mensaje ?? "").trim();
+  const sufijo = motivo ? `: ${motivo}` : ".";
+  if (status === 404) return `Sin bloque de valores (HTTP 404)${sufijo}`;
+  if (status === 400) return `Petición no válida (HTTP 400)${sufijo}`;
+  if (status === 409 || status === 422) return `Bloque no publicable (HTTP ${status})${sufijo}`;
+  if (status >= 500) return `El servidor no ha podido servir ni validar el bloque (HTTP ${status})${sufijo}`;
+  return `Fallo inesperado del endpoint de valores (HTTP ${status})${sufijo}`;
+}
+
+/** Motivo legible de un fallo del BOOTSTRAP. Un 404 aquí significa una de tres
+ *  cosas concretas —municipio sin atlas, sin resultados o inexistente— y cada
+ *  una tiene una consecuencia distinta para quien lee. Se enuncia literal. */
+function causaDeFalloBootstrap(status: number, mensaje: string | null | undefined, municipio: string): string {
+  const motivo = (mensaje ?? "").trim();
+  const sufijo = motivo ? `: ${motivo}` : ".";
+  if (status === 404) return `No hay nada publicado para ${municipio} (HTTP 404)${sufijo}`;
+  if (status === 400) return `El municipio "${municipio}" no tiene un código INE válido (HTTP 400)${sufijo}`;
+  if (status === 502) return `El servidor no ha podido resolver la geometría de ${municipio} (HTTP 502)${sufijo}`;
+  if (status >= 500) return `Fallo del servidor al preparar ${municipio} (HTTP ${status})${sufijo}`;
+  return `No se pudieron cargar las secciones de ${municipio} (HTTP ${status})${sufijo}`;
+}
+
+/** Mergea un bloque YA expandido dentro del estado local. Nunca reemplaza: el
+ *  mapa se va llenando indicador a indicador y periodo a periodo, y perder lo
+ *  ya pedido al cambiar de año sería tirar datos que ya se han pagado. */
+function fusionarBloqueHidrátado(
+  base: ObservacionesHidrátadas,
+  indicadorId: string,
+  porSeccion: Record<string, SeccionPorPeriodo>,
+): ObservacionesHidrátadas {
+  if (Object.keys(porSeccion).length === 0) return base;
+  const salida: ObservacionesHidrátadas = { ...base };
+  for (const [seccion, porPeriodo] of Object.entries(porSeccion)) {
+    const porIndicador: SeccionIndicadorObservaciones = { ...(salida[seccion] ?? {}) };
+    porIndicador[indicadorId] = { ...(porIndicador[indicadorId] ?? {}), ...porPeriodo };
+    salida[seccion] = porIndicador;
+  }
+  return salida;
 }
 
 const PRESENTACION_POR_DEFECTO: PresentacionAtlas = {
@@ -140,11 +319,26 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  /** Prefijo de id de las pestañas de dominio y del panel que labellan. */
+  const idDominios = useId().replace(/[^a-zA-Z0-9]/g, "");
 
   const [estado, setEstado] = useState<Estado>("idle");
   const [datos, setDatos] = useState<RespuestaApi["data"]>(null);
   const [error, setError] = useState<string | null>(null);
   const [validacion, setValidacion] = useState<ResultadoValidacion | null>(null);
+  /** El bootstrap no trajo veredicto de validación. Se declara, porque un atlas
+   *  sin veredicto NO es lo mismo que un atlas validado. */
+  const [validacionAusente, setValidacionAusente] = useState(false);
+  /** Valores ya hidratados, bloque a bloque. El bootstrap llega con
+   *  `observations: {}`; esta es la única fuente de valores que pinta el mapa. */
+  const [observaciones, setObservaciones] = useState<ObservacionesHidrátadas>({});
+  /** Estado de carga/error POR BLOQUE, indexado por `claveDeBloque`. Vive en el
+   *  atlas y no en la pestaña que lo pidió: Política se desmonta al salir de la
+   *  pestaña y su bloque debe seguir disponible y legible. */
+  const [bloques, setBloques] = useState<Record<string, EstadoBloque>>({});
+  /** Ganadoras por sección. No son observaciones (no son un valor del
+   *  contrato) y no caben en `observations`: tienen su propio bloque. */
+  const [ganadoras, setGanadoras] = useState<Record<string, SeccionGanadora>>({});
   const [presentacion, setPresentacion] = useState<PresentacionAtlas>(PRESENTACION_POR_DEFECTO);
   const [hovered, setHovered] = useState<string | null>(null);
   const [vista, setVista] = useState<"mapa" | "tabla">("mapa");
@@ -155,6 +349,29 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   const mapaRef = useRef<HandleAtlas | null>(null);
   const [aplicando, iniciarTransicion] = useTransition();
 
+  // ── Caché de bloques (refs, no estado) ──────────────────────────────────
+  // Vive en refs a propósito: cambiar la caché NO puede provocar render, ni
+  // que un efecto se dispare por un bloque ya descargado, ni un bucle.
+  /** Claves ya servidas: pedirlas otra vez no vuelve a llamar a la red. */
+  const bloquesCargados = useRef<Set<string>>(new Set());
+  /** Peticiones EN VOLO por clave. Es la deduplicación: dos efectos que piden
+   *  el mismo bloque antes de que llegue el primero comparten una sola promesa. */
+  const bloquesEnVuelo = useRef<Map<string, { promesa: Promise<void>; control: AbortController }>>(new Map());
+  /** Intentos manuales por clave, para el interruptor de seguridad. */
+  const intentosPorBloque = useRef<Map<string, number>>(new Map());
+  /** Se cancela todo al desmontar: un bloque que llega tarde a un atlas que ya
+   *  no existe no debe escribir en un componente desmontado. */
+  const vivos = useRef(true);
+  useEffect(() => {
+    vivos.current = true;
+    const enVuelo = bloquesEnVuelo.current;
+    return () => {
+      vivos.current = false;
+      for (const { control } of enVuelo.values()) control.abort();
+      enVuelo.clear();
+    };
+  }, []);
+
   // ── Carga bajo demanda ──────────────────────────────────────────────────
   const cargar = useCallback(async () => {
     setEstado("cargando");
@@ -162,11 +379,34 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
     const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
     try {
       const res = await fetch(`/api/socideas/secciones/${codigoINE}`);
-      const j = (await res.json()) as RespuestaApi;
-      if (!res.ok || !j.data) throw new Error(j.error ?? "Error al cargar las secciones");
+      const j = (await res.json().catch(() => null)) as RespuestaApi | null;
+      if (!res.ok || !j?.data) {
+        // 404 con motivo: «municipio sin atlas», «sin resultados», «municipio no
+        // encontrado»… son razones distintas y el usuario necesita la exacta. No
+        // se colapsan en un «sin indicadores» genérico.
+        throw new Error(causaDeFalloBootstrap(res.status, j?.error, nombre));
+      }
       setDatos(j.data);
-      // Validación fail-closed del contrato: si la fuente no pasa, se declara.
-      setValidacion(j.data.atlas ? validarSeccionesAtlas(j.data.atlas) : null);
+      // Validación fail-closed: ahora la ejecuta el SERVIDOR, porque el cliente
+      // ya no puede repetirla (no recibe `observations`). Misma forma que
+      // devolvía `validarSeccionesAtlas`. Si no viniera, se degrada a `null`
+      // con aviso explícito, nunca a un error: el atlas sigue siendo legible.
+      if (j.data.validacion) {
+        setValidacion(j.data.validacion);
+      } else {
+        setValidacion(null);
+        setValidacionAusente(true);
+      }
+      // Un municipio distinto invalida los valores ya hidratados del anterior.
+      // Los bloques que siguieran en vuelo se cancelan: si llegaran después de
+      // vaciar el estado, escribirían valores de una carga que ya se descartó.
+      for (const { control } of bloquesEnVuelo.current.values()) control.abort();
+      setObservaciones({});
+      setGanadoras({});
+      setBloques({});
+      bloquesCargados.current.clear();
+      bloquesEnVuelo.current.clear();
+      intentosPorBloque.current.clear();
       setEstado("ok");
       if (process.env.NODE_ENV !== "production") {
         const ms = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - t0);
@@ -177,7 +417,189 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
       setError(err instanceof Error ? err.message : "Error al cargar las secciones");
       setEstado("error");
     }
-  }, [codigoINE]);
+  }, [codigoINE, nombre]);
+
+  // ── Petición de un bloque de valores ────────────────────────────────────
+  //
+  // Reglas que resumen todo el cableado bajo demanda:
+  //  · la ruta sale de `data.dataset.endpoint` del bootstrap, no del código;
+  //  · un bloque ya descargado no vuelve a pedirse (caché de cliente por clave);
+  //  · dos peticiones del mismo bloque comparten una sola promesa (deduplicación);
+  //  · la expansión la hace `expandirIndicadorCompacto`, el mismo camino que
+  //    usa el servidor para publicar: aquí no se reimplementa;
+  //  · el resultado se MERGEA, nunca se sustituye: al cambiar de año no se
+  //    pierde lo ya pagado;
+  //  · el estado se escribe BAJO LA CLAVE del bloque, así que una respuesta
+  //    tardía de un indicador anterior no puede pisar la del actual; y el
+  //    `AbortController` cancela lo que se queda obsoleto o el componente
+  //    desaparece;
+  //  · el fallo se conserva con su código y su motivo literal: un 404 del
+  //    endpoint de valores es una CAUSA, no un «sin datos» genérico.
+  const pedirBloque = useCallback(
+    (peticion: PeticionBloque, opciones: { forzar?: boolean } = {}): Promise<void> => {
+      const clave = claveDeBloque(peticion);
+      const endpoint = datos?.dataset?.endpoint ?? null;
+
+      if (!datos || !endpoint) {
+        // Sin `dataset.endpoint` no hay contrato de valores. Se dice, en vez de
+        // adivinar una ruta que podría no ser la del servidor.
+        setBloques((b) => ({
+          ...b,
+          [clave]: {
+            estado: "error",
+            status: null,
+            error:
+              "El bootstrap de este municipio no publica el endpoint de valores (data.dataset.endpoint), " +
+              "así que no hay forma correcta de pedir los datos. Es un fallo del contrato, no una ausencia de dato.",
+          },
+        }));
+        return Promise.resolve();
+      }
+
+      if (!opciones.forzar && bloquesCargados.current.has(clave)) return Promise.resolve();
+      // Reintento explícito: se aborta lo que siguiera en vuelo para que su
+      // respuesta tardía no se adjudique el estado del intento nuevo.
+      const anterior = bloquesEnVuelo.current.get(clave);
+      if (anterior && opciones.forzar) {
+        anterior.control.abort();
+        bloquesEnVuelo.current.delete(clave);
+      } else if (anterior) {
+        return anterior.promesa;
+      }
+
+      if (opciones.forzar) {
+        const usados = intentosPorBloque.current.get(clave) ?? 0;
+        if (usados >= MAX_INTENTOS_POR_BLOQUE) {
+          setBloques((b) => ({
+            ...b,
+            [clave]: {
+              ...(b[clave] ?? { estado: "error" }),
+              estado: "error",
+              error:
+                (b[clave]?.error ??
+                  "El bloque no se pudo cargar.") +
+                ` Se han agotado los ${MAX_INTENTOS_POR_BLOQUE} reintentos de este bloque: ` +
+                "no se insistirá más automáticamente. Recargue la página o cambie de indicador o de año.",
+            },
+          }));
+          return Promise.resolve();
+        }
+        intentosPorBloque.current.set(clave, usados + 1);
+      }
+
+      const control = new AbortController();
+      setBloques((b) => ({ ...b, [clave]: { estado: "cargando", periodoClave: null } }));
+
+      const promesa = (async () => {
+        try {
+          const res = await fetch(urlDeBloque(endpoint, peticion), {
+            signal: control.signal,
+            headers: { accept: "application/json" },
+          });
+          const j = (await res.json().catch(() => null)) as RespuestaDataset | null;
+          if (!vivos.current) return;
+          if (!res.ok || !j?.data) {
+            setBloques((b) => ({
+              ...b,
+              [clave]: {
+                estado: "error",
+                status: res.status,
+                error: causaDeFallo(res.status, j?.error),
+              },
+            }));
+            return;
+          }
+          // Fail-closed también aquí: si el bloque llega acompañado de un
+          // veredicto `ok:false`, no se pega en el atlas ni se pinta.
+          if (j.validacion && !j.validacion.ok) {
+            setBloques((b) => ({
+              ...b,
+              [clave]: {
+                estado: "error",
+                status: res.status,
+                error:
+                  `El bloque no supera la validación del servidor (${j.validacion?.errores.length ?? 0} ` +
+                  `${j.validacion?.errores.length === 1 ? "error" : "errores"}) y no se ha pintado: ` +
+                  (j.validacion?.errores ?? []).slice(0, 3).join(" | "),
+              },
+            }));
+            return;
+          }
+          const bloque = j.data;
+          const esBloqueGanadoras = bloque.bloque === "ganadoras";
+          if (esBloqueGanadoras) {
+            if (bloque.ganadoras) setGanadoras(bloque.ganadoras);
+          }
+          const meta = bloque.indicador_meta;
+          const periodoClave = bloque.periodo_clave;
+          // Un bloque de serie sin `indicador_meta` o sin `periodo_clave` no se
+          // puede indexar donde la vista lo busca. No se da por bueno: se cuenta
+          // como «sin celdas» con el motivo, porque un `ok` sin nada pegado
+          // dejaría un plano de contornos sin explicación.
+          const indexable = Boolean(meta && periodoClave);
+          if (meta && periodoClave) {
+            const pegado = expandirIndicadorCompacto(bloque.series, {
+              indicador: meta,
+              municipalityIne: bloque.codigo_ine,
+              geometryYear: datos.atlas?.geometryYear ?? datos.anio_delimitacion,
+              periodoClave,
+              retrievedAt: datos.atlas?.statsRetrievedAt ?? "",
+            });
+            // La clave de indicador es la del propio `indicador_meta`: es la que
+            // `expandirIndicadorCompacto` usó para indexar dentro de cada sección,
+            // y con la que la vista la va a leer.
+            setObservaciones((prev) => fusionarBloqueHidrátado(prev, meta.id, pegado));
+          }
+          bloquesCargados.current.add(clave);
+          const nValores = esBloqueGanadoras ? bloque.n_secciones : bloque.n_valores;
+          setBloques((b) => ({
+            ...b,
+            [clave]: {
+              estado: nValores > 0 && (esBloqueGanadoras || indexable) ? "ok" : "vacio",
+              status: res.status,
+              nSecciones: bloque.n_secciones,
+              nValores,
+              periodoClave: bloque.periodo_clave,
+              convocatoriaServida: bloque.convocatoria ?? null,
+              error:
+                !esBloqueGanadoras && !indexable && nValores > 0
+                  ? "El servidor ha servido celdas sin la ficha del indicador ni la clave de periodo con la que indexarlas, " +
+                    "así que no se pueden situar sobre la geometría. Se muestran los contornos."
+                  : undefined,
+            },
+          }));
+        } catch (e) {
+          // Cancelación: no es un fallo, no se escribe estado.
+          if (control.signal.aborted || !vivos.current) return;
+          setBloques((b) => ({
+            ...b,
+            [clave]: {
+              estado: "error",
+              status: null,
+              error: `No se pudo contactar con el endpoint de valores: ${
+                e instanceof Error ? e.message : "error de red"
+              }`,
+            },
+          }));
+        } finally {
+          if (bloquesEnVuelo.current.get(clave)?.control === control) {
+            bloquesEnVuelo.current.delete(clave);
+          }
+        }
+      })();
+
+      bloquesEnVuelo.current.set(clave, { promesa, control });
+      return promesa;
+    },
+    [datos],
+  );
+
+  /** Estado de un bloque, o `undefined` si nunca se ha pedido. Lo consume la
+   *  pestaña Política, que pide sus propios bloques con su convocatoria. */
+  const estadoDeBloque = useCallback(
+    (peticion: PeticionBloque): EstadoBloque | undefined => bloques[claveDeBloque(peticion)],
+    [bloques],
+  );
 
   // ── Geometría normalizada ───────────────────────────────────────────────
   const geometria = useMemo(() => normalizarGeometria(datos), [datos]);
@@ -209,10 +631,51 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
     if (g && gruposDisponibles.some((x) => x.id === g)) return g;
     return gruposDisponibles[0]?.id ?? "economico";
   }, [searchParams, gruposDisponibles]);
+  // La pestaña Política se resuelve con su propio componente (`SeccionesPoliticaExtension`):
+  // el mapa de la ganadora es CATEGÓRICO (color por candidatura) y no cabe en el
+  // motor numérico de clases que usan el resto de pestañas. El booleano se declara
+  // aquí, antes de la bifurcación del render, para que las pestañas de dominio
+  // puedan saber si su `tabpanel` existe.
+  const enPestanaPolitica = grupoActivo === GRUPO_POLITICA;
   const indicadores = useMemo<ReadonlyArray<SeccionIndicador>>(() => {
     const temas = GRUPOS_TEMA.find((g) => g.id === grupoActivo)?.temas ?? [];
     return todosLosIndicadores.filter((i) => temas.includes(i.tema));
   }, [todosLosIndicadores, grupoActivo]);
+
+  // El atlas con los valores HIDRATADOS. Todo lo que lee valores —mapa, tabla,
+  // ficha, PNG, cobertura— pasa por aquí en lugar de por `atlas.observations`,
+  // que el bootstrap deja vacío. El tipo es el del atlas completo menos
+  // `sections`: la geometría se sirve una vez en `data.geojson` y la vista usa
+  // esa, así que el atlas no necesita su copia.
+  const atlasValores = useMemo<AtlasParaVista | null>(
+    () => (atlas ? { ...atlas, observations: observaciones } : null),
+    [atlas, observaciones],
+  );
+
+  // Catálogo agrupado por dominio con su estado de dato: alimenta a la vez los
+  // badges de las pestañas y el listado del buscador, de una sola cuenta.
+  //
+  // ND: ya no se puede detectar escaneando observaciones, porque el bootstrap
+  // las trae vacías y solo se hidrata un indicador a la vez —escanear daría
+  // «sin celdas sin dato» a todos menos al visible, que es una mentira en
+  // la dirección contraria. Se usa el dato que el bootstrap SÍ publica:
+  // `cobertura[].seccionesSinDifundir` de cada indicador. Cuando el bloque del
+  // indicador está hidratado, la cobertura manda igual, así que el distintivo no
+  // parpadea al pedir el bloque.
+  const items = useMemo(() => {
+    if (!atlas) return [];
+    const base = construirItemsIndicadores(todosLosIndicadores, atlas.cobertura, observaciones);
+    const conNd = new Set(
+      (atlas.cobertura ?? [])
+        .filter((c: SeccionIndicadorCobertura) => (c.seccionesSinDifundir ?? 0) > 0)
+        .map((c: SeccionIndicadorCobertura) => c.indicatorId),
+    );
+    return base.map((item) =>
+      item.estado !== "no" && conNd.has(item.indicador.id) ? { ...item, estado: "nd" as const } : item,
+    );
+  }, [todosLosIndicadores, atlas, observaciones]);
+
+  const conteos = useMemo(() => conteosPorGrupo(items), [items]);
 
   const indicadorPorDefecto = useMemo(() => {
     // Indicador inicial por tema: el de referencia del producto en económico y
@@ -239,15 +702,14 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
       if (!atlas || !indicatorId) return [];
       const cob = atlas.cobertura.find((c) => c.indicatorId === indicatorId);
       if (cob && cob.periodos.length) return [...cob.periodos].sort((a, b) => b - a);
-      // Sin entrada de cobertura: se deduce del propio diccionario de observaciones.
-      const vistos = new Set<number>();
-      for (const porIndicador of Object.values(atlas.observations ?? {})) {
-        for (const periodo of Object.keys(porIndicador?.[indicatorId] ?? {})) {
-          const n = Number(periodo);
-          if (Number.isFinite(n)) vistos.add(n);
-        }
-      }
-      return [...vistos].sort((a, b) => b - a);
+      // Sin entrada de cobertura no hay periodos que ofrecer. Antes se deducían
+      // del diccionario de observaciones; ya no existe uno en el bootstrap, y
+      // derivarlos de los bloques YA hidratados crearía un ciclo: cargar un
+      // bloque cambiaría el conjunto de años, que cambiaría el año efectivo,
+      // que volvería a pedir el bloque. Con la cobertura no hay ciclo: es un
+      // dato del servidor, fijo para todo el municipio. Un indicador sin
+      // cobertura tampoco es seleccionable: el buscador lo marca «no disponible».
+      return [];
     },
     [atlas],
   );
@@ -345,6 +807,27 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
     [router, urlDesde],
   );
 
+  /** Cambio de dominio temático desde las pestañas.
+   *
+   *  Escribe con el MISMO helper que el resto de la lectura de estado, así que
+   *  conserva `modo`, `clases` y `sec` y descarta lo que no cruza de dominio:
+   *  `ind` y `anio` son de otro catálogo y de otros periodos, así que se
+   *  vacían EN EL MISMO parche. Si se dejaran, el efecto de limpieza de
+   *  parámetros vería `sucios.ind`/`sucios.anio` y dispararía un segundo
+   *  `router.replace` para quitar lo que este parche ya previó.
+   *
+   *  Un grupo que no está disponible en este municipio no escribe nada: la
+   *  pestaña llega aquí deshabilitada, pero el guard evita que un `g` que
+   *  `grupoActivo` va a rechazar acabe en la URL. */
+  const cambiarDominio = useCallback(
+    (grupoId: string) => {
+      if (grupoId === grupoActivo) return;
+      if (!gruposDisponibles.some((x) => x.id === grupoId)) return;
+      escribirParams({ g: grupoId, ind: null, anio: null });
+    },
+    [grupoActivo, gruposDisponibles, escribirParams],
+  );
+
   // Limpieza de parámetros inválidos: una sola pasada, sin bucles.
   //
   // Solo se limpia cuando el catálogo ya está disponible. Antes de eso
@@ -357,16 +840,61 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
     if (haySucios) router.replace(urlCanonica, { scroll: false });
   }, [haySucios, router, urlCanonica]);
 
+  // ── Carga del bloque visible ────────────────────────────────────────────
+  //
+  // Se dispara al montar y al cambiar de indicador o de periodo. La
+  // GEOMETRÍA no se vuelve a pedir: eso es el bootstrap, y ya está en `datos`.
+  //
+  // El disparador es un objeto memorizado cuyas dependencias son SÓLO datos del
+  // servidor y del catálogo (indicador y año). Los estados de bloque, los valores
+  // hidratados y el reintento manual NO dependen del disparador, así que pedir un
+  // bloque no puede volver a dispararlo: no hay bucle. Y cambiar de periodo tres
+  // veces son tres peticiones, una por clave; volver a un año ya pedido no pide
+  // nada, porque la caché de cliente responde.
+  const validacionFalla = validacion !== null && !validacion.ok;
+  const peticionVisible = useMemo<PeticionBloque | null>(() => {
+    if (estado !== "ok" || !datos) return null;
+    // En la pestaña Política quien pide los valores es SU componente, con la
+    // clave de periodo que le corresponde —la convocatoria, no el año—. Pedirlo
+    // aquí además duplicaría la petición con una clave distinta, y el bloque
+    // indexado por fecha no es el que el motor numérico indexa por año.
+    if (enPestanaPolitica) return null;
+    if (!params.indicatorId || params.anio === null) return null;
+    const ind = todosLosIndicadores.find((i) => i.id === params.indicatorId);
+    if (!ind) return null;
+    return { dominio: dominioDeIndicador(ind), indicadorId: ind.id, periodo: params.anio };
+  }, [estado, datos, enPestanaPolitica, params.indicatorId, params.anio, todosLosIndicadores]);
+  const claveVisible = peticionVisible ? claveDeBloque(peticionVisible) : null;
+  const estadoVisible = claveVisible ? bloques[claveVisible] : undefined;
+
+  useEffect(() => {
+    // Fail-closed: con la validación del servidor en `ok:false` el atlas no es
+    // publicable y sus valores tampoco. Se dice arriba y no se pide nada: pedir
+    // valores de una fuente que no valida sería pintar lo que se acaba de decir
+    // que no se pinta.
+    if (!peticionVisible || validacionFalla) return;
+    void pedirBloque(peticionVisible);
+  }, [peticionVisible, validacionFalla, pedirBloque]);
+
   // ── Modelo de vista ─────────────────────────────────────────────────────
   const opcionesClasificacion = useMemo(
     () => ({ cortesManuales: presentacion.cortesManuales, divergente: presentacion.divergente }),
     [presentacion.cortesManuales, presentacion.divergente],
   );
 
+  // Un bloque que no ha resuelto todavía no es «el municipio no tiene datos»:
+  // la vista tiene que distinguirlo, o pinta una escala de color vacía. Con la
+  // validación en `ok:false` no hay nada que esperar —no se va a pedir—, así que
+  // ahí no se habla de «cargando»: se habla de que la fuente no es publicable,
+  // y lo dice el aviso de bloque y el error de la cabecera.
+  const valoresEnCarga =
+    !validacionFalla &&
+    (claveVisible === null || estadoVisible === undefined || estadoVisible.estado === "cargando");
+
   const vista_ = useMemo(
     () =>
       construirVista(
-        atlas,
+        atlasValores,
         geometria,
         nombre,
         params.indicatorId,
@@ -374,13 +902,32 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
         params.modo,
         params.clases,
         opcionesClasificacion,
+        valoresEnCarga,
       ),
-    [atlas, geometria, nombre, params.indicatorId, params.anio, params.modo, params.clases, opcionesClasificacion],
+    [
+      atlasValores,
+      geometria,
+      nombre,
+      params.indicatorId,
+      params.anio,
+      params.modo,
+      params.clases,
+      opcionesClasificacion,
+      valoresEnCarga,
+    ],
   );
 
   const seleccion = useMemo(
     () => (params.sec && vista_.filas.some((f) => f.key === params.sec) ? params.sec : null),
     [params.sec, vista_.filas],
+  );
+
+  // Avisos del servidor (`data.avisos`: lo que la ingesta declara sobre este
+  // municipio) primero, y los de la vista después. Se deduplican por texto
+  // porque la cabecera los usa como clave de React.
+  const avisosCabecera = useMemo(
+    () => [...new Set([...(datos?.avisos ?? []), ...vista_.avisos])],
+    [datos?.avisos, vista_.avisos],
   );
 
   // Una selección que ya no existe (cambió la geometría) se retira de la URL
@@ -582,18 +1129,57 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
   }
 
   const sinAtlas = !atlas;
-  // La pestaña Política se resuelve con su propio componente: el mapa de la
-  // ganadora es CATEGÓRICO (color por candidatura) y no cabe en el motor
-  // numérico de clases que usan el resto de pestañas.
-  const enPestanaPolitica = grupoActivo === GRUPO_POLITICA;
+  // Pestañas de dominio: por ENCIMA de la bifurcación entre Política y el motor
+  // numérico. Antes vivían dentro del panel lateral, así que al entrar en
+  //  Política desaparecían y no había forma de volver sin editar la URL. Al
+  //  subir aquí, el nodo de la pestaña enfocada sobrevive al cambio de
+  //  contenido y el foco se conserva.
+  //
+  //  Sin catálogo no hay nada que cambiar de dominio y todas las pestañas
+  //  quedarían en 0: no se pintan.
+  const pestanasDominio = atlas ? (
+    <SeccionesDominioTabs
+      idBase={idDominios}
+      // En Política el `tabpanel` de indicadores no existe: apuntar a él sería
+      // un `aria-controls` colgado.
+      panelId={enPestanaPolitica ? undefined : `${idDominios}-panel`}
+      grupoActivo={grupoActivo}
+      gruposDisponibles={gruposDisponibles}
+      conteos={conteos}
+      onGrupo={cambiarDominio}
+    />
+  ) : null;
+
+  // Aviso de carga o de fallo del bloque VISIBLE. Sin él, un mapa que aún no
+  // tiene valores y un mapa de un municipio sin valores se ven idénticos, y lo
+  // segundo se lee como un fallo del primero.
+  const avisoBloqueVisible =
+    !enPestanaPolitica && peticionVisible
+      ? <AvisoCargaBloque
+          estado={estadoVisible}
+          bloqueado={validacionFalla}
+          indicador={indicador?.etiqueta ?? peticionVisible.indicadorId}
+          periodo={peticionVisible.periodo ?? null}
+          municipioNombre={nombre}
+          reintentos={intentosPorBloque.current.get(claveVisible ?? "") ?? 0}
+          reintentosMax={MAX_INTENTOS_POR_BLOQUE}
+          onReintentar={() => void pedirBloque(peticionVisible, { forzar: true })}
+        />
+      : null;
+
   if (enPestanaPolitica) {
     return (
       <div className="flex flex-col gap-8">
+        {pestanasDominio}
         <SeccionesPoliticaExtension
           codigoINE={codigoINE}
           nombre={nombre}
           catalog={datos?.dominios?.politica?.catalog ?? []}
           eleccionInicial={datos?.dominios?.politica?.electionId ?? ""}
+          observaciones={observaciones}
+          ganadoras={ganadoras}
+          pedirBloque={pedirBloque}
+          estadoDeBloque={estadoDeBloque}
         />
       </div>
     );
@@ -601,7 +1187,9 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
 
   const sinPeriodos = sinAtlas || params.periodos.length === 0;
   // Sin valores observados no hay coropleta que dibujar ni exportar: el mapa es
-  // un plano de contornos y los controles de escala se retiran.
+  // un plano de contornos y los controles de escala se retiran. Estar AÚN
+  // CARGANDO no es lo mismo que no haber nada: por eso el estado del bloque se
+  // dice aparte y no se disables nada por estar cargando.
   const sinValoresObservados = vista_.modoMapa === "plano" || vista_.nConDato === 0;
   const filaSeleccionada = seleccion ? (vista_.filas.find((f) => f.key === seleccion) ?? null) : null;
 
@@ -615,6 +1203,7 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
 
   return (
     <div className="flex flex-col gap-8">
+      {pestanasDominio}
       <CabeceraAtlas
         municipioNombre={nombre}
         provincia={atlas?.provinceName ?? null}
@@ -628,11 +1217,15 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
         coberturaPct={vista_.coberturaPct}
         indicadorEtiqueta={indicador?.etiqueta ?? null}
         anio={params.anio}
-        avisos={vista_.avisos}
+        avisos={avisosCabecera}
         sinAtlas={sinAtlas}
         plano={sinValoresObservados}
         validacion={validacion}
+        validacionAusente={validacionAusente}
       />
+
+      {avisoBloqueVisible}
+
 
       {sinAtlas && (
         <div className="ideas-status" data-state="pending" role="status">
@@ -779,10 +1372,11 @@ export default function SeccionesMap({ codigoINE, nombre }: { codigoINE: string;
                 <SeccionesIndicadorBuscador
                   codigoINE={codigoINE}
                   municipioNombre={nombre}
-                  indicadores={todosLosIndicadores}
-                  cobertura={atlas.cobertura}
-                  observaciones={atlas.observations}
+                  idBase={idDominios}
+                  items={items}
+                  conteos={conteos}
                   indicadorId={params.indicatorId}
+                  grupoActivo={grupoActivo}
                   cargando={aplicando}
                   onSeleccionar={(ind, g) => escribirParams({ g, ind: ind.id, anio: null })}
                 />
@@ -938,9 +1532,10 @@ interface VistaAtlas {
 const MOTIVO_NO_CARGADO = "Todavía no cargado en SOCideas";
 const MOTIVO_SIN_SELECCION = "Sin indicador seleccionado";
 const MOTIVO_SIN_PERIODO = "Sin periodo publicado para este indicador";
+const MOTIVO_CARGANDO = "Cargando los valores";
 
 function construirVista(
-  atlas: SeccionesAtlasV1 | null,
+  atlas: AtlasParaVista | null,
   geometria: GeometriaNormalizada,
   municipioNombre: string,
   indicatorId: string | null,
@@ -948,6 +1543,7 @@ function construirVista(
   modo: ModoClasificacion,
   clases: number,
   opciones: { cortesManuales: number[] | null; divergente: boolean },
+  cargandoValores: boolean,
 ): VistaAtlas {
   const secciones = geometria.secciones;
   const nSecciones = secciones.length;
@@ -1014,6 +1610,22 @@ function construirVista(
       "La fuente no publica este indicador con periodo para este municipio.",
       `Plano de los contornos de las ${nSecciones} secciones censales de ${municipioNombre}. El indicador «${indicador.etiqueta}» no tiene ningún periodo publicado para este municipio, así que no se representa ningún valor.`,
       `El indicador «${indicador.etiqueta}» no tiene periodos publicados a nivel de sección para este municipio.`,
+    );
+  }
+
+  // El bloque de valores aún no ha llegado. Se devuelve el plano de contornos, sin
+  // escala: con `observations` vacías, `clasificar()` construiría una clase
+  // única «0 – 0» que se leería como un valor real. Un plano honesto en el que
+  // cabe un texto es mejor que una escala ficticia, y el motivo que se declara es
+  // el que corresponde: aún no se sabe si habrá dato.
+  if (cargandoValores) {
+    return plano(
+      MOTIVO_CARGANDO,
+      "Cargando valores…",
+      `${indicador.etiqueta} · cargando valores`,
+      `Se están pidiendo los valores de ${anio}. Hasta que lleguen, se muestran solo los contornos.`,
+      `Plano de los contornos de las ${nSecciones} secciones censales de ${municipioNombre}. Los valores del indicador «${indicador.etiqueta}» para ${anio} se están cargando: todavía no hay nada que repartir y no se proyecta ningún valor sobre la geometría.`,
+      `Cargando los valores de «${indicador.etiqueta}» para ${anio}. El mapa muestra los contornos y no una escala, porque una coropleta sin dato sería una imagen inventada.`,
     );
   }
 
@@ -1324,6 +1936,127 @@ function BotonVista({
   );
 }
 
+/**
+ * Estado de carga o de fallo del bloque de valores que se está viendo.
+ *
+ * Es lo que distingue las tres situaciones que antes se confundían en un mismo
+ * mapa vacío: «aún no ha llegado», «no hay nada publicado» y «el servidor ha
+ * dicho por qué no». Sin esto, un fallo de red y un municipio sin cobertura se
+ * leen igual, y la única defensa —no pintar una coropleta inventada— acaba
+ * pareciendo un fallo de la herramienta.
+ *
+ * No aparece en el caso `ok`: el bloque descargado no necesita Holmes. Añadirlo
+ * solo cuando hay algo que decir es también lo que mantiene intacto el diseño
+ * visual del atlas en su estado normal.
+ */
+function AvisoCargaBloque({
+  estado,
+  bloqueado,
+  indicador,
+  periodo,
+  municipioNombre,
+  reintentos,
+  reintentosMax,
+  onReintentar,
+}: {
+  estado: EstadoBloque | undefined;
+  /** La validación del servidor vino `ok:false`: no se piden valores. */
+  bloqueado?: boolean;
+  indicador: string;
+  periodo: number | null;
+  municipioNombre: string;
+  reintentos: number;
+  reintentosMax: number;
+  onReintentar: () => void;
+}) {
+  const cargando = estado?.estado === "cargando";
+  const fallo = estado?.estado === "error";
+  const vacio = estado?.estado === "vacio";
+  // Un bloque que se ha pedido una vez y aún no ha resuelto no es «sin datos».
+  const nuncaPedido = estado === undefined;
+  if (bloqueado) {
+    return (
+      <div className="ideas-status" data-state="error" role="alert">
+        <div className="ideas-status__head">
+          <p className="ideas-status__title">
+            No se piden los valores de «{indicador}»: la fuente no supera la validación
+          </p>
+          <span className="ideas-status__badge">Sin publicar</span>
+        </div>
+        <div className="ideas-status__body">
+          <p>
+            El servidor ha validado el objeto publicado de {municipioNombre} y no lo ha servido. Los motivos
+            están arriba. Fallar de forma cerrada es lo correcto: pintar estos valores sería mostrar un dato
+            que la propia ingesta ha marcado como no publicable. El mapa se queda en contornos, sin escala de
+            color.
+          </p>
+          <button type="button" onClick={onReintentar} className={`${BOTON_PRINCIPAL} mt-4`}>
+            Pedir el bloque igualmente
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (!cargando && !fallo && !vacio) return null;
+  const agotado = fallo && reintentos >= reintentosMax;
+
+  if (cargando || nuncaPedido) {
+    return (
+      <div role="status" className="ideas-status flex items-center gap-3" data-state="pending">
+        <span
+          aria-hidden="true"
+          className="inline-block h-4 w-4 flex-none animate-spin rounded-full border-2 border-[var(--border-subtle)] border-t-[var(--moss-ink)] motion-reduce:animate-none"
+        />
+        <p className="type-body-sm text-[var(--text-secondary)]">
+          Cargando los valores de «{indicador}»
+          {periodo !== null ? ` para ${periodo}` : ""} de {municipioNombre}… La geometría ya está cargada; se
+          pide solo este indicador y este año.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`ideas-status ${fallo ? "border-[var(--danger-ink)]" : ""}`}
+      data-state={fallo ? "error" : "pending"}
+      role={fallo ? "alert" : "status"}
+    >
+      <div className="ideas-status__head">
+        <p className="ideas-status__title">
+          {fallo
+            ? `No se pudieron cargar los valores de «${indicador}»`
+            : `«${indicador}» no tiene ninguna celda publicada`}
+        </p>
+        <span className="ideas-status__badge">
+          {fallo ? (estado?.status ? `HTTP ${estado.status}` : "Sin conexión") : "Sin dato"}
+        </span>
+      </div>
+      <div className="ideas-status__body">
+        {fallo ? (
+          <p>
+            {estado?.error}
+            {agotado
+              ? ` (${reintentos} de ${reintentosMax} reintentos agotados para este bloque.)`
+              : ""}
+          </p>
+        ) : (
+          <p>
+            {estado?.error ??
+              `La fuente no difunde ninguna celda de «${indicador}»${periodo !== null ? ` para ${periodo}` : ""} a nivel de sección en ${municipioNombre}.`}{" "}
+            No es un cero: no hay valor que repartir, así que el mapa muestra solo los contornos y no se pinta
+            una escala de color. Es una ausencia de dato en la fuente, no un fallo de la aplicación.
+            {estado?.nSecciones !== undefined ? ` Bloque recibido con ${estado.nSecciones} secciones.` : ""}
+          </p>
+        )}
+        <button type="button" onClick={onReintentar} disabled={agotado} className={`${BOTON_PRINCIPAL} mt-4`}>
+          {agotado ? "Sin más reintentos" : "Reintentar este bloque"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function CabeceraAtlas({
   municipioNombre,
   provincia,
@@ -1341,6 +2074,7 @@ function CabeceraAtlas({
   sinAtlas,
   plano,
   validacion,
+  validacionAusente,
 }: {
   municipioNombre: string;
   provincia: string | null;
@@ -1358,6 +2092,8 @@ function CabeceraAtlas({
   sinAtlas: boolean;
   plano: boolean;
   validacion: ResultadoValidacion | null;
+  /** El bootstrap no trajo veredicto. No es «validado»: es «sin comprobar». */
+  validacionAusente?: boolean;
 }) {
   return (
     <section aria-label="Resumen del atlas">
@@ -1405,6 +2141,19 @@ function CabeceraAtlas({
             </>
           ) : null}
         </p>
+      )}
+
+      {validacionAusente && (
+        <div className="mt-4 rounded-[6px] border border-[var(--border-strong)] bg-[var(--bg-surface-sunken)] p-4">
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
+            Esta respuesta no incluye el veredicto de validación del servidor
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
+            La validación fail-closed se ejecuta en el servidor, sobre el objeto publicado, y no viaja en el
+            bootstrap. Al no venir, no se puede afirmar que estos datos estén validados; se muestran como
+            «sin comprobar», no como «correctos».
+          </p>
+        </div>
       )}
 
       {validacion && !validacion.ok && (

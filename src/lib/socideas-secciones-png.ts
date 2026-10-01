@@ -47,7 +47,42 @@ export interface EntradaLeyendaPng {
   secciones: number | null;
   /** `true` solo para la entrada de sin dato: se dibuja con trama diagonal. */
   esSinDato?: boolean;
+  /**
+   * Color plano POR IDENTIDAD de la fila de leyenda, resuelto por quien compone
+   * el contrato.
+   *
+   * Sin este campo la muestra se pinta buscando por texto (`etiqueta`), que es
+   * frágil en cuanto la leyenda deja de ser una lista de intervalos: dos
+   * candidaturas pueden compartir sigla y el rótulo «Sin dato / ND» colisiona
+   * con cualquier intervalo. Cuando está presente tiene prioridad y la
+   * coincidencia por texto no llega a ejecutarse.
+   */
+  colorMuestra?: string | null;
 }
+
+/**
+ * Cómo describe la leyenda su propia escala.
+ *
+ * El compositor tiene un único comportamiento por defecto (derivado de
+ * `clasificacion`): intervalo, unidad y número de clases. Eso describe un mapa
+ * NUMÉRICO y no describe uno CATEGÓRICO, donde no hay cortes ni escala: hay una
+ * lista. Cuando el documento es categórico el llamante pasa aquí los rótulos
+ * que sí son ciertos, y el compositor deja de imprimir «Sin escala: ningún
+ * valor observado» sobre un mapa que sí tiene escala.
+ */
+export type DescriptorEscalaPng =
+  | { readonly tipo: 'numerica' }
+  | {
+      readonly tipo: 'cualitativa';
+      /** Sustituye a «Unidad: …» en la leyenda lateral. */
+      readonly rotuloUnidad: string;
+      /** Sustituye a la línea «Unidad · Clasificación · N clases» de la cabecera. */
+      readonly rotuloCabecera: string;
+      /** Sustituye a la línea de escala observada de la cabecera. */
+      readonly lineaEscala: string;
+      /** Sustituye a «<modo> · N clases» en la cabecera de la leyenda. */
+      readonly rotuloLeyenda: string;
+    };
 
 export interface OpcionesComponerPngMapa {
   /** Mapa ya renderizado. Nunca `null`: si el mapa base falló, el llamante
@@ -94,6 +129,26 @@ export interface OpcionesComponerPngMapa {
   /** Descripción de lectura del mapa. Se coloca al pie de la leyenda lateral
    *  para que la columna carry información real en lugar de espacio vacío. */
   notaLectura?: string | null;
+  /**
+   * Título del documento. Si se omite se compone como
+   * «indicador · municipio · año». Un documento electoral necesita además tipo
+   * de proceso y fecha de convocatoria, así que lo compone el llamante.
+   */
+  titulo?: string | null;
+  /** Antetítulo de la cabecera. Por defecto «SOCideas, secciones censales». */
+  encabezado?: string | null;
+  /**
+   * Autoridad estadística de los DATOS. Por defecto el INE, que es lo cierto
+   * para un indicador económico y FALSO para unos resultados electorales, cuya
+   * autoridad es el Ministerio del Interior.
+   */
+  organismo?: string | null;
+  /** Organismo que aporta la GEOMETRÍA. Por defecto, `fuente`. */
+  organismoGeometria?: string | null;
+  /** Identidad de la convocatoria. Se añade al bloque «Fuente y estadística». */
+  convocatoria?: string | null;
+  /** Cómo se describe la escala. Por defecto, la numérica de `clasificacion`. */
+  escalaLeyenda?: DescriptorEscalaPng;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -321,18 +376,33 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
 
   // ── Pasada 1: medición ───────────────────────────────────────────────────
   // 1. Cabecera
-  const titulo = `${opts.indicador} · ${opts.municipio}${opts.anio !== null ? ` · ${opts.anio}` : ""}`;
+  const tituloCompuesto = `${opts.indicador} · ${opts.municipio}${opts.anio !== null ? ` · ${opts.anio}` : ""}`;
+  const titulo = opts.titulo ?? tituloCompuesto;
   const lineasTitulo = medirLineas(ctx, titulo, ANCHO_UTIL - 110, { font: `700 23px ${FAMILIA}`, alto: 28 });
   const nClases = opts.clasificacion?.cortes.length ?? 0;
+  const escalaCualitativa =
+    opts.escalaLeyenda?.tipo === "cualitativa" ? opts.escalaLeyenda : null;
+  // El recuento de clases solo tiene sentido con cortes. Una leyenda
+  // categórica dice cuántas candidaturas hay en su propio rótulo, y no «0
+  // clases»: eso sería afirmar que el mapa no tiene escala cuando lo que
+  // tiene es una lista.
+  const contadorClases = escalaCualitativa
+    ? ""
+    : nClases
+      ? ` · ${nClases} ${nClases === 1 ? "clase" : "clases"}`
+      : "";
   const cabeceras: string[] = [
-    `Unidad: ${opts.unidad || "sin unidad declarada"} · Clasificación: ${opts.modoClasificacion}` +
-      (nClases ? ` · ${nClases} ${nClases === 1 ? "clase" : "clases"}` : ""),
-    opts.clasificacion && opts.clasificacion.nObservados > 0
-      ? `Escala observada: ${opts.clasificacion.min.toLocaleString("es-ES")} – ${opts.clasificacion.max.toLocaleString("es-ES")} ${opts.unidad} · ${opts.clasificacion.nObservados} secciones observadas`
-      : "Sin escala: ningún valor observado para el indicador y el periodo seleccionados.",
+    escalaCualitativa
+      ? escalaCualitativa.rotuloCabecera
+      : `Unidad: ${opts.unidad || "sin unidad declarada"} · Clasificación: ${opts.modoClasificacion}${contadorClases}`,
+    escalaCualitativa
+      ? escalaCualitativa.lineaEscala
+      : opts.clasificacion && opts.clasificacion.nObservados > 0
+        ? `Escala observada: ${opts.clasificacion.min.toLocaleString("es-ES")} – ${opts.clasificacion.max.toLocaleString("es-ES")} ${opts.unidad} · ${opts.clasificacion.nObservados} secciones observadas`
+        : "Sin escala: ningún valor observado para el indicador y el periodo seleccionados.",
     `Provincia: ${opts.provincia ?? "no consta"} · Seccionado (geometría): ${opts.anioGeometria ?? "no consta"}${opts.coleccionGeometria ? ` (${opts.coleccionGeometria})` : ""} · Periodo estadístico: ${opts.periodo ?? "no consta"}`,
   ];
-  if (opts.clasificacion?.reducidoPorValoresDistintos) {
+  if (opts.clasificacion?.reducidoPorValoresDistintos && !escalaCualitativa) {
     cabeceras.push(
       `Clasificación reducida: solo ${opts.clasificacion.valoresDistintos} ${opts.clasificacion.valoresDistintos === 1 ? "valor distinto" : "valores distintos"} entre las secciones observadas; no se repite color ni se inventa una escala.`,
     );
@@ -370,22 +440,27 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
     }),
   );
   lineasLeyenda.push(
-    ...medirLineas(ctx, `Unidad: ${opts.unidad || "no declarada"}`, ANCHO_LEYENDA, {
+    ...medirLineas(ctx, escalaCualitativa ? escalaCualitativa.rotuloUnidad : `Unidad: ${opts.unidad || "no declarada"}`, ANCHO_LEYENDA, {
       font: `400 9.5px ${FAMILIA}`,
       alto: 12.5,
     }),
   );
   lineasLeyenda.push(
-    ...medirLineas(ctx, `Periodo: ${opts.periodo ?? "no consta"}`, ANCHO_LEYENDA, {
+    ...medirLineas(ctx, opts.convocatoria ? `Convocatoria: ${opts.convocatoria}` : `Periodo: ${opts.periodo ?? "no consta"}`, ANCHO_LEYENDA, {
       font: `400 9.5px ${FAMILIA}`,
       alto: 12.5,
     }),
   );
-  lineasLeyenda.push(...medirLineas(ctx, `${modoCorto} · ${nClases} ${nClases === 1 ? "clase" : "clases"}`, ANCHO_LEYENDA, {
-    font: `600 9.5px ${FAMILIA}`,
-    alto: 13,
-    fuerte: true,
-  }));
+  lineasLeyenda.push(
+    ...medirLineas(
+      ctx,
+      escalaCualitativa
+        ? escalaCualitativa.rotuloLeyenda
+        : `${modoCorto} · ${nClases} ${nClases === 1 ? "clase" : "clases"}`,
+      ANCHO_LEYENDA,
+      { font: `600 9.5px ${FAMILIA}`, alto: 13, fuerte: true },
+    ),
+  );
   lineasLeyenda.push({ t: "", h: 4 });
 
   // Una fila por clase: muestra + intervalo ENVUELTO (nunca cortado) + n.
@@ -394,13 +469,21 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
     lineas: string[];
     n: number | null;
     esSinDato: boolean;
+    /** Color resuelto por quien compone el contrato. `null` = buscar por texto. */
+    colorMuestra: string | null;
   }
   const filasLeyenda: FilaLeyenda[] = [];
   ctx.font = `400 9.5px ${FAMILIA}`;
   for (const e of opts.entradasLeyenda) {
     const n = e.secciones === null ? "" : ` (${e.secciones})`;
     const lineas = envolver(ctx, `${e.etiqueta}${n}`, ANCHO_TEXTO_LEYENDA);
-    filasLeyenda.push({ etiqueta: e.etiqueta, lineas, n: e.secciones, esSinDato: Boolean(e.esSinDato) });
+    filasLeyenda.push({
+      etiqueta: e.etiqueta,
+      lineas,
+      n: e.secciones,
+      esSinDato: Boolean(e.esSinDato),
+      colorMuestra: e.colorMuestra ?? null,
+    });
   }
   const ALTO_CABECERA_LEYENDA = lineasLeyenda.reduce((s, l) => s + l.h, 0) + 10;
   const ALTO_FILAS_LEYENDA = filasLeyenda.reduce((s, f) => s + Math.max(14, f.lineas.length * 13) + 5, 0);
@@ -472,7 +555,15 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
       titulo: "Fuente y estadística",
       lineas: [
         ...medirLineas(ctx, `Fuente: ${opts.fuente || "no consta"}`, ANCHO_COL, { font: `400 9px ${FAMILIA}`, alto: 12 }),
-        ...medirLineas(ctx, "Organismo: Instituto Nacional de Estadística (INE)", ANCHO_COL, { font: `400 9px ${FAMILIA}`, alto: 12 }),
+        ...medirLineas(
+          ctx,
+          `Organismo: ${opts.organismo ?? "Instituto Nacional de Estadística (INE)"}`,
+          ANCHO_COL,
+          { font: `400 9px ${FAMILIA}`, alto: 12 },
+        ),
+        ...(opts.convocatoria
+          ? medirLineas(ctx, `Convocatoria: ${opts.convocatoria}`, ANCHO_COL, { font: `400 9px ${FAMILIA}`, alto: 12 })
+          : []),
         ...medirLineas(ctx, `Tabla / operación: ${opts.tabla || "no consta"}`, ANCHO_COL, { font: `400 9px ${FAMILIA}`, alto: 12 }),
         ...medirLineas(ctx, `Periodo estadístico: ${opts.periodo ?? "no consta"}`, ANCHO_COL, { font: `400 9px ${FAMILIA}`, alto: 12 }),
         ...medirLineas(ctx, `Estadística descargada el ${fechaCorta(opts.fechaEstadistica)}`, ANCHO_COL, { font: `400 9px ${FAMILIA}`, alto: 12 }),
@@ -483,7 +574,7 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
       titulo: "Geometría",
       lineas: [
         ...medirLineas(ctx, `Seccionado: ${opts.anioGeometria ?? "no consta"}${opts.coleccionGeometria ? ` · ${opts.coleccionGeometria}` : ""}`, ANCHO_COL, { font: `400 9px ${FAMILIA}`, alto: 12 }),
-        ...medirLineas(ctx, `Organismo: ${opts.fuente || "no consta"}`, ANCHO_COL, { font: `400 9px ${FAMILIA}`, alto: 12 }),
+        ...medirLineas(ctx, `Organismo: ${opts.organismoGeometria ?? opts.fuente ?? "no consta"}`, ANCHO_COL, { font: `400 9px ${FAMILIA}`, alto: 12 }),
         ...medirLineas(ctx, `Geometría consultada el ${fechaCorta(opts.fechaGeometria)}`, ANCHO_COL, { font: `400 9px ${FAMILIA}`, alto: 12 }),
       ],
     },
@@ -537,7 +628,7 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
   // ── Cabecera ────────────────────────────────────────────────────────────
   ctx.fillStyle = t.musgoOscuro;
   ctx.font = `600 12px ${FAMILIA}`;
-  ctx.fillText("SOCideas, secciones censales", M, y + 11);
+  ctx.fillText(opts.encabezado ?? "SOCideas, secciones censales", M, y + 11);
   y += 20;
 
   ctx.fillStyle = t.textoFuerte;
@@ -625,9 +716,13 @@ export async function componerPngMapa(opts: OpcionesComponerPngMapa): Promise<HT
     const altoFila = Math.max(14, f.lineas.length * 13);
     const ALTO_MUESTRA = 16;
     const yMuestra = leyY + (altoFila - ALTO_MUESTRA) / 2;
+    // El color sale de la FILA, no de un `find` por texto: en una leyenda
+    // categórica dos candidaturas pueden compartir rótulo y «Sin dato / ND»
+    // colisiona con cualquier intervalo. La búsqueda por texto queda solo como
+    // compatibilidad para contratos que no traigan `colorMuestra`.
     ctx.fillStyle = f.esSinDato
       ? tramaND
-      : (opts.entradasLeyenda.find((e) => e.etiqueta === f.etiqueta)?.color ?? t.limo);
+      : (f.colorMuestra ?? opts.entradasLeyenda.find((e) => e.etiqueta === f.etiqueta)?.color ?? t.limo);
     ctx.fillRect(leyX, yMuestra, 20, ALTO_MUESTRA);
     ctx.strokeStyle = f.esSinDato ? opts.colorContornoSinDato : t.texto;
     ctx.lineWidth = 0.8;

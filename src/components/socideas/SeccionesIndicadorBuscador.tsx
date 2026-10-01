@@ -7,8 +7,13 @@
 // municipio (`atlas.indicators` + `atlas.cobertura`). Una pestaña sin
 // indicadores en el catálogo se muestra con 0 y remite a la ficha municipal;
 // nunca se rellena con un indicador que SOCideas no haya ingerido.
+//
+// La URL es la única fuente de verdad del grupo activo: las pestañas viven en
+// `SeccionesDominioTabs`, por encima de la bifurcación entre el motor numérico y
+// el panel político, y escriben `?g=` a través del callback del padre. Este
+// componente ya no guarda pestaña propia: deriva la que toca de `grupoActivo`.
 
-import { useId, useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import Link from "next/link";
 import { admiteValor } from "@/lib/socideas-secciones";
@@ -37,7 +42,7 @@ export const GRUPOS_TEMA: ReadonlyArray<GrupoTema> = [
 
 type EstadoIndicador = "ok" | "nd" | "no";
 
-interface ItemIndicador {
+export interface ItemIndicador {
   indicador: SeccionIndicador;
   grupoId: string;
   periodo: number | null;
@@ -83,49 +88,182 @@ function grupoDe(tema: SeccionTema): string {
   return GRUPOS_TEMA.find((g) => g.temas.includes(tema))?.id ?? "economico";
 }
 
+/** Catálogo del municipio agrupado por grupo en indicador, con su estado de dato.
+ *  Lo calcula UNA vez el atlas y lo comparten las pestañas y el listado: antes
+ *  cada uno recorría el catálogo por su cuenta. */
+export function construirItemsIndicadores(
+  indicadores: ReadonlyArray<SeccionIndicador>,
+  cobertura: ReadonlyArray<SeccionIndicadorCobertura>,
+  observaciones: SeccionesAtlasV1["observations"],
+): ItemIndicador[] {
+  const todosLosIndicadores = [...indicadores, ...INDICADORES_NO_SECCIONALES];
+  return todosLosIndicadores.map((indicador) => {
+    const cob = cobertura.find((c) => c.indicatorId === indicador.id);
+    const periodo = cob && cob.periodos.length ? Math.max(...cob.periodos) : null;
+    let estado: EstadoIndicador = "ok";
+    if (!indicador.publicadoPorSeccion || periodo === null) estado = "no";
+    else if (hayNd(observaciones, indicador.id, periodo)) estado = "nd";
+    return { indicador, grupoId: grupoDe(indicador.tema), periodo, estado };
+  });
+}
+
+/** Indicadores con dato por grupo: el número del badge de cada pestaña. */
+export function conteosPorGrupo(items: ReadonlyArray<ItemIndicador>): Record<string, number> {
+  const conteos: Record<string, number> = {};
+  for (const g of GRUPOS_TEMA) conteos[g.id] = 0;
+  for (const i of items) {
+    if (i.estado === "no") continue;
+    conteos[i.grupoId] = (conteos[i.grupoId] ?? 0) + 1;
+  }
+  return conteos;
+}
+
+/** Pestañas de dominio, escritas por el padre en `?g=`.
+ *
+ *  Vive FUERA del panel de Política para que desde esa pestaña se pueda volver
+ *  al motor numérico sin editar la URL a mano: el nodo de la pestaña enfocada
+ *  no se desmonta al cambiar de contenido, así que el foco sobrevive.
+ *
+ *  Una pestaña cuyo grupo no está en `gruposDisponibles` queda `aria-disabled`
+ *  y NO escribe nada: `grupoActivo` la rechazaría y el efecto de limpieza de
+ *  parámetros la borraría de la URL, dejando la vista y la URL en desacuerdo. */
+export function SeccionesDominioTabs({
+  idBase,
+  panelId,
+  grupoActivo,
+  gruposDisponibles,
+  conteos,
+  onGrupo,
+}: {
+  /** Prefijo de id compartido con el panel del buscador. */
+  idBase: string;
+  /** Id del `tabpanel` de indicadores; se omite cuando la pestaña activa no
+   *  muestra ese panel (Política), para no apuntar a un nodo inexistente. */
+  panelId?: string;
+  grupoActivo: string;
+  gruposDisponibles: ReadonlyArray<{ id: string }>;
+  conteos: Readonly<Record<string, number>>;
+  onGrupo: (grupoId: string) => void;
+}) {
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const disponible = (grupoId: string) => gruposDisponibles.some((g) => g.id === grupoId);
+
+  const teclasPestanas = (e: KeyboardEvent<HTMLButtonElement>, idx: number) => {
+    let destino = idx;
+    if (e.key === "ArrowRight") destino = (idx + 1) % GRUPOS_TEMA.length;
+    else if (e.key === "ArrowLeft") destino = (idx - 1 + GRUPOS_TEMA.length) % GRUPOS_TEMA.length;
+    else if (e.key === "Home") destino = 0;
+    else if (e.key === "End") destino = GRUPOS_TEMA.length - 1;
+    else return;
+    e.preventDefault();
+    // El foco se mueve SIEMPRE (también sobre una pestaña sin datos: es
+    // alcanzable y hay que poder salir de ella), pero solo se escribe un `g`
+    // que `grupoActivo` vaya a aceptar.
+    const id = GRUPOS_TEMA[destino].id;
+    if (disponible(id)) onGrupo(id);
+    tabRefs.current[destino]?.focus();
+  };
+
+  return (
+    <>
+      {/* Escritorio: pestañas. Móvil (<768 px): selector. */}
+      <div
+        role="tablist"
+        aria-label="Temas de indicadores"
+        className="mb-3 hidden flex-wrap gap-1 md:flex"
+      >
+        {GRUPOS_TEMA.map((g, idx) => {
+          const sel = grupoActivo === g.id;
+          const habilitada = disponible(g.id);
+          return (
+            <button
+              key={g.id}
+              ref={(el) => {
+                tabRefs.current[idx] = el;
+              }}
+              id={`${idBase}-tab-${g.id}`}
+              type="button"
+              role="tab"
+              aria-selected={sel}
+              // Sin `disabled`: el botón sigue siendo alcanzable por teclado y
+              // el mensaje «sin datos» del panel sigue siendo legible.
+              aria-disabled={!habilitada}
+              aria-controls={panelId}
+              tabIndex={sel ? 0 : -1}
+              onClick={() => {
+                if (habilitada) onGrupo(g.id);
+              }}
+              onKeyDown={(e) => teclasPestanas(e, idx)}
+              className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-[6px] border px-2.5 py-1 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] ${
+                // La pestaña activa se distingue por fondo, peso Y filete.
+                sel
+                  ? "border-[var(--border-strong)] bg-[var(--musgo)] font-bold text-[var(--hueso)]"
+                  : "border-[var(--border-default)] bg-[var(--bg-surface)] font-medium text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-sunken)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              {g.etiqueta}
+              <span className="tnum rounded-[6px] bg-[var(--crisopa,#C2E189)] px-1.5 text-[11px] leading-5 font-semibold text-[var(--carbon-900,#1E2220)]">
+                {conteos[g.id] ?? 0}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="mb-3 md:hidden">
+        <label htmlFor={`${idBase}-sel`} className="type-label mb-1.5 block text-[var(--text-secondary)]">
+          Tema
+        </label>
+        <select
+          id={`${idBase}-sel`}
+          value={grupoActivo}
+          onChange={(e) => {
+            if (disponible(e.target.value)) onGrupo(e.target.value);
+          }}
+          className="min-h-[44px] w-full rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)]"
+        >
+          {GRUPOS_TEMA.map((g) => (
+            <option key={g.id} value={g.id} disabled={!disponible(g.id)}>
+              {g.etiqueta} ({conteos[g.id] ?? 0})
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
+  );
+}
+
 export default function SeccionesIndicadorBuscador({
   codigoINE,
   municipioNombre,
-  indicadores,
-  cobertura,
-  observaciones,
+  idBase,
+  items,
+  conteos,
   indicadorId,
+  grupoActivo,
   cargando,
   onSeleccionar,
 }: {
   codigoINE: string;
   municipioNombre: string;
-  indicadores: ReadonlyArray<SeccionIndicador>;
-  cobertura: ReadonlyArray<SeccionIndicadorCobertura>;
-  observaciones: SeccionesAtlasV1["observations"];
+  /** Prefijo de id del `tabpanel`, el mismo que usa `SeccionesDominioTabs`. */
+  idBase: string;
+  items: ReadonlyArray<ItemIndicador>;
+  conteos: Readonly<Record<string, number>>;
   indicadorId: string | null;
+  /** Grupo activo leído de `?g=` por el atlas. Es la fuente de verdad: este
+   *  componente no mantiene pestaña propia. */
+  grupoActivo: string;
   /** `true` mientras se aplica la selección: se anuncia a lectores de pantalla. */
   cargando: boolean;
   onSeleccionar: (indicador: SeccionIndicador, grupoId: string) => void;
 }) {
-  const baseId = useId().replace(/[^a-zA-Z0-9]/g, "");
-  const items = useMemo<ItemIndicador[]>(
-    () => {
-      const todosLosIndicadores = [...indicadores, ...INDICADORES_NO_SECCIONALES];
-      return todosLosIndicadores.map((indicador) => {
-        const cob = cobertura.find((c) => c.indicatorId === indicador.id);
-        const periodo = cob && cob.periodos.length ? Math.max(...cob.periodos) : null;
-        let estado: EstadoIndicador = "ok";
-        if (!indicador.publicadoPorSeccion || periodo === null) estado = "no";
-        else if (hayNd(observaciones, indicador.id, periodo)) estado = "nd";
-        return { indicador, grupoId: grupoDe(indicador.tema), periodo, estado };
-      });
-    },
-    [indicadores, cobertura, observaciones],
-  );
-
-  const grupoDelActivo = items.find((i) => i.indicador.id === indicadorId)?.grupoId ?? GRUPOS_TEMA[0].id;
-  const [pestana, setPestana] = useState<string>(grupoDelActivo);
   const [consulta, setConsulta] = useState("");
   const [hoja, setHoja] = useState(false);
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  const conteo = (grupoId: string) => items.filter((i) => i.grupoId === grupoId && i.estado !== "no").length;
+  // El grupo visible es SIEMPRE el de la URL. Sin este estado local no puede
+  // haber solape: la pestaña y la vista se mueven a la vez porque las dos leen
+  // el mismo `?g=`.
+  const pestana = grupoActivo;
   const q = normalizar(consulta.trim());
   const coincide = (i: ItemIndicador) =>
     !q || normalizar(`${i.indicador.etiqueta} ${i.indicador.unidad} ${i.indicador.sourceTable}`).includes(q);
@@ -142,18 +280,6 @@ export default function SeccionesIndicadorBuscador({
     if (i.estado === "no") return;
     onSeleccionar(i.indicador, i.grupoId);
     setHoja(false);
-  };
-
-  const teclasPestanas = (e: KeyboardEvent<HTMLButtonElement>, idx: number) => {
-    let destino = idx;
-    if (e.key === "ArrowRight") destino = (idx + 1) % GRUPOS_TEMA.length;
-    else if (e.key === "ArrowLeft") destino = (idx - 1 + GRUPOS_TEMA.length) % GRUPOS_TEMA.length;
-    else if (e.key === "Home") destino = 0;
-    else if (e.key === "End") destino = GRUPOS_TEMA.length - 1;
-    else return;
-    e.preventDefault();
-    setPestana(GRUPOS_TEMA[destino].id);
-    tabRefs.current[destino]?.focus();
   };
 
   const fila = (i: ItemIndicador) => {
@@ -202,11 +328,11 @@ export default function SeccionesIndicadorBuscador({
   const contenido = (
     <>
       <div className="mb-3">
-        <label htmlFor={`${baseId}-q`} className="type-label mb-1.5 block text-[var(--text-secondary)]">
+        <label htmlFor={`${idBase}-q`} className="type-label mb-1.5 block text-[var(--text-secondary)]">
           Buscar indicador
         </label>
         <input
-          id={`${baseId}-q`}
+          id={`${idBase}-q`}
           type="search"
           value={consulta}
           onChange={(e) => setConsulta(e.target.value)}
@@ -216,69 +342,10 @@ export default function SeccionesIndicadorBuscador({
         />
       </div>
 
-      {/* Escritorio: pestañas. Móvil (<768 px): selector. */}
-      {!enBusqueda && (
-        <>
-          <div
-            role="tablist"
-            aria-label="Temas de indicadores"
-            className="mb-3 hidden flex-wrap gap-1 md:flex"
-          >
-            {GRUPOS_TEMA.map((g, idx) => {
-              const sel = pestana === g.id;
-              return (
-                <button
-                  key={g.id}
-                  ref={(el) => {
-                    tabRefs.current[idx] = el;
-                  }}
-                  id={`${baseId}-tab-${g.id}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={sel}
-                  aria-controls={`${baseId}-panel`}
-                  tabIndex={sel ? 0 : -1}
-                  onClick={() => setPestana(g.id)}
-                  onKeyDown={(e) => teclasPestanas(e, idx)}
-                  className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-[6px] border px-2.5 py-1 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-focus)] ${
-                    // La pestaña activa se distingue por fondo, peso Y filete.
-                    sel
-                      ? "border-[var(--border-strong)] bg-[var(--musgo)] font-bold text-[var(--hueso)]"
-                      : "border-[var(--border-default)] bg-[var(--bg-surface)] font-medium text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-sunken)] hover:text-[var(--text-primary)]"
-                  }`}
-                >
-                  {g.etiqueta}
-                  <span className="tnum rounded-[6px] bg-[var(--crisopa,#C2E189)] px-1.5 text-[11px] leading-5 font-semibold text-[var(--carbon-900,#1E2220)]">
-                    {conteo(g.id)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="mb-3 md:hidden">
-            <label htmlFor={`${baseId}-sel`} className="type-label mb-1.5 block text-[var(--text-secondary)]">
-              Tema
-            </label>
-            <select
-              id={`${baseId}-sel`}
-              value={pestana}
-              onChange={(e) => setPestana(e.target.value)}
-              className="min-h-[44px] w-full rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)]"
-            >
-              {GRUPOS_TEMA.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.etiqueta} ({conteo(g.id)})
-                </option>
-              ))}
-            </select>
-          </div>
-        </>
-      )}
-
       <div
-        id={`${baseId}-panel`}
+        id={`${idBase}-panel`}
         role={enBusqueda ? undefined : "tabpanel"}
-        aria-labelledby={enBusqueda ? undefined : `${baseId}-tab-${pestana}`}
+        aria-labelledby={enBusqueda ? undefined : `${idBase}-tab-${pestana}`}
         className="max-h-[60vh] overflow-y-auto overscroll-contain rounded-[6px] border border-[var(--border-subtle)] p-1"
       >
         {enBusqueda ? (
@@ -298,7 +365,7 @@ export default function SeccionesIndicadorBuscador({
           )
         ) : (
           <>
-            {conteo(pestana) === 0 && (
+            {(conteos[pestana] ?? 0) === 0 && (
               <p className="p-3 text-sm text-[var(--text-secondary)]" role="status">
                 No hay datos seccionales disponibles para {municipioNombre} en esta categoría. Consulta la{" "}
                 <Link

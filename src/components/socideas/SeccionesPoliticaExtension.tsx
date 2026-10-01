@@ -14,7 +14,7 @@
 //    blancos, nulos, convocatoria, fuente y advertencias.
 //
 // QUÉ NO HACE
-//  - No inventa una categoría, no reparte votos, no atribuye两级 REAL.
+//  - No inventa una categoría, no reparte votos, no reparte ni atribuye dos veces.
 //  - No colapsa los estados de disponibilidad en «sin indicadores».
 //  - No pintaSections sin geometría.
 
@@ -40,10 +40,36 @@ import {
 } from "@/lib/socideas-secciones";
 import { ELECTION_TYPE_LABEL, type Candidacy, type ElectionType } from "@/lib/socideas-secciones-political";
 import { POLITICAL_INDICATOR_IDS, PREFIJO_CANDIDATURA, esIndicadorCandidatura, idIndicadorCandidatura } from "@/lib/socideas-secciones-extension";
-import SeccionesAtlasMap, { COLOR_CONTORNO_CLASE, type EntradaLeyendaAtlas, type FilaAtlas, type GeoJsonFeatureLike } from "./SeccionesAtlasMap";
+import type { EscalaPng } from "@/lib/socideas-secciones-png";
+import {
+  PREFIJO_FIRMA_POLITICA,
+  blobDeLienzo,
+  construirContratoPngPolitica,
+  componerPngPolitica,
+  descargar,
+  estadoSeccionPng,
+  nombreArchivoPngPolitica,
+  validarContratoPngPolitica,
+  type ConciliacionPng,
+  type CorrespondenciaPng,
+  type EntradaContratoPngPolitica,
+  type EscalaNumericaPng,
+  type GanadoraSeccionPng,
+  type SeccionSeriePng,
+} from "@/lib/socideas-secciones-png-politica";
+import SeccionesAtlasMap, { COLOR_CONTORNO_CLASE, type EntradaLeyendaAtlas, type FilaAtlas, type GeoJsonFeatureLike, type HandleAtlas } from "./SeccionesAtlasMap";
 import SeccionesPoliticaSelector, { ETIQUETA_ESTADO, type ConvocatoriaCatalogo } from "./SeccionesPoliticaSelector";
+// Tipos del ATLAS, no valores: el atlas importa este componente, así que
+// importar aquí sería un ciclo en runtime. Con `import type` no se emite nada.
+import type { EstadoBloque, ObservacionesHidrátadas, PeticionBloque } from "./SeccionesAtlas";
 
 type Estado = "idle" | "cargando" | "ok" | "error";
+
+/** Margen para que Leaflet termine de instanciarse antes de capturar. */
+const MS_ESPERA_MAPA_POLITICA = 4000;
+
+/** Etiqueta de la organización del PNG: el botón no puede confundir dominios. */
+const DESCARGAS_TITULO = 'Descargas · mapa electoral';
 
 export interface SeccionGanadoraUI {
   sectionKey: string;
@@ -87,7 +113,11 @@ export interface RespuestaPolitica {
         mesas_agregadas: number;
         indicadores: number;
         candidaturas: Candidacy[];
-        ganadoras: Record<string, SeccionGanadoraUI>;
+        /** Las ganadoras por sección ya NO vienen en el bootstrap (0,9 MB en
+         *  Madrid, con votos que además están en el bloque de dataset). El
+         *  bootstrap publica aquí dónde pedirlas; el atlas pide ese bloque y
+         *  entrega el resultado ya hidratado en la prop `ganadoras`. */
+        ganadoras_endpoint?: string;
         totales: Record<string, number | null> | null;
         conciliacion: { status: string; reference: string | null; differences: Record<string, number>; notes: string[] } | null;
         geometria: {
@@ -126,11 +156,28 @@ export default function SeccionesPoliticaExtension({
   nombre,
   catalog,
   eleccionInicial,
+  observaciones,
+  ganadoras: ganadorasBloque,
+  pedirBloque,
+  estadoDeBloque,
 }: {
   codigoINE: string;
   nombre: string;
   catalog: ReadonlyArray<ConvocatoriaCatalogo>;
   eleccionInicial: string;
+  /** Bloques YA hidratados por el atlas: sección → indicador → convocatoria →
+   *  observación. El bootstrap llega con `observations: {}`, así que la rama
+   *  continua de este mapa lee de aquí y no de `datos.atlas.observations`. */
+  observaciones: ObservacionesHidrátadas;
+  /** Ganadoras por sección del bloque `?bloque=ganadoras`, ya hydrateado por el
+   *  atlas. Vive en el atlas, no aquí: esta pestaña se desmonta al salir y el
+   *  bloque debe sobrevivir. */
+  ganadoras: Record<string, SeccionGanadoraUI>;
+  /** Pide un bloque. Deduplica, cachea por clave y entrega el estado por
+   *  bloque, igual que el motor numérico: una sola implementación. `forzar`
+   *  ignora la caché y es lo que usa el botón de reintentar. */
+  pedirBloque: (peticion: PeticionBloque, opciones?: { forzar?: boolean }) => Promise<void>;
+  estadoDeBloque: (peticion: PeticionBloque) => EstadoBloque | undefined;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -155,6 +202,17 @@ export default function SeccionesPoliticaExtension({
   const seleccion: string | null = searchParams.get('sec');
   const [hovered, setHovered] = useState<string | null>(null);
   const [, iniciarTransicion] = useTransition();
+  // ── Exportación PNG ──────────────────────────────────────────────────────
+  // El estado de la exportación vive AQUÍ, en el panel político, y no se
+  // comparte con el atlas económico: son dos datasets distintos y un único
+  // botón de descarga que los mezclara es exactamente el defecto que se
+  // corrigió. El dataset se identifica en el propio contrato, firmado.
+  const [exportando, setExportando] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+  const [escalaPng, setEscalaPng] = useState<EscalaPng>(1);
+  /** Handle del mapa, para poder capturarlo y componer el PNG. */
+  const mapaRef = useRef<HandleAtlas>(null);
   /** Guarda que la carga inicial ya se pidió: cambiar de convocatoria en la URL
    *  no debe volver a dispararla, porque la elige el usuario de forma explícita. */
   const arrancado = useRef(false);
@@ -166,8 +224,18 @@ export default function SeccionesPoliticaExtension({
       try {
         const qs = electionId ? `?eleccion=${encodeURIComponent(electionId)}&cand=1` : '';
         const res = await fetch(`/api/socideas/secciones/${codigoINE}${qs}`);
-        const j = (await res.json()) as RespuestaPolitica;
-        if (!res.ok || !j.data) throw new Error(j.error ?? 'Error al cargar los resultados electorales');
+        const j = (await res.json().catch(() => null)) as RespuestaPolitica | null;
+        if (!res.ok || !j?.data) {
+          // El motivo del servidor se muestra literal: «sin resultados para
+          // este municipio», «municipio no encontrado» y «ninguna convocatoria
+          // publicada» son tres hechos distintos y el usuario puede actuar sobre
+          // ellos de forma distinta.
+          const motivo = (j?.error ?? '').trim();
+          throw new Error(
+            `${motivo ? motivo : 'No se pudieron cargar los resultados electorales'}` +
+              ` (HTTP ${res.status})`,
+          );
+        }
         setDatos(j.data);
         setEleccion(j.data.dominios.politica.electionId || electionId);
         setEstado('ok');
@@ -223,7 +291,11 @@ export default function SeccionesPoliticaExtension({
   }, [datos]);
 
   const pol = datos?.dominios?.politica ?? null;
-  const ganadoras = pol?.ganadoras ?? {};
+  // Ganadoras por sección. Ya no vienen en el bootstrap: salen del bloque
+  // `?bloque=ganadoras` que el atlas pide, y llegan por prop. `useMemo` porque
+  // una expresión lógica devolvería un objeto nuevo en cada render y dispararía
+  // los `useMemo` de filas y de la vista.
+  const ganadoras = useMemo(() => ganadorasBloque, [ganadorasBloque]);
   const porCandidatura = useMemo(() => {
     const m = new Map<string, Candidacy>();
     for (const c of pol?.candidaturas ?? []) m.set(c.id, c);
@@ -251,13 +323,68 @@ export default function SeccionesPoliticaExtension({
   const esCategorico = indicadorEfectivo === ID_GANADORA;
   const esVariacion = indicadorEfectivo === 'pol_variacion_ganadora';
 
+  // El indicador declarado por el atlas, leído UNA vez: lo usan tanto el cálculo
+  // de filas como el contrato de exportación, y si viviera dentro del `useMemo`
+  // de filas el exportador no podría alcanzar su unidad ni su etiqueta.
+  const indBase = useMemo(
+    () => (datos?.atlas?.indicators ?? []).find((i) => i.id === indicadorEfectivo) ?? null,
+    [datos, indicadorEfectivo],
+  );
+
+  // ── Bloques de valores de esta pestaña ──────────────────────────────────
+  //
+  // Política tiene su propio bloque porque necesita su convocatoria: la clave de
+  // periodo electoral es la FECHA («2023-05-28»), no el año, y dos convocatorias
+  // pueden compartirlo. Se piden al entrar y al cambiar de convocatoria, con el
+  // mismo `pedirBloque` del atlas: deduplicado, cacheado por clave y con estado
+  // de carga y de error por bloque.
+  //
+  //  · El categórico (ganadora) necesita SOLO el bloque `ganadoras`: los votos ya
+  //    están en el bloque del dataset, así que no se piden dos veces.
+  //  · Un indicador continuo necesita su propio bloque de serie, indexado por
+  //    la fecha de convocatoria, que es lo que lee el mapa más abajo.
+  const peticionGanadoras = useMemo<PeticionBloque | null>(
+    () => (pol ? { dominio: 'politica', indicadorId: ID_GANADORA, bloque: 'ganadoras', convocatoria: pol.electionId } : null),
+    [pol],
+  );
+  const peticionSerie = useMemo<PeticionBloque | null>(
+    () =>
+      esCategorico || !pol
+        ? null
+        : { dominio: 'politica', indicadorId: indicadorEfectivo, convocatoria: pol.electionId },
+    [esCategorico, pol, indicadorEfectivo],
+  );
+
+  useEffect(() => {
+    if (peticionGanadoras) void pedirBloque(peticionGanadoras);
+  }, [peticionGanadoras, pedirBloque]);
+  useEffect(() => {
+    if (peticionSerie) void pedirBloque(peticionSerie);
+  }, [peticionSerie, pedirBloque]);
+
+  /** Estado de carga/error de lo que esta pestaña está pintando ahora. */
+  const estadoBloqueActivo = useMemo<EstadoBloque | undefined>(() => {
+    if (peticionSerie) return estadoDeBloque(peticionSerie);
+    if (peticionGanadoras) return estadoDeBloque(peticionGanadoras);
+    return undefined;
+  }, [peticionSerie, peticionGanadoras, estadoDeBloque]);
+
+  // El servidor puede responder con otra convocatoria si la pedida no está en el
+  // catálogo. Se dice, en vez de pintar resultados de una convocatoria con el
+  // título de otra.
+  const convocatoriaServida = estadoBloqueActivo?.convocatoriaServida ?? null;
+  const avisoConvocatoria =
+    convocatoriaServida !== null && pol && convocatoriaServida !== pol.electionId
+      ? `Se pidieron los resultados de la convocatoria ${pol.electionId} y el servidor ha servido la ${convocatoriaServida}, que es la más reciente publicada.`
+      : null;
+
   // ── Filas del mapa ──────────────────────────────────────────────────────
   interface Fila extends FilaAtlas {
     ganadora?: SeccionGanadoraUI;
     etiquetaCategoria?: string;
   }
 
-  const { filas, entradasLeyenda, nConDato, nSinDato, cortesUsados, nSecciones, titulo, subtitulo, descripcion, avisos, escalaSimple } =
+  const { filas, entradasLeyenda, nConDato, nSinDato, cortesUsados, escalaObservada, modoEfectivoExport, nSecciones, titulo, subtitulo, descripcion, avisos, escalaSimple } =
     useMemo(() => {
       const secs = features.map((f) => f.key);
       const n = secs.length;
@@ -324,6 +451,11 @@ export default function SeccionesPoliticaExtension({
           nConDato: conDato,
           nSinDato: sinDato,
           cortesUsados: null,
+          // Un mapa categórico no tiene escala observada: no hay magnitud que
+          // repartir. Se declara `null` y el compositor lo dice así.
+          escalaObservada: null,
+          // Y tampoco método: una lista de candidaturas no se ha cortado.
+          modoEfectivoExport: null,
           nSecciones: n,
           titulo: `Candidatura ganadora · ${pol ? pol.electionDate : ''}`,
           subtitulo: `Leyenda categórica: ${orden.length} ${orden.length === 1 ? 'candidatura' : 'candidaturas'} con al menos una sección ganada. Sin cuantiles, sin Jenks y sin intervalos: cada color es una lista, no un rango.`,
@@ -333,14 +465,16 @@ export default function SeccionesPoliticaExtension({
         };
       }
 
-      // Mapa CONTINUO: lectura del indicador desde el atlas.
+      // Mapa CONTINUO: lectura del indicador desde los bloques YA hidratados.
+      // El bootstrap llega con `observations: {}` (es lo que garantiza que aquí
+      // no hay valores), así que la lectura va del estado local que el atlas
+      // ha ido rellenando con `expandirIndicadorCompacto`.
       const anio = pol ? Number.parseInt(pol.electionDate.slice(0, 4), 10) : null;
       const clavePeriodo = pol?.electionDate ?? null;
       const fuente = (ind: SeccionIndicador | null | undefined, key: string): SeccionPorPeriodo[string] | undefined => {
-        const obs = datos?.atlas?.observations?.[key]?.[ind?.id ?? indicadorEfectivo] ?? {};
+        const obs = observaciones?.[key]?.[ind?.id ?? indicadorEfectivo] ?? {};
         return clavePeriodo ? obs[clavePeriodo] : undefined;
       };
-      const indBase = (datos?.atlas?.indicators ?? []).find((i) => i.id === indicadorEfectivo) ?? null;
       const valores = features.map((f) => {
         const o = fuente(indBase, f.key);
         return o && o.status === 'observado' && typeof o.value === 'number' && Number.isFinite(o.value) ? o.value : null;
@@ -430,12 +564,29 @@ export default function SeccionesPoliticaExtension({
         avisosLoc.push(`Desfase temporal: la geometría es de ${datos.anio_delimitacion} y la convocatoria es de ${anio}. Se muestra la correspondencia calculada contra el seccionado del año de la elección.`);
       }
       const unidad = indBase?.unidad ?? '';
+      // Escala observada COMPLETA. Antes se conservaba solo `cortesUsados` y se
+      // perdían `min`, `max`, `nObservados` y `valoresDistintos`, que el
+      // compositor necesita para no afirmar «sin escala» sobre un mapa que sí la
+      // tiene. Si la vista simplificó la escala, se declara la escala REAL
+      // observada, no la de un solo valor inventado.
+      const escalaObservada: EscalaNumericaPng = {
+        min: bruto.min,
+        max: bruto.max,
+        nObservados: bruto.nObservados,
+        valoresDistintos: bruto.valoresDistintos,
+        reducidoPorValoresDistintos: bruto.reducidoPorValoresDistintos,
+      };
       return {
         filas: lista,
         entradasLeyenda: leyenda,
         nConDato: conDato,
         nSinDato: sinDato,
         cortesUsados: cortesEfectivos,
+        escalaObservada,
+        // El método EFECTIVO, no el pedido: si se pidieron cortes manuales y no
+        // había dos, la vista aplicó intervalos iguales, y el PNG debe decir lo
+        // que se ha hecho y no lo que se pidió.
+        modoEfectivoExport: modoEfectivo,
         nSecciones: n,
         titulo: `${indBase?.etiqueta ?? 'Indicador'}${unidad ? ` (${unidad})` : ''} · ${pol?.electionDate ?? ''}`,
         subtitulo: `${etiquetaModo(modoEfectivo)} · ${cortesEfectivos.length} ${cortesEfectivos.length === 1 ? 'clase' : 'clases'} · ${conDato} de ${n} secciones con dato. Los ND quedan fuera de la escala.`,
@@ -451,6 +602,8 @@ export default function SeccionesPoliticaExtension({
       pol,
       indicadorEfectivo,
       datos,
+      observaciones,
+      indBase,
       modo,
       clases,
       divergente,
@@ -464,11 +617,140 @@ export default function SeccionesPoliticaExtension({
     [filas, seleccion],
   );
 
+  // ── Exportación del mapa electoral ───────────────────────────────────────
+  // El estado activo se convierte en un CONTRATO explícito y firmado antes de
+  // tocar el navegador. Las comprobaciones se ejecutan dos veces: aquí, para no
+  // capturar el mapa si el contrato ya es inválido, y dentro de
+  // `componerPngPolitica`, para que ningún camino se salte la validación.
+  const exportarMapaPng = useCallback(async () => {
+    setExportError(null);
+    setExportNotice('Componiendo el mapa electoral…');
+    setExportando(true);
+    try {
+      if (!datos || !pol) {
+        throw new Error('No hay resultados electorales cargados: no se puede identificar el dataset del PNG.');
+      }
+
+      // 1. Serie por sección y ganadora por sección, derivadas de las filas ya
+      //    calculadas: el contrato y el mapa no pueden discrepar.
+      const secciones: SeccionSeriePng[] = filas.map((f) => ({
+        sectionKey: f.key,
+        valor: f.value,
+        estado: estadoSeccionPng(f.status),
+      }));
+      const ganadorasPorSeccion: Record<string, GanadoraSeccionPng> = {};
+      for (const f of filas) {
+        ganadorasPorSeccion[f.key] = {
+          ganadoraId: f.ganadora?.ganadoraId ?? null,
+          empate: Boolean(f.ganadora?.empate),
+          estado: estadoSeccionPng(f.status),
+        };
+      }
+
+      // 2. Contrato: dominio literal, identidad del dataset, leyenda explícita.
+      const entrada: EntradaContratoPngPolitica = {
+        domain: 'political',
+        municipalityCode: codigoINE,
+        municipalityName: nombre,
+        electionId: pol.electionId,
+        electionType: pol.electionType,
+        electionDate: pol.electionDate,
+        indicatorId: indicadorEfectivo,
+        candidacyId: esCategorico ? null : candidaturaId,
+        candidaturas: pol.candidaturas ?? [],
+        secciones,
+        ganadoras: ganadorasPorSeccion,
+        cortes: cortesUsados,
+        escala: escalaObservada,
+        metodo: esCategorico ? null : modoEfectivoExport,
+        divergente,
+        geometria: {
+          year: pol.geometria?.year ?? datos.anio_delimitacion ?? null,
+          collection: null,
+          source: datos.fuente || 'Instituto Nacional de Estadística (INE)',
+          retrievedAt: null,
+        },
+        conciliacion: conciliacionDe(pol),
+        correspondencia: correspondenciaDe(pol),
+        avisos,
+        notaLectura: descripcion,
+        colorSinDato: COLOR_SIN_DATO,
+        colorContornoSinDato: COLOR_CONTORNO_SIN_DATO,
+        generadoEn: new Date().toISOString(),
+      };
+      const contrato = construirContratoPngPolitica(entrada);
+
+      // 3. Validación ANTES de capturar. Si falla, no hay PNG.
+      const fallos = validarContratoPngPolitica(contrato);
+      if (fallos.length > 0) {
+        const detalle = fallos.map((f) => f.mensaje).join(' ');
+        setExportNotice(null);
+        setExportError(
+          `No se ha exportado nada (${fallos.length} ${fallos.length === 1 ? 'comprobación fallida' : 'comprobaciones fallidas'}): ${detalle}`,
+        );
+        return;
+      }
+
+      // 4. El mapa tiene que estar instanciado antes de capturar.
+      const limite = Date.now() + MS_ESPERA_MAPA_POLITICA;
+      while (Date.now() < limite && !mapaRef.current?.puedeCapturar()) {
+        await new Promise<void>((r) => window.setTimeout(r, 120));
+      }
+      const handle = mapaRef.current;
+      if (!handle) {
+        throw new Error('El mapa todavía no está listo. Espere a que termine de cargar e inténtelo de nuevo.');
+      }
+
+      // 5. Captura y composición. El encuadre es el que el usuario ha dejado:
+      //    la exportación no reencuadra, solo respeta lo que se está viendo.
+      const captura = await handle.capturarParaPng(escalaPng);
+      const lienzo = await componerPngPolitica({
+        contrato,
+        base: captura.canvas,
+        baseOmitida: captura.baseOmitida,
+        escala: escalaPng,
+      });
+      const blob = await blobDeLienzo(lienzo);
+      if (!blob) throw new Error('El navegador no ha podido generar el archivo PNG.');
+      const archivo = nombreArchivoPngPolitica(codigoINE, indicadorEfectivo, pol.electionDate);
+      descargar(blob, archivo);
+      setExportNotice(
+        `${archivo} descargado · ${contrato.indicatorLabel} · ${contrato.electionLabel} · ` +
+          `${contrato.coverage.seccionesRepresentadas} de ${contrato.coverage.seccionesTotales} secciones con dato · ` +
+          `firma ${contrato.signature.slice(PREFIJO_FIRMA_POLITICA.length)}.` +
+          (captura.baseOmitida
+            ? ` Sin cartografía de fondo: ${captura.motivoBaseOmitida ?? 'el navegador no permitió leer las teselas.'}`
+            : ''),
+      );
+    } catch (e) {
+      setExportNotice(null);
+      setExportError(e instanceof Error ? e.message : 'No se ha podido generar el PNG.');
+    } finally {
+      setExportando(false);
+    }
+  }, [
+    avisos,
+    candidaturaId,
+    codigoINE,
+    cortesUsados,
+    datos,
+    descripcion,
+    divergente,
+    escalaObservada,
+    escalaPng,
+    esCategorico,
+    filas,
+    indicadorEfectivo,
+    modoEfectivoExport,
+    nombre,
+    pol,
+  ]);
+
   if (estado === 'idle' || estado === 'cargando') {
     return (
       <div role="status" className="ideas-status flex items-center gap-3" data-state="pending">
         <span aria-hidden="true" className="inline-block h-4 w-4 flex-none animate-spin rounded-full border-2 border-[var(--border-subtle)] border-t-[var(--moss-ink)] motion-reduce:animate-none" />
-        <p className="type-body-sm text-[var(--text-secondary)]">Cargando resultados electorales por sección de {nombre}⬦</p>
+        <p className="type-body-sm text-[var(--text-secondary)]">Cargando resultados electorales por sección de {nombre}…</p>
       </div>
     );
   }
@@ -490,12 +772,29 @@ export default function SeccionesPoliticaExtension({
   }
 
   const estadoPolitico = pol?.status ?? 'object_missing';
+  // El bloque que esta pestaña está pintando. Mientras carga, el mapa es un
+  // plano de contornos; si falla, lo dice con el motivo del servidor. Sin esto,
+  // las dos situaciones se leerían igual, y la conclusión «el municipio no tiene
+  // resultados» es una afirmación distinta y mucho más fuerte que «todavía no
+  // han llegado».
+  const bloquePintando = estadoBloqueActivo;
+  const bloqueCargando = bloquePintando?.estado === 'cargando' || bloquePintando === undefined;
+  const bloqueFallido = bloquePintando?.estado === 'error';
+  const bloqueVacio = bloquePintando?.estado === 'vacio';
+  const reintentarBloque = () => {
+    // `forzar` solo en la serie: es la única que puede haber quedado a medias. El
+    // bloque de ganadoras ya está en la caché del atlas si llegó alguna vez, y
+    // volver a pedirlo sin forzar no genera tráfico.
+    if (peticionSerie) void pedirBloque(peticionSerie, { forzar: true });
+    else if (peticionGanadoras) void pedirBloque(peticionGanadoras);
+  };
 
   return (
     <div className="flex flex-col gap-8">
       <div className="grid grid-cols-1 gap-x-8 gap-y-8 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 lg:col-start-1 lg:row-start-1">
           <SeccionesAtlasMap
+            ref={mapaRef}
             features={features}
             filas={filas as FilaAtlas[]}
             municipioNombre={nombre}
@@ -510,6 +809,61 @@ export default function SeccionesPoliticaExtension({
             onHover={setHovered}
             sinLeyenda
           />
+          {bloqueCargando ? (
+            <div role="status" className="mt-3 flex items-center gap-3" data-state="pending">
+              <span
+                aria-hidden="true"
+                className="inline-block h-4 w-4 flex-none animate-spin rounded-full border-2 border-[var(--border-subtle)] border-t-[var(--moss-ink)] motion-reduce:animate-none"
+              />
+              <p className="type-body-sm text-[var(--text-secondary)]">
+                Cargando {esCategorico ? 'la ganadora por sección' : `los resultados de «${indBase?.etiqueta ?? indicadorEfectivo}»`} de la
+                convocatoria {pol?.electionDate ?? 'ND'}…
+              </p>
+            </div>
+          ) : null}
+          {bloqueFallido ? (
+            <div className="ideas-status mt-3" data-state="error" role="alert">
+              <div className="ideas-status__head">
+                <p className="ideas-status__title">No se pudieron cargar los resultados de esta convocatoria</p>
+                <span className="ideas-status__badge">
+                  {bloquePintando?.status ? `HTTP ${bloquePintando.status}` : 'Sin conexión'}
+                </span>
+              </div>
+              <div className="ideas-status__body">
+                <p>{bloquePintando?.error}</p>
+                <button
+                  type="button"
+                  onClick={reintentarBloque}
+                  className="mt-4 inline-flex min-h-[44px] items-center rounded-[6px] bg-[var(--action-primary-bg)] px-5 py-2 text-sm font-semibold text-[var(--action-primary-fg)]"
+                >
+                  Reintentar este bloque
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {bloqueVacio ? (
+            <div className="ideas-status mt-3" data-state="pending" role="status">
+              <div className="ideas-status__head">
+                <p className="ideas-status__title">
+                  {esCategorico
+                    ? 'Ninguna sección con resultado en esta convocatoria'
+                    : `«${indBase?.etiqueta ?? indicadorEfectivo}» no tiene ninguna celda publicada`}
+                </p>
+                <span className="ideas-status__badge">Sin dato</span>
+              </div>
+              <div className="ideas-status__body">
+                <p>
+                  El bloque llegó sin ninguna celda para la convocatoria {pol?.electionDate ?? 'ND'}. No es un
+                  cero: no hay valor que repartir, así que el mapa muestra solo los contornos y no se pinta
+                  una escala de color. El estado de publicación de la convocatoria está en «Metadatos de la
+                  convocatoria», abajo.
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {avisoConvocatoria ? (
+            <p className="mt-3 text-xs leading-relaxed text-[var(--text-secondary)]">{avisoConvocatoria}</p>
+          ) : null}
           <p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">{subtitulo}</p>
           {avisos.length > 0 ? (
             <div className="mt-3 rounded-[6px] bg-[var(--bg-surface-sunken)] px-4 py-3">
@@ -531,7 +885,9 @@ export default function SeccionesPoliticaExtension({
                 electionId={eleccion}
                 onConvocatoria={(id) => void cargar(id)}
                 catalog={catalog}
-                estado={pol ? { ...pol, candidatura: null } : null}
+                // `ganadoras` viene del bloque hidratado, no del bootstrap: el
+                // selector solo lo usa como dato adjunto del estado.
+                estado={pol ? { ...pol, candidatura: null, ganadoras } : null}
               />
             </section>
 
@@ -682,6 +1038,62 @@ export default function SeccionesPoliticaExtension({
             </section>
 
             <DetallePolitica fila={filaSel} pol={pol} />
+
+            {/* El PNG electoral se compone desde un CONTRATO FIRMADO del dataset
+                político. El botón nombra el dominio, y el contrato se valida antes
+                de capturar: si el dataset no se puede identificar como electoral, no
+                se descarga nada y el aviso dice por qué. */}
+            <section aria-label={DESCARGAS_TITULO} className="flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-5">
+              <h3 className="type-body-sm font-semibold text-[var(--text-primary)]">{DESCARGAS_TITULO}</h3>
+              <fieldset>
+                <legend className="type-label mb-1.5 block text-[var(--text-secondary)]">Resolución del PNG</legend>
+                <div role="radiogroup" aria-label="Resolución del PNG" className="flex flex-col">
+                  {([1, 2] as EscalaPng[]).map((e) => (
+                    <label key={e} className="flex min-h-[44px] items-center gap-2 text-sm text-[var(--text-secondary)]">
+                      <input
+                        type="radio"
+                        name="politica-escala-png"
+                        checked={escalaPng === e}
+                        onChange={() => setEscalaPng(e)}
+                        className="h-4 w-4"
+                      />
+                      {e === 1 ? 'Estándar (1200 px)' : 'Alta (2400 px)'}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <button
+                type="button"
+                onClick={() => void exportarMapaPng()}
+                disabled={exportando || nSecciones === 0 || bloqueCargando || bloqueFallido}
+                title={
+                  nSecciones === 0
+                    ? 'No hay secciones que representar en esta convocatoria: la coropleta estaría vacía.'
+                    : bloqueCargando
+                      ? 'Los resultados de esta convocatoria aún se están cargando. El PNG se compone del estado que se está viendo, y ahora mismo ese estado no tiene valores.'
+                      : bloqueFallido
+                        ? 'No se pudieron cargar los resultados de esta convocatoria, así que no hay estado que componer.'
+                        : undefined
+                }
+                className="inline-flex min-h-[44px] items-center justify-center rounded-[6px] bg-[var(--action-primary-bg)] px-5 py-2 text-sm font-semibold text-[var(--action-primary-fg)] transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-60"
+              >
+                {exportando ? 'Componiendo el PNG…' : 'Descargar mapa coroplético PNG'}
+              </button>
+              <p aria-live="polite" className="text-xs leading-relaxed text-[var(--text-muted)] [overflow-wrap:anywhere]">
+                {exportError ? (
+                  <span className="socideas-error-text">{exportError}</span>
+                ) : exportNotice ? (
+                  <span>{exportNotice}</span>
+                ) : (
+                  <span>
+                    Compone el estado que está viendo ahora: {titulo}. {nConDato} de {nSecciones} secciones con
+                    dato y {nSinDato} sin dato. Los resultados son del Ministerio del Interior (Infoelectoral) y
+                    el seccionado del INE. El PNG lleva su propia firma de contenido, distinta de la del atlas
+                    económico.
+                  </span>
+                )}
+              </p>
+            </section>
           </div>
         </aside>
 
@@ -713,6 +1125,32 @@ function etiquetaModo(m: ModoClasificacion): string {
   if (m === 'intervalos_iguales') return 'Intervalos iguales';
   if (m === 'jenks') return 'Jenks';
   return 'Manuales';
+}
+
+/** Conciliación municipal, en la forma del contrato. `null` si no consta. */
+function conciliacionDe(pol: PoliticaBloque | null): ConciliacionPng | null {
+  const c = pol?.conciliacion;
+  if (!c) return null;
+  return { status: c.status, reference: c.reference, differences: c.differences, notes: c.notes ?? [] };
+}
+
+/**
+ * Correspondencia entre secciones de resultado y polígonos. Se declara aparte
+ * de la cobertura del MAPA a propósito: `coveragePercentage` mide cuántas
+ * secciones de resultado casan con un polígono, no cuántas secciones tienen
+ * dato pintado, y confundirlas daría un porcentaje que no corresponde a nada.
+ */
+function correspondenciaDe(pol: PoliticaBloque | null): CorrespondenciaPng | null {
+  const g = pol?.geometria;
+  if (!g) return null;
+  return {
+    status: g.correspondenceStatus,
+    resultSections: g.resultSections,
+    geometrySections: g.geometrySections,
+    matchedSections: g.matchedSections,
+    coveragePercentage: g.coveragePercentage,
+    notes: g.notes ?? [],
+  };
 }
 
 function DetallePolitica({

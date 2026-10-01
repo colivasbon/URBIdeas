@@ -63,3 +63,6 @@ tmp/
 /test-results/
 /playwright-report/
 /blob-report/
+
+# Documentos de referencia (material de trabajo, no versionar)
+INCIDEAS DOCUMENTOS/

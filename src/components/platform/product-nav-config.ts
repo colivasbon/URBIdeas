@@ -156,6 +156,16 @@ export function incideasNavConfig(ctx: IncideasContext = {}): ProductNavbarConfi
                   href: `/incideas/${ine}${qs}`,
                   description: "Volver a la ficha del municipio actual",
                 },
+                {
+                  label: "Memoria municipal",
+                  href: `/incideas/${ine}/memoria`,
+                  description: "Memoria documental estilo PTM",
+                },
+                {
+                  label: "Revisión de datos",
+                  href: `/incideas/${ine}/revision`,
+                  description: "Bandeja de validación",
+                },
               ]
             : []),
         ],
@@ -166,6 +176,7 @@ export function incideasNavConfig(ctx: IncideasContext = {}): ProductNavbarConfi
         items: [
           { label: "Metodología", href: "/incideas/metodologia", description: "Arquitectura y procesos" },
           { label: "Fuentes", href: "/incideas/fuentes", description: "Registro de fuentes y conectores" },
+          { label: "Arquitectura", href: "/incideas/arquitectura", description: "Capas, flujo de datos y ciclo de vida" },
         ],
       },
     ],

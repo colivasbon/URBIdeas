@@ -88,7 +88,10 @@ export interface RegistroINCideas {
   unidad_validadora?: string;
   observaciones?: string;
   posible_duplicado?: boolean;
+  /** Fecha desde la que el registro no aparece en su fuente (posible baja). */
+  desactualizado_desde?: string | null;
   dato_sensible?: boolean;
+  atributos?: Record<string, unknown>;
   visibilidad: Visibilidad;
   nivel_automatizacion: NivelAutomatizacion;
   creado_en: string;

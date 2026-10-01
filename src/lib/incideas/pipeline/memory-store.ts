@@ -43,6 +43,7 @@ export class MemoryRegistroStore implements RegistroStore {
     categoria: string,
     huella: string
   ): Promise<RegistroExistente | null> {
+    let primero: Record<string, unknown> | null = null;
     for (const r of this.rows.values()) {
       if (
         r.codigo_ine === codigoINE &&
@@ -50,10 +51,11 @@ export class MemoryRegistroStore implements RegistroStore {
         r.huella === huella &&
         !r.eliminado_en
       ) {
-        return this.clone(r);
+        if (!r.id_origen) return this.clone(r);
+        primero ??= r;
       }
     }
-    return null;
+    return primero ? this.clone(primero) : null;
   }
 
   async insert(record: NormalizedRecord): Promise<RegistroExistente> {
@@ -90,7 +92,8 @@ export class MemoryRegistroStore implements RegistroStore {
   async listarClavesFuente(
     codigoINE: string,
     categoria: string,
-    fuente: string
+    fuente: string,
+    subcategorias?: string[]
   ): Promise<{ clave: string; id: string }[]> {
     const out: { clave: string; id: string }[] = [];
     for (const r of this.rows.values()) {
@@ -98,6 +101,7 @@ export class MemoryRegistroStore implements RegistroStore {
         r.codigo_ine === codigoINE &&
         r.categoria === categoria &&
         r.fuente_principal === fuente &&
+        (!subcategorias?.length || subcategorias.includes(r.subcategoria as string)) &&
         !r.eliminado_en
       ) {
         const clave = (r.id_origen as string) ?? (r.huella as string);
@@ -113,7 +117,7 @@ export class MemoryRegistroStore implements RegistroStore {
     desactualizadoDesde: string
   ): Promise<void> {
     const row = this.rows.get(id);
-    if (!row) return;
+    if (!row || row.desactualizado_desde) return;
     row.desactualizado_desde = desactualizadoDesde;
     row.motivo_baja = motivo;
   }

@@ -1,55 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerSafe } from "@/lib/supabase-server";
+import { leerTodas } from "@/lib/incideas/paginar";
+import {
+  COLUMNAS_SELECT,
+  construirCsv,
+  construirXlsx,
+  geometriaComoObjeto,
+  geometriaEfectiva,
+  propiedades,
+  type RegistroExport,
+} from "@/lib/incideas/exportacion";
 
 export const dynamic = "force-dynamic";
 
-interface RegistroExport {
-  id: string;
-  codigo_ine: string;
-  categoria: string;
-  subcategoria: string | null;
-  nombre_oficial: string;
-  direccion: string | null;
-  coordenadas: { lat: number; lng: number } | null;
-  geometria: GeoJSON.Geometry | null;
-  fuente_principal: string;
-  id_origen: string | null;
-  huella: string | null;
-  fecha_dato: string | null;
-  fecha_consulta: string | null;
-  estado_validacion: string;
-  estado_espacial: string | null;
-  licencia: string | null;
-  observaciones: string | null;
-  crs_original: string | null;
-}
-
-function propiedades(r: RegistroExport): Record<string, unknown> {
-  return {
-    id: r.id,
-    codigo_ine: r.codigo_ine,
-    categoria: r.categoria,
-    subcategoria: r.subcategoria,
-    nombre: r.nombre_oficial,
-    direccion: r.direccion,
-    lat: r.coordenadas?.lat ?? null,
-    lng: r.coordenadas?.lng ?? null,
-    fuente: r.fuente_principal,
-    id_origen: r.id_origen,
-    huella: r.huella,
-    fecha_dato: r.fecha_dato,
-    fecha_consulta: r.fecha_consulta,
-    estado_validacion: r.estado_validacion,
-    estado_espacial: r.estado_espacial,
-    licencia: r.licencia,
-    advertencias: r.observaciones,
-    crs: r.crs_original ?? "EPSG:4326",
-  };
-}
-
 /**
  * GET /api/incideas/exportar — exportación con trazabilidad.
- * formatos: json (defecto), csv, geojson. Nunca incluye datos restringidos.
+ * formatos: json (defecto), csv, geojson, xlsx. Nunca incluye datos restringidos.
  */
 export async function GET(request: NextRequest) {
   const supabase = createSupabaseServerSafe();
@@ -66,21 +32,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "codigo_ine de 5 dígitos requerido" }, { status: 400 });
   }
 
-  let query = supabase
-    .from("incideas_registros")
-    .select(
-      "id,codigo_ine,categoria,subcategoria,nombre_oficial,direccion,coordenadas,geometria,fuente_principal,id_origen,huella,fecha_dato,fecha_consulta,estado_validacion,estado_espacial,licencia,observaciones,crs_original"
-    )
-    .eq("codigo_ine", codigoINE)
-    .is("eliminado_en", null)
-    .not("visibilidad", "in", "(restringida,personal_protegida)");
-
-  if (categoria) query = query.eq("categoria", categoria);
-
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  const registros = (data ?? []) as unknown as RegistroExport[];
+  const { data: registros, error } = await leerTodas<RegistroExport>((desde, hasta) => {
+    let query = supabase
+      .from("incideas_registros")
+      .select(COLUMNAS_SELECT)
+      .eq("codigo_ine", codigoINE)
+      .is("eliminado_en", null)
+      .not("visibilidad", "in", "(restringida,personal_protegida)");
+    if (categoria) query = query.eq("categoria", categoria);
+    return query
+      .order("id", { ascending: true })
+      .range(desde, hasta)
+      .overrideTypes<RegistroExport[], { merge: false }>();
+  });
+  if (error) return NextResponse.json({ error }, { status: 500 });
   if (registros.length === 0) {
     return NextResponse.json({ error: "No hay registros para exportar" }, { status: 404 });
   }
@@ -90,10 +55,7 @@ export async function GET(request: NextRequest) {
   if (formato === "geojson") {
     const features = registros
       .map((r) => {
-        let geometry: GeoJSON.Geometry | null = r.geometria ?? null;
-        if (!geometry && r.coordenadas) {
-          geometry = { type: "Point", coordinates: [r.coordenadas.lng, r.coordenadas.lat] };
-        }
+        const geometry = geometriaEfectiva(r);
         if (!geometry) return null;
         return { type: "Feature" as const, geometry, properties: propiedades(r) };
       })
@@ -112,39 +74,19 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  if (formato === "csv") {
-    const cols = [
-      "id",
-      "codigo_ine",
-      "categoria",
-      "subcategoria",
-      "nombre_oficial",
-      "direccion",
-      "lat",
-      "lng",
-      "fuente_principal",
-      "id_origen",
-      "huella",
-      "fecha_dato",
-      "fecha_consulta",
-      "estado_validacion",
-      "estado_espacial",
-      "licencia",
-      "observaciones",
-      "crs_original",
-    ];
-    const escapar = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const filas = registros.map((r) => {
-      const p = propiedades(r);
-      return cols
-        .map((c) => {
-          if (c === "lat") return escapar(r.coordenadas?.lat ?? "");
-          if (c === "lng") return escapar(r.coordenadas?.lng ?? "");
-          return escapar(p[c]);
-        })
-        .join(",");
+  if (formato === "xlsx") {
+    const buffer = await construirXlsx(registros, { codigoINE, categoria });
+    return new NextResponse(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="${nombre}.xlsx"`,
+        "Cache-Control": "no-store",
+      },
     });
-    const csv = [cols.join(","), ...filas].join("\n");
+  }
+
+  if (formato === "csv") {
+    const csv = construirCsv(registros);
     return new NextResponse("\uFEFF" + csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
@@ -158,6 +100,6 @@ export async function GET(request: NextRequest) {
     categoria: categoria ?? "todos",
     total: registros.length,
     crs: "EPSG:4326",
-    registros: registros.map((r) => ({ ...propiedades(r), geometria: r.geometria })),
+    registros: registros.map((r) => ({ ...propiedades(r), geometria: geometriaComoObjeto(r.geometria) })),
   });
 }

@@ -64,9 +64,11 @@ export function normalizeUrl(input: string | null | undefined): string | undefin
 export function normalizeTitularidad(input: string | null | undefined): string | undefined {
   if (!input) return undefined;
   const n = normalizeName(input);
-  if (/public|ayuntamiento|municipal|administracion|generalitat|estado/.test(n)) return "publica";
-  if (/privad|privada/.test(n)) return "privada";
+  // «Concertado» antes que «privado»: «privado concertado» es mixta.
   if (/concertad|mixt/.test(n)) return "mixta";
+  // «pubica»: errata frecuente en plantillas municipales.
+  if (/public|pubica|ayuntamiento|municipal|administracion|generalitat|estado/.test(n)) return "publica";
+  if (/privad|privat/.test(n)) return "privada";
   return n || undefined;
 }
 
@@ -118,6 +120,29 @@ export function categoriaDesdeOSM(tags: Record<string, string>): {
     return { categoria: "equipamientos", subcategoria: "alimentacion" };
   if (a === "bus_station") return { categoria: "infraestructuras", subcategoria: "estacion_autobus" };
   if (a === "ferry_terminal") return { categoria: "infraestructuras", subcategoria: "puerto" };
+
+  // Movilidad (conector osm-movilidad).
+  const hw = tags.highway;
+  const rw = tags.railway;
+  const ae = tags.aeroway;
+  if (hw === "bus_stop") return { categoria: "infraestructuras", subcategoria: "parada_autobus" };
+  if (rw === "station" || rw === "halt")
+    return { categoria: "infraestructuras", subcategoria: "estacion_ferrocarril" };
+  if (rw === "tram_stop") return { categoria: "infraestructuras", subcategoria: "parada_tranvia" };
+  if (a === "taxi") return { categoria: "infraestructuras", subcategoria: "parada_taxi" };
+  if (ae === "helipad" || ae === "heliport")
+    return { categoria: "infraestructuras", subcategoria: "helipuerto" };
+
+  // Emergencias (conector osm-emergencias).
+  const em = tags.emergency;
+  if (em === "fire_hydrant") return { categoria: "servicios_basicos", subcategoria: "hidrante" };
+  if (em === "water_tank" || em === "suction_point" || em === "fire_water_pond")
+    return { categoria: "servicios_basicos", subcategoria: "punto_agua_incendios" };
+  if (em === "defibrillator") return { categoria: "medios_recursos", subcategoria: "desfibrilador" };
+  if (em === "ambulance_station")
+    return { categoria: "medios_recursos", subcategoria: "base_ambulancias" };
+  if (em === "lifeguard") return { categoria: "medios_recursos", subcategoria: "puesto_socorrismo" };
+  if (em === "assembly_point") return { categoria: "evacuacion", subcategoria: "punto_encuentro" };
   return null;
 }
 

@@ -94,6 +94,15 @@ export interface NormalizedRecord {
   observaciones?: string;
 }
 
+/**
+ * Conjunto de registros del que un conector es responsable dentro de su fuente.
+ * Acota la detección de posibles bajas: sin subcategorías, toda la categoría.
+ */
+export interface AmbitoBajas {
+  categoria: CategoriaINCideas;
+  subcategorias?: string[];
+}
+
 export interface EjecucionContext {
   id: string;
   conector: string;
@@ -102,6 +111,8 @@ export interface EjecucionContext {
   categoria: CategoriaINCideas;
   fuente: FuenteRef;
   parametros: Record<string, unknown>;
+  /** Ámbito de bajas; por defecto, la categoría del conector. */
+  ambito?: AmbitoBajas[];
 }
 
 export interface UpsertCounts {
@@ -145,6 +156,7 @@ export interface RegistroStore {
     fuente: string,
     idOrigen: string
   ): Promise<RegistroExistente | null>;
+  /** Registro activo con esa huella; si hay varios, preferentemente uno sin id_origen. */
   findByHuella(
     codigoINE: string,
     categoria: string,
@@ -157,11 +169,13 @@ export interface RegistroStore {
     expectedVersion: number
   ): Promise<RegistroExistente>;
   registrarHistorial(entrada: HistorialEntrada): Promise<void>;
-  /** Registros activos de una fuente en un municipio/categoría con su clave lógica. */
+  /** Registros activos de una fuente en un municipio/categoría (y subcategorías, si se
+   *  indican) con su clave lógica. */
   listarClavesFuente(
     codigoINE: string,
     categoria: string,
-    fuente: string
+    fuente: string,
+    subcategorias?: string[]
   ): Promise<{ clave: string; id: string }[]>;
   marcarPosibleBaja(
     id: string,

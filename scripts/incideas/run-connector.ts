@@ -8,13 +8,15 @@
 //     → Escribe en Supabase (requiere migración 039 aplicada).
 //
 //   --repeticion N  ejecuta N veces seguidas para comprobar idempotencia (dry-run).
-//   --conector <id> ejecuta un único conector. Ids: osm-boundary, osm-pois, ine-poblacion.
+//   --conector <id[,id…]> ejecuta uno o varios conectores (ver registry.ts). Los que no
+//                   cubren el municipio (p. ej. fuentes autonómicas) se omiten.
 //
-// Requiere en .env.local solo para --go: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+// Con NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en .env.local, el dry-run lee de
+// la base de datos el límite y el nombre del municipio (solo lectura); --go además escribe.
 import { config } from "dotenv";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-import { getConnector, listarConectores } from "../../src/lib/incideas/connectors/registry";
+import { CONNECTORS, getConnector, listarConectores } from "../../src/lib/incideas/connectors/registry";
 import type { Connector } from "../../src/lib/incideas/connectors/types";
 import { ejecutarConector } from "../../src/lib/incideas/pipeline/runner";
 import { depsMemoria, depsSupabase, cargarBoundaryDeBD } from "./deps";
@@ -62,21 +64,30 @@ async function main() {
     `INCideas · conector=${args.conector} · INE=${args.ine} · modo=${args.go ? "ESCRITURA" : "DRY-RUN"}`
   );
 
-  let supabase: SupabaseClient | null = null;
-  if (args.go) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) {
-      console.error("ERROR: --go requiere NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
-      process.exit(1);
-    }
-    supabase = createClient(url, key);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (args.go && (!url || !key)) {
+    console.error("ERROR: --go requiere NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
+    process.exit(1);
+  }
+  // Cliente de lectura (límite y nombre) en ambos modos; solo escribe con --go.
+  const lector: SupabaseClient | null = url && key ? createClient(url, key) : null;
+  const supabase = args.go ? lector : null;
+
+  let nombreMunicipio = args.nombreMunicipio;
+  if (!nombreMunicipio && lector) {
+    const { data } = await lector
+      .from("municipios")
+      .select("nombre")
+      .eq("codigo_ine", args.ine)
+      .maybeSingle();
+    nombreMunicipio = (data?.nombre as string | undefined) ?? undefined;
   }
 
   const ids =
     args.conector === "all"
-      ? ["osm-boundary", "osm-pois", "ine-poblacion"]
-      : [args.conector];
+      ? CONNECTORS.map((c) => c.id)
+      : args.conector.split(",").map((s) => s.trim()).filter(Boolean);
 
   const conectores: Connector[] = [];
   for (const id of ids) {
@@ -84,6 +95,10 @@ async function main() {
     if (!c) {
       console.error(`Conector desconocido: ${id}. Disponibles: ${listarConectores().map((x) => x.id).join(", ")}`);
       process.exit(1);
+    }
+    if (c.aplica && !c.aplica(args.ine)) {
+      console.log(`  [${c.id}] omitido: la fuente no cubre el municipio ${args.ine}`);
+      continue;
     }
     conectores.push(c);
   }
@@ -96,15 +111,12 @@ async function main() {
     if (args.repeticion > 1) console.log(`\n=== Repetición ${r}/${args.repeticion} ===`);
     let boundary: GeoJSON.Geometry | null = null;
 
-    if (args.conector !== "all" && supabase) {
-      boundary = await cargarBoundaryDeBD(supabase, args.ine);
+    if (!conectores.some((c) => c.id === "osm-boundary") && lector) {
+      boundary = await cargarBoundaryDeBD(lector, args.ine);
     }
 
     for (const c of conectores) {
-      const parametros =
-        c.id === "osm-boundary" && args.nombreMunicipio
-          ? { nombre_municipio: args.nombreMunicipio }
-          : {};
+      const parametros = nombreMunicipio ? { nombre_municipio: nombreMunicipio } : {};
       const res = await ejecutarConector(c, deps, {
         codigoINE: args.ine,
         boundary,

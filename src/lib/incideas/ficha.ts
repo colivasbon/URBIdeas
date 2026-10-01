@@ -1,4 +1,5 @@
 import { createSupabaseServer } from "@/lib/supabase-server";
+import { leerTodas } from "./paginar";
 import type { FichaMunicipalResumen, CategoriaINCideas } from "./types";
 
 export async function getFichaMunicipal(codigoINE: string): Promise<FichaMunicipalResumen | null> {
@@ -30,10 +31,16 @@ export async function getFichaMunicipal(codigoINE: string): Promise<FichaMunicip
     } | null;
   };
 
-  const { data: registros } = await supabase
-    .from("incideas_registros")
-    .select("categoria, estado_validacion")
-    .eq("codigo_ine", codigoINE);
+  const { data: registros } = await leerTodas<{ categoria: string; estado_validacion: string }>(
+    (desde, hasta) =>
+      supabase
+        .from("incideas_registros")
+        .select("categoria, estado_validacion")
+        .eq("codigo_ine", codigoINE)
+        .is("eliminado_en", null)
+        .order("id", { ascending: true })
+        .range(desde, hasta)
+  );
 
   const categoriasDisponibles = new Set<CategoriaINCideas>();
   const categoriasIncompletas = new Set<CategoriaINCideas>();

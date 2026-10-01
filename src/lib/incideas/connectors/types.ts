@@ -1,5 +1,5 @@
 import type { CategoriaINCideas, Visibilidad } from "../types";
-import type { FuenteRef, RawFeature } from "../pipeline/types";
+import type { AmbitoBajas, FuenteRef, RawFeature } from "../pipeline/types";
 
 export interface ConnectorRunArgs {
   codigoINE: string;
@@ -26,5 +26,12 @@ export interface Connector {
   nivelAutomatizacion: "alta" | "media" | "baja";
   visibilidad: Visibilidad;
   fuente: FuenteRef;
+  /**
+   * Registros de su fuente de los que el conector es responsable (detección de bajas).
+   * Obligatorio si emite registros fuera de `categoria` o comparte fuente con otro conector.
+   */
+  ambito?: AmbitoBajas[];
+  /** Cobertura territorial: false si la fuente no cubre el municipio (p. ej. autonómica). */
+  aplica?(codigoINE: string): boolean;
   ejecutar(args: ConnectorRunArgs): Promise<ConnectorResult>;
 }

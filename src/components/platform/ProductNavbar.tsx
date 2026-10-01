@@ -7,19 +7,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 
 /* ============================================================
-   ProductNavbar — navegación de plataforma y módulos (IMA)
-   - Una sola lógica de contracción al scroll (listener pasivo + rAF).
-   - Submenús click-to-open (Escape / click-fuera / navegación).
-   - Drawer móvil con focus trap, Escape, bloqueo de scroll y stagger.
-   - Cabecera clara: 64px desktop / 56px móvil; blur + borde al scrollear.
+   ProductNavbar â€” navegaciÃ³n de plataforma y mÃ³dulos (IMA)
+   - Una sola lÃ³gica de contracciÃ³n al scroll (listener pasivo + rAF).
+   - SubmenÃºs click-to-open (Escape / click-fuera / navegaciÃ³n).
+   - Drawer mÃ³vil con focus trap, Escape, bloqueo de scroll y stagger.
+   - Cabecera clara: 64px desktop / 56px mÃ³vil; blur + borde al scrollear.
    ============================================================ */
 
 export type ProductNavSubItem = {
   label: string;
-  /** Sin href → Ítem no navegable (p. ej. «Próximamente»). Nunca usar "#". */
+  /** Sin href â†’ Ãtem no navegable (p. ej. Â«PrÃ³ximamenteÂ»). Nunca usar "#". */
   href?: string;
   description?: string;
-  badge?: "Próximamente";
+  badge?: "PrÃ³ximamente";
   disabled?: boolean;
 };
 
@@ -37,28 +37,28 @@ export type ProductTone = "platform" | "urban" | "social" | "assistance" | "emer
 export type ProductNavbarConfig = {
   product: "platform" | "urbideas" | "socideas" | "incideas";
   productLabel: string;
-  /** Inicial del distintivo del módulo (p. ej. "U", "S", "A"). */
+  /** Inicial del distintivo del mÃ³dulo (p. ej. "U", "S", "A"). */
   productMark: string;
   productHref: string;
   productDescription?: string;
   navigation: ProductNavItem[];
   tone?: ProductTone;
-  /** Etiqueta del menú móvil (p. ej. "Abrir menú de SOCideas"). */
+  /** Etiqueta del menÃº mÃ³vil (p. ej. "Abrir menÃº de SOCideas"). */
   mobileMenuLabel?: string;
   /** Enlace corporativo externo existente (solo plataforma). */
   corporateUrl?: string;
 };
 
-export const PLATFORM_HOME_ARIA_LABEL = "Ir a la página principal de Ideas Sostenibilidad";
+export const PLATFORM_HOME_ARIA_LABEL = "Ir a la pÃ¡gina principal de Ideas Sostenibilidad";
 
 const SCROLLED_AFTER_PX = 8;
 const INDICATOR_BASE = 100;
 
-/** Logotipo de cada marca junto a su nombre en navegación. */
-const BRAND_LOGOS: Record<string, string> = {
-  urbideas: "/logo/urbideas.png",
-  socideas: "/logo/socideas.png",
-  incideas: "/logo/incideas.png",
+/** SÃ­mbolo de cada marca junto a su nombre en navegaciÃ³n. */
+const BRAND_SYMBOLS: Record<string, string> = {
+  urbideas: "/logo/urbideas-symbol.png",
+  socideas: "/logo/socideas-symbol.png",
+  incideas: "/logo/incideas-symbol.png",
 };
 
 function useScrolled(): boolean {
@@ -164,7 +164,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
     };
   }, [openMenu, mobileOpen]);
 
-  // Bloqueo de scroll + focus trap del drawer móvil.
+  // Bloqueo de scroll + focus trap del drawer mÃ³vil.
   useEffect(() => {
     if (!mobileOpen) return;
     const prev = document.body.style.overflow;
@@ -216,8 +216,8 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
     ].join(" ");
 
   const mobileMenuLabel = mobileOpen
-    ? `Cerrar menú${isPlatform ? "" : ` de ${config.productLabel}`}`
-    : (config.mobileMenuLabel ?? (isPlatform ? "Abrir menú" : `Abrir menú de ${config.productLabel}`));
+    ? `Cerrar menÃº${isPlatform ? "" : ` de ${config.productLabel}`}`
+    : (config.mobileMenuLabel ?? (isPlatform ? "Abrir menÃº" : `Abrir menÃº de ${config.productLabel}`));
 
   return (
     <header
@@ -266,16 +266,14 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                 aria-label={`${config.productLabel} — inicio del módulo`}
                 className="flex min-w-0 items-center gap-2 rounded-[6px] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
-                {BRAND_LOGOS[config.product] ? (
-                  <span className="brand-logo-pill" aria-hidden="true">
-                    <Image
-                      src={BRAND_LOGOS[config.product]}
-                      alt=""
-                      width={60}
-                      height={55}
-                      className="h-6 w-auto"
-                    />
-                  </span>
+                {BRAND_SYMBOLS[config.product] ? (
+                  <Image
+                    src={BRAND_SYMBOLS[config.product]}
+                    alt=""
+                    width={60}
+                    height={55}
+                    className="h-7 w-auto"
+                  />
                 ) : (
                   <span
                     aria-hidden="true"
@@ -299,15 +297,15 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
           )}
         </div>
 
-        {/* Navegación desktop */}
+        {/* NavegaciÃ³n desktop */}
         <nav
           ref={navRef}
           className="relative hidden items-center gap-0.5 md:flex"
-          aria-label={isPlatform ? "Navegación de la plataforma" : `Navegación del módulo ${config.productLabel}`}
+          aria-label={isPlatform ? "NavegaciÃ³n de la plataforma" : `NavegaciÃ³n del mÃ³dulo ${config.productLabel}`}
         >
           {config.navigation.map((item) => {
             const active = isItemActive(pathname, item);
-            const brandLogo = BRAND_LOGOS[item.id];
+            const brandLogo = BRAND_SYMBOLS[item.id];
             if (!item.items || item.items.length === 0) {
               return (
                 <Link
@@ -320,15 +318,13 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                   className={linkClasses(active)}
                 >
                   {brandLogo && (
-                    <span className="brand-logo-pill" aria-hidden="true">
-                      <Image
-                        src={brandLogo}
-                        alt=""
-                        width={60}
-                        height={55}
-                        className="h-5 w-auto"
-                      />
-                    </span>
+                    <Image
+                      src={brandLogo}
+                      alt=""
+                      width={60}
+                      height={55}
+                      className="h-6 w-auto"
+                    />
                   )}
                   {item.label}
                 </Link>
@@ -455,7 +451,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
           </span>
         </nav>
 
-        {/* Controles móviles */}
+        {/* Controles mÃ³viles */}
         <div className="flex items-center gap-1 md:hidden">
           <ThemeToggle />
           <button
@@ -478,7 +474,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
         </div>
       </div>
 
-      {/* Drawer móvil */}
+      {/* Drawer mÃ³vil */}
       {mobileOpen && (
         <div className="fixed inset-0 z-[300] md:hidden">
           <div
@@ -491,7 +487,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
             id="productnav-drawer"
             role="dialog"
             aria-modal="true"
-            aria-label={isPlatform ? "Menú de navegación" : `Menú de ${config.productLabel}`}
+            aria-label={isPlatform ? "MenÃº de navegaciÃ³n" : `MenÃº de ${config.productLabel}`}
             className="absolute inset-y-0 right-0 flex w-[min(20rem,88vw)] flex-col overflow-y-auto bg-[var(--bg-surface)] shadow-[var(--shadow-3)]"
           >
             <div className="flex h-14 items-center justify-between border-b border-[var(--border-subtle)] px-4 sm:px-6">
@@ -501,7 +497,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
               <button
                 type="button"
                 onClick={closeMobile}
-                aria-label="Cerrar menú"
+                aria-label="Cerrar menÃº"
                 className="flex h-11 w-11 items-center justify-center rounded-[6px] text-[var(--text-secondary)] hover:bg-[var(--musgo-50)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
@@ -509,7 +505,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                 </svg>
               </button>
             </div>
-            <nav className="flex-1 p-3" aria-label={isPlatform ? "Navegación de la plataforma" : `Navegación del módulo ${config.productLabel}`}>
+            <nav className="flex-1 p-3" aria-label={isPlatform ? "NavegaciÃ³n de la plataforma" : `NavegaciÃ³n del mÃ³dulo ${config.productLabel}`}>
               {!isPlatform && (
                 <Link
                   href="/"
@@ -521,7 +517,7 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
               )}
               {config.navigation.map((item, index) => {
                 const active = isItemActive(pathname, item);
-                const brandLogo = BRAND_LOGOS[item.id];
+                const brandLogo = BRAND_SYMBOLS[item.id];
                 const stagger = { animationDelay: `${index * 30}ms` } as React.CSSProperties;
                 if (!item.items || item.items.length === 0) {
                   return (
@@ -540,15 +536,13 @@ export default function ProductNavbar({ config }: { config: ProductNavbarConfig 
                       ].join(" ")}
                     >
                       {brandLogo && (
-                        <span className="brand-logo-pill" aria-hidden="true">
-                          <Image
-                            src={brandLogo}
-                            alt=""
-                            width={60}
-                            height={55}
-                            className="h-5 w-auto"
-                          />
-                        </span>
+                        <Image
+                          src={brandLogo}
+                          alt=""
+                          width={60}
+                          height={55}
+                          className="h-6 w-auto"
+                        />
                       )}
                       {item.label}
                     </Link>

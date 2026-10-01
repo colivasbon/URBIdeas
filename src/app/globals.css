@@ -941,21 +941,6 @@
   }
   .theme-toggle:active { transform: scale(0.95); }
 
-  /* Logotipo de marca junto al nombre en navegación: fondo claro solo en
-     tema oscuro, donde los colores propios del logo pierden contraste sobre
-     la cabecera oscura. En tema claro es transparente (el canvas ya es claro). */
-  .brand-logo-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    padding: 3px;
-    line-height: 0;
-  }
-  [data-theme="dark"] .brand-logo-pill {
-    background: #ffffff;
-  }
-
   /* Skip link */  .skip-link {
     position: fixed;
     top: var(--space-2);

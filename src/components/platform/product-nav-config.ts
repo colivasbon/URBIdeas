@@ -16,6 +16,7 @@ export function platformNavConfig(): ProductNavbarConfig {
       { id: "inicio", label: "Inicio", href: "/", exact: true },
       { id: "urbideas", label: "URBideas", href: "/urbideas" },
       { id: "socideas", label: "SOCideas", href: "/socideas" },
+      { id: "incideas", label: "INCideas", href: "/incideas" },
       // TODO: RE-HABILITAR ASISTENCIAS — nav item deshabilitado temporalmente
       // { id: "asistencias", label: "Asistencias", href: "/asistencias" },
     ],
@@ -117,6 +118,54 @@ export function socideasNavConfig(ctx: SocideasContext = {}): ProductNavbarConfi
             href: "/socideas/como-funciona#actualizacion-calidad",
             description: "Actualización y controles de calidad",
           },
+        ],
+      },
+    ],
+  };
+}
+
+export type IncideasContext = {
+  codigoINE?: string;
+  search?: string;
+};
+
+const INE_RE_INCIDEAS = /^\d{5}$/;
+
+export function incideasNavConfig(ctx: IncideasContext = {}): ProductNavbarConfig {
+  const ine = ctx.codigoINE && INE_RE_INCIDEAS.test(ctx.codigoINE) ? ctx.codigoINE : null;
+  const qs = ctx.search ? `?${ctx.search.replace(/^\?/, "")}` : "";
+  return {
+    product: "incideas",
+    productLabel: "INCideas",
+    productMark: "I",
+    productHref: "/incideas",
+    productDescription: "Información municipal para la planificación y gestión de emergencias",
+    tone: "emergency",
+    mobileMenuLabel: "Abrir menú de INCideas",
+    navigation: [
+      { id: "inicio", label: "Inicio", href: "/incideas", exact: true },
+      {
+        id: "explorar",
+        label: "Explorar",
+        items: [
+          { label: "Municipios", href: "/incideas/municipios", description: "Buscar por nombre o código INE" },
+          ...(ine
+            ? [
+                {
+                  label: "Ficha municipal",
+                  href: `/incideas/${ine}${qs}`,
+                  description: "Volver a la ficha del municipio actual",
+                },
+              ]
+            : []),
+        ],
+      },
+      {
+        id: "metodologia",
+        label: "Datos y metodología",
+        items: [
+          { label: "Metodología", href: "/incideas/metodologia", description: "Arquitectura y procesos" },
+          { label: "Fuentes", href: "/incideas/fuentes", description: "Registro de fuentes y conectores" },
         ],
       },
     ],

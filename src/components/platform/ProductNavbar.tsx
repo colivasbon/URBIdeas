@@ -32,10 +32,10 @@ export type ProductNavItem = {
   items?: ProductNavSubItem[];
 };
 
-export type ProductTone = "platform" | "urban" | "social" | "assistance";
+export type ProductTone = "platform" | "urban" | "social" | "assistance" | "emergency";
 
 export type ProductNavbarConfig = {
-  product: "platform" | "urbideas" | "socideas";
+  product: "platform" | "urbideas" | "socideas" | "incideas";
   productLabel: string;
   /** Inicial del distintivo del módulo (p. ej. "U", "S", "A"). */
   productMark: string;

@@ -1,0 +1,274 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+interface Resultado {
+  codigo_ine: string;
+  nombre: string;
+  poblacion: number | null;
+  provincia: { nombre: string; comunidad_autonoma: { nombre: string } } | null;
+}
+
+interface Opcion {
+  id: string;
+  nombre: string;
+}
+
+const selectClasses = "input disabled:opacity-45";
+
+export default function IncideasSearch() {
+  const router = useRouter();
+  const [q, setQ] = useState("");
+  const [ccaa, setCcaa] = useState<Opcion[]>([]);
+  const [ccaaId, setCcaaId] = useState("");
+  const [provincias, setProvincias] = useState<Opcion[]>([]);
+  const [provinciaId, setProvinciaId] = useState("");
+  const [municipios, setMunicipios] = useState<Resultado[]>([]);
+  const [resultados, setResultados] = useState<Resultado[]>([]);
+  const [buscando, setBuscando] = useState(false);
+  const [buscado, setBuscado] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [abriendo, setAbriendo] = useState<Resultado | null>(null);
+
+  useEffect(() => {
+    fetch("/api/comunidades")
+      .then((r) => r.json())
+      .then((j) => setCcaa((j.data ?? []) as Opcion[]))
+      .catch(() => setCcaa([]));
+  }, []);
+
+  useEffect(() => {
+    if (!ccaaId) return;
+    fetch(`/api/provincias?comunidad_autonoma_id=${ccaaId}`)
+      .then((r) => r.json())
+      .then((j) => setProvincias((j.data ?? []) as Opcion[]))
+      .catch(() => setProvincias([]));
+  }, [ccaaId]);
+
+  useEffect(() => {
+    if (!provinciaId) return;
+    fetch(`/api/socideas/municipios?provincia_id=${provinciaId}&limit=500`)
+      .then((r) => r.json())
+      .then((j) => setMunicipios((j.data ?? []) as Resultado[]))
+      .catch(() => setMunicipios([]));
+  }, [provinciaId]);
+
+  const onCcaaChange = (id: string) => {
+    if (abriendo) return;
+    setCcaaId(id);
+    setProvincias([]);
+    setProvinciaId("");
+    setMunicipios([]);
+  };
+
+  const onProvinciaChange = (id: string) => {
+    if (abriendo) return;
+    setProvinciaId(id);
+    setMunicipios([]);
+  };
+
+  const navegarMunicipio = (m: Resultado) => {
+    if (abriendo) return;
+    setAbriendo(m);
+    router.push(`/incideas/${m.codigo_ine}`);
+  };
+
+  const onMunicipioSelect = (codigoIne: string) => {
+    if (!codigoIne || abriendo) return;
+    const m = municipios.find((x) => x.codigo_ine === codigoIne);
+    if (!m) return;
+    navegarMunicipio(m);
+  };
+
+  const onResultadoClick = (m: Resultado) => {
+    if (abriendo) return;
+    setAbriendo(m);
+  };
+
+  useEffect(() => {
+    if (!abriendo) return;
+    const t = window.setTimeout(() => setAbriendo(null), 10000);
+    return () => window.clearTimeout(t);
+  }, [abriendo]);
+
+  const buscar = async (e?: React.FormEvent<HTMLFormElement>) => {
+    e?.preventDefault();
+    if (abriendo) return;
+    const term = q.trim();
+    if (term.length < 2) return;
+    setBuscando(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (/^\d{2,5}$/.test(term)) {
+        params.set("codigo_ine", term);
+      } else {
+        params.set("q", term);
+        if (provinciaId) params.set("provincia_id", provinciaId);
+      }
+      params.set("limit", "20");
+      const res = await fetch(`/api/socideas/municipios?${params.toString()}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Error en la búsqueda");
+      setResultados(json.data ?? []);
+      setBuscado(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error en la búsqueda");
+      setResultados([]);
+      setBuscado(true);
+    } finally {
+      setBuscando(false);
+    }
+  };
+
+  return (
+    <section aria-label="Buscador municipal" className="relative">
+      {abriendo && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[6px] bg-[var(--bg-surface)]/90">
+          <div className="text-center">
+            <span className="spinner mx-auto" />
+            <p className="mt-3 text-sm font-medium text-[var(--text-primary)]">
+              Cargando {abriendo.nombre}…
+            </p>
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+        <div>
+          <label htmlFor="incideas-ccaa" className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+            Comunidad autónoma
+          </label>
+          <select
+            id="incideas-ccaa"
+            value={ccaaId}
+            onChange={(e) => onCcaaChange(e.target.value)}
+            disabled={!!abriendo}
+            className={selectClasses}
+          >
+            <option value="">Todas</option>
+            {ccaa.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="incideas-prov" className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+            Provincia
+          </label>
+          <select
+            id="incideas-prov"
+            value={provinciaId}
+            onChange={(e) => onProvinciaChange(e.target.value)}
+            disabled={!ccaaId || !!abriendo}
+            className={selectClasses}
+          >
+            <option value="">{ccaaId ? "Todas" : "Elija antes una comunidad"}</option>
+            {provincias.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="incideas-mun" className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+            Municipio
+          </label>
+          <select
+            id="incideas-mun"
+            value={abriendo?.codigo_ine ?? ""}
+            onChange={(e) => onMunicipioSelect(e.target.value)}
+            disabled={!provinciaId || !!abriendo}
+            className={selectClasses}
+          >
+            <option value="">{provinciaId ? `Elegir entre ${municipios.length}` : "Elija antes una provincia"}</option>
+            {municipios.map((m) => (
+              <option key={m.codigo_ine} value={m.codigo_ine}>
+                {m.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <form onSubmit={buscar} className="flex flex-col sm:flex-row gap-3" role="search">
+        <label htmlFor="incideas-q" className="sr-only">
+          Buscar municipio por nombre o código INE
+        </label>
+        <input
+          id="incideas-q"
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={
+            provinciaId
+              ? "Nombre dentro de la provincia elegida o código INE"
+              : "Municipio o provincia (p. ej. Benidorm, Alicante, 03031)"
+          }
+          autoComplete="off"
+          disabled={!!abriendo}
+          className="input flex-1 disabled:opacity-45"
+        />
+        <button
+          type="submit"
+          disabled={!!abriendo || buscando || q.trim().length < 2}
+          aria-busy={buscando || undefined}
+          className="btn btn-primary relative"
+        >
+          {buscando && (
+            <span className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+              <span className="spinner" />
+            </span>
+          )}
+          <span className={buscando ? "invisible" : undefined}>{buscando ? "Buscando…" : "Buscar"}</span>
+        </button>
+      </form>
+
+      {error && (
+        <p role="alert" className="mt-4 text-sm text-[var(--rupestre)]">
+          {error}
+        </p>
+      )}
+
+      {buscado && !error && (
+        <div className="mt-6">
+          {resultados.length === 0 ? (
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Sin resultados. Prueba con el nombre oficial o el código INE de 5 dígitos.
+            </p>
+          ) : (
+            <ul className="divide-y divide-[var(--border-subtle)] rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+              {resultados.map((m) => (
+                <li key={m.codigo_ine}>
+                  <Link
+                    href={`/incideas/${m.codigo_ine}`}
+                    onClick={() => onResultadoClick(m)}
+                    aria-disabled={!!abriendo}
+                    className={`flex items-center justify-between gap-4 rounded-[6px] px-5 py-4 transition-colors hover:bg-[var(--musgo-50)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${abriendo ? "pointer-events-none opacity-60" : ""}`}
+                  >
+                    <span>
+                      <span className="block text-sm font-semibold text-[var(--text-primary)]">
+                        {m.nombre}
+                      </span>
+                      <span className="tnum block text-xs text-[var(--text-muted)]">
+                        {m.provincia?.nombre ?? "—"} · {m.provincia?.comunidad_autonoma?.nombre ?? "—"} · INE{" "}
+                        {m.codigo_ine}
+                      </span>
+                    </span>
+                    <svg className="h-4 w-4 shrink-0 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}

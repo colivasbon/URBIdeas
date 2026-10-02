@@ -23,7 +23,7 @@ import {
   tipoLegible,
   titularidadLegible,
 } from "./catalogo";
-import { corregirCRS, esNombreNumerico } from "./correcciones";
+import { corregirCRS, esSoloUnaCifra } from "./correcciones";
 import {
   construirCsvCabeceras,
   construirGeoJSON,
@@ -304,19 +304,19 @@ function resolverNombre(r: RegistroCrudo, tipo: string): NombreResuelto {
     };
   }
 
-  if (r.fuente_principal === NOMBRE_FUENTE_PLANTILLA && esNombreNumerico(bruto)) {
-    const clase =
-      tipo === "partida" || tipo === "distrito"
-        ? "partida de limpieza"
-        : "parada de autobús";
+  // Un nombre formado solo por una cifra no dice qué elemento es. Da igual
+  // de qué fuente venga: se marca y se explica, en lugar de dar por bueno un
+  // identificador opaco.
+  if (esSoloUnaCifra(bruto)) {
+    const clase = r.fuente_principal === NOMBRE_FUENTE_PLANTILLA ? "partida de limpieza" : tipo;
     return {
       nombre: bruto,
       nombre_original: bruto,
       estado_nombre: "por_revisar",
       advertencias:
-        `Nombre numérico heredado de la plantilla municipal (${clase}). ` +
-        "Se conserva la cifra y se marca como pendiente: sin el identificador del " +
-        "elemento no es posible atribuirle un nombre con certeza.",
+        `El nombre es una cifra suelta, propia de la ${clase}. No identifica el elemento, ` +
+        "de modo que se conserva tal cual y se marca como pendiente en lugar de " +
+        "sustituirlo por una suposición.",
     };
   }
 

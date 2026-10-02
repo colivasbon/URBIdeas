@@ -208,8 +208,11 @@ demás no se persiste).
   declaran ahora ETRS89 UTM 30 (`EPSG:25830`), que es su sistema real. Sus
   coordenadas ya estaban en grados y no se han vuelto a convertir. De esas 437, 199
   tienen punto; las otras 238 no tienen ninguna coordenada.
-- **Nombres numéricos.** 28 registros conservan su cifra y se marcan «por revisar»
-  con la causa anotada, en lugar de inventar un nombre.
+- **Nombres numéricos.** 42 registros tienen en el nombre una cifra suelta: 28 de la
+  plantilla municipal (partidas de limpieza) y 14 paradas de autobús de OpenStreetMap.
+  Todos conservan su cifra y se marcan «por revisar» con la causa anotada, en lugar de
+  inventar un nombre. Hay además 3 paradas cuyo nombre es una lista de líneas de
+  autobús («2, 24, 30, 31»); ese dato se considera útil y no se marca.
 - **Paginación obligatoria.** El servidor corta a 1.000 filas; se reutiliza el
   paginador compartido `leerTodas`. Sin esto el libro salía con 1.000 de 1.378
   registros sin avisar. Hay una prueba de paginación que lo fija.
@@ -243,6 +246,11 @@ demás no se persiste).
 - Clave foránea del GeoPackage mal definida: referenciaba una columna suelta donde el
   estándar pide la clave compuesta. `VACUUM INTO` además borraba la cabecera
   GeoPackage; ahora el fichero lleva el `application_id` que reconoce GDAL.
+- La hoja de metodología afirmaba dos cosas que no eran ciertas: que se comprobaba
+  cada punto contra el polígono del término municipal (no existe: la base guarda un
+  punto) y que había «cuarenta y dos» nombres numéricos (la cifra está ahora en 42 y
+  sale de los datos, no escrita a mano). Los recuentos de la metodología se calculan
+  desde las filas del libro para que no puedan contradecirlo.
 
 ## 7. Pendiente
 

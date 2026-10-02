@@ -92,6 +92,19 @@ export function corregirCRS(
 // ---------------------------------------------------------------------------
 
 /** Un nombre es numérico si no contiene ninguna letra. */
+/**
+ * Nombre formado exclusivamente por una o más cifras, sin ninguna otra palabra.
+ *
+ * Es el criterio que decide si un registro se publica como «Por revisar». Se
+ * distingue del test más amplio `esNombreNumerico`, que también acepta listas de
+ * cifras como «2, 24, 30, 31»: en el caso de una parada de autobús eso describe las
+ * líneas que pasan por ella y es un dato útil, no un nombre perdido.
+ */
+export function esSoloUnaCifra(nombre: string | null | undefined): boolean {
+  const v = (nombre ?? "").trim();
+  return v !== "" && /^[0-9]+$/.test(v);
+}
+
 export function esNombreNumerico(nombre: string | null | undefined): boolean {
   const v = (nombre ?? "").trim();
   if (!v) return false;

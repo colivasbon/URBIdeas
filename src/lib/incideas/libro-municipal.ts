@@ -41,6 +41,7 @@ import {
   type ResumenMunicipio,
 } from "./calidad";
 import { latLngToUtm } from "./pipeline/utm";
+import { esSoloUnaCifra } from "./correcciones";
 import { construirCsvCabeceras, geometriaAWKT, esAllowedSourceUrl } from "./formato-abierto";
 
 // ---------------------------------------------------------------------------
@@ -1066,6 +1067,15 @@ function construirHojaFuentes(wb: ExcelJS.Workbook, e: EntradaLibro): void {
 // ---------------------------------------------------------------------------
 
 function construirHojaMetodologia(wb: ExcelJS.Workbook, e: EntradaLibro): void {
+  // Los recuentos de las correcciones salen de las filas de este libro, no de
+  // cifras fijas: así la metodología nunca puede contradecir a los datos.
+  const numericos = e.filas.filter((f) => esSoloUnaCifra(f.nombre));
+  const dePlantilla = e.filas.filter(
+    (f) => f.fuente.includes("Plantilla municipal")
+  );
+  const dePlantillaConPunto = dePlantilla.filter((f) => f.lat !== null).length;
+  const dePlantillaSinPunto = dePlantilla.length - dePlantillaConPunto;
+
   const hoja = wb.addWorksheet("14_METODOLOGIA");
   const NC = 3;
   configurarHoja(hoja, e.municipio);
@@ -1164,8 +1174,8 @@ function construirHojaMetodologia(wb: ExcelJS.Workbook, e: EntradaLibro): void {
   bloque("Validación espacial y confianza", [
     [
       "Pertenencia al término",
-      "Cada punto se comprueba contra el polígono del término municipal. Los que caen fuera se marcan como «Fuera del término municipal» y no se eliminan: pueden ser recursos próximos de interés, como un hospital comarcal.",
-      "docs/incideas-cerebro.md §2",
+      "No se comprueba de forma automática. La base de datos guarda un punto con el centro del municipio, no el polígono de su término, así que no hay contra qué validar. Los puntos se publican con la posición que aporta su fuente y la hoja de carencias deja constancia de esta limitación.",
+      "Limitación conocida",
     ],
     [
       "Puntuación de confianza",
@@ -1200,12 +1210,12 @@ function construirHojaMetodologia(wb: ExcelJS.Workbook, e: EntradaLibro): void {
   bloque("Correcciones de dato pendientes de autorización", [
     [
       "Sistema de referencia de origen",
-      "Las filas procedentes de la plantilla municipal declaraban EPSG:4326 cuando la plantilla está en ETRS89 UTM 30 N. La etiqueta es incorrecta; el valor de la coordenada ya fue reproyectado a grados al importar y es correcto. La corrección propuesta afecta a la etiqueta y no a la posición.",
+      `${dePlantilla.length} filas procedentes de la plantilla municipal declaraban EPSG:4326 cuando la plantilla está en ETRS89 UTM 30 N. La etiqueta es incorrecta; el valor de la coordenada ya fue reproyectado a grados al importar y es correcto, de modo que la corrección afecta solo a la etiqueta. En este libro ${dePlantillaConPunto} de ellas tienen coordenadas; las otras ${dePlantillaSinPunto} no tienen ninguna.`,
       "incideas_correcciones_propuestas",
     ],
     [
       "Nombres formados solo por un número",
-      "Cuarenta y dos registros tienen en el nombre un valor numérico. Se propone recuperar el nombre real desde OpenStreetMap, desde la ficha municipal o desde el Plan Territorial Municipal. Los que no se puedan recuperar se marcan «Por revisar» y no se sustituyen por una suposición.",
+      `${numericos.length} registros de este libro tienen en el nombre una cifra suelta, que no identifica el elemento. Se propone recuperar el nombre real desde OpenStreetMap, desde la ficha municipal o desde el Plan Territorial Municipal. Todos ellos se marcan «Por revisar» y no se sustituyen por una suposición.`,
       "incideas_correcciones_propuestas",
     ],
   ]);

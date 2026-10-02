@@ -186,6 +186,64 @@ demás no se persiste).
 - **Rama de trabajo:** `feat/incideas-calidad`. No tocar `src/components/socideas/SeccionesAtlas.tsx`
   (modificación ajena previa).
 
+## 6.1 INCideas — libro municipal, Fase 1 (2026-10-01)
+
+- **Migración aditiva 041 aplicada en producción** (commit `2494f87`). 11 columnas
+  nuevas y 3 tablas (`incideas_correcciones_propuestas`, `incideas_control_carga`,
+  `incideas_cambios`). 77 columnas, 1.378 filas, **0 filas modificadas**. Script de
+  reversión en `supabase/migrations/041_incideas_calidad_down.sql`, probado en el
+  esquema `ensayo`. Copias previas conservadas como `incideas_copia_*_20261001`.
+- **Libro municipal implementado y verificado** en `src/lib/incideas/libro-municipal.ts`.
+  17 hojas: portada con índice navegable, resumen, una hoja por cada una de las diez
+  categorías del PTM, carencias, fuentes, metodología, control de calidad y una hoja
+  oculta con los identificadores técnicos. Estilo heredado de `socideas-xlsx.ts`.
+- **Cuatro formatos generados** con `npm run incideas:libro -- 03031`: Excel (318 kB),
+  CSV con `;` y marca UTF-8 (368 kB), GeoJSON (681 kB) y GeoPackage (332 kB, escrito
+  con `node:sqlite`, sin dependencias nuevas). Se vuelcan en `salida/`, que no se
+  versiona.
+- **Script de generación:** `scripts/incideas/generar-libro.ts`. Lee, no escribe: las
+  correcciones se aplican en memoria. Imprime comprobaciones de calidad antes de
+  escribir nada y deja un `informe.md` con lo que se ha publicado y lo que no.
+- **Corrección de la etiqueta CRS.** Las 437 filas de la plantilla municipal
+  declaran ahora ETRS89 UTM 30 (`EPSG:25830`), que es su sistema real. Sus
+  coordenadas ya estaban en grados y no se han vuelto a convertir. De esas 437, 199
+  tienen punto; las otras 238 no tienen ninguna coordenada.
+- **Nombres numéricos.** 28 registros conservan su cifra y se marcan «por revisar»
+  con la causa anotada, en lugar de inventar un nombre.
+- **Paginación obligatoria.** El servidor corta a 1.000 filas; se reutiliza el
+  paginador compartido `leerTodas`. Sin esto el libro salía con 1.000 de 1.378
+  registros sin avisar. Hay una prueba de paginación que lo fija.
+- **Pruebas:** `scripts/tests/incideas-libro.test.ts`, 30 casos. Suite previa de
+  INCideas, 40 casos. Todas en verde, junto con `tsc` y `eslint`.
+
+### Hallazgos de datos que hay que corregir en su día
+
+- `municipios.poblacion` dice **1.021** habitantes para Benidorm. El padrón del INE que
+  ya está en `incideas_registros` registra **77.327 (2025)**. El libro publica la
+  cifra del INE y avisa de la discrepancia; la tabla `municipios` sigue sin tocar.
+- `municipios.geom` es un **punto** (el centro), no el término municipal, así que la
+  superficie municipal no se puede calcular. El libro lo dice en vez de publicar un
+  valor aproximado.
+- No existe tabla de comarcas: la comarca figura como «No consta en la base».
+- 10 registros tienen punto fuera del término (gasolineras y un local de la Nucía).
+  No son un error: los servicios municipalmente citados losumoto también.
+- 102 grupos de registros con categoría, tipo, nombre y dirección coincidentes.
+
+### Errores reales encontrados y corregidos por las pruebas
+
+- **`latLngToUtm` calculaba la UTM desviada unos cientos de kilómetros.** Le faltaba
+  el desplazamiento falso de 500.000 m y multiplicaba la diferencia de longitud sin
+  el coseno de la latitud (`A = cos φ₁ · (λ − λ₀)` en Snyder). Benidorm salía en
+  E 322.760 en vez de E 753.416. Reescrita con la serie completa. Se comprueba contra
+  el meridiano central (X = 500.000 exactos), la escala en el ecuador y el ejemplo de
+  coordenadas que publica el propio PTM.
+- `enriquecerFila` existía pero no se llamaba, así que la UTM salía vacía.
+- La población se calculaba en una copia local del libro, de modo que los formatos
+  abiertos y el Excel podían contradecirse. Ahora se calcula una vez, en el cargador.
+- Clave foránea del GeoPackage mal definida: referenciaba una columna suelta donde el
+  estándar pide la clave compuesta. `VACUUM INTO` además borraba la cabecera
+  GeoPackage; ahora el fichero lleva el `application_id` que reconoce GDAL.
+
 ## 7. Pendiente
 
 - Probar última preview con datos; merge a `main`; Fase 2B (economía:

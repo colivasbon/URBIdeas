@@ -66,3 +66,7 @@ tmp/
 
 # Documentos de referencia (material de trabajo, no versionar)
 INCIDEAS DOCUMENTOS/
+
+# Salidas generadas de INCideas: son artefactos, no fuentes. Se regeneran con
+# `npm run incideas:libro -- <codigo-ine>`.
+/salida/

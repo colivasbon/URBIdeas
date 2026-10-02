@@ -19,6 +19,8 @@
     "verify:revalidate": "npx tsx scripts/verify-revalidate.ts",
     "conprel:dry-run": "npx tsx scripts/load-conprel.ts --muestra",
     "incideas:test": "npx tsx --test scripts/tests/incideas-pipeline.test.ts",
+    "incideas:test-libro": "npx tsx --test scripts/tests/incideas-libro.test.ts",
+    "incideas:libro": "npx tsx scripts/incideas/generar-libro.ts",
     "incideas:seed-fuentes": "npx tsx scripts/incideas/seed-fuentes.ts",
     "incideas:dry-run": "npx tsx scripts/incideas/run-connector.ts --conector all --ine 03031 --nombre-municipio Benidorm --repeticion 2"
   },

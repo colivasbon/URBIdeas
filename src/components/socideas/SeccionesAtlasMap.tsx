@@ -308,6 +308,11 @@ export default function SeccionesAtlasMap({
   const teselasRef = useRef<Leaflet.TileLayer | null>(null);
   const [etiquetasVisibles, setEtiquetasVisibles] = useState<Array<{ key: string; x: number; y: number; texto: string }>>([]);
   const [listo, setListo] = useState(false);
+  /** Versión de la capa coroplética. Se incrementa al terminar de crearla: es
+   *  la señal de que `capaRef` ya está disponible para los efectos que la
+   *  consumen (bocadillo de la selección). Sin ella, un enlace directo con
+   *  `?sec=` no abría su bocadillo porque el efecto corría antes de la capa. */
+  const [capaLista, setCapaLista] = useState(0);
 
   const porClave = useMemo(() => new Map(filas.map((f) => [f.key, f])), [filas]);
   const porClaveRef = useRef(porClave);
@@ -368,6 +373,23 @@ export default function SeccionesAtlasMap({
       fillColor: fila.color,
       fillOpacity: Math.max(0.08, Math.min(1, p.opacidad)),
       lineJoin: "round",
+    };
+  }, []);
+
+  // Estilo de la capa de trama ND. Se aplica al crear la capa Y al reestilarla:
+  // si solo se aplicara al crear, la trama del indicador anterior se quedaría
+  // pegada sobre el nuevo («mapa rayado»).
+  const estiloTramaDe = useCallback((key: string): Leaflet.PathOptions => {
+    const fila = porClaveRef.current.get(key);
+    if (!fila || !fila.esSinDato || fila.sinRelleno) {
+      return { opacity: 0, fillOpacity: 0, stroke: false, color: "transparent", fillColor: "transparent" };
+    }
+    return {
+      color: "transparent",
+      weight: 0,
+      opacity: 0,
+      fillColor: `url(#${ID_TRAMA})`,
+      fillOpacity: 1,
     };
   }, []);
 
@@ -450,7 +472,15 @@ export default function SeccionesAtlasMap({
           const key = String((feat as { properties?: { CUSEC?: string } })?.properties?.CUSEC ?? "");
           const fila = porClaveRef.current.get(key);
           const texto = fila ? `${key} · ${fila.texto}` : key;
-          layer.bindTooltip(texto, { sticky: true, direction: "top", opacity: 1 });
+          // El bocadillo se abre SOLO al seleccionar la sección, nunca al pasar
+          // el ratón. `bindTooltip` instala sus propios manejadores de hover y
+          // clic; se retiran justo después y se dejan los del atlas (resaltar y
+          // seleccionar). La apertura la gobierna el efecto de `seleccion`.
+          layer.bindTooltip(texto, { sticky: false, direction: "top", opacity: 1, offset: [0, -6] });
+          layer.off("mouseover");
+          layer.off("mouseout");
+          layer.off("mousemove");
+          layer.off("click");
           layer.on("mouseover", () => onHoverRef.current(key));
           layer.on("mouseout", () => onHoverRef.current(null));
           layer.on("click", () => onSeleccionarRef.current(key));
@@ -462,18 +492,8 @@ export default function SeccionesAtlasMap({
       // no resuelve el patrón, la de abajo (relleno sólido) ya se ve bien.
       tramaRef.current = L.geoJSON(fc as unknown as Parameters<typeof L.geoJSON>[0], {
         interactive: false,
-        style: (feat) => {
-          const key = String((feat as { properties?: { CUSEC?: string } })?.properties?.CUSEC ?? "");
-          const fila = porClaveRef.current.get(key);
-          if (!fila || !fila.esSinDato || fila.sinRelleno) return { opacity: 0, fillOpacity: 0, stroke: false, color: "transparent", fillColor: "transparent" };
-          return {
-            color: "transparent",
-            weight: 0,
-            opacity: 0,
-            fillColor: `url(#${ID_TRAMA})`,
-            fillOpacity: 1,
-          };
-        },
+        style: (feat) =>
+          estiloTramaDe(String((feat as { properties?: { CUSEC?: string } })?.properties?.CUSEC ?? "")),
       });
       tramaRef.current.addTo(mapa);
 
@@ -485,7 +505,7 @@ export default function SeccionesAtlasMap({
       } catch {
         // Sin geometría utilizable: se mantiene la vista inicial.
       }
-      setListo(true);
+      setCapaLista((v) => v + 1);
     })();
 
     return () => {
@@ -494,12 +514,33 @@ export default function SeccionesAtlasMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [features, listo]);
 
-  // ── Reestilado cuando cambian los ajustes de presentación o el estado ──
+  // ── Reestilado cuando cambian los valores, los ajustes o la selección ──
+  //
+  // `porClave` entra en las dependencias a propósito: es lo que cambia cuando
+  // llegan los valores de otro indicador, de otro año o de otra clasificación.
+  // Sin él, el mapa conservaba relleno, trama ND y texto del bocadillo del
+  // bloque anterior hasta que un clic o un hover forzaba un render.
   useEffect(() => {
     const capa = capaRef.current;
     if (!capa) return;
-    capa.setStyle((feat) => estiloDe(String((feat as { properties?: { CUSEC?: string } })?.properties?.CUSEC ?? "")));
-    const esSeleccion = (key: string) => key === seleccion || key === hovered;
+    const claveDe = (feat: unknown): string =>
+      String((feat as { properties?: { CUSEC?: string } })?.properties?.CUSEC ?? "");
+    capa.setStyle((feat) => estiloDe(claveDe(feat)));
+    // La trama ND se calcula al crear la capa; sin reestilarla aquí, la del
+    // indicador anterior se quedaba pegada («mapa rayado»).
+    tramaRef.current?.setStyle((feat) => estiloTramaDe(claveDe(feat)));
+    // El texto del tooltip también se fija al crear la capa: se refresca para
+    // que el bocadillo enseñe el valor actual.
+    capa.eachLayer((l: Leaflet.Layer) => {
+      const ruta = l as unknown as {
+        feature?: { properties?: { CUSEC?: string } };
+        setTooltipContent?: (contenido: string) => void;
+      };
+      const key = ruta.feature?.properties?.CUSEC;
+      if (typeof key !== "string") return;
+      const fila = porClave.get(key);
+      ruta.setTooltipContent?.(fila ? `${key} · ${fila.texto}` : key);
+    });
     if (seleccion) {
       mapRef.current?.eachLayer((l: Leaflet.Layer) => {
         const ruta = l as unknown as {
@@ -508,11 +549,38 @@ export default function SeccionesAtlasMap({
         };
         const key = ruta.feature?.properties?.CUSEC;
         if (typeof key !== "string") return;
-        if (!esSeleccion(key)) return;
+        if (key !== seleccion && key !== hovered) return;
         ruta.bringToFront?.();
       });
     }
-  }, [presentacion, seleccion, hovered, estiloDe, listo]);
+  }, [presentacion, seleccion, hovered, estiloDe, estiloTramaDe, listo, porClave]);
+
+  // ── Bocadillo: solo de la sección seleccionada ──────────────────────────
+  //
+  // El contenido se refresca en el efecto de reestilado; aquí solo se decide
+  // cuándo está abierto: al seleccionar (clic en el mapa, en la tabla o en la
+  // ficha) y se cierra al quitar la selección. Los bocadillos anteriores se
+  // cierran antes de abrir el nuevo: `Layer.openTooltip` no lo hace solo.
+  useEffect(() => {
+    const capa = capaRef.current;
+    if (!capa) return;
+    // Cierra cualquier bocadillo abierto antes de decidir el nuevo. En Leaflet
+    // 1.9 `Layer.openTooltip` no cierra el anterior, y `Map.closeTooltip()`
+    // exige el tooltip como argumento: llamarlo sin él revienta. El cierre por
+    // capa sí es seguro (solo actúa si esa capa tiene tooltip abierto).
+    capa.eachLayer((l: Leaflet.Layer) => {
+      (l as unknown as { closeTooltip?: () => void }).closeTooltip?.();
+    });
+    if (!seleccion) return;
+    capa.eachLayer((l: Leaflet.Layer) => {
+      const ruta = l as unknown as {
+        feature?: { properties?: { CUSEC?: string } };
+        openTooltip?: () => void;
+      };
+      if (ruta.feature?.properties?.CUSEC !== seleccion) return;
+      ruta.openTooltip?.();
+    });
+  }, [seleccion, capaLista, porClave]);
 
   // ── Mapa base: encendido / apagado ──────────────────────────────────────
   useEffect(() => {

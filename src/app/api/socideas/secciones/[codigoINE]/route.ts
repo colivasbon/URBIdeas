@@ -225,7 +225,17 @@ export async function GET(
   let comunidadNombre: string | null = null
 
   if (base) {
-    atlas = { ...atlasBootstrapDe(base.compacto), ...catalogo }
+    // `fusionarCatalogos` devuelve la clave `indicadores`; el contrato del
+    // bootstrap publica `indicators`. Un spread directo dejaba `indicators` con
+    // el catálogo base (renta, desigualdad y demografía) y metía los 44
+    // indicadores fusionados en una clave `indicadores` que ningún componente
+    // lee: Educación, Actividad y Política salían en 0 aunque su cobertura sí
+    // viajara en la respuesta. Se copia con la clave del contrato.
+    atlas = {
+      ...atlasBootstrapDe(base.compacto),
+      indicators: catalogo.indicadores,
+      cobertura: catalogo.cobertura,
+    }
     via = dominios.length > 0 ? 'R2+dominios' : 'R2'
   } else if (dominios.length > 0) {
     // Municipios SIN atlas base (o con un atlas que no valida): geometría

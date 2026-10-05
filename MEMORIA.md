@@ -416,6 +416,17 @@ registros totales — no se borró nada. Libro: 53 partidas, 1.269 filas, 1.111 
 coordenadas. Reimportación idempotente (0/0/328 en la segunda pasada). 97
 pruebas en verde.
 
+El informe `docs/informe-linea-base.md` lo regenera `incideas:qa-linea-base`, así
+que no se edita a mano. Con el filtro de bajas lógicas, el adjunto tiene 1.378
+filas y el libro 1.269: las 109 que no aparecen son exactamente las bajas
+lógicas — 104 partidas y 5 farmacias — que el libro deja de publicar por
+propio diseño. Antes de la reparación eran 0, porque el libro las incluía.
+
+Un aviso que conviene leer bien: el informe del pipeline marca
+`insertados=0 actualizados=53 sin_cambios=275 posibles_bajas=109`. Los 109 no son
+bajas nuevas, son filas que ya estaban dadas de baja y el contador no distingue
+nuevas de previas. Ninguna baja nueva.
+
 El límite municipal se contrastó con el WFS del IGN
 (`au:AdministrativeUnit`, GeoJSON, CC BY 4.0, sin autenticación): 99,713 % de
 solape y 66,75 m de Hausdorff con el recinto oficial, −0,039 % de área. La

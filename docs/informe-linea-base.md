@@ -49,7 +49,7 @@ Reproduce las cifras del Excel adjunto y las reconcilia con el libro municipal n
 - Repeticiones adicionales por combinación fuente + huella: 103 (esperado 103)
 
 Repeticiones por fuente:
-    Plantilla municipal — Limpieza info (PTM Benidorm)     62
+    P                              62
 
 Filas implicadas por categoría:
     territorio                    157
@@ -87,15 +87,11 @@ Causa de cada repetición, comprobada sobre las filas, no supuesta:
 
 ## Reconciliación con el libro nuevo
 
-Estas cifras son las del libro **antes** de la reparación de partidas
-(ver `docs/informe-reparacion-partidas.md`). El libro ya no publica las bajas
-lógicas, así que hoy tiene menos filas.
-
-- Filas en el libro nuevo: 1378
+- Filas en el libro nuevo: 1269
 - Con coordenadas en el libro nuevo: 1111 (esperado 1.111)
-- Sin coordenadas en el libro nuevo: 267
+- Sin coordenadas en el libro nuevo: 158
 - Diferencia de filas con coordenadas: 1
-- Filas del adjunto que no aparecen en el libro nuevo por id: 0
+- Filas del adjunto que no aparecen en el libro nuevo por id: 109
 - Filas del libro nuevo que no aparecen en el adjunto por id: 0
 - Filas cuya presencia de coordenadas cambió entre adjunto y libro nuevo: 1
 

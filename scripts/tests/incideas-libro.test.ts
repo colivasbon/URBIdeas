@@ -30,8 +30,8 @@ import {
   geometriaAWKT,
   construirCsvCabeceras,
   construirGeoJSON,
-  construirGeoPackage,
 } from "../../src/lib/incideas/formato-abierto";
+import { construirGeoPackage } from "../../src/lib/incideas/formato-abierto-gpkg";
 import { construirLibroMunicipal, type EntradaLibro, type FilaLibro } from "../../src/lib/incideas/libro-municipal";
 import {
   superficieDesdeGeoJson,

@@ -22,7 +22,12 @@
     "incideas:test-libro": "npx tsx --test scripts/tests/incideas-libro.test.ts",
     "incideas:libro": "npx tsx scripts/incideas/generar-libro.ts",
     "incideas:seed-fuentes": "npx tsx scripts/incideas/seed-fuentes.ts",
-    "incideas:dry-run": "npx tsx scripts/incideas/run-connector.ts --conector all --ine 03031 --nombre-municipio Benidorm --repeticion 2"
+    "incideas:dry-run": "npx tsx scripts/incideas/run-connector.ts --conector all --ine 03031 --nombre-municipio Benidorm --repeticion 2",
+    "incideas:qa-linea-base": "npx tsx scripts/incideas/qa-linea-base.ts --informe docs/informe-linea-base.md",
+    "incideas:qa-word": "npx tsx scripts/incideas/qa-word-hidraulica.ts --informe docs/informe-word-hidraulica.md",
+    "incideas:test-aceptacion": "npx tsx --test scripts/tests/incideas-aceptacion.test.ts",
+    "incideas:plan-reimportacion": "npx tsx scripts/incideas/plan-reimportacion.ts",
+    "incideas:reparar-partidas": "npx tsx scripts/incideas/reparar-partidas.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1125.0",

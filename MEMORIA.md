@@ -252,6 +252,107 @@ demás no se persiste).
   sale de los datos, no escrita a mano). Los recuentos de la metodología se calculan
   desde las filas del libro para que no puedan contradecirlo.
 
+## 6.2 INCideas — línea de base, descarga web y defectos reales (2026-10-02)
+
+Rama `feat/incideas-calidad`, sobre `541bb22`. Toda la verificación es local y de
+lectura: no se ha escrito en la base ni en el despliegue.
+
+### Línea de base reproducida
+
+`scripts/incideas/qa-linea-base.ts` relee el Excel adjunto y lo reconcilia con el libro
+nuevo. Todas las cifras del encargo se reproducen exactamente: 1.378 filas, 20 columnas,
+dos hojas; 1.110 con coordenadas y 268 sin ellas; 940 `automatico_sin_revisar`, 437
+`contrastados`, 1 `validado_tecnicamente`; 99 `fuera_municipio` y 264 `proximo_limite`;
+42 nombres de solo cifras; 62 grupos de huellas repetidas con 165 filas y 103
+repeticiones adicionales por fuente + huella. Informe en
+`docs/informe-linea-base.md`.
+
+**La diferencia de una coordenada (1.110 frente a 1.111) está identificada.** Es el
+registro `territorio/limite_municipal` «Benidorm», de OpenStreetMap Nominatim
+(`osm:relation/341148`). En el adjunto no tiene `lat`/`lng` porque su geometría es un
+`MULTIPOLYGON` de 697 vértices que vive en la columna de texto; el generador nuevo toma
+un punto representativo de esa geometría. No hay conversión de coordenadas ni
+desplazamiento: los otros 1.377 registros coinciden uno a uno por identificador.
+
+### Causa de las 103 repeticiones, que no son duplicados
+
+Los 62 grupos se descomponen en **62 filas caducadas y 103 activas**. Las caducadas son
+la misma entidad física importada dos veces: se cargaron con una clave de importación
+de tres campos (`partida|distrito|nombre`, y `farmacia|nombre`) y, cuando la clave pasó a
+incluir el área y a basarse en la dirección, la segunda carga creó filas nuevas en vez de
+actualizar las anteriores. Están marcadas `posible_baja_desde` y nunca borradas. Las 103
+activas son entidades distintas con identificador de origen propio: una partida puede
+abarcar varias áreas y la plantilla lo documenta. Fusionarlas sería incorrecto.
+
+### Origen de los nombres numéricos: dos bloques y un encabezado repetido
+
+La hoja `Núcleos_partidas` de `Limpieza info.xlsx` tiene **dos bloques con distinto
+desplazamiento de columnas**: las filas 2 a 82 guardan la partida en la columna B, y desde
+la fila 84 la guardan en la columna A, con la fila 83 como encabezado repetido
+(`Partida | Distrito | Subsector`) y siete filas en blanco entre bloques. El importador
+leía índices fijos, así que desde la fila 83 leía el distrito como nombre de partida: de
+ahí salen las partidas llamadas «2», «3» o «4» y la fila llamada «Distrito», y los 53
+nombres reales del segundo bloque nunca entraban.
+
+`src/lib/incideas/plantilla-partidas.ts` resuelve el caso de forma estructural y
+determinista: detecta cada encabezado, fija el desplazamiento del bloque, descarta las
+filas que son encabezado y no inventa columnas si la hoja no tiene cabecera. Sobre el
+documento real lee **127 partidas con sus nombres reales y 92 claves únicas**, frente a
+128 filas de las que 54 no eran partidas. La corrección está probada pero **no aplicada a
+la base**: importarla cambia 1.378 registros y necesita autorización.
+
+### La descarga web entrega el libro nuevo
+
+`/api/incideas/exportar` usaba el generador antiguo de dos hojas y veinte columnas,
+mientras que el libro municipal solo era alcanzable por línea de comandos. Ahora todos los
+formatos salen de **una sola lectura** (`cargarLibroMunicipal`), de modo que el Excel, el
+CSV, el GeoJSON y el JSON describen el mismo conjunto con la misma marca de tiempo, que
+además viaja en la cabecera `X-Incideas-Snapshot`. Comprobado contra el servidor de
+desarrollo: JSON 1.378 filas (antes truncaba en 1.000), Excel de 17 hojas, CSV de 1.378
+filas y GeoJSON de 1.111 entidades. El formato `crudo` conserva la proyección plana de la
+tabla para consumidores de máquina.
+
+### Defectos reales corregidos
+
+- **El cargador no filtraba ni la visibilidad ni las bajas.** Leía `*` sin condiciones, así
+  que un registro `restringida` o `personal_protegida` habría salido en el libro público.
+  El filtro vive ahora en `paginarRegistros`, no en cada formato, y hay pruebas con un
+  cliente falso que demuestran que no se puede saltar. Hoy hay 0 filas afectadas.
+- **El cargador descartaba toda la geometría** (`geometria_wkt` se escribía siempre
+  vacía), de modo que el límite municipal, los cauces y cualquier polígono se perdían al
+  exportar y solo quedaba el punto representativo. Se conserva el WKT de la fuente y se
+  añade `wktAGeoJSON`, con pruebas de ida y vuelta para los seis tipos. El GeoJSON pasó
+  de 681 a 773 kB y ahora incluye el límite como `MultiPolygon`.
+- **La cabecera del BLOB del GeoPackage no cumplía el estándar OGC.** Insertaba ocho bytes
+  de texto hexadecimal donde va el `srs_id` y desplazaba el WKB; el fichero llevaba la
+  firma «GP» y, aun así, ningún SIG podía leer la geometría. Ahora la cabecera es la de
+  la tabla 3 de OGC 12-128r19: versión, indicadores, `srs_id` y envolvente XY de 32 bytes.
+  Se verifica byte a byte y recorriendo la geometría completa.
+- **`geometriaAWKT` escribía un `MULTILINESTRING` mal formado**, con un paréntesis de
+  menos. El fallo estaba oculto porque nadie leía el WKT de vuelta.
+- Los contadores del WKB se escribían con `new Uint32Array`, que usa el orden de la
+  máquina; ahora se fijan en little endian con `writeUInt32LE`. En x86 no cambiaba nada,
+  pero dejaba la corrección en manos de la plataforma.
+- Los dos contadores de exclusión del cargador estaban intercambiados. Lo detectó una
+  prueba propia: `excluidos_baja` salía con el número de las restringidas.
+
+### Separación de módulos
+
+`formato-abierto-gpkg.ts` se crea aparte porque el GeoPackage necesita `node:sqlite`, que
+no existe por debajo de la versión 22 y no tiene que ver con una petición web. Antes,
+importar el CSV desde una ruta arrastraba SQLite. El GeoPackage es un artefacto de trabajo
+por lotes y solo lo genera el CLI.
+
+### Pruebas
+
+`scripts/tests/incideas-aceptacion.test.ts`, 27 casos, todos en verde. Cubren la línea de
+base contra los documentos reales, la lectura de los dos bloques de la hoja de partidas,
+la identidad canónica frente a los artefactos de lectura, la ida y vuelta del WKT, la
+paginación por encima del millar con cliente falso, el filtro de visibilidad, el de bajas
+duras y el de bajas lógicas, la paridad entre formatos y la cabecera del GeoPackage leída
+byte a byte. Con las suites previas son **97 casos** (40 del pipeline, 30 del libro, 27 de
+aceptación), con `tsc` y `eslint` limpios.
+
 ## 7. Pendiente
 
 - Probar última preview con datos; merge a `main`; Fase 2B (economía:
@@ -261,3 +362,70 @@ demás no se persiste).
 - INCideas: Fases 1 a 6 según `docs/incideas-auditoria-calidad.md`.
 - Convenciones con el usuario: push/merge/deploy/migraciones/remoto solo con
   orden expresa; sin datos ficticios; informe final por entrega.
+
+## 8. Cierre de las correcciones de Benidorm (2026-10-05)
+
+Detalle completo en `docs/informe-reparacion-partidas.md`.
+
+### Lo que estaba mal y por qué
+
+**El área estaba dentro de la clave de la partida.** La hoja documenta cada
+partida dos veces: el primer bloque repite una fila por área y el segundo la da
+con la lista completa («El Saladar» con 10, luego con 12, luego como «9, 10, 12»).
+Con el área en la clave eran tres entidades. La clave real es distrito y nombre;
+el área se acumula como lista en `atributos.area`. 127 filas de la plantilla
+son 53 entidades, con 35 duplicados dentro de la propia hoja.
+
+**Veinticinco registros no eran lugares.** Tienen por nombre `1`, `2`, `3`, `4` o
+`Distrito`, y sus claves `partida|4, 5|4|` tienen el área donde va el distrito y el
+número de distrito donde va el nombre: son una lectura del segundo bloque
+desplazada una columna. La prueba es directa: la columna Distrito de ese bloque
+solo tiene cuatro valores distintos. No se renombraron porque no hay forma de
+saber qué partida nombraban.
+
+**La plantilla tiene una errata.** Las filas 25 y 86 de `Núcleos_partidas`
+documentan el mismo núcleo como «Amanello» y «Armanello». Manda «Armanello»,
+que es la grafía del resto del libro (parada «357 - C. Armanello», calle «C/
+Armanello», «Camí de l'Armanello»). Vive en `ORTOGRAFIA_PARTIDAS`, en la librería,
+con su motivo; no se deduce en ejecución.
+
+**El libro publicaba las bajas lógicas.** El cargador filtraba `eliminado_en` y
+visibilidad, pero no `desactualizado_desde`, así que mostraba 157 partidas
+cuando había 53 vigentes. Añadido el filtro a `paginarRegistros`, con prueba.
+
+### Dos decisiones que conviene no volver a plantear
+
+**Revivir, no reescribir claves.** Se prefirió revivir las 52 filas que ya
+tenían la clave correcta antes que cambiar la clave de las 74 activas. Es menos
+invasivo y, sobre todo, evita un fallo real: la búsqueda del pipeline usa
+`maybeSingle()` y filtra solo por `eliminado_en`, de modo que dos filas con la
+misma `id_origen` —la activa reparada y su baja histórica— la harían fallar.
+
+**No tocar `municipios.poblacion`.** Guarda 1021 habitantes para Benidorm frente
+a los 77327 del INE de 2025. La columna está sistemáticamente corrupta: 6.034 de
+8.130 municipios tienen menos de 1.000 habitantes y solo 6 superan 500.000. Y no
+hay dónde registrar la trazabilidad, porque `incideas_correcciones_propuestas`
+tiene clave foránea a `registro_id` y un municipio no tiene registro. Corregir solo
+Benidorm taparía una columna rota en unas 6.000 filas. Queda propuesta la
+migración, sin aplicar.
+
+### Resultado
+
+Base: 53 partidas vigentes, 0 nombres numéricos, 0 claves duplicadas, 1.378
+registros totales — no se borró nada. Libro: 53 partidas, 1.269 filas, 1.111 con
+coordenadas. Reimportación idempotente (0/0/328 en la segunda pasada). 97
+pruebas en verde.
+
+El límite municipal se contrastó con el WFS del IGN
+(`au:AdministrativeUnit`, GeoJSON, CC BY 4.0, sin autenticación): 99,713 % de
+solape y 66,75 m de Hausdorff con el recinto oficial, −0,039 % de área. La
+geometría se conserva; solo se corrigieron `estado_espacial`, `fecha_dato` y
+`metodo_obtencion`. La pista de que ese servicio solo devolvía GML está
+superada: ya entrega GeoJSON.
+
+### Cómo reproducirlo
+
+`incideas:plan-reimportacion` copia y calcula el plan sin escribir;
+`incideas:reparar-partidas` lo aplica con `--go` y acepta `--solo-limite`. El
+script de reparación lee `plan.json` y no decide por su cuenta: si el estado no
+coincide con el que el plan asumía, aborta.

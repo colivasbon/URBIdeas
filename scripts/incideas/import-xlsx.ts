@@ -15,6 +15,7 @@ import { normalizeFeature, normalizeName } from "../../src/lib/incideas/pipeline
 import { validarEspacial } from "../../src/lib/incideas/pipeline/geo";
 import { procesarLote } from "../../src/lib/incideas/pipeline/upsert";
 import { utmToLatLng } from "../../src/lib/incideas/pipeline/utm";
+import { clavePartida, clavesUnicas, leerPartidas } from "../../src/lib/incideas/plantilla-partidas";
 import type { EjecucionContext, RawFeature } from "../../src/lib/incideas/pipeline/types";
 import { depsMemoria, depsSupabase, cargarBoundaryDeBD } from "./deps";
 
@@ -64,26 +65,106 @@ function subcategoriaEnsenanza(tipo: string): string {
   return "centro_formacion";
 }
 
-function construirFeatures(wb: XLSX.WorkBook): RawFeature[] {
-  const out: RawFeature[] = [];
+/**
+ * Lo que la lectura de la hoja ha encontrado, para poder declararlo en el informe
+ * de la ejecución en vez de perderlo en silencio.
+ */
+export interface LecturaPartidasInforme {
+  filas_leidas: number;
+  claves_unicas: number;
+  claves_repetidas: string[];
+  bloques: { fila_encabezado: number; desplazamiento: number; filas: number }[];
+  descartadas: { fila: number; motivo: string; crudo: string[] }[];
+  nombres_no_numericos: number;
+}
 
-  // Núcleos, partidas, distritos y áreas
-  for (const r of filas(wb, "Núcleos_partidas").slice(1)) {
-    const partida = txt(r[1]);
-    if (!partida) continue;
-    const distrito = txt(r[2]);
-    const area = txt(r[3]);
-    out.push({
-      // Una partida puede abarcar varias áreas: el área forma parte de la clave.
-      id_origen: `partida|${distrito}|${partida}|${area}`,
-      nombre: partida,
+export function construirPartidas(wb: XLSX.WorkBook): {
+  features: RawFeature[];
+  informe: LecturaPartidasInforme;
+} {
+  // `blankrows: true` a propósito: los números de fila que se registran y se
+  // declaran tienen que coincidir con los que ve un técnico al abrir la hoja. La
+  // hoja tiene siete filas en blanco (76 a 82) entre los dos bloques.
+  const hoja = XLSX.utils.sheet_to_json<(string | number | null)[]>(wb.Sheets["Núcleos_partidas"], {
+    header: 1,
+    blankrows: true,
+    defval: null,
+  });
+  const lectura = leerPartidas(hoja as (string | number | null)[][]);
+
+  // La hoja documenta cada partida dos veces: el primer bloque repite una fila
+  // por área y el segundo la da con la lista completa. Se agrupa por
+  // (distrito, nombre) y las áreas se aplanan a una sola lista ordenada, para que
+  // «El Saladar» con «10» y con «12, 9»-sea un registro y no tres.
+  interface Acumulado {
+    nombre: string;
+    distrito: string;
+    areas: Set<string>;
+    filas: number[];
+    bloques: number[];
+  }
+  const agrupado = new Map<string, Acumulado>();
+  for (const p of lectura.filas) {
+    const clave = clavePartida(p);
+    if (!agrupado.has(clave)) {
+      agrupado.set(clave, {
+        nombre: p.partida,
+        distrito: p.distrito,
+        areas: new Set(),
+        filas: [],
+        bloques: [],
+      });
+    }
+    const acc = agrupado.get(clave)!;
+    // Un área puede venir como valor suelto («10») o como lista («10, 8, 7»).
+    for (const a of p.area.split(",").map((s) => s.trim()).filter(Boolean)) acc.areas.add(a);
+    acc.filas.push(p.fila);
+    acc.bloques.push(p.desplazamiento);
+  }
+
+  const features: RawFeature[] = [];
+  for (const [clave, acc] of agrupado) {
+    features.push({
+      id_origen: clave,
+      nombre: acc.nombre,
       categoria: "territorio",
       subcategoria: "partida",
+      distrito: acc.distrito || undefined,
       fuente: FUENTE,
       metodo_obtencion: "plantilla_municipal",
-      atributos: { distrito, area },
+      atributos: {
+        distrito: acc.distrito,
+        area: [...acc.areas]
+          .sort((a, b) => (num(a) ?? 0) - (num(b) ?? 0) || a.localeCompare(b, "es"))
+          .join(", "),
+        filas_hoja: acc.filas,
+        bloques_desplazamiento: [...new Set(acc.bloques)],
+      },
     });
   }
+
+  const { unicas, repetidas } = clavesUnicas(features.map((f) => f.id_origen ?? ""));
+  return {
+    features,
+    informe: {
+      filas_leidas: lectura.filas.length,
+      claves_unicas: unicas.length,
+      claves_repetidas: repetidas,
+      bloques: lectura.bloques,
+      descartadas: lectura.descartadas,
+      nombres_no_numericos: lectura.filas.filter((p) => !/^[\d.,\s]+$/.test(p.partida)).length,
+    },
+  };
+}
+
+function construirFeatures(wb: XLSX.WorkBook): { features: RawFeature[]; informePartidas: LecturaPartidasInforme } {
+  const out: RawFeature[] = [];
+
+  // Núcleos, partidas, distritos y áreas. La hoja tiene dos bloques con distinto
+  // desplazamiento de columnas y un encabezado repetido en medio: lo resuelve
+  // `leerPartidas`, de forma estructural y determinista.
+  const partidas = construirPartidas(wb);
+  out.push(...partidas.features);
 
   // Farmacias
   for (const r of filas(wb, "Farmacias").slice(1)) {
@@ -153,7 +234,7 @@ function construirFeatures(wb: XLSX.WorkBook): RawFeature[] {
     });
   }
 
-  return out;
+  return { features: out, informePartidas: partidas.informe };
 }
 
 async function main() {
@@ -164,9 +245,22 @@ async function main() {
   }
 
   const wb = XLSX.readFile(args.file);
-  const features = construirFeatures(wb);
+  const { features, informePartidas } = construirFeatures(wb);
   console.log(`INCideas · import xlsx · INE=${args.ine} · modo=${args.go ? "ESCRITURA" : "DRY-RUN"}`);
   console.log(`  features construidas: ${features.length}`);
+  console.log(
+    `  partidas: ${informePartidas.filas_leidas} filas leídas, ` +
+      `${informePartidas.claves_unicas} claves únicas, ` +
+      `${informePartidas.claves_repetidas.length} claves repetidas en la propia hoja`
+  );
+  for (const b of informePartidas.bloques) {
+    console.log(
+      `    bloque que abre la fila ${b.fila_encabezado}: desplazamiento ${b.desplazamiento}, ${b.filas} filas`
+    );
+  }
+  for (const d of informePartidas.descartadas) {
+    console.log(`    fila ${d.fila} descartada (${d.motivo}): ${JSON.stringify(d.crudo)}`);
+  }
 
   let supabase = null as ReturnType<typeof createClient> | null;
   let boundary: GeoJSON.Geometry | null = null;
@@ -247,6 +341,7 @@ async function main() {
         acc[k] = (acc[k] ?? 0) + 1;
         return acc;
       }, {}),
+      partidas: informePartidas,
     },
   });
 

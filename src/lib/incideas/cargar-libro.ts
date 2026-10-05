@@ -27,8 +27,9 @@ import { corregirCRS, esSoloUnaCifra } from "./correcciones";
 import {
   construirCsvCabeceras,
   construirGeoJSON,
-  construirGeoPackage,
   esAllowedSourceUrl,
+  geometriaAWKT,
+  wktAGeoJSON,
   type FeatureGeoJSON,
 } from "./formato-abierto";
 import { enriquecerFila, type EntradaLibro, type FilaLibro, type FuenteLibro } from "./libro-municipal";
@@ -175,16 +176,32 @@ type Pagina<T> = PromiseLike<{ data: T[] | null; error: { message: string } | nu
 /** Subconjunto de la API de PostgREST que usa el cargador. */
 type Consulta<T> = {
   eq(columna: string, valor: unknown): Consulta<T>;
+  is(columna: string, valor: unknown): Consulta<T>;
+  not(columna: string, operador: string, valor: unknown): Consulta<T>;
   order(orden: string, ascendente?: boolean): Consulta<T>;
   range(desde: number, hasta: number): Pagina<T>;
-  limit(n: number): Pagina<T>;
+  limit(n: number): PromiseLike<{ data: T[] | null; error: { message: string } | null; count: number | null }>;
 };
 
 export type ClienteSupabase = {
   from(tabla: string): {
-    select<T>(columnas: string): Consulta<T>;
+    select<T>(
+      columnas: string,
+      opciones?: { count?: "exact"; head?: boolean }
+    ): Consulta<T>;
   };
 };
+
+/**
+ * Filtros que se aplican a toda lectura que alimenta una exportación.
+ *
+ * No son opcionales. Una exportación es la vía por la que el dato sale del
+ * proyecto, así que el filtro de visibilidad y el de baja viven aquí y no en cada
+ * consumidor: si un día se añade una segunda vía de descarga, no puede olvidarse de
+ * aplicarlos. `restringida` y `personal_protegida` nunca salen, y un registro dado
+ * de baja se conserva en la base pero no se publica como inventario vigente.
+ */
+export const VISIBILIDADES_NO_PUBLICABLES = "(restringida,personal_protegida)";
 
 // ---------------------------------------------------------------------------
 // Utilidades de conversión
@@ -421,7 +438,12 @@ export function filaDesdeRegistro(
     estado_espacial: r.estado_espacial ?? (coord ? "verificada" : "sin_geometria"),
     confianza: 0,
     distancia_limite_m: null,
-    geometria_wkt: "",
+    // La geometría que la fuente trajo se conserva tal cual. Antes se escribía
+    // siempre una cadena vacía, de modo que el límite municipal, los cauces y
+    // cualquier polígono o línea se perdían al exportar y solo quedaba su punto
+    // representativo. El WKT va en el libro porque es legible en una celda; el
+    // GeoJSON y el GeoPackage lo convierten a geometría de verdad.
+    geometria_wkt: geometriaAWKT(r.geometria),
     advertencias,
   };
 }
@@ -513,28 +535,108 @@ function licenciaDeFuente(nombre: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Lee todos los registros de un municipio. Delega en el paginador compartido,
- * porque el servidor de Supabase corta las respuestas largas en silencio: sin
- * esto, un municipio con más de mil registros saldría truncado en el libro sin
- * que nada lo indicara.
+ * Lee todos los registros publicables de un municipio. Delega en el paginador
+ * compartido, porque el servidor de Supabase corta las respuestas largas en
+ * silencio: sin esto, un municipio con más de mil registros saldría truncado en el
+ * libro sin que nada lo indicara.
+ *
+ * Filtra los registros dados de baja y los de visibilidad no publicable. Da de
+ * baja dos cosas distintas y no las confunde:
+ *
+ * - `eliminado_en` filled: borrado duro. No vuelve.
+ * - `desactualizado_desde` con fecha: baja lógica. La fuente dejó de documentar
+ *   el registro, así que no se publica como si siguiera vigente. Sigue en la base
+ *   y en el historial, y el pipeline puede revivirlo si la fuente vuelve a
+ *   nombrarlo.
+ *
+ * Sin el segundo filtro el libro.publishaba las bajas lógicas: en Benidorm,157
+ * partidas en lugar de las 53 vigentes, con los duplicados por área y los nombres
+ * «1», «2», «3», «4» de una lectura antigua de la plantilla.
+ *
+ * Devuelve los contadores para que el libro pueda decir cuántos registros ha
+ * dejado fuera y por qué, en lugar de presentarlos como si el conjunto fuera
+ * completo.
  */
 export async function paginarRegistros(
   cliente: ClienteSupabase,
   codigoIne: string
-): Promise<{ filas: RegistroCrudo[]; total: number }> {
-  const consulta = cliente
+): Promise<{
+  filas: RegistroCrudo[];
+  total_en_municipio: number;
+  excluidos_baja: number;
+  excluidos_visibilidad: number;
+}> {
+  const base = cliente
     .from("incideas_registros")
     .select<RegistroCrudo>("*")
-    .eq("codigo_ine", codigoIne)
-    .order("id", true);
+    .eq("codigo_ine", codigoIne);
 
   const { data, error } = await leerTodas<RegistroCrudo>((desde, hasta) =>
-    consulta.range(desde, hasta)
+    base
+      .is("eliminado_en", null)
+      .is("desactualizado_desde", null)
+      .not("visibilidad", "in", VISIBILIDADES_NO_PUBLICABLES)
+      .order("id", true)
+      .range(desde, hasta)
   );
   if (error) throw new Error(`Registros de ${codigoIne}: ${error}`);
 
   const filas = data;
-  return { filas, total: filas.length };
+
+  // Los dos conteos se piden con `head`, que no transfiere filas. Si alguno falla
+  // no se interrumpe la carga: el libro se genera y el contador se trata como «no
+  // medido», no como cero, para no afirmar que no hay nada que excluir.
+  //
+  // De los dos sale la descomposición:
+  //
+  //   cuantasHay              filas del municipio, sin ningún filtro
+  //   cuantasQuedanVigentes   filas ni borradas ni dadas de baja
+  //   publicadas              las que además son de visibilidad publicable
+  //
+  //   dadas de baja = cuantasHay - cuantasQuedanVigentes
+  //   no publicables = cuantasQuedanVigentes - publicadas
+  const [cuantasHay, cuantasQuedanVigentes] = await Promise.all([
+    contar(cliente, codigoIne, (c) => c),
+    contar(cliente, codigoIne, (c) => c.is("eliminado_en", null).is("desactualizado_desde", null)),
+  ]);
+
+  const publicadas = filas.length;
+  const dadasDeBaja =
+    cuantasHay === null || cuantasQuedanVigentes === null
+      ? null
+      : Math.max(0, cuantasHay - cuantasQuedanVigentes);
+  const noPublicables =
+    cuantasQuedanVigentes === null ? null : Math.max(0, cuantasQuedanVigentes - publicadas);
+
+  return {
+    filas,
+    total_en_municipio: cuantasHay ?? publicadas,
+    excluidos_baja: dadasDeBaja ?? 0,
+    excluidos_visibilidad: noPublicables ?? 0,
+  };
+}
+
+/**
+ * Cuenta filas sin traerlas. Devuelve null si la consulta falla, para que el
+ * llamante distinga «no hay registros» de «no se ha podido medir».
+ */
+async function contar(
+  cliente: ClienteSupabase,
+  codigoIne: string,
+  filtrar: (c: Consulta<RegistroCrudo>) => Consulta<RegistroCrudo>
+): Promise<number | null> {
+  try {
+    const r = await filtrar(
+      cliente
+        .from("incideas_registros")
+        .select<RegistroCrudo>("*", { count: "exact", head: true })
+        .eq("codigo_ine", codigoIne)
+    ).limit(1);
+    if (r.error) return null;
+    return r.count;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -665,14 +767,25 @@ export async function cargarLibroMunicipal(
     );
   }
 
-  const { filas: registros, total: registrosTotales } = await paginarRegistros(cliente, codigoIne);
+  const {
+    filas: registros,
+    total_en_municipio,
+    excluidos_baja,
+    excluidos_visibilidad,
+  } = await paginarRegistros(cliente, codigoIne);
   avisos.push(
-    `Registros leídos: ${registros.length}. La consulta se hace por páginas de ` +
-      `${TAM_PAGINA} porque el servidor corta los resultados largos.`
+    `Registros publicables leídos: ${registros.length}, de ${total_en_municipio} que tiene el ` +
+      `municipio. La consulta se hace por páginas de ${TAM_PAGINA} porque el servidor corta ` +
+      `los resultados largos.`
   );
-  const bajas = registrosTotales - registros.length;
-  if (bajas > 0) {
-    avisos.push(`${bajas} registros con baja se han dejado fuera del libro.`);
+  if (excluidos_baja > 0) {
+    avisos.push(`${excluidos_baja} registros dados de baja quedan fuera del libro.`);
+  }
+  if (excluidos_visibilidad > 0) {
+    avisos.push(
+      `${excluidos_visibilidad} registros de visibilidad restringida o protegida quedan fuera ` +
+        `del libro y de toda exportación.`
+    );
   }
 
   const pob = resolverPoblacion(registros, mun.poblacion ?? null, avisos);
@@ -758,7 +871,10 @@ export function construirGeoJSONInventario(
 ): string {
   const features: FeatureGeoJSON[] = [];
   for (const f of filas) {
-    const g = punto(f);
+    // Se publica la geometría que la fuente trajo. Solo si no la hay, se recurre al
+    // punto representativo, y en ese caso la propiedad declara cuál se usó para que
+    // nadie confunda un punto con el término municipal o con el edificio entero.
+    const g = wktAGeoJSON(f.geometria_wkt) ?? punto(f);
     if (!g) continue;
     features.push({
       type: "Feature",
@@ -779,58 +895,11 @@ export function construirGeoJSONInventario(
         licencia: f.licencia,
         confianza: f.confianza,
         estado_espacial: f.estado_espacial,
+        geometria_origen: wktAGeoJSON(f.geometria_wkt) ? "fuente" : "punto_representativo",
       },
     });
   }
   return construirGeoJSON(features, nombre);
-}
-
-export function construirGeoPackageInventario(
-  filas: FilaLibro[],
-  nombre: string
-): Buffer {
-  const cabeceras = [
-    "id_tecnico",
-    "categoria",
-    "tipo",
-    "nombre",
-    "estado_nombre",
-    "direccion",
-    "utm_x",
-    "utm_y",
-    "utm_huso",
-    "fuente",
-    "licencia",
-    "confianza",
-    "estado_espacial",
-  ];
-  const features = [];
-  for (const f of filas) {
-    const g = punto(f);
-    if (!g) continue;
-    features.push({
-      geom: g,
-      propiedades: {
-        id_tecnico: f.id_tecnico,
-        categoria: f.categoria,
-        tipo: f.tipo,
-        nombre: f.nombre,
-        estado_nombre: f.estado_nombre,
-        direccion: f.direccion ?? null,
-        utm_x: f.utm_x,
-        utm_y: f.utm_y,
-        utm_huso: f.utm_huso,
-        fuente: f.fuente,
-        licencia: f.licencia,
-        confianza: f.confianza,
-        estado_espacial: f.estado_espacial,
-      },
-    });
-  }
-  return construirGeoPackage(features, cabeceras, {
-    capa: "inventario",
-    descripcion: `INCideas — ${nombre}`,
-  });
 }
 
 /** Columnas UTM de referencia, para contrastar con la tabla del libro. */

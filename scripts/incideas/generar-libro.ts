@@ -13,6 +13,7 @@
 // Requisitos: Node 22 o superior (usa node:sqlite para el GeoPackage) y la
 // dependencia `exceljs`, que ya tiene el proyecto.
 
+import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -20,12 +21,15 @@ import {
   cargarLibroMunicipal,
   construirCSVInventario,
   construirGeoJSONInventario,
-  construirGeoPackageInventario,
-  NOMBRE_FUENTE_PLANTILLA,
   type ClienteSupabase,
 } from "../../src/lib/incideas/cargar-libro";
+import { construirGeoPackageInventario } from "../../src/lib/incideas/formato-abierto-gpkg";
 import { construirLibroMunicipal } from "../../src/lib/incideas/libro-municipal";
 import { CATEGORIAS_INVENTARIO } from "../../src/lib/incideas/catalogo";
+
+// Se lee el mismo `.env.local` que usa el resto de INCideas, para que el CLI no
+// exija exportar variables a mano y la web y la línea de comandos lean las mismas.
+config({ path: ".env.local", quiet: true });
 
 // ---------------------------------------------------------------------------
 // Argumentos y entorno
@@ -108,6 +112,7 @@ async function main(): Promise<void> {
   const sinCoordenadas = entrada.filas.length - conCoordenadas.length;
   const porRevisar = entrada.filas.filter((f) => f.estado_nombre === "por_revisar").length;
   const porRegistrar = entrada.filas.filter((f) => f.estado_nombre === "por_registrar").length;
+  const plantilla = entrada.filas.filter((f) => f.fuente.includes("Plantilla municipal")).length;
   const fueraDeRango = conCoordenadas.filter(
     (f) => f.lat! < 37.9 || f.lat! > 38.6 || f.lng! < -0.2 || f.lng! > 0.0
   );
@@ -240,7 +245,10 @@ async function main(): Promise<void> {
     "",
     "Ninguna de estas correcciones ha modificado la base de datos.",
     "",
-    `- Etiqueta del sistema de referencia: los ${entrada.filas.filter((f) => f.fuente === NOMBRE_FUENTE_PLANTILLA).length} registros de la plantilla municipal declaran ahora ETRS89 UTM 30 (EPSG:25830), que es el sistema real de la plantilla. Sus coordenadas ya estaban en grados y no se han vuelto a convertir.`,
+    "- Etiqueta del sistema de referencia: los " +
+      `${plantilla} registros de la plantilla municipal declaran ahora ETRS89 UTM 30 ` +
+      "(EPSG:25830), que es el sistema real de la plantilla. Sus coordenadas ya " +
+      "estaban en grados y no se han vuelto a convertir.",
     `- Nombres numéricos: ${porRevisar} registros conservan su cifra y se marcan como pendientes de revisión, porque no hay forma segura de saber a qué elemento concreto corresponden.`,
     "- Los enlaces solo se publican si el dominio está en la lista blanca.",
     "",

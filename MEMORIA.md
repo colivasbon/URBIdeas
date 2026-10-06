@@ -440,3 +440,64 @@ superada: ya entrega GeoJSON.
 `incideas:reparar-partidas` lo aplica con `--go` y acepta `--solo-limite`. El
 script de reparación lee `plan.json` y no decide por su cuenta: si el estado no
 coincide con el que el plan asumía, aborta.
+
+## 9. Fase 2A — peligrosidad de inundación e hidrografía (2026-10-06)
+
+Rama `feat/incideas-hidrografia`. Detalle: `docs/fase2a-contrato.md` (contrato)
+e `docs/informe-fase2a-benidorm-murcia.md` (entrega). Solo lecturas públicas y
+artefactos en `salida/fase2a/` (gitignored): SOCideas intacto,
+`municipios.poblacion` ni leído, nada escrito en sistemas reales ni despliegues.
+
+**Investigado (acotado):** PATRICOVA publica 3 SHP vía tarea asíncrona ArcGIS
+(`submitJob`, no descarga directa) + WMS + 3 PDF; definiciones literales del
+catálogo (peligrosidad 6 niveles + 7.º geomorfológico; riesgo =
+peligrosidad+vulnerabilidad; estudios = concreción en ámbito). Las «12 hojas»
+no existen: cada producto es un único shapefile (8.415/7.710/207 objetos; los
+estudios son puntos). SNCZI: `wms.mapama` y catálogo MITECO inaccesibles desde
+aquí (registrado, no confundido con ausencia); INSPIRE inundaciones es raster
+(`GRAY_INDEX`), no vector. Hidrografía IGN (`hy-p:Watercourse`,
+`hy-n:WatercourseLink`, GML 3.2): varios miembros comparten hydroId sin ser el
+mismo tramo → se cuenta por miembro. Trampas T1/T2/T3 en regresión.
+
+**Ejecutado (mismo `pipeline.ts --ine`, sin reglas ad-hoc):** Benidorm 03031:
+WC 372 miembros (169 intersectan, 61,76 km), WL 150 (46, 51,55 km);
+PATRICOVA peligrosidad 33 polígonos/8,18 Mm², riesgo 17/0,83 Mm², estudios 0
+en término; exposición sobre 1.111 inventario. Murcia 30030: WC 3.835 (1.774,
+1.298 km), WL 1.864 (812, 923 km); PATRICOVA NO_APLICABLE; sin inventario →
+exposición no determinada. Excel+GPKG+GeoJSON+mapa coherentes por municipio
+(paridad verificada en ejecución).
+
+**Pruebas:** `fase2a:test` 20/20, `tsc` y `eslint` limpios.
+**Pendiente:** contención T10/T100/T500 sobre vector oficial (comparador
+implementado+probado, sin vector accesible); validar modelo de identidad IGR;
+inventario de Murcia; propuestas previas (población, auditoría) intactas.
+
+## 10. INCideas Fase 3 — plataforma nacional, muestra Fase 1 (2026-10-06)
+
+Rama `feat/incideas-hidrografia`, sin commit/push/merge/despliegue. Informes:
+`docs/fase3-propiedad.md`, `fase3-contrato-bloques.md`,
+`fase3-matriz-bloques.md` (142 tablas, 0 sin regla), `fase3-hito0/1/2.md`,
+`fase3-auditoria-poblacion.md`, `fase3-informe.md` (final, con commit
+preparado). Agentes B/C/D en `tmp/agente-*/` (solo lectura + sus tmp).
+
+**H0:** árbol verificado (Fase 2A 20/20, exports 13+9 ficheros), medición
+(Supabase ~178/500 MB con `asociaciones` 126 MB; R2 147.256 obj/2,97 GB),
+tabla de propiedad y contratos. **H1:** migraciones 042–045 (bloques,
+fuentes_nac —la `incideas_fuentes` del piloto no se toca—, cobertura,
+snapshots, entidades, aportaciones; 045 lectura pública), ensayadas en
+`ensayo` con reversión probada y `ensayo` devuelto a su estado. Aplicadas a
+`public` (tablas nuevas, ~248 KB). **H2:** muestra 6 municipios
+(Benidorm/Murcia/Lagrán/SCT/Pamplona/Ceuta), plan 64 pares, lote 64/64,
+snapshot aprobada `incideas:snap:e92540e4be4df78`. Conectores nuevos:
+REGCESS (titulares anonimizados), NAP (12.038 sites), MINETUR (IDPovincia +
+ARABA/ÁLAVA), PRTR (parcial honesto), RCD (sin bulk; Navarra/GVA CSV),
+autonómico genérico CKAN+CSV/GeoJSON. **H5:** 4 plantillas + validador en
+`salida/plantillas/`. **H6:** `/incideas/[codigoINE]/bloques`,
+`/incideas/cobertura`, API exportar (XLSX/CSV/JSON) y actualizar;
+`next build` compila; verificado contra servidor local. **J:** QA 0 bloqueos
+(7 iniciales corregidos); suites 20+8+30+27 en verde; `tsc`+`eslint` limpios.
+**§6:** `municipios.poblacion` auditada sin escritura (511×667, Benidorm
+1.021 frente a 77.327 INE); propuesta de migración reversible pendiente.
+Restricciones: SOCideas intacto (salvo importaciones de lectura),
+`SeccionesAtlas.tsx` ajeno no tocado, `municipios.poblacion` ni leída por
+Fase 2A y solo comparada en Fase 3.

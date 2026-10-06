@@ -336,11 +336,24 @@ async function main(): Promise<void> {
       });
       }
     } else {
-      const limItem = plan.find((p) => p.bloque === "limites");
+      // Término: del env de límites en memoria o del R2 ya publicado
+      // (imprescindible en reanudación, donde el tramo de límites se omite).
       const limEnv = paraSubir.find((p) => p.item.bloque === "limites" && p.item.ine === ine);
-      const limObj = (limEnv?.env.objetos?.[0] ?? null) as { bbox?: { minLon: number; minLat: number; maxLon: number; maxLat: number }; geometria?: GeoJSON.Geometry } | null;
+      const limObjMem = (limEnv?.env.objetos?.[0] ?? null) as { bbox?: { minLon: number; minLat: number; maxLon: number; maxLat: number }; geometria?: GeoJSON.Geometry } | null;
+      let limObj = limObjMem?.geometria && limObjMem?.bbox ? limObjMem : null;
+      if (!limObj) {
+        try {
+          const r = await fetch(`${basePublica}/incideas/fase3/limites/continua/${ine}.json`, { headers: { "User-Agent": "INCideas-Fase3/0.1" } });
+          if (r.ok) {
+            const envLim = (await r.json()) as { objetos?: Array<{ bbox?: { minLon: number; minLat: number; maxLon: number; maxLat: number }; geometria?: GeoJSON.Geometry }> };
+            const o = envLim.objetos?.[0];
+            if (o?.geometria && o?.bbox) limObj = { bbox: o.bbox, geometria: o.geometria };
+          }
+        } catch { /* sin término no hay recorte */ }
+      }
       if (!limObj?.geometria || !limObj?.bbox) {
-        plan.push({ ine, bloque: "hidrografia", fuente: "ign-hidro", edicion: "", estado: limItem?.estado === "cargado" ? "fuente_caida" : "sin_cobertura", n: 0, nota: "Sin término municipal no hay recorte." });
+        const limEstado = plan.find((p) => p.ine === ine && p.bloque === "limites")?.estado;
+        plan.push({ ine, bloque: "hidrografia", fuente: "ign-hidro", edicion: "", estado: limEstado === "cargado" ? "fuente_caida" : "sin_cobertura", n: 0, nota: "Sin término municipal no hay recorte." });
         plan.push({ ine, bloque: "inundabilidad", fuente: "snczi-inspire", edicion: "", estado: "sin_cobertura", n: 0, nota: "Sin término municipal." });
       } else {
         const yaHD = prev("hidrografia", "ign-hidro", "IGR-v0");

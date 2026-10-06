@@ -8,6 +8,7 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { XMLParser } from "fast-xml-parser";
 import { descargarBinario, sha256 } from "../../../../src/lib/incideas/fase3/r2";
+import { coincideMunicipio } from "../../../../src/lib/incideas/fase3/nombres";
 
 export const NAP_URL = "https://nap.dgt.es/datex2/v3/miterd/EnergyInfrastructureTablePublication/electrolineras.xml";
 const CACHE = "tmp/fase3-cache/nap-electrolineras.xml";
@@ -26,16 +27,6 @@ export interface PuntoRecarga {
 }
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@" });
-
-function normalizar(s: unknown): string {
-  return String(s ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9 ]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 type Nodo = Record<string, unknown>;
 const esNodo = (v: unknown): v is Nodo => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -150,7 +141,6 @@ export async function cargarRecarga(
   }
   const texto = textoNacional;
   const sha = shaNacional;
-  const mun = normalizar(municipio).split(" / ")[0];
   const objetos: PuntoRecarga[] = [];
   let leidos = 0;
   const re = /<(\w+:)?energyInfrastructureSite[\s>][\s\S]*?<\/(\w+:)?energyInfrastructureSite>/g;
@@ -159,9 +149,7 @@ export async function cargarRecarga(
     leidos++;
     // Filtro barato por chunk antes de parsear: «Municipio: X».
     const mm = m[0].match(/municipio:\s*([^<]{2,80})/i);
-    if (!mm) continue;
-    const cm = normalizar(mm[1]);
-    if (cm !== mun && !cm.startsWith(mun) && !mun.startsWith(cm)) continue;
+    if (!mm || !coincideMunicipio(mm[1], municipio)) continue;
     const p = parsearSite(m[0]);
     if (!p) continue;
     if (!p.municipio) p.municipio = mm[1].trim().slice(0, 80);

@@ -10,6 +10,7 @@ import { join } from "node:path";
 import * as XLSX from "xlsx";
 import { createHash } from "node:crypto";
 import { descargarBinario, sha256 } from "../../../../src/lib/incideas/fase3/r2";
+import { coincideMunicipio } from "../../../../src/lib/incideas/fase3/nombres";
 
 export const REGCESS_C1_URL = "https://regcesslm.sanidad.gob.es/recesAdminWeb/lm/GetExcelListadoMensual?tipoListado=C1";
 export const REGCESS_E_URL = "https://regcesslm.sanidad.gob.es/recesAdminWeb/lm/GetExcelListadoMensual?tipoListado=E";
@@ -29,16 +30,6 @@ export interface CentroRegcess {
 }
 
 type Fila = Record<string, string | number | null>;
-
-function normalizar(s: unknown): string {
-  return String(s ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9 ]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function leerXlsx(buf: Buffer): Fila[] {
   const wb = XLSX.read(buf, { type: "buffer" });
@@ -100,15 +91,10 @@ export async function cargarRegcess(
   }
   const filas = cached.filas;
   const sha = cached.sha;
-  const mun = normalizar(municipio).split(" / ")[0];
-  const prov = normalizar(provincia);
   const objetos: CentroRegcess[] = [];
   for (const f of filas) {
-    const fMun = normalizar(f["Municipio"]);
-    const fProv = normalizar(f["Provincia"]);
-    if (!fMun || !fProv) continue;
-    const coincideMun = fMun === mun || fMun.startsWith(mun) || mun.startsWith(fMun);
-    if (!coincideMun || fProv !== prov) continue;
+    if (!coincideMunicipio(f["Municipio"], municipio)) continue;
+    if (!coincideMunicipio(f["Provincia"], provincia)) continue;
     const pub = filaAPublico(f);
     if (pub) objetos.push(pub);
   }

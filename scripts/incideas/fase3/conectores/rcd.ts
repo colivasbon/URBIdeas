@@ -14,24 +14,15 @@ export interface CentroDocente {
   edicion: string;
 }
 
-const UA = "INCideas-Fase3/0.1";
+import { coincideMunicipio } from "../../../../src/lib/incideas/fase3/nombres";
 
-function normalizar(s: unknown): string {
-  return String(s ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9 ]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+const UA = "INCideas-Fase3/0.1";
 
 /** Intento acotado al buscador nacional; devuelve centros o el motivo. */
 export async function cargarEducacion(
   municipio: string,
   provincia: string
 ): Promise<{ objetos: CentroDocente[]; edicion: string; fuente: string; nota: string }> {
-  const mun = normalizar(municipio).split(" / ")[0];
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 45000);
@@ -61,7 +52,7 @@ export async function cargarEducacion(
           return m ? m[1].trim().slice(0, 200) : null;
         };
         const fMun = campo(/Localidad|Municipio[^<]{0,60}?>([^<]{2,80})/i);
-        if (fMun && normalizar(fMun) !== mun && !normalizar(fMun).includes(mun)) continue;
+        if (fMun && !coincideMunicipio(fMun, municipio)) continue;
         objetos.push({
           codigo: campo(/digo[^<]{0,30}?>([^<]{2,30})/i),
           denominacion: campo(/<title>([^<]{2,160})<\/title>/i),

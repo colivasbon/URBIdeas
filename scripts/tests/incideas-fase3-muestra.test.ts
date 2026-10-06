@@ -17,6 +17,7 @@ import { bboxParaServicio } from "../incideas/fase2a/contrato";
 import { urlGetFeature } from "../incideas/fase2a/wfs";
 import { filaAPublico } from "../incideas/fase3/conectores/regcess";
 import { parsearCsv } from "../incideas/fase3/conectores/autonomicas";
+import { coincideMunicipio, variantes } from "../../src/lib/incideas/fase3/nombres";
 
 const RAIZ = process.cwd();
 
@@ -73,6 +74,15 @@ test("Privacidad: el titular de farmacia no sale en lo público", () => {
     Provincia: "Murcia",
   });
   assert.equal(centro?.nombre_publico, "Hospital General");
+});
+
+test("Nombres con barra (Alicante/Alacant) coinciden por variantes", () => {
+  assert.ok(variantes("Alicante/Alacant").includes("alicante"));
+  assert.ok(variantes("Alicante/Alacant").includes("alacant"));
+  assert.ok(coincideMunicipio("ALACANT", "Alicante/Alacant"));
+  assert.ok(coincideMunicipio("Alicante/Alacant", "ALICANTE"));
+  assert.ok(coincideMunicipio("ARABA/ÁLAVA", "Álava"));
+  assert.ok(!coincideMunicipio("Murcia", "Alicante/Alacant"));
 });
 
 test("CSV autonómico: separador, comillas y cabeceras", () => {

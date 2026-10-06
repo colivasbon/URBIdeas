@@ -60,6 +60,19 @@ export async function registrarCobertura(r: RegistroCobertura): Promise<void> {
     { onConflict: "municipio,bloque,fuente,edicion" }
   );
   if (error) throw new Error(`cobertura upsert: ${error.message}`);
+  // Último ÉXITO vale: solo una fila cargada/parcial elimina ediciones
+  // anteriores del mismo triple. Un fallo nunca borra lo último válido
+  // (antes un fallo reciente eliminaba la fila cargada: corregido).
+  if (r.estado === "cargado" || r.estado === "cargado_parcial") {
+    const { error: e2 } = await c
+      .from("incideas_cobertura")
+      .delete()
+      .eq("municipio", r.municipio)
+      .eq("bloque", r.bloque)
+      .eq("fuente", r.fuente)
+      .neq("edicion", r.edicion);
+    if (e2) throw new Error(`cobertura limpieza: ${e2.message}`);
+  }
 }
 
 /** Snapshot derivada de ediciones + recuentos + versión de algoritmo. */

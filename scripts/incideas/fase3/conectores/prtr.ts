@@ -14,23 +14,16 @@ export interface EdarPrtr {
   url_ficha: string;
 }
 
+import { coincideMunicipio } from "../../../../src/lib/incideas/fase3/nombres";
+
 const UA = "INCideas-Fase3/0.1";
 
-function normalizar(s: unknown): string {
-  return String(s ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9 ]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /** Busca complejos 5.f (tratamiento aguas residuales urbanas) por municipio. */
 export async function cargarDepuradoras(
   municipio: string
 ): Promise<{ objetos: EdarPrtr[]; edicion: string; nota: string }> {
-  const mun = normalizar(municipio).split(" / ")[0];
+  // (mun eliminado: coincideMunicipio cubre las variantes con barra).
   // Búsqueda PRTR por nombre de complejo/municipio (GET con parámetros de la
   // aplicación de consulta; si cambia, el estado lo refleja, no se rodea).
   const q = new URLSearchParams({ texto: municipio, buscar: "1" });
@@ -60,7 +53,7 @@ export async function cargarDepuradoras(
         };
         const nombre = campo(/Nombre[^<]{0,50}?<\/[^>]+>\s*([^<]{2,120})/i) ?? campo(/<title>([^<]{2,160})<\/title>/i);
         const fMun = campo(/Municipio[^<]{0,80}?>([^<]{2,80})/i);
-        if (fMun && normalizar(fMun) !== mun && !normalizar(fMun).includes(mun) && !mun.includes(normalizar(fMun))) continue;
+        if (fMun && !coincideMunicipio(fMun, municipio)) continue;
         const latM = plano.match(/Latitud[^0-9-]*(-?\d+[,.]\d+)/i);
         const lonM = plano.match(/Longitud[^0-9-]*(-?\d+[,.]\d+)/i);
         objetos.push({

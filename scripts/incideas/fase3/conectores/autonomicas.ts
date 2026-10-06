@@ -6,6 +6,7 @@
 
 import { descargarBinario } from "../../../../src/lib/incideas/fase3/r2";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { coincideMunicipio, normalizar } from "../../../../src/lib/incideas/fase3/nombres";
 
 export interface DatasetAutonomico {
   fuente: string;
@@ -87,7 +88,6 @@ export async function cargarAutonomico(
   ds: DatasetAutonomico,
   municipio: string
 ): Promise<{ objetos: EntidadAutonomica[]; edicion: string; nota: string; columnas: string[] }> {
-  const mun = normalizar(municipio).split(" / ")[0];
   const r = await fetch(`${ds.ckanApi}/api/3/action/package_show?id=${encodeURIComponent(ds.packageId)}`, { headers: { "User-Agent": UA } });
   if (!r.ok) return { objetos: [], edicion: "", nota: `CKAN package_show HTTP ${r.status}.`, columnas: [] };
   const j = (await r.json()) as { result?: { resources?: Array<{ format?: string; url?: string; last_modified?: string }>; metadata_modified?: string } };
@@ -128,8 +128,7 @@ export async function cargarAutonomico(
   const objetos: EntidadAutonomica[] = [];
   for (const f of filas) {
     if (iMun < 0) break;
-    const fm = normalizar(f[iMun]);
-    if (fm !== mun && !fm.startsWith(mun) && !mun.startsWith(fm)) continue;
+    if (!coincideMunicipio(f[iMun], municipio)) continue;
     objetos.push({
       nombre: iNom >= 0 ? f[iNom] || null : null,
       municipio: f[iMun] || null,
@@ -154,7 +153,6 @@ async function cargarGeojson(
   url: string,
   modificacion: string
 ): Promise<{ objetos: EntidadAutonomica[]; edicion: string; nota: string; columnas: string[] }> {
-  const mun = normalizar(municipio).split(" / ")[0];
   const d = await descargarBinario(url, 60 * 1024 * 1024, 120000);
   if ("error" in d) return { objetos: [], edicion: "", nota: `Descarga GeoJSON: ${d.error}.`, columnas: [] };
   const fc = JSON.parse(d.buf.toString("utf8")) as { features?: Array<{ geometry?: { type?: string; coordinates?: unknown }; properties?: Record<string, unknown> }> };
@@ -173,8 +171,7 @@ async function cargarGeojson(
   for (const f of feats) {
     const props = f.properties ?? {};
     if (!cMun) break;
-    const fm = normalizar(props[cMun]);
-    if (fm !== mun && !fm.startsWith(mun) && !mun.startsWith(fm)) continue;
+    if (!coincideMunicipio(props[cMun], municipio)) continue;
     let lat: number | null = null;
     let lon: number | null = null;
     const g = f.geometry;

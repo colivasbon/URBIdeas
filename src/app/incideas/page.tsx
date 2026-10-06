@@ -99,6 +99,13 @@ export default function IncideasHub() {
                 un entorno de carga, revisión y mantenimiento para la información que debe obtenerse
                 mediante ayuntamientos, operadores o trabajo de campo.
               </p>
+              <Link href="/incideas/pai" className="mt-6 inline-block">
+                <div className="card card-interactive p-4">
+                  <p className="type-label text-[var(--moss-ink)]">Nuevo</p>
+                  <h3 className="type-h4 mt-2 text-[var(--text-primary)]">Planes de Autoprotección</h3>
+                  <p className="mt-2 text-sm text-[var(--text-secondary)]">Herramientas PAI: análisis de entorno y riesgo intrínseco (R.D. 164/2025)</p>
+                </div>
+              </Link>
               <p className="mt-4 max-w-[40ch] text-sm text-[var(--text-secondary)]">
                 No es un generador automático de planes de emergencia. Es un sistema de información,
                 preparación técnica, control de calidad y exportación.

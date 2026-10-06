@@ -84,14 +84,22 @@ export function filaAPublico(f: Fila): CentroRegcess | null {
   };
 }
 
+const cacheFilas = new Map<string, { filas: Fila[]; sha: string }>();
+
 /** Filtra centros del listado por municipio (requiere coincidir también provincia). */
 export async function cargarRegcess(
   tipo: "C1" | "E",
   municipio: string,
   provincia: string
 ): Promise<{ objetos: CentroRegcess[]; edicion: string; shaOrigen: string; leidos: number }> {
-  const { buf, sha } = await obtener(tipo === "C1" ? REGCESS_C1_URL : REGCESS_E_URL, `regcess-${tipo}.xlsx`);
-  const filas = leerXlsx(buf);
+  let cached = cacheFilas.get(tipo);
+  if (!cached) {
+    const { buf, sha } = await obtener(tipo === "C1" ? REGCESS_C1_URL : REGCESS_E_URL, `regcess-${tipo}.xlsx`);
+    cached = { filas: leerXlsx(buf), sha };
+    cacheFilas.set(tipo, cached);
+  }
+  const filas = cached.filas;
+  const sha = cached.sha;
   const mun = normalizar(municipio).split(" / ")[0];
   const prov = normalizar(provincia);
   const objetos: CentroRegcess[] = [];

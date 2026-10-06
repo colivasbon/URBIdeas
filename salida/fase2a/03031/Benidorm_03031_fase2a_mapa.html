@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<title>Fase 2A — Benidorm (03031)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>html,body,#m{height:100%;margin:0}header{position:absolute;z-index:999;background:#fff;padding:6px 10px;font:13px system-ui;box-shadow:0 1px 4px #0003}</style>
+</head><body>
+<header><b>Fase 2A — Benidorm (03031)</b> — consulta local Fase 2A (solo lectura)</header>
+<div id="m"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('m').setView([38.5, -0.16], 13);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+const capas = ["Benidorm_03031_fase2a_hidro_original.geojson", "Benidorm_03031_fase2a_hidro_recorte_municipal.geojson", "Benidorm_03031_fase2a_patricova_peligrosidad.geojson", "Benidorm_03031_fase2a_patricova_riesgo.geojson"];
+(async () => {
+  for (const c of capas) {
+    try {
+      const r = await fetch(c); const j = await r.json();
+      const l = L.geoJSON(j, {style:{color:'#1f4e79',weight:2}}).addTo(map);
+      try { map.fitBounds(l.getBounds().pad(0.1)); } catch(e) {}
+    } catch(e) { console.warn('Sin capa ' + c); }
+  }
+  try { const r = await fetch("Benidorm_03031_limite.geojson"); const j = await r.json(); L.geoJSON(j,{style:{color:'#c00000',weight:3,fill:false}}).addTo(map); } catch(e) {}
+})();
+</script></body></html>

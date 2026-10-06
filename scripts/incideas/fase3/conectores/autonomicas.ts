@@ -5,6 +5,7 @@
 // de columna reales se registran en la evidencia (sin suponer esquema).
 
 import { descargarBinario } from "../../../../src/lib/incideas/fase3/r2";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 export interface DatasetAutonomico {
   fuente: string;
@@ -98,8 +99,18 @@ export async function cargarAutonomico(
   if (/geojson/i.test(rec.format ?? "")) {
     return cargarGeojson(ds, municipio, rec.url, rec.last_modified ?? j.result?.metadata_modified ?? "");
   }
-  const d = await descargarBinario(rec.url, 60 * 1024 * 1024, 120000);
-  if ("error" in d) return { objetos: [], edicion: "", nota: `Descarga CSV: ${d.error}.`, columnas: [] };
+  // Caché del CSV por fuente (una descarga por oleada, no por municipio).
+  mkdirSync("tmp/fase3-cache", { recursive: true });
+  const cacheRuta = `tmp/fase3-cache/autonomica-${ds.fuente}.csv`;
+  let d: { buf: Buffer } | { error: string };
+  if (existsSync(cacheRuta)) {
+    d = { buf: readFileSync(cacheRuta) };
+  } else {
+    const dd = await descargarBinario(rec.url, 60 * 1024 * 1024, 120000);
+    if ("error" in dd) return { objetos: [], edicion: "", nota: `Descarga CSV: ${dd.error}.`, columnas: [] };
+    writeFileSync(cacheRuta, dd.buf);
+    d = { buf: dd.buf };
+  }
   let texto = d.buf.toString("utf8");
   if (texto.charCodeAt(0) === 0xfeff) texto = texto.slice(1);
   // Detección de codificación: si hay mojibake típico, releer como latin1.

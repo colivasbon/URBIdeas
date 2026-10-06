@@ -135,13 +135,21 @@ async function obtenerNacional(): Promise<{ ruta: string; sha: string }> {
   return { ruta: CACHE, sha: sha256(d.buf.toString("binary")) };
 }
 
+let textoNacional: string | null = null;
+let shaNacional = "";
+
 /** Puntos del municipio (coincidencia exacta normalizada de municipio; provincia de apoyo). */
 export async function cargarRecarga(
   municipio: string,
   provincia: string
 ): Promise<{ objetos: PuntoRecarga[]; edicion: string; shaOrigen: string; leidos: number }> {
-  const { ruta, sha } = await obtenerNacional();
-  const texto = readFileSync(ruta, "utf8");
+  if (textoNacional === null) {
+    const { ruta, sha } = await obtenerNacional();
+    textoNacional = readFileSync(ruta, "utf8");
+    shaNacional = sha;
+  }
+  const texto = textoNacional;
+  const sha = shaNacional;
   const mun = normalizar(municipio).split(" / ")[0];
   const objetos: PuntoRecarga[] = [];
   let leidos = 0;

@@ -14,7 +14,7 @@ import { registrarCobertura, registrarSnapshot, calcularSnapshot, controlClient,
 import { obtenerLimite, obtenerHidro, muestraWMS, WMS_INSPIRE_INUND, BBOX_ARRANQUE } from "../fase2a/fuentes";
 import { recortarTramos } from "../fase2a/geo-calc";
 import { reconciliarHidro } from "../fase2a/contrato";
-import { obtenerLimite3, ARRANQUE_FASE3 } from "./limite";
+import { obtenerLimite3, ARRANQUE_FASE3, arranqueNominatim } from "./limite";
 import { cargarPoblacion } from "./conectores/ine-poblacion";
 import { cargarCombustible } from "./conectores/minetur";
 import { cargarRegcess } from "./conectores/regcess";
@@ -113,6 +113,9 @@ async function main(): Promise<void> {
   const N = await nombresProvincias(ines);
   const plan: PlanItem[] = [];
   const paraSubir: Array<{ item: PlanItem; env: EnvoltorioBloque<unknown> }> = [];
+  // Contadores del lote (antes del bucle: escribirLote los usa por municipio).
+  let ok = 0;
+  let fallos = 0;
 
   const env = <T,>(bloque: string, ine: string, fuente: string, edicion: string, licencia: string, url: string, sha: string | null, objetos: T[]): EnvoltorioBloque<T> => ({
     bloque, municipio_ine: ine, fuente, edicion, obtenido_en: new Date().toISOString(), licencia, url_evidencia: url, sha256_origen: sha, objetos,
@@ -144,10 +147,15 @@ async function main(): Promise<void> {
     try {
       const rFase2A = ine === "03031" || ine === "30030" ? await obtenerLimite(ine as "03031") : null;
       // Arranque: estático verificado primero; si no hay, punto municipal
-      // de la BD (puede ser impreciso: el servicio lo confirma o lo niega
-      // con coincidencia exacta, sin adivinar).
+      // de la BD; si el servicio no confirma con coincidencia exacta,
+      // bbox de Nominatim SOLO para encuadrar (la geometría final es la
+      // oficial o no hay). Sin adivinar.
       const arr = ARRANQUE_FASE3[ine] ?? arranqueDesdeCentro(np) ?? BBOX_ARRANQUE["03031"];
-      const rAux = rFase2A === null ? await obtenerLimite3(ine, arr) : null;
+      let rAux = rFase2A === null ? await obtenerLimite3(ine, arr) : null;
+      if (rAux !== null && "error" in rAux) {
+        const bbNominatim = await arranqueNominatim(ine, np.nombre, np.provincia);
+        if (bbNominatim) rAux = await obtenerLimite3(ine, bbNominatim);
+      }
       const ok = rFase2A !== null && !("error" in rFase2A)
         ? { geometria: rFase2A.feature.geometry, rutaCodigo: rFase2A.rutaCodigo, bbox: rFase2A.bbox }
         : rAux !== null && !("error" in rAux)
@@ -348,7 +356,13 @@ async function main(): Promise<void> {
           let totalSrv = 0;
           let descargados = 0;
           for (const tipo of ["hy-p:Watercourse", "hy-n:WatercourseLink"] as const) {
-            const capa = await obtenerHidro(tipo, bb);
+            let capa = await obtenerHidro(tipo, bb);
+            // El total del servidor fluctúa entre peticiones (observado:
+            // 291→0→144 en el mismo BBOX): ante un cero, un reintento.
+            if ((capa.totalServidor ?? 0) === 0) {
+              await sleep(3000);
+              capa = await obtenerHidro(tipo, bb);
+            }
             totalSrv += capa.totalServidor ?? 0;
             descargados += capa.objetos.length;
             const rec = recortarTramos(
@@ -363,8 +377,11 @@ async function main(): Promise<void> {
             await sleep(500);
           }
           const completa = totalSrv > 0 && descargados >= totalSrv;
-          plan.push({ ine, bloque: "hidrografia", fuente: "ign-hidro", edicion: "IGR-v0", estado: completa ? "cargado" : "cargado_parcial", n: tramos.length, nota: `${descargados}/${totalSrv} miembros del BBOX.` });
-          paraSubir.push({ item: plan[plan.length - 1], env: env("hidrografia", ine, "ign-hidro", "IGR-v0", "CC BY 4.0", "https://servicios.idee.es/wfs-inspire/hidrografia", null, tramos) });
+          const vacioTotal = totalSrv === 0 && descargados === 0;
+          plan.push({ ine, bloque: "hidrografia", fuente: "ign-hidro", edicion: "IGR-v0", estado: vacioTotal ? "cero_resultados" : completa ? "cargado" : "cargado_parcial", n: tramos.length, nota: vacioTotal ? "El servidor responde 0 coincidencias (fluctúa entre peticiones; reintentado una vez)." : `${descargados}/${totalSrv} miembros del BBOX.` });
+          if (tramos.length > 0) {
+            paraSubir.push({ item: plan[plan.length - 1], env: env("hidrografia", ine, "ign-hidro", "IGR-v0", "CC BY 4.0", "https://servicios.idee.es/wfs-inspire/hidrografia", null, tramos) });
+          }
         } catch (e: unknown) {
           plan.push({ ine, bloque: "hidrografia", fuente: "ign-hidro", edicion: "", estado: "fuente_caida", n: 0, nota: String(e instanceof Error ? e.message : e).slice(0, 160) });
         }
@@ -458,6 +475,16 @@ async function main(): Promise<void> {
         }
       }
       await sleep(500);
+      // Escritura inmediata por municipio (libera envoltorios: con cientos
+      // de municipios el proceso agota el heap si se acumula todo).
+      if (go) {
+        const items = plan.filter((p) => p.ine === ine);
+        const envs = paraSubir.filter((p) => p.item.ine === ine);
+        await escribirLote(items, envs);
+        for (let i = paraSubir.length - 1; i >= 0; i--) {
+          if (paraSubir[i].item.ine === ine) paraSubir.splice(i, 1);
+        }
+      }
     }
   }
 
@@ -471,57 +498,58 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Escritura por lotes con reanudación (clave idempotente por par+edición).
-  // Con --solo solo se escriben los pares indicados (actualización manual).
-  // Se registran TODOS los pares del plan (también ceros y fallos de fuente),
-  // para que el control refleje la cobertura real y no solo lo cargado.
-  const porClave = new Map(paraSubir.map((p) => [`${p.item.ine}|${p.item.bloque}|${p.item.fuente}|${p.item.edicion}`, p.env]));
-  const planFiltrado = solo.length > 0 ? plan.filter((p) => solo.includes(`${p.bloque}:${p.ine}`)) : plan;
-  let ok = 0;
-  let fallos = 0;
-  for (const item of planFiltrado) {
-    const e = porClave.get(`${item.ine}|${item.bloque}|${item.fuente}|${item.edicion}`);
-    if (!e) {
-      // Reanudación: la fila ya existe tal cual; no se reescribe (evita
-      // clobber con n=0). Solo se registra lo que el plan calculó de nuevo.
-      if (item.nota.includes("reanudación")) {
-        ok++;
+  // Escritura por municipio (no se acumulan envoltorios en memoria: con
+  // cientos de municipios el proceso agota el heap). El plan global se
+  // conserva para el informe y el snapshot; los envs se liberan por ine.
+  // Declarada como función (hoisting): se invoca dentro del bucle.
+  // (ok/fallos viven arriba, junto al bucle, por el TDZ de let.)
+  async function escribirLote(items: PlanItem[], envs: Array<{ item: PlanItem; env: EnvoltorioBloque<unknown> }>): Promise<void> {
+    const porClave = new Map(envs.map((p) => [`${p.item.ine}|${p.item.bloque}|${p.item.fuente}|${p.item.edicion}`, p.env]));
+    const planFiltrado = solo.length > 0 ? items.filter((p) => solo.includes(`${p.bloque}:${p.ine}`)) : items;
+    for (const item of planFiltrado) {
+      const e = porClave.get(`${item.ine}|${item.bloque}|${item.fuente}|${item.edicion}`);
+      if (!e) {
+        // Reanudación: la fila ya existe tal cual; no se reescribe (evita
+        // clobber con n=0). Solo se registra lo que el plan calculó de nuevo.
+        if (item.nota.includes("reanudación")) {
+          ok++;
+          continue;
+        }
+        try {
+          await registrarCobertura({
+            municipio: item.ine, bloque: item.bloque, fuente: item.fuente, edicion: item.edicion,
+            estado: item.estado, objetos_leidos: item.n, objetos_publicados: 0,
+            errores: item.estado === "fuente_caida" ? 1 : 0, reintentos: 0, version_conector: CONECTOR_VERSION, snapshot: null,
+          });
+          ok++;
+        } catch (err: unknown) {
+          fallos++;
+          console.error(`  FALLO control ${item.ine}/${item.bloque}: ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
+        }
         continue;
       }
       try {
+        const sub = await putBloque(e.bloque, e.edicion || "sinedicion", e.municipio_ine, e);
         await registrarCobertura({
           municipio: item.ine, bloque: item.bloque, fuente: item.fuente, edicion: item.edicion,
-          estado: item.estado, objetos_leidos: item.n, objetos_publicados: 0,
-          errores: item.estado === "fuente_caida" ? 1 : 0, reintentos: 0, version_conector: CONECTOR_VERSION, snapshot: null,
+          estado: item.estado, objetos_leidos: item.n, objetos_publicados: item.n,
+          errores: 0, reintentos: 0, version_conector: CONECTOR_VERSION, snapshot: null,
         });
+        console.log(`  OK ${item.ine}/${item.bloque} n=${item.n} r2=${sub.clave} (${sub.bytes} B)`);
         ok++;
       } catch (err: unknown) {
         fallos++;
-        console.error(`  FALLO control ${item.ine}/${item.bloque}: ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
+        console.error(`  FALLO ${item.ine}/${item.bloque}: ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
+        try {
+          await registrarCobertura({
+            municipio: item.ine, bloque: item.bloque, fuente: item.fuente, edicion: item.edicion,
+            estado: "fuente_caida", objetos_leidos: item.n, objetos_publicados: 0,
+            errores: 1, reintentos: 0, version_conector: CONECTOR_VERSION, snapshot: null,
+          });
+        } catch { /* el control no tumba el lote */ }
       }
-      continue;
+      await sleep(300);
     }
-    try {
-      const sub = await putBloque(e.bloque, e.edicion || "sinedicion", e.municipio_ine, e);
-      await registrarCobertura({
-        municipio: item.ine, bloque: item.bloque, fuente: item.fuente, edicion: item.edicion,
-        estado: item.estado, objetos_leidos: item.n, objetos_publicados: item.n,
-        errores: 0, reintentos: 0, version_conector: CONECTOR_VERSION, snapshot: null,
-      });
-      console.log(`  OK ${item.ine}/${item.bloque} n=${item.n} r2=${sub.clave} (${sub.bytes} B)`);
-      ok++;
-    } catch (err: unknown) {
-      fallos++;
-      console.error(`  FALLO ${item.ine}/${item.bloque}: ${String(err instanceof Error ? err.message : err).slice(0, 200)}`);
-      try {
-        await registrarCobertura({
-          municipio: item.ine, bloque: item.bloque, fuente: item.fuente, edicion: item.edicion,
-          estado: "fuente_caida", objetos_leidos: item.n, objetos_publicados: 0,
-          errores: 1, reintentos: 0, version_conector: CONECTOR_VERSION, snapshot: null,
-        });
-      } catch { /* el control no tumba el lote */ }
-    }
-    await sleep(300);
   }
 
   if (solo.length > 0) {

@@ -19,12 +19,13 @@
     "verify:revalidate": "npx tsx scripts/verify-revalidate.ts",
     "conprel:dry-run": "npx tsx scripts/load-conprel.ts --muestra",
     "incideas:test": "npx tsx --test scripts/tests/incideas-pipeline.test.ts",
-    "incideas:pai:test": "npx tsx --test scripts/tests/incideas-pai.test.ts",
+    "incideas:pai:test": "npx tsx --test scripts/tests/incideas-pai.test.ts scripts/tests/incideas-pai-entorno.test.ts",
     "incideas:seed-fuentes": "npx tsx scripts/incideas/seed-fuentes.ts",
     "incideas:dry-run": "npx tsx scripts/incideas/run-connector.ts --conector all --ine 03031 --nombre-municipio Benidorm --repeticion 2"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1125.0",
+    "@geoman-io/leaflet-geoman-free": "^2.20.2",
     "@mapbox/togeojson": "^0.16.2",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",

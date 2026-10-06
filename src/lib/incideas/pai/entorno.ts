@@ -32,6 +32,7 @@ import {
   type Pos,
 } from "./geo";
 import { decodificarAlfaPng } from "./png";
+import type { GrupoId } from "./grupos";
 
 // ── Criterios (se muestran en la interfaz para trazabilidad) ────────────────────────────────
 
@@ -112,6 +113,8 @@ export interface ResultadoEntorno {
   cauces: FilaSiNo;
   accesos: Acceso[];
   mediosExternos: ElementoCercano[];
+  /** Todas las mediciones para el mapa y el panel de distancias (superconjunto de las tablas). */
+  mediciones: Medicion[];
   avisos: string[];
   criterios: string[];
   fuentes: { nombre: string; url: string }[];
@@ -188,10 +191,36 @@ const ordenar = <T extends { distancia: number }>(xs: (T | null)[]) =>
 
 // ── OSM ────────────────────────────────────────────────────────────────────────────────────
 
-function consultaOSM(lat: number, lon: number, radioAmbito: number): string {
-  const a = (r: number) => `(around:${Math.round(r + radioAmbito)},${lat.toFixed(6)},${lon.toFixed(6)})`;
+const rondaOSM = (lat: number, lon: number, radioAmbito: number) => (r: number) =>
+  `(around:${Math.round(r + radioAmbito)},${lat.toFixed(6)},${lon.toFixed(6)})`;
+
+/** Núcleos, energía, usos del suelo y puntos de agua. */
+function consultaOSMEntorno(lat: number, lon: number, radioAmbito: number): string {
+  const a = rondaOSM(lat, lon, radioAmbito);
   return `[out:json][timeout:150];
 node["place"~"^(city|town|village)$"]${a(CRITERIOS.radioNucleos)};out;
+nwr["power"~"^(plant|substation)$"]${a(5000)};out tags geom;
+nwr["landuse"~"^(residential|industrial)$"]${a(1000)};out tags geom;
+nwr["emergency"~"^(fire_hydrant|water_tank|fire_water_pond|suction_point)$"]${a(3000)};out tags center 400;
+nwr["man_made"~"^(water_tower|reservoir_covered|water_tank)$"]${a(6000)};out tags center 100;
+way["natural"="water"]["water"~"^(reservoir|pond|basin)$"]${a(6000)};out tags geom 60;`;
+}
+
+/** Medios externos de seguridad y sanidad (consulta ligera: solo centros). */
+function consultaOSMMedios(lat: number, lon: number, radioAmbito: number): string {
+  const a = rondaOSM(lat, lon, radioAmbito);
+  return `[out:json][timeout:150];
+nwr["amenity"="fire_station"]${a(60000)};out tags center;
+nwr["amenity"="police"]${a(30000)};out tags center;
+nwr["amenity"="hospital"]${a(60000)};out tags center;
+nwr["amenity"~"^(clinic|doctors)$"]${a(25000)};out tags center;
+nwr["healthcare"="centre"]${a(25000)};out tags center;`;
+}
+
+/** Viario, ferrocarril, líneas eléctricas, conducciones y cauces (geometría pesada). */
+function consultaOSMViario(lat: number, lon: number, radioAmbito: number): string {
+  const a = rondaOSM(lat, lon, radioAmbito);
+  return `[out:json][timeout:150];
 way["highway"~"^(motorway|trunk)$"]${a(12000)};out tags geom;
 way["highway"~"^(primary|secondary)$"]${a(6000)};out tags geom;
 way["highway"="tertiary"]${a(3000)};out tags geom;
@@ -199,15 +228,8 @@ way["highway"~"^(unclassified|track|service)$"]${a(400)};out tags geom;
 way["railway"="rail"]${a(5000)};out tags geom;
 way["power"~"^(line|minor_line|cable)$"]${a(2000)};out tags geom;
 way["man_made"="pipeline"]${a(3000)};out tags geom;
-nwr["power"~"^(plant|substation)$"]${a(5000)};out tags geom;
-nwr["landuse"~"^(residential|industrial)$"]${a(1000)};out tags geom;
 way["waterway"~"^(river|canal)$"]${a(10000)};out tags geom;
-way["waterway"="stream"]${a(3000)};out tags geom;
-nwr["amenity"="fire_station"]${a(60000)};out tags center;
-nwr["amenity"="police"]${a(30000)};out tags center;
-nwr["amenity"="hospital"]${a(60000)};out tags center;
-nwr["amenity"~"^(clinic|doctors)$"]${a(25000)};out tags center;
-nwr["healthcare"="centre"]${a(25000)};out tags center;`;
+way["waterway"="stream"]${a(3000)};out tags geom;`;
 }
 
 function etiquetaVia(tags: Record<string, string>): { tipo: string; denominacion: string } {
@@ -413,18 +435,78 @@ async function osmConCache(query: string, clave: string): Promise<OverpassElemen
   return elementos;
 }
 
-async function intentar<T>(avisos: string[], fuente: string, f: () => Promise<T>): Promise<T | null> {
-  try {
-    return await f();
-  } catch (err) {
-    avisos.push(`${fuente}: ${err instanceof Error ? err.message : String(err)}`);
-    return null;
-  }
+// ── Eventos de progreso ────────────────────────────────────────────────────────────────────
+
+export interface Medicion extends ElementoCercano {
+  id: string;
+  grupo: GrupoId;
 }
+
+export type EstadoFuente = "cargando" | "ok" | "error" | "omitida";
+
+export type EventoEntorno =
+  | { tipo: "inicio"; centro: Pos; fuentes: { id: string; nombre: string }[] }
+  | { tipo: "fuente"; id: string; estado: EstadoFuente; ms?: number; detalle?: string }
+  | { tipo: "ubicacion"; datos: Partial<ResultadoEntorno["ubicacion"]> }
+  | { tipo: "mediciones"; items: Medicion[] }
+  | { tipo: "actualizar"; id: string; parche: Partial<Medicion> }
+  | { tipo: "fin"; resultado: ResultadoEntorno };
+
+const FUENTES_ENTORNO: { id: string; nombre: string }[] = [
+  { id: "osm-medios", nombre: "OpenStreetMap · seguridad y sanidad" },
+  { id: "osm-entorno", nombre: "OpenStreetMap · núcleos, energía y agua" },
+  { id: "osm-viario", nombre: "OpenStreetMap · viario y cauces" },
+  { id: "enp", nombre: "IEPNB · Espacios Naturales Protegidos" },
+  { id: "rn2000", nombre: "IEPNB · Red Natura 2000" },
+  { id: "mfe", nombre: "IEPNB · Mapa Forestal de España" },
+  { id: "montes", nombre: "IEPNB · Catálogo de montes" },
+  { id: "snczi", nombre: "SNCZI · Zonas inundables (IGN)" },
+  { id: "catastro", nombre: "Catastro" },
+  { id: "nominatim", nombre: "Nominatim · municipio" },
+  { id: "altitud", nombre: "Open-Meteo · altitud" },
+  { id: "osrm", nombre: "OSRM · tiempos de llegada" },
+];
+
+const simple = (e: ElementoCercano): ElementoCercano => ({
+  categoria: e.categoria,
+  nombre: e.nombre,
+  detalle: e.detalle,
+  distancia: e.distancia,
+  rumbo: e.rumbo,
+  frase: e.frase,
+  linea: e.linea,
+  fuente: e.fuente,
+});
+
+function etiquetaAgua(t: Record<string, string>): string {
+  if (t.emergency === "fire_hydrant") return "Hidrante";
+  if (t.emergency === "water_tank") return "Depósito de agua contra incendios";
+  if (t.emergency === "fire_water_pond") return "Balsa de agua contra incendios";
+  if (t.emergency === "suction_point") return "Punto de aspiración";
+  if (t.man_made === "water_tower") return "Torre de agua";
+  if (t.man_made === "reservoir_covered" || t.man_made === "water_tank") return "Depósito de agua";
+  if (t.water === "reservoir") return "Embalse";
+  if (t.water === "pond" || t.water === "basin") return "Balsa o estanque";
+  return "Masa de agua";
+}
+
+type ElementoOSM = OverpassElement & { geometry?: { lat: number; lon: number }[] };
 
 // ── Orquestador ────────────────────────────────────────────────────────────────────────────
 
-export async function analizarEntorno(ambitoGeoJSON: GeoJSON.Geometry): Promise<ResultadoEntorno> {
+/**
+ * Analiza el entorno de un ámbito. Las fuentes se consultan en paralelo y, según llegan, se
+ * notifican por `onEvento` (progreso y mediciones) para poder dibujarlas en el mapa sin esperar
+ * a la más lenta. El resultado completo se devuelve (y se emite como evento `fin`) al terminar.
+ */
+export async function analizarEntorno(ambitoGeoJSON: GeoJSON.Geometry, onEvento?: (e: EventoEntorno) => void): Promise<ResultadoEntorno> {
+  const emitir = (e: EventoEntorno) => {
+    try {
+      onEvento?.(e);
+    } catch {
+      // El consumidor del stream puede haberse desconectado; el análisis continúa.
+    }
+  };
   const avisos: string[] = [];
   const plana = descomponer(ambitoGeoJSON);
   const centro = centroide(plana);
@@ -433,251 +515,497 @@ export async function analizarEntorno(ambitoGeoJSON: GeoJSON.Geometry): Promise<
   const ctx: Contexto = { plano, ambito, centro };
   const radioAmbito = Math.max(0, ...[...ambito.puntos, ...ambito.segmentos.flat()].map(([x, y]) => Math.hypot(x, y)));
   const esArea = plana.poligonos.length > 0;
+  const sup = esArea ? superficieM2(plana, plano) : null;
+  const utm = (() => {
+    const u = latLngAUtm(centro[1], centro[0]);
+    return { x: Math.round(u.x), y: Math.round(u.y), huso: u.huso };
+  })();
+  const superficieHa = sup === null ? null : Math.round(sup / 100) / 100;
 
-  const [osm, enp, rn2000, mfe, montes, inundable, parcelas, admin, alt] = await Promise.all([
-    intentar(avisos, "OpenStreetMap (Overpass)", async () => {
-      const clave = `${centro[1].toFixed(4)},${centro[0].toFixed(4)},${Math.ceil(radioAmbito / 100)}`;
-      return osmConCache(consultaOSM(centro[1], centro[0], radioAmbito), clave);
-    }),
-    intentar(avisos, "IEPNB · ENP", () => wfsIEPNB("ENP:enp", bboxAlrededor(ctx, CRITERIOS.radioEspacios), 200)),
-    intentar(avisos, "IEPNB · Red Natura 2000", () => wfsIEPNB("RN2000:rn2000", bboxAlrededor(ctx, CRITERIOS.radioEspacios), 200)),
-    intentar(avisos, "IEPNB · Mapa Forestal de España", () =>
-      wfsIEPNB("foto_fija_mfe:ff_uso", bboxAlrededor(ctx, CRITERIOS.radioForestal), 3000, [
-        "descr_clamfe",
-        "agrupacion_clamfe",
-        "descr_forarb",
-        "nm_fccarb",
-        "geom",
-      ])
-    ),
-    intentar(avisos, "IEPNB · Catálogo de montes", () => wfsIEPNB("propiedad_montes:propiedad_montes", bboxAlrededor(ctx, CRITERIOS.radioMontes), 1500)),
-    intentar(avisos, "SNCZI · Zonas inundables (IGN)", () => zonaInundableMasCercana(ctx)),
-    intentar(avisos, "Catastro", () => catastro(centro[1], centro[0])),
-    intentar(avisos, "Nominatim", () => nominatim(centro[1], centro[0])),
-    intentar(avisos, "Altitud (Open-Meteo)", () => altitud(centro[1], centro[0])),
-  ]);
+  emitir({ tipo: "inicio", centro, fuentes: FUENTES_ENTORNO });
+  emitir({ tipo: "ubicacion", datos: { lat: centro[1], lng: centro[0], utm, superficieHa } });
 
-  const elementos = (osm ?? []) as (OverpassElement & { geometry?: { lat: number; lon: number }[] })[];
-  const conTag = (k: string, re: RegExp) => elementos.filter((e) => e.tags && re.test(e.tags[k] ?? ""));
-
-  // Núcleos de población.
-  const nucleos = ordenar(
-    conTag("place", /^(city|town|village)$/).map((e) =>
-      elemento(ctx, geomDeElemento(e), { categoria: "nucleo", nombre: e.tags!.name ?? "Núcleo sin nombre", fuente: "OpenStreetMap", km: true })
-    )
-  )
-    .filter((n) => n.distancia > 0)
-    .slice(0, 3);
-
-  // Infraestructuras lineales y energéticas.
-  const vias = conTag("highway", /./).map((e) => {
-    const { tipo, denominacion } = etiquetaVia(e.tags!);
-    const el = elemento(ctx, geomDeElemento(e), {
-      categoria: e.tags!.highway,
-      nombre: `${tipo}${denominacion ? ` ${denominacion}` : ""}`,
-      fuente: "OpenStreetMap",
-    });
-    return el ? { ...el, tipo, denominacion, tags: e.tags! } : null;
-  });
-  const viasOrdenadas = ordenar(vias);
-  const autovia = viasOrdenadas.find((v) => /^(motorway|trunk)$/.test(v.tags.highway) && /^Auto/.test(v.tipo));
-  const esCarretera = (v: (typeof viasOrdenadas)[number]) => /^(trunk|primary|secondary|tertiary)$/.test(v.tags.highway) && !/^Auto/.test(v.tipo);
-  // Se prefiere la carretera con matrícula (CM-310, N-301…) frente a travesías urbanas sin ella.
-  const carretera = viasOrdenadas.find((v) => esCarretera(v) && v.tags.ref) ?? viasOrdenadas.find(esCarretera);
-  const ferrocarril = masCercano(
-    conTag("railway", /^rail$/).map((e) =>
-      elemento(ctx, geomDeElemento(e), { categoria: "ferrocarril", nombre: e.tags!.name ? `Ferrocarril ${e.tags!.name}` : "Línea de ferrocarril", fuente: "OpenStreetMap" })
-    )
-  );
-  const linea = masCercano(
-    conTag("power", /^(line|minor_line|cable)$/).map((e) => {
-      const kv = Number((e.tags!.voltage ?? "").split(";")[0]) / 1000;
-      const nombre = `Línea eléctrica${kv ? ` de ${kv.toLocaleString("es-ES")} kV` : ""}`;
-      return elemento(ctx, geomDeElemento(e), { categoria: "linea_electrica", nombre, fuente: "OpenStreetMap" });
-    })
-  );
-  const gasoducto = masCercano(
-    conTag("man_made", /^pipeline$/).map((e) =>
-      elemento(ctx, geomDeElemento(e), {
-        categoria: "conduccion",
-        nombre: e.tags!.substance === "gas" ? "Gasoducto" : e.tags!.substance === "water" ? "Conducción de agua" : "Conducción",
-        fuente: "OpenStreetMap",
-      })
-    )
-  );
-  const infraestructuras = [autovia, carretera, ferrocarril, linea, gasoducto]
-    .filter((x): x is ElementoCercano => !!x)
-    .map(({ categoria, nombre, distancia, rumbo: r, frase, linea: l, fuente }) => ({ categoria, nombre, distancia, rumbo: r, frase, linea: l, fuente }));
-
-  // Instalaciones de generación eléctrica (excluye la propia instalación si está cartografiada).
-  const generacion = ordenar(
-    conTag("power", /^(plant|substation)$/)
-      .filter((e) => e.tags!.power === "plant" || !/minor_distribution|traction/.test(e.tags!.substation ?? ""))
-      .map((e) => {
-        const prefijo = etiquetaGeneracion(e.tags!);
-        const n = e.tags!.name ?? "";
-        const yaPrefijado = /^(SET|ST|Subestaci[oó]n|PSF|Planta|Parque|Central|Huerto)\b/i.test(n);
-        const nombre = n ? (yaPrefijado ? n : `${prefijo} ${n}`) : `${prefijo} sin denominación`;
-        const g = geomDeElemento(e);
-        const el = elemento(ctx, g, { categoria: e.tags!.power, nombre, fuente: "OpenStreetMap" });
-        // La propia instalación, si está cartografiada en OSM, contiene el centro del ámbito.
-        if (el && el.distancia === 0 && e.tags!.power === "plant" && g) {
-          const pg = aPlano(descomponer(g), plano);
-          if (cercania(pg, aPlano(descomponer({ type: "Point", coordinates: centro }), plano), plano)?.distancia === 0) return null;
-        }
-        return el;
-      })
-  ).slice(0, 5);
-
-  // Espacios naturales protegidos (ENP y Red Natura 2000).
-  const enpCercano = masCercano(
-    (enp ?? []).map((f) => {
-      const p = f.properties as Record<string, string>;
-      const etiqueta = `${p.designacion ?? "Espacio Natural Protegido"} ${tituloPropio(p.nombre ?? "")}`.trim();
-      return elemento(ctx, f.geometry, {
-        categoria: "enp",
-        nombre: etiqueta,
-        detalle: p.id_ref_es ?? undefined,
-        fuente: "IEPNB (MITECO)",
-        km: true,
-        frase: (d) => `El Espacio Natural Protegido más próximo se ubica ${d.replace(/^colindante a la instalación$/, "colindante")} «${etiqueta}»${p.id_ref_es ? ` (${p.id_ref_es})` : ""}.`,
-      });
-    })
-  );
-  const rnCercano = masCercano(
-    (rn2000 ?? []).map((f) => {
-      const p = f.properties as Record<string, string>;
-      const figuras = (p.id_espacio_proteg ?? "").split("_").slice(1).filter((x) => x !== "LIC" || !(p.id_espacio_proteg ?? "").includes("ZEC"));
-      const figura = figuras.length ? figuras.join("/") : "Red Natura 2000";
-      const etiqueta = `${figura} ${tituloPropio(p.nombre ?? "")}`.trim();
-      return elemento(ctx, f.geometry, {
-        categoria: "rn2000",
-        nombre: etiqueta,
-        detalle: p.id_ref_es ?? undefined,
-        fuente: "IEPNB (MITECO)",
-        km: true,
-        frase: (d) => `El espacio Red Natura 2000 más próximo se ubica ${d.replace(/^colindante a la instalación$/, "colindante")} «${etiqueta}»${p.id_ref_es ? ` (${p.id_ref_es})` : ""}.`,
-      });
-    })
-  );
-  const espaciosEls = [enpCercano, rnCercano].filter((x): x is ElementoCercano => !!x);
-  const espacios: FilaSiNo = {
-    si: espaciosEls.some((e) => e.distancia === 0),
-    elementos: espaciosEls,
-    textos: espaciosEls.map((e) =>
-      e.distancia === 0 ? `El ámbito se ubica dentro de «${e.nombre}»${e.detalle ? ` (${e.detalle})` : ""}.` : e.frase
-    ),
+  const terminadas = new Set<string>();
+  const fallidas = new Set<string>();
+  const nombreFuente = (id: string) => FUENTES_ENTORNO.find((f) => f.id === id)?.nombre ?? id;
+  const fuente = async <T>(id: string, f: () => Promise<T>): Promise<T | null> => {
+    const t0 = Date.now();
+    emitir({ tipo: "fuente", id, estado: "cargando" });
+    try {
+      const r = await f();
+      terminadas.add(id);
+      emitir({ tipo: "fuente", id, estado: "ok", ms: Date.now() - t0 });
+      return r;
+    } catch (err) {
+      const detalle = err instanceof Error ? err.message : String(err);
+      terminadas.add(id);
+      fallidas.add(id);
+      avisos.push(`${nombreFuente(id)}: ${detalle}`);
+      emitir({ tipo: "fuente", id, estado: "error", ms: Date.now() - t0, detalle });
+      return null;
+    }
   };
-  if (!enpCercano && enp) espacios.textos.unshift(`No se localizan Espacios Naturales Protegidos en ${CRITERIOS.radioEspacios / 1000} km.`);
-  if (!rnCercano && rn2000) espacios.textos.push(`No se localizan espacios Red Natura 2000 en ${CRITERIOS.radioEspacios / 1000} km.`);
 
-  // Masa forestal (MFE) y Montes de Utilidad Pública.
-  const mfeProps = (f: GeoJSON.Feature) => f.properties as Record<string, string | number | null>;
-  const arbolado = masCercano(
-    (mfe ?? [])
-      .filter((f) => mfeProps(f).agrupacion_clamfe === "Forestal arbolado")
-      .map((f) => {
-        const p = mfeProps(f);
-        const fcc = Number(p.nm_fccarb) || 0;
-        const especie = p.descr_forarb ? String(p.descr_forarb) : null;
-        const detalle = [especie, fcc ? `FCC ${fcc} %` : null].filter(Boolean).join(", ");
-        return elemento(ctx, f.geometry, {
-          categoria: "masa_forestal",
-          nombre: "Monte arbolado",
-          detalle: detalle || undefined,
-          fuente: "Mapa Forestal de España (MITECO)",
-          frase: (d) => `Monte arbolado${detalle ? ` (${detalle})` : ""} ${d}.`,
-        });
+  const todas: Medicion[] = [];
+  let secuencia = 0;
+  const publicar = (grupo: GrupoId, els: (ElementoCercano | null | undefined)[]): Medicion[] => {
+    const items = els.filter((e): e is ElementoCercano => !!e).map((e) => Object.assign(e, { id: `m${++secuencia}`, grupo }) as Medicion);
+    if (items.length) {
+      todas.push(...items);
+      emitir({ tipo: "mediciones", items });
+    }
+    return items;
+  };
+
+  let ultimaNominatim = 0;
+  const pausaNominatim = async () => {
+    const espera = 1100 - (Date.now() - ultimaNominatim);
+    if (espera > 0) await new Promise((res) => setTimeout(res, espera));
+    ultimaNominatim = Date.now();
+  };
+
+  const claveOSM = `${centro[1].toFixed(4)},${centro[0].toFixed(4)},${Math.ceil(radioAmbito / 100)}`;
+
+  // ── OSM · núcleos, energía, usos del suelo y puntos de agua ──
+  const procesarEntorno = (osm: OverpassElement[] | null) => {
+    if (!osm) return null;
+    const elementos = osm as ElementoOSM[];
+    const conTag = (k: string, re: RegExp) => elementos.filter((e) => e.tags && re.test(e.tags[k] ?? ""));
+
+    const listaNucleos = ordenar(
+      conTag("place", /^(city|town|village)$/).map((e) =>
+        elemento(ctx, geomDeElemento(e), { categoria: "nucleo", nombre: e.tags!.name ?? "Núcleo sin nombre", fuente: "OpenStreetMap", km: true })
+      )
+    )
+      .filter((n) => n.distancia > 0)
+      .slice(0, 5);
+    const nucleos = listaNucleos.slice(0, 3);
+
+    // Instalaciones de generación eléctrica (excluye la propia instalación si está cartografiada).
+    const generacion = ordenar(
+      conTag("power", /^(plant|substation)$/)
+        .filter((e) => e.tags!.power === "plant" || !/minor_distribution|traction/.test(e.tags!.substation ?? ""))
+        .map((e) => {
+          const prefijo = etiquetaGeneracion(e.tags!);
+          const n = e.tags!.name ?? "";
+          const yaPrefijado = /^(SET|ST|Subestaci[oó]n|PSF|Planta|Parque|Central|Huerto)\b/i.test(n);
+          const nombre = n ? (yaPrefijado ? n : `${prefijo} ${n}`) : `${prefijo} sin denominación`;
+          const g = geomDeElemento(e);
+          const el = elemento(ctx, g, { categoria: e.tags!.power, nombre, fuente: "OpenStreetMap" });
+          // La propia instalación, si está cartografiada en OSM, contiene el centro del ámbito.
+          if (el && el.distancia === 0 && e.tags!.power === "plant" && g) {
+            const pg = aPlano(descomponer(g), plano);
+            if (cercania(pg, aPlano(descomponer({ type: "Point", coordinates: centro }), plano), plano)?.distancia === 0) return null;
+          }
+          return el;
+        })
+    ).slice(0, 5);
+
+    // Puntos de agua: se conserva el más cercano de cada tipo (hasta dos) y un máximo de ocho.
+    const porTipo = new Map<string, ElementoCercano[]>();
+    for (const e of elementos) {
+      const t = e.tags;
+      if (!t) continue;
+      const esAgua =
+        /^(fire_hydrant|water_tank|fire_water_pond|suction_point)$/.test(t.emergency ?? "") ||
+        /^(water_tower|reservoir_covered|water_tank)$/.test(t.man_made ?? "") ||
+        (t.natural === "water" && /^(reservoir|pond|basin)$/.test(t.water ?? ""));
+      if (!esAgua) continue;
+      const etiqueta = etiquetaAgua(t);
+      const el = elemento(ctx, geomDeElemento(e), { categoria: "punto_agua", nombre: t.name ? `${etiqueta} «${t.name}»` : etiqueta, fuente: "OpenStreetMap", km: true });
+      if (el) porTipo.set(etiqueta, [...(porTipo.get(etiqueta) ?? []), el]);
+    }
+    const puntosAgua = ordenar([...porTipo.values()].flatMap((xs) => ordenar(xs).slice(0, 2))).slice(0, 8);
+
+    publicar("nucleos", listaNucleos);
+    publicar("energia", generacion);
+    publicar("agua", puntosAgua);
+
+    return { nucleos, generacion, landuse: conTag("landuse", /./) };
+  };
+
+  // ── OSM · medios externos: bomberos, seguridad y asistencia sanitaria ──
+  const procesarMedios = (osm: OverpassElement[] | null) => {
+    if (!osm) return null;
+    const elementos = osm as ElementoOSM[];
+    const conTag = (k: string, re: RegExp) => elementos.filter((e) => e.tags && re.test(e.tags[k] ?? ""));
+
+    const medio = (e: OverpassElement, categoria: string, defecto: string) => {
+      const nombre = e.tags?.name ?? e.tags?.official_name ?? (e.tags?.["addr:city"] ? `${defecto} de ${e.tags["addr:city"]}` : null);
+      const el = elemento(ctx, geomDeElemento(e), {
+        categoria,
+        nombre: nombre ?? defecto,
+        fuente: "OpenStreetMap",
+        telefono: e.tags?.phone ?? e.tags?.["contact:phone"] ?? undefined,
+        km: true,
+      });
+      return el ? ({ ...el, sinNombre: !nombre } as ElementoCercano) : null;
+    };
+    const bomberos = ordenar(conTag("amenity", /^fire_station$/).map((e) => medio(e, "bomberos", "Parque de bomberos"))).slice(0, 3);
+    const policias = conTag("amenity", /^police$/);
+    const esGC = (e: OverpassElement) => /guardia civil/i.test(`${e.tags?.name ?? ""} ${e.tags?.operator ?? ""} ${e.tags?.["police:ES"] ?? ""}`);
+    const guardias = ordenar(policias.filter(esGC).map((e) => medio(e, "guardia_civil", "Puesto de la Guardia Civil"))).slice(0, 2);
+    const policia = ordenar(policias.filter((e) => !esGC(e)).map((e) => medio(e, "policia", "Policía"))).slice(0, 2);
+    const hospitales = ordenar(conTag("amenity", /^hospital$/).map((e) => medio(e, "hospital", "Hospital"))).slice(0, 2);
+    const centrosSalud = ordenar(
+      [...conTag("amenity", /^(clinic|doctors)$/), ...conTag("healthcare", /^centre$/)].map((e) => medio(e, "centro_salud", "Centro de salud"))
+    ).slice(0, 3);
+    const mediosExternos = [...bomberos.slice(0, 2), guardias[0], policia[0], centrosSalud[0], hospitales[0]].filter((x): x is ElementoCercano => !!x);
+
+    publicar("seguridad", [...bomberos, ...guardias, ...policia]);
+    publicar("sanidad", [...hospitales, ...centrosSalud]);
+
+    return {
+      mediosExternos,
+      todos: [...bomberos, ...guardias, ...policia, ...hospitales, ...centrosSalud],
+      paraRuta: [...bomberos, ...hospitales, ...centrosSalud.slice(0, 1)] as Medicion[],
+    };
+  };
+
+  // Completa el nombre de los medios sin denominación en OSM y calcula los tiempos de llegada.
+  const completarMedios = async (s: NonNullable<ReturnType<typeof procesarMedios>>) => {
+    for (const m of s.mediosExternos.filter((x) => x.sinNombre) as Medicion[]) {
+      await pausaNominatim();
+      try {
+        const loc = await nominatim(m.linea[1][1], m.linea[1][0]);
+        if (loc.municipio) {
+          const nuevo = `${m.nombre} de ${loc.municipio}`;
+          m.frase = m.frase.replace(m.nombre, nuevo);
+          m.nombre = nuevo;
+          emitir({ tipo: "actualizar", id: m.id, parche: { nombre: m.nombre, frase: m.frase } });
+        }
+      } catch {
+        // Se mantiene la denominación genérica.
+      }
+    }
+    s.todos.forEach((m) => delete m.sinNombre);
+    await fuente("osrm", async () => {
+      let ok = 0;
+      await Promise.all(
+        s.paraRuta.map(async (m) => {
+          try {
+            const r = await rutaOSRM(m.linea[1], m.linea[0]);
+            if (r) {
+              m.ruta = r;
+              ok++;
+              emitir({ tipo: "actualizar", id: m.id, parche: { ruta: r } });
+            }
+          } catch {
+            // Un fallo puntual de OSRM solo deja sin tiempo a ese medio.
+          }
+        })
+      );
+      if (s.paraRuta.length > 0 && ok === 0) throw new Error("Sin respuesta del servicio de rutas");
+    });
+  };
+
+  // ── OSM · viario, ferrocarril, líneas, conducciones y cauces ──
+  const procesarViario = (osm: OverpassElement[] | null) => {
+    if (!osm) return null;
+    const elementos = osm as ElementoOSM[];
+    const conTag = (k: string, re: RegExp) => elementos.filter((e) => e.tags && re.test(e.tags[k] ?? ""));
+
+    const vias = conTag("highway", /./).map((e) => {
+      const { tipo, denominacion } = etiquetaVia(e.tags!);
+      const el = elemento(ctx, geomDeElemento(e), {
+        categoria: e.tags!.highway,
+        nombre: `${tipo}${denominacion ? ` ${denominacion}` : ""}`,
+        fuente: "OpenStreetMap",
+      });
+      return el ? { ...el, tipo, denominacion, tags: e.tags! } : null;
+    });
+    const viasOrdenadas = ordenar(vias);
+    const autovia = viasOrdenadas.find((v) => /^(motorway|trunk)$/.test(v.tags.highway) && /^Auto/.test(v.tipo));
+    const esCarretera = (v: (typeof viasOrdenadas)[number]) => /^(trunk|primary|secondary|tertiary)$/.test(v.tags.highway) && !/^Auto/.test(v.tipo);
+    // Se prefiere la carretera con matrícula (CM-310, N-301…) frente a travesías urbanas sin ella.
+    const carretera = viasOrdenadas.find((v) => esCarretera(v) && v.tags.ref) ?? viasOrdenadas.find(esCarretera);
+    const ferrocarril = masCercano(
+      conTag("railway", /^rail$/).map((e) =>
+        elemento(ctx, geomDeElemento(e), { categoria: "ferrocarril", nombre: e.tags!.name ? `Ferrocarril ${e.tags!.name}` : "Línea de ferrocarril", fuente: "OpenStreetMap" })
+      )
+    );
+    const lineas = ordenar(
+      conTag("power", /^(line|minor_line|cable)$/).map((e) => {
+        const kv = Number((e.tags!.voltage ?? "").split(";")[0]) / 1000;
+        const nombre = `Línea eléctrica${kv ? ` de ${kv.toLocaleString("es-ES")} kV` : ""}`;
+        return elemento(ctx, geomDeElemento(e), { categoria: "linea_electrica", nombre, fuente: "OpenStreetMap" });
       })
-  );
-  const desarbolado = masCercano(
-    (mfe ?? [])
-      .filter((f) => mfeProps(f).agrupacion_clamfe === "Forestal desarbolado")
-      .map((f) =>
-        elemento(ctx, f.geometry, {
-          categoria: "forestal_desarbolado",
-          nombre: "Terreno forestal desarbolado",
-          detalle: String(mfeProps(f).descr_clamfe ?? ""),
-          fuente: "Mapa Forestal de España (MITECO)",
-          frase: (d) => `Terreno forestal desarbolado (${String(mfeProps(f).descr_clamfe ?? "").toLowerCase()}) ${d}.`,
+    );
+    const gasoducto = ordenar(
+      conTag("man_made", /^pipeline$/).map((e) =>
+        elemento(ctx, geomDeElemento(e), {
+          categoria: "conduccion",
+          nombre: e.tags!.substance === "gas" ? "Gasoducto" : e.tags!.substance === "water" ? "Conducción de agua" : "Conducción",
+          fuente: "OpenStreetMap",
         })
       )
-  );
-  const mup = masCercano(
-    (montes ?? [])
-      .filter((f) => /utilidad p[uú]blica/i.test(String((f.properties as Record<string, unknown>).nombre_afeccion ?? "")) || (f.properties as Record<string, unknown>).es_mup === "S")
-      .map((f) => {
-        const p = f.properties as Record<string, string | null>;
-        const codigo = p.cmup ? `n.º ${p.cmup}` : p.cd_monte || "";
-        const nombre = tituloPropio(p.monte ?? "");
+    )[0];
+    const infraestructuras = [autovia, carretera, ferrocarril, lineas[0], gasoducto].filter((x): x is ElementoCercano => !!x).map(simple);
+
+    // Cauces.
+    const cauces = ordenar(
+      conTag("waterway", /^(river|canal|stream)$/).map((e) => {
+        const tipo = e.tags!.waterway === "river" ? "Río" : e.tags!.waterway === "canal" ? "Canal" : "Cauce";
+        const nombre = e.tags!.name ?? `${tipo} sin denominación`;
+        return elemento(ctx, geomDeElemento(e), { categoria: "cauce", nombre, detalle: e.tags!.name ? undefined : "sin nombre en OSM", fuente: "OpenStreetMap" });
+      })
+    );
+    const cauceNombrado = cauces.find((c) => !c.detalle);
+    const cauceCualquiera = cauces[0];
+    const caucesEls = [cauceNombrado, cauceCualquiera && cauceCualquiera !== cauceNombrado && cauceCualquiera.distancia < (cauceNombrado?.distancia ?? Infinity) ? cauceCualquiera : null].filter(
+      (x): x is ElementoCercano => !!x
+    );
+
+    // Accesos (tabla de vías de acceso a la zona).
+    const accesos: Acceso[] = [];
+    const vistas = new Set<string>();
+    for (const v of viasOrdenadas) {
+      if (accesos.length >= 4) break;
+      const clave = v.denominacion || v.tipo;
+      if (vistas.has(clave)) continue;
+      const esCamino = v.tipo === "Camino";
+      if (esCamino && accesos.some((a) => a.tipo === "Camino")) continue;
+      if (!esCamino && (v.distancia > 3000 || !v.tags.ref)) continue;
+      vistas.add(clave);
+      const tramos = viasOrdenadas.filter((x) => (x.denominacion || x.tipo) === clave);
+      const dobleSentido = /^(motorway|trunk)$/.test(v.tags.highway) || tramos.some((x) => x.tags.oneway !== "yes");
+      accesos.push({
+        denominacion: esCamino ? v.denominacion || "Camino de acceso" : clave,
+        tipo: v.tipo,
+        ancho: v.tags.width ? `${String(v.tags.width).replace(".", ",")} m` : "—",
+        sentido: dobleSentido ? "Doble" : "Único",
+        distancia: v.distancia,
+      });
+    }
+
+    // Mediciones para el mapa: una por vía distinta (hasta ocho), el ferrocarril, las líneas
+    // eléctricas de distinta tensión, la conducción más próxima y los cauces.
+    const clavesVia = new Set<string>();
+    const viasMapa: ElementoCercano[] = [];
+    for (const v of viasOrdenadas) {
+      const k = `${v.tipo}|${v.denominacion}`;
+      if (clavesVia.has(k)) continue;
+      clavesVia.add(k);
+      viasMapa.push(simple(v));
+      if (viasMapa.length >= 8) break;
+    }
+    const nombresLinea = new Set<string>();
+    const lineasMapa = lineas.filter((l) => !nombresLinea.has(l.nombre) && nombresLinea.add(l.nombre)).slice(0, 3);
+    publicar("viario", [...viasMapa, ferrocarril]);
+    publicar("energia", [...lineasMapa, gasoducto]);
+    publicar("agua", [...new Set([...caucesEls, ...cauces.slice(0, 3)])]);
+
+    return { infraestructuras, accesos, caucesEls, cauceCualquiera };
+  };
+
+  // ── IEPNB · espacios protegidos ──
+  const procesarEnp = (feats: GeoJSON.Feature[] | null) => {
+    if (!feats) return null;
+    const lista = ordenar(
+      feats.map((f) => {
+        const p = f.properties as Record<string, string>;
+        const etiqueta = `${p.designacion ?? "Espacio Natural Protegido"} ${tituloPropio(p.nombre ?? "")}`.trim();
         return elemento(ctx, f.geometry, {
-          categoria: "mup",
-          nombre: `Monte de Utilidad Pública (MUP) ${nombre}`,
-          detalle: codigo || undefined,
-          fuente: "Catálogo de montes (IEPNB)",
-          frase: (d) => `Monte de Utilidad Pública (MUP) ${nombre}${codigo ? ` (${codigo})` : ""} ${d}.`,
+          categoria: "enp",
+          nombre: etiqueta,
+          detalle: p.id_ref_es ?? undefined,
+          fuente: "IEPNB (MITECO)",
+          km: true,
+          frase: (d) => `El Espacio Natural Protegido más próximo se ubica ${d.replace(/^colindante a la instalación$/, "colindante")} «${etiqueta}»${p.id_ref_es ? ` (${p.id_ref_es})` : ""}.`,
         });
       })
-  );
-  const forestalCercano = Math.min(arbolado?.distancia ?? Infinity, desarbolado?.distancia ?? Infinity);
-  const masaEls = [arbolado, desarbolado && (!arbolado || desarbolado.distancia < arbolado.distancia) ? desarbolado : null, mup].filter(
-    (x): x is ElementoCercano => !!x
-  );
-  const masaForestal: FilaSiNo = {
-    si: forestalCercano <= CRITERIOS.radioInfluenciaForestal,
-    elementos: masaEls,
-    textos: masaEls.map((e) => (e.distancia === 0 && e.categoria !== "mup" ? `${e.nombre}${e.detalle ? ` (${e.detalle})` : ""} en contacto con el ámbito de la instalación.` : e.distancia === 0 ? `El ámbito se ubica dentro del ${e.nombre}${e.detalle ? ` (${e.detalle})` : ""}.` : e.frase)),
+    );
+    publicar("espacios", lista.slice(0, 3));
+    return lista;
   };
-  if (mfe && !arbolado) masaForestal.textos.unshift(`No se localiza monte arbolado en ${fmtDistancia(CRITERIOS.radioForestal, true)}.`);
-  if (montes && !mup) masaForestal.textos.push(`No se localizan Montes de Utilidad Pública en ${fmtDistancia(CRITERIOS.radioMontes, true)}.`);
+  const procesarRn = (feats: GeoJSON.Feature[] | null) => {
+    if (!feats) return null;
+    const lista = ordenar(
+      feats.map((f) => {
+        const p = f.properties as Record<string, string>;
+        const figuras = (p.id_espacio_proteg ?? "").split("_").slice(1).filter((x) => x !== "LIC" || !(p.id_espacio_proteg ?? "").includes("ZEC"));
+        const figura = figuras.length ? figuras.join("/") : "Red Natura 2000";
+        const etiqueta = `${figura} ${tituloPropio(p.nombre ?? "")}`.trim();
+        return elemento(ctx, f.geometry, {
+          categoria: "rn2000",
+          nombre: etiqueta,
+          detalle: p.id_ref_es ?? undefined,
+          fuente: "IEPNB (MITECO)",
+          km: true,
+          frase: (d) => `El espacio Red Natura 2000 más próximo se ubica ${d.replace(/^colindante a la instalación$/, "colindante")} «${etiqueta}»${p.id_ref_es ? ` (${p.id_ref_es})` : ""}.`,
+        });
+      })
+    );
+    publicar("espacios", lista.slice(0, 3));
+    return lista;
+  };
 
-  // Cauces y zonas inundables.
-  const cauces = ordenar(
-    conTag("waterway", /^(river|canal|stream)$/).map((e) => {
-      const tipo = e.tags!.waterway === "river" ? "Río" : e.tags!.waterway === "canal" ? "Canal" : "Cauce";
-      const nombre = e.tags!.name ?? `${tipo} sin denominación`;
-      return elemento(ctx, geomDeElemento(e), { categoria: "cauce", nombre, detalle: e.tags!.name ? undefined : "sin nombre en OSM", fuente: "OpenStreetMap" });
-    })
-  );
-  const cauceNombrado = cauces.find((c) => !c.detalle);
-  const cauceCualquiera = cauces[0];
-  const caucesEls = [cauceNombrado, cauceCualquiera && cauceCualquiera !== cauceNombrado && cauceCualquiera.distancia < (cauceNombrado?.distancia ?? Infinity) ? cauceCualquiera : null].filter(
-    (x): x is ElementoCercano => !!x
-  );
-  let textoInundable: string | null = null;
-  let arpsi: ElementoCercano | null = null;
-  if (inundable) {
+  // ── IEPNB · Mapa Forestal de España y catálogo de montes ──
+  const mfeProps = (f: GeoJSON.Feature) => f.properties as Record<string, string | number | null>;
+  const procesarMfe = (feats: GeoJSON.Feature[] | null) => {
+    if (!feats) return null;
+    const arbolado = masCercano(
+      feats
+        .filter((f) => mfeProps(f).agrupacion_clamfe === "Forestal arbolado")
+        .map((f) => {
+          const p = mfeProps(f);
+          const fcc = Number(p.nm_fccarb) || 0;
+          const especie = p.descr_forarb ? String(p.descr_forarb) : null;
+          const detalle = [especie, fcc ? `FCC ${fcc} %` : null].filter(Boolean).join(", ");
+          return elemento(ctx, f.geometry, {
+            categoria: "masa_forestal",
+            nombre: "Monte arbolado",
+            detalle: detalle || undefined,
+            fuente: "Mapa Forestal de España (MITECO)",
+            frase: (d) => `Monte arbolado${detalle ? ` (${detalle})` : ""} ${d}.`,
+          });
+        })
+    );
+    const desarbolado = masCercano(
+      feats
+        .filter((f) => mfeProps(f).agrupacion_clamfe === "Forestal desarbolado")
+        .map((f) =>
+          elemento(ctx, f.geometry, {
+            categoria: "forestal_desarbolado",
+            nombre: "Terreno forestal desarbolado",
+            detalle: String(mfeProps(f).descr_clamfe ?? ""),
+            fuente: "Mapa Forestal de España (MITECO)",
+            frase: (d) => `Terreno forestal desarbolado (${String(mfeProps(f).descr_clamfe ?? "").toLowerCase()}) ${d}.`,
+          })
+        )
+    );
+    publicar("forestal", [arbolado, desarbolado]);
+    return { arbolado, desarbolado };
+  };
+  const procesarMontes = (feats: GeoJSON.Feature[] | null) => {
+    if (!feats) return null;
+    const lista = ordenar(
+      feats
+        .filter((f) => /utilidad p[uú]blica/i.test(String((f.properties as Record<string, unknown>).nombre_afeccion ?? "")) || (f.properties as Record<string, unknown>).es_mup === "S")
+        .map((f) => {
+          const p = f.properties as Record<string, string | null>;
+          const codigo = p.cmup ? `n.º ${p.cmup}` : p.cd_monte || "";
+          const nombre = tituloPropio(p.monte ?? "");
+          return elemento(ctx, f.geometry, {
+            categoria: "mup",
+            nombre: `Monte de Utilidad Pública (MUP) ${nombre}`,
+            detalle: codigo || undefined,
+            fuente: "Catálogo de montes (IEPNB)",
+            frase: (d) => `Monte de Utilidad Pública (MUP) ${nombre}${codigo ? ` (${codigo})` : ""} ${d}.`,
+          });
+        })
+    );
+    publicar("forestal", lista.slice(0, 2));
+    return lista;
+  };
+
+  // ── SNCZI · zona inundable más próxima ──
+  const procesarInundable = (inundable: { distancia: number; punto: Pos } | null) => {
+    if (!inundable) return null;
     const r = rumbo(centro, inundable.punto);
-    arpsi = {
+    const arpsi: ElementoCercano = {
       categoria: "arpsi",
       nombre: "Zona inundable T=500 años (ARPSI)",
       distancia: inundable.distancia,
       rumbo: r,
-      frase: "",
+      frase:
+        inundable.distancia === 0
+          ? "El ámbito se encuentra en zona inundable T=500 años de un Área con Riesgo Potencial Significativo de Inundación (ARPSI)."
+          : `Zona inundable T=500 años de Área con Riesgo Potencial Significativo de Inundación (ARPSI) ${fraseDistancia({ distancia: inundable.distancia, rumbo: r })}.`,
       linea: [inundable.punto, inundable.punto],
       fuente: "SNCZI (MITECO) vía IGN",
     };
     const m = medir(ctx, { type: "Point", coordinates: inundable.punto });
     if (m) arpsi.linea = [m.puntoAmbito, inundable.punto];
-    textoInundable =
-      inundable.distancia === 0
-        ? "El ámbito se encuentra en zona inundable T=500 años de un Área con Riesgo Potencial Significativo de Inundación (ARPSI)."
-        : `Zona inundable T=500 años de Área con Riesgo Potencial Significativo de Inundación (ARPSI) ${fraseDistancia({ distancia: inundable.distancia, rumbo: r })}.`;
-    arpsi.frase = textoInundable;
-  } else if (!avisos.some((a) => a.startsWith("SNCZI"))) {
-    textoInundable = `Áreas con Riesgo Potencial Significativo de Inundación (ARPSI) no localizadas en ${fmtDistancia(CRITERIOS.radioInundable, true)}.`;
-  }
+    publicar("agua", [arpsi]);
+    return arpsi;
+  };
+
+  const pMedios = fuente("osm-medios", () => osmConCache(consultaOSMMedios(centro[1], centro[0], radioAmbito), `M:${claveOSM}`))
+    .then(procesarMedios)
+    .then(async (m) => {
+      if (m) await completarMedios(m);
+      return m;
+    });
+
+  const [medios, entorno, viario, enp, rn, mfe, montes, arpsi, parcelas, admin, alt] = await Promise.all([
+    pMedios,
+    fuente("osm-entorno", () => osmConCache(consultaOSMEntorno(centro[1], centro[0], radioAmbito), `E:${claveOSM}`)).then(procesarEntorno),
+    fuente("osm-viario", () => osmConCache(consultaOSMViario(centro[1], centro[0], radioAmbito), `V:${claveOSM}`)).then(procesarViario),
+    fuente("enp", () => wfsIEPNB("ENP:enp", bboxAlrededor(ctx, CRITERIOS.radioEspacios), 200)).then(procesarEnp),
+    fuente("rn2000", () => wfsIEPNB("RN2000:rn2000", bboxAlrededor(ctx, CRITERIOS.radioEspacios), 200)).then(procesarRn),
+    fuente("mfe", () =>
+      wfsIEPNB("foto_fija_mfe:ff_uso", bboxAlrededor(ctx, CRITERIOS.radioForestal), 3000, ["descr_clamfe", "agrupacion_clamfe", "descr_forarb", "nm_fccarb", "geom"])
+    ).then((feats) => ({ feats, r: procesarMfe(feats) })),
+    fuente("montes", () => wfsIEPNB("propiedad_montes:propiedad_montes", bboxAlrededor(ctx, CRITERIOS.radioMontes), 1500)).then(procesarMontes),
+    fuente("snczi", () => zonaInundableMasCercana(ctx)).then((inundable) => ({ inundable, arpsi: procesarInundable(inundable) })),
+    fuente("catastro", () => catastro(centro[1], centro[0])).then((p) => {
+      if (p) emitir({ tipo: "ubicacion", datos: { parcelas: p } });
+      return p;
+    }),
+    fuente("nominatim", () => nominatim(centro[1], centro[0])).then((a) => {
+      ultimaNominatim = Date.now();
+      if (a) emitir({ tipo: "ubicacion", datos: { municipio: a.municipio, provincia: a.provincia, comunidad: a.comunidad } });
+      return a;
+    }),
+    fuente("altitud", () => altitud(centro[1], centro[0])).then((a) => {
+      if (a !== null) emitir({ tipo: "ubicacion", datos: { altitud: a } });
+      return a;
+    }),
+  ]);
+
+  // Fuentes que no llegaron a lanzarse (p. ej. rutas sin medios que calcular).
+  for (const f of FUENTES_ENTORNO) if (!terminadas.has(f.id)) emitir({ tipo: "fuente", id: f.id, estado: "omitida" });
+
+  // ── Espacios protegidos ──
+  const enpCercano = enp?.[0] ?? null;
+  const rnCercano = rn?.[0] ?? null;
+  const espaciosEls = [enpCercano, rnCercano].filter((x): x is ElementoCercano => !!x);
+  const espacios: FilaSiNo = {
+    si: espaciosEls.some((e) => e.distancia === 0),
+    elementos: espaciosEls,
+    textos: espaciosEls.map((e) => (e.distancia === 0 ? `El ámbito se ubica dentro de «${e.nombre}»${e.detalle ? ` (${e.detalle})` : ""}.` : e.frase)),
+  };
+  if (!enpCercano && enp) espacios.textos.unshift(`No se localizan Espacios Naturales Protegidos en ${CRITERIOS.radioEspacios / 1000} km.`);
+  if (!rnCercano && rn) espacios.textos.push(`No se localizan espacios Red Natura 2000 en ${CRITERIOS.radioEspacios / 1000} km.`);
+
+  // ── Masa forestal ──
+  const arbolado = mfe?.r?.arbolado ?? null;
+  const desarbolado = mfe?.r?.desarbolado ?? null;
+  const mup = montes?.[0] ?? null;
+  const forestalCercano = Math.min(arbolado?.distancia ?? Infinity, desarbolado?.distancia ?? Infinity);
+  const masaEls = [arbolado, desarbolado && (!arbolado || desarbolado.distancia < arbolado.distancia) ? desarbolado : null, mup].filter((x): x is ElementoCercano => !!x);
+  const masaForestal: FilaSiNo = {
+    si: forestalCercano <= CRITERIOS.radioInfluenciaForestal,
+    elementos: masaEls,
+    textos: masaEls.map((e) =>
+      e.distancia === 0 && e.categoria !== "mup"
+        ? `${e.nombre}${e.detalle ? ` (${e.detalle})` : ""} en contacto con el ámbito de la instalación.`
+        : e.distancia === 0
+          ? `El ámbito se ubica dentro del ${e.nombre}${e.detalle ? ` (${e.detalle})` : ""}.`
+          : e.frase
+    ),
+  };
+  if (mfe?.feats && !arbolado) masaForestal.textos.unshift(`No se localiza monte arbolado en ${fmtDistancia(CRITERIOS.radioForestal, true)}.`);
+  if (montes && !mup) masaForestal.textos.push(`No se localizan Montes de Utilidad Pública en ${fmtDistancia(CRITERIOS.radioMontes, true)}.`);
+
+  // ── Cauces y zonas inundables ──
+  const inundable = arpsi?.inundable ?? null;
+  let textoInundable: string | null = null;
+  if (arpsi?.arpsi) textoInundable = arpsi.arpsi.frase;
+  else if (!fallidas.has("snczi")) textoInundable = `Áreas con Riesgo Potencial Significativo de Inundación (ARPSI) no localizadas en ${fmtDistancia(CRITERIOS.radioInundable, true)}.`;
+  const caucesEls = viario?.caucesEls ?? [];
   const caucesFila: FilaSiNo = {
-    si: (inundable?.distancia ?? Infinity) === 0 || (cauceCualquiera?.distancia ?? Infinity) <= CRITERIOS.radioPoliciaCauces,
-    elementos: [...caucesEls, ...(arpsi ? [arpsi] : [])],
+    si: (inundable?.distancia ?? Infinity) === 0 || (viario?.cauceCualquiera?.distancia ?? Infinity) <= CRITERIOS.radioPoliciaCauces,
+    elementos: [...caucesEls, ...(arpsi?.arpsi ? [arpsi.arpsi] : [])],
     textos: [...caucesEls.map((c) => c.frase), ...(textoInundable ? [textoInundable] : [])],
   };
 
-  // Tipología del entorno.
+  // ── Tipología del entorno ──
   const usoCerca = (re: RegExp) =>
-    conTag("landuse", re).some((e) => (medir(ctx, geomDeElemento(e))?.distancia ?? Infinity) <= CRITERIOS.radioTipologia);
+    (entorno?.landuse ?? []).filter((e) => re.test(e.tags?.landuse ?? "")).some((e) => (medir(ctx, geomDeElemento(e))?.distancia ?? Infinity) <= CRITERIOS.radioTipologia);
   const mfeCerca = (pred: (p: Record<string, string | number | null>) => boolean) =>
-    (mfe ?? []).some((f) => pred(mfeProps(f)) && (medir(ctx, f.geometry)?.distancia ?? Infinity) <= CRITERIOS.radioTipologia);
+    (mfe?.feats ?? []).some((f) => pred(mfeProps(f)) && (medir(ctx, f.geometry)?.distancia ?? Infinity) <= CRITERIOS.radioTipologia);
   const tipologia = {
     urbano: usoCerca(/^residential$/),
     industrial: usoCerca(/^industrial$/),
@@ -685,97 +1013,29 @@ export async function analizarEntorno(ambitoGeoJSON: GeoJSON.Geometry): Promise<
     forestal: mfeCerca((p) => String(p.agrupacion_clamfe ?? "").startsWith("Forestal")),
   };
 
-  // Accesos (tabla de vías de acceso a la zona).
-  const accesos: Acceso[] = [];
-  const vistas = new Set<string>();
-  for (const v of viasOrdenadas) {
-    if (accesos.length >= 4) break;
-    const clave = v.denominacion || v.tipo;
-    if (vistas.has(clave)) continue;
-    const esCamino = v.tipo === "Camino";
-    if (esCamino && accesos.some((a) => a.tipo === "Camino")) continue;
-    if (!esCamino && (v.distancia > 3000 || !v.tags.ref)) continue;
-    vistas.add(clave);
-    const tramos = viasOrdenadas.filter((x) => (x.denominacion || x.tipo) === clave);
-    const dobleSentido = /^(motorway|trunk)$/.test(v.tags.highway) || tramos.some((x) => x.tags.oneway !== "yes");
-    accesos.push({
-      denominacion: esCamino ? v.denominacion || "Camino de acceso" : clave,
-      tipo: v.tipo,
-      ancho: v.tags.width ? `${String(v.tags.width).replace(".", ",")} m` : "—",
-      sentido: dobleSentido ? "Doble" : "Único",
-      distancia: v.distancia,
-    });
-  }
-
-  // Medios externos: bomberos, seguridad y asistencia sanitaria.
-  const medio = (e: OverpassElement, categoria: string, defecto: string) => {
-    const nombre = e.tags?.name ?? e.tags?.official_name ?? (e.tags?.["addr:city"] ? `${defecto} de ${e.tags["addr:city"]}` : null);
-    const el = elemento(ctx, geomDeElemento(e), {
-      categoria,
-      nombre: nombre ?? defecto,
-      fuente: "OpenStreetMap",
-      telefono: e.tags?.phone ?? e.tags?.["contact:phone"] ?? undefined,
-      km: true,
-    });
-    return el ? ({ ...el, sinNombre: !nombre } as ElementoCercano) : null;
-  };
-  const bomberos = ordenar(conTag("amenity", /^fire_station$/).map((e) => medio(e, "bomberos", "Parque de bomberos"))).slice(0, 2);
-  const policias = conTag("amenity", /^police$/);
-  const esGC = (e: OverpassElement) => /guardia civil/i.test(`${e.tags?.name ?? ""} ${e.tags?.operator ?? ""} ${e.tags?.["police:ES"] ?? ""}`);
-  const guardiaCivil = masCercano(policias.filter(esGC).map((e) => medio(e, "guardia_civil", "Puesto de la Guardia Civil")));
-  const policia = masCercano(policias.filter((e) => !esGC(e)).map((e) => medio(e, "policia", "Policía")));
-  const hospital = masCercano(conTag("amenity", /^hospital$/).map((e) => medio(e, "hospital", "Hospital")));
-  const centroSalud = masCercano(
-    [...conTag("amenity", /^(clinic|doctors)$/), ...conTag("healthcare", /^centre$/)].map((e) => medio(e, "centro_salud", "Centro de salud"))
-  );
-  const mediosExternos = [...bomberos, guardiaCivil, policia, centroSalud, hospital].filter((x): x is ElementoCercano => !!x);
-  // Medios sin nombre en OSM: se identifica la localidad por geocodificación inversa
-  // (secuencial, política de uso de Nominatim de 1 petición/s).
-  for (const m of mediosExternos.filter((x) => x.sinNombre)) {
-    await new Promise((res) => setTimeout(res, 1100));
-    const loc = await intentar(avisos, "Nominatim", () => nominatim(m.linea[1][1], m.linea[1][0]));
-    if (loc?.municipio) {
-      const nuevo = `${m.nombre} de ${loc.municipio}`;
-      m.frase = m.frase.replace(m.nombre, nuevo);
-      m.nombre = nuevo;
-    }
-  }
-  mediosExternos.forEach((m) => delete m.sinNombre);
-  await Promise.all(
-    mediosExternos
-      .filter((m) => m.categoria === "bomberos" || m.categoria === "hospital")
-      .map(async (m) => {
-        const r = await intentar(avisos, "OSRM (rutas)", () => rutaOSRM(m.linea[1], m.linea[0]));
-        if (r) m.ruta = r;
-      })
-  );
-
-  const sup = esArea ? superficieM2(plana, plano) : null;
-  return {
+  const resultado: ResultadoEntorno = {
     generado: new Date().toISOString(),
     ubicacion: {
       lat: centro[1],
       lng: centro[0],
-      utm: (() => {
-        const u = latLngAUtm(centro[1], centro[0]);
-        return { x: Math.round(u.x), y: Math.round(u.y), huso: u.huso };
-      })(),
+      utm,
       altitud: alt,
       municipio: admin?.municipio ?? null,
       provincia: admin?.provincia ?? null,
       comunidad: admin?.comunidad ?? null,
       parcelas: parcelas ?? [],
-      superficieHa: sup === null ? null : Math.round(sup / 100) / 100,
+      superficieHa,
     },
     tipologia,
-    nucleos,
-    infraestructuras,
-    generacion,
+    nucleos: entorno?.nucleos ?? [],
+    infraestructuras: viario?.infraestructuras ?? [],
+    generacion: entorno?.generacion ?? [],
     espacios,
     masaForestal,
     cauces: caucesFila,
-    accesos,
-    mediosExternos,
+    accesos: viario?.accesos ?? [],
+    mediosExternos: medios?.mediosExternos ?? [],
+    mediciones: todas,
     avisos,
     criterios: TEXTO_CRITERIOS,
     fuentes: [
@@ -786,4 +1046,6 @@ export async function analizarEntorno(ambitoGeoJSON: GeoJSON.Geometry): Promise<
       { nombre: "Nominatim (OSM), Open-Meteo (altitud) y OSRM (rutas)", url: "https://nominatim.org" },
     ],
   };
+  emitir({ tipo: "fin", resultado });
+  return resultado;
 }

@@ -16,7 +16,7 @@ const HERRAMIENTAS = [
     href: "/incideas/pai/entorno",
     titulo: "Análisis de entorno",
     descripcion:
-      "Carga el KMZ de la instalación o marca un punto. Obtiene la tabla de descripción del entorno (núcleos, infraestructuras, generación, ENP y Red Natura 2000, masa forestal y MUP, cauces y ARPSI), ubicación catastral, accesos y medios externos.",
+      "Dibuja el ámbito o carga el KMZ de la instalación y ve cómo se trazan las distancias sobre el mapa, con filtros por tipo, capas oficiales y exportación. Genera la tabla de descripción del entorno (núcleos, infraestructuras, generación, ENP y Red Natura 2000, masa forestal y MUP, cauces y ARPSI), ubicación catastral, accesos y medios externos.",
     fuentes: "OSM · IEPNB · SNCZI · Catastro · IGN",
   },
   {

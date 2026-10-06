@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { analizarEntorno } from "@/lib/incideas/pai/entorno";
+import { analizarEntorno, type EventoEntorno } from "@/lib/incideas/pai/entorno";
 
 export const dynamic = "force-dynamic";
 // Overpass + WFS del IEPNB + WMS del SNCZI en paralelo: 30-60 s habituales.
@@ -21,6 +21,8 @@ function enEspana(g: GeoJSON.Geometry): boolean {
 /**
  * POST /api/incideas/pai/entorno — análisis de entorno para PAI/PAIF.
  * Cuerpo: { geometry: GeoJSON.Geometry } (punto o ámbito de la instalación, WGS84).
+ * Con `?stream=1` responde en NDJSON (un evento por línea) según llegan las fuentes; sin él,
+ * devuelve el resultado completo en JSON.
  */
 export async function POST(request: NextRequest) {
   let body: { geometry?: GeoJSON.Geometry };
@@ -38,6 +40,36 @@ export async function POST(request: NextRequest) {
   }
   if (JSON.stringify(g).length > 2_000_000) {
     return NextResponse.json({ error: "Geometría demasiado grande; simplifica el ámbito" }, { status: 413 });
+  }
+
+  if (request.nextUrl.searchParams.get("stream") === "1") {
+    const codificador = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const enviar = (e: EventoEntorno | { tipo: "error"; mensaje: string }) => {
+          try {
+            controller.enqueue(codificador.encode(`${JSON.stringify(e)}
+`));
+          } catch {
+            // El cliente cerró la conexión.
+          }
+        };
+        try {
+          await analizarEntorno(g, enviar);
+        } catch (err) {
+          enviar({ tipo: "error", mensaje: err instanceof Error ? err.message : "Error en el análisis" });
+        } finally {
+          try {
+            controller.close();
+          } catch {
+            // Ya cerrado.
+          }
+        }
+      },
+    });
+    return new Response(stream, {
+      headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" },
+    });
   }
 
   try {

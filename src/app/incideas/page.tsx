@@ -126,7 +126,7 @@ export default function IncideasHub() {
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <Link href="/incideas/pai/entorno" className="group rounded-[6px] border border-[var(--border-subtle)] p-4 transition-colors hover:border-[var(--border-default)] hover:bg-[var(--surface-hover)]">
                     <p className="font-semibold text-[var(--text-primary)]">Análisis de entorno</p>
-                    <p className="mt-1 text-sm text-[var(--text-secondary)]">KMZ o punto en el mapa: distancias, espacios protegidos, masa forestal y medios externos.</p>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Dibuja o carga el ámbito: distancias a servicios de emergencia, sanidad, agua, viario y espacios protegidos.</p>
                     <p className="mt-3 text-sm font-medium text-[var(--moss-ink)] group-hover:underline">Abrir</p>
                   </Link>
                   <Link href="/incideas/pai/riesgo-intrinseco" className="group rounded-[6px] border border-[var(--border-subtle)] p-4 transition-colors hover:border-[var(--border-default)] hover:bg-[var(--surface-hover)]">

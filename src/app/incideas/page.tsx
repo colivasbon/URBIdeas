@@ -115,30 +115,24 @@ export default function IncideasHub() {
                 </div>
               </div>
 
-              <section aria-labelledby="pai-acceso" className="rounded-[6px] bg-[#3E665C] p-5 text-[#F1F1F1] sm:p-6">
+              <section aria-labelledby="pai-acceso" className="rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 sm:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 id="pai-acceso" className="type-h4 !text-[#F1F1F1]">Planes de Autoprotección</h2>
-                  <span className="rounded-[6px] bg-[#C2E189] px-2.5 py-1 text-xs font-medium text-[#3C403E]">Nuevo</span>
+                  <h2 id="pai-acceso" className="type-h4 text-[var(--text-primary)]">Planes de Autoprotección</h2>
+                  <Badge variant="success">Nuevo</Badge>
                 </div>
-                <p className="mt-2 max-w-[56ch] text-sm leading-relaxed text-[#F1F1F1]/85">
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">
                   Datos de entorno y riesgo intrínseco para PAI de instalaciones, con cobertura en toda España.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <Link
-                    href="/incideas/pai/entorno"
-                    className="group rounded-[6px] border border-[#F1F1F1]/25 p-4 transition-colors hover:border-[#86B73D] hover:bg-[#F1F1F1]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FBE122]"
-                  >
-                    <p className="font-semibold text-[#F1F1F1]">Análisis de entorno</p>
-                    <p className="mt-1 text-sm text-[#F1F1F1]/80">KMZ o punto en el mapa: distancias, espacios protegidos, masa forestal y medios externos.</p>
-                    <p className="mt-3 text-sm font-medium text-[#C2E189] group-hover:underline">Abrir</p>
+                  <Link href="/incideas/pai/entorno" className="group rounded-[6px] border border-[var(--border-subtle)] p-4 transition-colors hover:border-[var(--border-default)] hover:bg-[var(--surface-hover)]">
+                    <p className="font-semibold text-[var(--text-primary)]">Análisis de entorno</p>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">KMZ o punto en el mapa: distancias, espacios protegidos, masa forestal y medios externos.</p>
+                    <p className="mt-3 text-sm font-medium text-[var(--moss-ink)] group-hover:underline">Abrir</p>
                   </Link>
-                  <Link
-                    href="/incideas/pai/riesgo-intrinseco"
-                    className="group rounded-[6px] border border-[#F1F1F1]/25 p-4 transition-colors hover:border-[#86B73D] hover:bg-[#F1F1F1]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FBE122]"
-                  >
-                    <p className="font-semibold text-[#F1F1F1]">Riesgo intrínseco</p>
-                    <p className="mt-1 text-sm text-[#F1F1F1]/80">Carga de fuego por sectores según R.D. 164/2025, con tablas para Word y XLSX.</p>
-                    <p className="mt-3 text-sm font-medium text-[#C2E189] group-hover:underline">Abrir</p>
+                  <Link href="/incideas/pai/riesgo-intrinseco" className="group rounded-[6px] border border-[var(--border-subtle)] p-4 transition-colors hover:border-[var(--border-default)] hover:bg-[var(--surface-hover)]">
+                    <p className="font-semibold text-[var(--text-primary)]">Riesgo intrínseco</p>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Carga de fuego por sectores según R.D. 164/2025, con tablas para Word y XLSX.</p>
+                    <p className="mt-3 text-sm font-medium text-[var(--moss-ink)] group-hover:underline">Abrir</p>
                   </Link>
                 </div>
               </section>

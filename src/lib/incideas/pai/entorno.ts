@@ -13,7 +13,7 @@
 //
 // Solo servidor (usa el decodificador PNG con zlib).
 
-import { consultarOverpass, type OverpassElement } from "../connectors/overpass";
+import { OVERPASS_ENDPOINTS, type OverpassElement } from "../connectors/overpass";
 import { fetchConReintentos, USER_AGENT } from "../connectors/http";
 import {
   aPlano,
@@ -346,6 +346,73 @@ async function rutaOSRM(desde: Pos, hasta: Pos): Promise<{ km: number; minutos: 
   return r ? { km: Math.round(r.distance / 100) / 10, minutos: Math.round(r.duration / 60) } : null;
 }
 
+// ── Overpass con respaldo escalonado y caché ────────────────────────────────────────────────
+
+// El Overpass público es muy irregular (la misma consulta tarda entre 5 s y más de 2 min según la
+// carga). Se lanza al servidor principal y, si no responde en unos segundos, se lanza también a
+// los espejos; gana la primera respuesta válida y se cancela el resto.
+const ESPEJOS_OVERPASS = [...OVERPASS_ENDPOINTS, "https://overpass.private.coffee/api/interpreter"];
+const RETRASO_ESPEJO_MS = 7000;
+const TIMEOUT_OVERPASS_MS = 75000;
+const CACHE_OSM_TTL_MS = 30 * 60 * 1000;
+const CACHE_OSM_MAX = 40;
+const cacheOSM = new Map<string, { t: number; elementos: OverpassElement[] }>();
+
+export async function overpassEscalonado(query: string, retrasoMs = RETRASO_ESPEJO_MS): Promise<OverpassElement[]> {
+  const global = new AbortController();
+  const lanzar = async (endpoint: string): Promise<OverpassElement[]> => {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": USER_AGENT },
+      body: `data=${encodeURIComponent(query)}`,
+      signal: AbortSignal.any([global.signal, AbortSignal.timeout(TIMEOUT_OVERPASS_MS)]),
+    });
+    const texto = await res.text();
+    if (!res.ok || !texto.trimStart().startsWith("{")) throw new Error(`${new URL(endpoint).host}: HTTP ${res.status}`);
+    const json = JSON.parse(texto) as { elements?: OverpassElement[]; remark?: string };
+    if (json.remark && /error|timed out/i.test(json.remark)) throw new Error(`${new URL(endpoint).host}: ${json.remark}`);
+    return json.elements ?? [];
+  };
+
+  return new Promise((resolve, reject) => {
+    const errores: string[] = [];
+    const lanzados = new Set<number>();
+    const temporizadores: ReturnType<typeof setTimeout>[] = [];
+    let resuelto = false;
+    let fallidos = 0;
+
+    const arrancar = (i: number) => {
+      if (resuelto || i >= ESPEJOS_OVERPASS.length || lanzados.has(i)) return;
+      lanzados.add(i);
+      lanzar(ESPEJOS_OVERPASS[i]).then(
+        (els) => {
+          if (resuelto) return;
+          resuelto = true;
+          temporizadores.forEach(clearTimeout);
+          global.abort();
+          resolve(els);
+        },
+        (e) => {
+          if (resuelto) return;
+          errores.push(e instanceof Error ? e.message : String(e));
+          if (++fallidos === ESPEJOS_OVERPASS.length) reject(new Error(`Overpass no disponible (${errores.join("; ")})`));
+          else arrancar(i + 1);
+        }
+      );
+    };
+    ESPEJOS_OVERPASS.forEach((_, i) => temporizadores.push(setTimeout(() => arrancar(i), i * retrasoMs)));
+  });
+}
+
+async function osmConCache(query: string, clave: string): Promise<OverpassElement[]> {
+  const hit = cacheOSM.get(clave);
+  if (hit && Date.now() - hit.t < CACHE_OSM_TTL_MS) return hit.elementos;
+  const elementos = await overpassEscalonado(query);
+  if (cacheOSM.size >= CACHE_OSM_MAX) cacheOSM.delete(cacheOSM.keys().next().value as string);
+  cacheOSM.set(clave, { t: Date.now(), elementos });
+  return elementos;
+}
+
 async function intentar<T>(avisos: string[], fuente: string, f: () => Promise<T>): Promise<T | null> {
   try {
     return await f();
@@ -369,9 +436,8 @@ export async function analizarEntorno(ambitoGeoJSON: GeoJSON.Geometry): Promise<
 
   const [osm, enp, rn2000, mfe, montes, inundable, parcelas, admin, alt] = await Promise.all([
     intentar(avisos, "OpenStreetMap (Overpass)", async () => {
-      const r = await consultarOverpass(consultaOSM(centro[1], centro[0], radioAmbito));
-      if ("error" in r) throw new Error(r.error);
-      return r.elements;
+      const clave = `${centro[1].toFixed(4)},${centro[0].toFixed(4)},${Math.ceil(radioAmbito / 100)}`;
+      return osmConCache(consultaOSM(centro[1], centro[0], radioAmbito), clave);
     }),
     intentar(avisos, "IEPNB · ENP", () => wfsIEPNB("ENP:enp", bboxAlrededor(ctx, CRITERIOS.radioEspacios), 200)),
     intentar(avisos, "IEPNB · Red Natura 2000", () => wfsIEPNB("RN2000:rn2000", bboxAlrededor(ctx, CRITERIOS.radioEspacios), 200)),

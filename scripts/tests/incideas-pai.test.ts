@@ -25,7 +25,7 @@ import {
   superficieM2,
 } from "../../src/lib/incideas/pai/geo";
 import { decodificarAlfaPng } from "../../src/lib/incideas/pai/png";
-import { tituloPropio } from "../../src/lib/incideas/pai/entorno";
+import { overpassEscalonado, tituloPropio } from "../../src/lib/incideas/pai/entorno";
 import { utmToLatLng } from "../../src/lib/incideas/pipeline/utm";
 
 const cerca = (a: number | null, b: number, tol = 0.01) => {
@@ -147,4 +147,63 @@ test("decodificador PNG: alfa RGBA con filtros", () => {
 test("título propio de denominaciones oficiales", () => {
   assert.equal(tituloPropio("LA VELL Y OTROS"), "La Vell y Otros");
   assert.equal(tituloPropio("Laguna el Hito"), "Laguna el Hito");
+});
+
+// ── Overpass escalonado (con fetch simulado) ───────────────────────────────────────────────
+
+type Respuesta = { status: number; cuerpo: string; retrasoMs?: number } | "colgado";
+
+async function conFetchSimulado<T>(porHost: Record<string, Respuesta>, f: () => Promise<T>): Promise<{ r: T; llamadas: string[] }> {
+  const original = globalThis.fetch;
+  const llamadas: string[] = [];
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    const host = new URL(String(url)).host;
+    llamadas.push(host);
+    const cfg = porHost[host] ?? { status: 500, cuerpo: "" };
+    if (cfg === "colgado") {
+      return new Promise((_, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("abortado"))));
+    }
+    if (cfg.retrasoMs) await new Promise((res) => setTimeout(res, cfg.retrasoMs));
+    return new Response(cfg.cuerpo, { status: cfg.status });
+  }) as typeof fetch;
+  try {
+    return { r: await f(), llamadas };
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
+const OK = (n: number) => ({ status: 200, cuerpo: JSON.stringify({ elements: Array.from({ length: n }, (_, i) => ({ type: "node", id: i })) }) });
+
+test("Overpass: si el principal rechaza, el espejo responde sin esperar al retraso", async () => {
+  const t = Date.now();
+  const { r, llamadas } = await conFetchSimulado(
+    { "overpass-api.de": { status: 429, cuerpo: "busy" }, "overpass.kumi.systems": OK(3) },
+    () => overpassEscalonado("q", 5000)
+  );
+  assert.equal(r.length, 3);
+  assert.ok(Date.now() - t < 1500);
+  assert.deepEqual(llamadas, ["overpass-api.de", "overpass.kumi.systems"]);
+});
+
+test("Overpass: si el principal se cuelga, el espejo gana tras el retraso y se cancela el resto", async () => {
+  const { r, llamadas } = await conFetchSimulado(
+    { "overpass-api.de": "colgado", "overpass.kumi.systems": OK(2) },
+    () => overpassEscalonado("q", 200)
+  );
+  assert.equal(r.length, 2);
+  assert.ok(!llamadas.includes("overpass.private.coffee"));
+});
+
+test("Overpass: si el principal responde rápido no se molesta a los espejos", async () => {
+  const { r, llamadas } = await conFetchSimulado({ "overpass-api.de": OK(5) }, () => overpassEscalonado("q", 200));
+  assert.equal(r.length, 5);
+  assert.deepEqual(llamadas, ["overpass-api.de"]);
+});
+
+test("Overpass: si todos fallan, rechaza con el detalle", async () => {
+  await assert.rejects(
+    conFetchSimulado({}, () => overpassEscalonado("q", 50)),
+    /Overpass no disponible/
+  );
 });

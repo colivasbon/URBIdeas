@@ -201,6 +201,8 @@ function consultaOSMEntorno(lat: number, lon: number, radioAmbito: number): stri
 node["place"~"^(city|town|village)$"]${a(CRITERIOS.radioNucleos)};out;
 nwr["power"~"^(plant|substation)$"]${a(5000)};out tags geom;
 nwr["landuse"~"^(residential|industrial)$"]${a(1000)};out tags geom;
+nwr["landuse"~"^(farmland|orchard|vineyard|olive_grove|farmyard|meadow|greenhouse_horticulture|plantation|forest)$"]${a(CRITERIOS.radioTipologia)};out tags geom 200;
+nwr["natural"~"^(wood|scrub)$"]${a(CRITERIOS.radioTipologia)};out tags geom 200;
 nwr["emergency"~"^(fire_hydrant|water_tank|fire_water_pond|suction_point)$"]${a(3000)};out tags center 400;
 nwr["man_made"~"^(water_tower|reservoir_covered|water_tank)$"]${a(6000)};out tags center 100;
 way["natural"="water"]["water"~"^(reservoir|pond|basin)$"]${a(6000)};out tags geom 60;`;
@@ -260,7 +262,8 @@ function etiquetaGeneracion(tags: Record<string, string>): string {
 
 // ── IEPNB WFS ──────────────────────────────────────────────────────────────────────────────
 
-const IEPNB_WFS = "https://geoserver.iepnb.es/geoserver/wfs";
+// Sobrescribible (IEPNB_WFS_URL) para enrutar por un proxy si el despliegue está bloqueado.
+const IEPNB_WFS_URL = process.env.IEPNB_WFS_URL || "https://geoserver.iepnb.es/geoserver/wfs";
 
 async function wfsIEPNB(typeName: string, bbox: [number, number, number, number], max = 500, propiedades?: string[]) {
   const params = new URLSearchParams({
@@ -274,7 +277,21 @@ async function wfsIEPNB(typeName: string, bbox: [number, number, number, number]
     bbox: `${bbox.join(",")},EPSG:4326`,
   });
   if (propiedades) params.set("propertyName", propiedades.join(","));
-  const res = await fetchConReintentos(`${IEPNB_WFS}?${params}`, { timeoutMs: 90000, reintentos: 2, pausaMs: 2000 });
+  // El geoserver devuelve 403 a ciertas IPs/clientes (WAF): cabeceras de navegador y, si falla, POST.
+  const cabeceras = { Accept: "application/json, */*", "Accept-Language": "es-ES,es;q=0.9", Referer: "https://iepnb.es/" };
+  let res: Response;
+  try {
+    res = await fetchConReintentos(`${IEPNB_WFS_URL}?${params}`, { timeoutMs: 90000, reintentos: 2, pausaMs: 2000, headers: cabeceras });
+  } catch {
+    res = await fetchConReintentos(IEPNB_WFS_URL, {
+      method: "POST",
+      timeoutMs: 90000,
+      reintentos: 2,
+      pausaMs: 2000,
+      headers: { ...cabeceras, "Content-Type": "application/x-www-form-urlencoded", Origin: "https://iepnb.es" },
+      body: params.toString(),
+    });
+  }
   const fc = (await res.json()) as GeoJSON.FeatureCollection;
   return fc.features ?? [];
 }
@@ -621,7 +638,7 @@ export async function analizarEntorno(ambitoGeoJSON: GeoJSON.Geometry, onEvento?
     publicar("energia", generacion);
     publicar("agua", puntosAgua);
 
-    return { nucleos, generacion, landuse: conTag("landuse", /./) };
+    return { nucleos, generacion, landuse: elementos.filter((e) => e.tags && (e.tags.landuse || /^(wood|scrub)$/.test(e.tags.natural ?? ""))) };
   };
 
   // ── OSM · medios externos: bomberos, seguridad y asistencia sanitaria ──
@@ -1002,15 +1019,18 @@ export async function analizarEntorno(ambitoGeoJSON: GeoJSON.Geometry, onEvento?
   };
 
   // ── Tipología del entorno ──
-  const usoCerca = (re: RegExp) =>
-    (entorno?.landuse ?? []).filter((e) => re.test(e.tags?.landuse ?? "")).some((e) => (medir(ctx, geomDeElemento(e))?.distancia ?? Infinity) <= CRITERIOS.radioTipologia);
+  const usoCerca = (re: RegExp, clave: "landuse" | "natural" = "landuse") =>
+    (entorno?.landuse ?? []).filter((e) => re.test(e.tags?.[clave] ?? "")).some((e) => (medir(ctx, geomDeElemento(e))?.distancia ?? Infinity) <= CRITERIOS.radioTipologia);
   const mfeCerca = (pred: (p: Record<string, string | number | null>) => boolean) =>
     (mfe?.feats ?? []).some((f) => pred(mfeProps(f)) && (medir(ctx, f.geometry)?.distancia ?? Infinity) <= CRITERIOS.radioTipologia);
   const tipologia = {
     urbano: usoCerca(/^residential$/),
     industrial: usoCerca(/^industrial$/),
-    agricola: mfeCerca((p) => /agr[ií]cola|cultivo/i.test(String(p.descr_clamfe ?? ""))),
-    forestal: mfeCerca((p) => String(p.agrupacion_clamfe ?? "").startsWith("Forestal")),
+    // MFE (oficial) y OSM como respaldo cuando el servicio de MITECO no responde o no clasifica el uso.
+    agricola:
+      mfeCerca((p) => /agr[ií]cola|cultivo/i.test(String(p.descr_clamfe ?? ""))) ||
+      usoCerca(/^(farmland|orchard|vineyard|olive_grove|farmyard|meadow|greenhouse_horticulture|plantation)$/),
+    forestal: mfeCerca((p) => String(p.agrupacion_clamfe ?? "").startsWith("Forestal")) || usoCerca(/^forest$/) || usoCerca(/^(wood|scrub)$/, "natural"),
   };
 
   const resultado: ResultadoEntorno = {

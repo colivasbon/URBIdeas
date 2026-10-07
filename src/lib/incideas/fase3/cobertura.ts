@@ -5,6 +5,9 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+/** Versión de los conectores que producen los datos (entra en el id de snapshot). */
+export const CONECTOR_VERSION = "fase3-h2-v1";
+
 export type EstadoBloque =
   | "cargado"
   | "cargado_parcial"
@@ -106,4 +109,90 @@ export async function registrarSnapshot(id: string, notas: string, algoritmo: st
     { onConflict: "id" }
   );
   if (error) throw new Error(`snapshot upsert: ${error.message}`);
+}
+
+// --- Sello de snapshot desde la tabla de control -------------------------
+//
+// Aprobar una oleada re-ejecutando el cargador es inviable a escala nacional
+// (re-descarga 8.132 municipios). El sello deriva el mismo estado lógico
+// (pares cargado/cargado_parcial con objetos publicados) directamente de
+// incideas_cobertura, en un orden canónico estable: mismo control -> mismo id.
+
+/** Orden canónico de bloques (pasos 1..10 del cargador). */
+export const ORDEN_BLOQUES_FASE3 = [
+  "limites",
+  "poblacion",
+  "combustible",
+  "sanidad",
+  "farmacias",
+  "recarga",
+  "depuradoras",
+  "educacion",
+  "hidrografia",
+  "inundabilidad",
+] as const;
+
+/** Fuentes base por orden de carga; las autonómicas (desconocidas) van tras su base. */
+const ORDEN_FUENTES_FASE3 = [
+  "ign-au",
+  "ine-dpop",
+  "minetur-carburantes",
+  "regcess",
+  "regcess-e",
+  "nap-recarga",
+  "prtr",
+  "rcd",
+  "ign-hidro",
+  "snczi-inspire",
+  "patricova",
+];
+
+function rangoFuente(fuente: string): number {
+  const i = ORDEN_FUENTES_FASE3.indexOf(fuente);
+  return i >= 0 ? i : 1000;
+}
+
+export interface ItemSnapshot {
+  bloque: string;
+  fuente: string;
+  edicion: string;
+  n: number;
+}
+
+export interface FilaControlSnapshot {
+  municipio: string;
+  bloque: string;
+  fuente: string;
+  edicion: string;
+  estado: EstadoBloque;
+  objetos_publicados: number;
+}
+
+export function compararItemsSnapshot(a: ItemSnapshot, b: ItemSnapshot): number {
+  const ia = a.bloque.slice(0, a.bloque.indexOf(":"));
+  const ib = b.bloque.slice(0, b.bloque.indexOf(":"));
+  if (ia !== ib) return ia < ib ? -1 : 1;
+  const ba = a.bloque.slice(a.bloque.indexOf(":") + 1);
+  const bb = b.bloque.slice(b.bloque.indexOf(":") + 1);
+  const oa = ORDEN_BLOQUES_FASE3.indexOf(ba as (typeof ORDEN_BLOQUES_FASE3)[number]);
+  const ob = ORDEN_BLOQUES_FASE3.indexOf(bb as (typeof ORDEN_BLOQUES_FASE3)[number]);
+  if (oa !== ob) return oa - ob;
+  const ra = rangoFuente(a.fuente);
+  const rb = rangoFuente(b.fuente);
+  if (ra !== rb) return ra - rb;
+  if (a.fuente !== b.fuente) return a.fuente < b.fuente ? -1 : 1;
+  if (a.edicion !== b.edicion) return a.edicion < b.edicion ? -1 : 1;
+  return a.n - b.n;
+}
+
+/**
+ * Lista canónica de pares para el snapshot a partir del control.
+ * Mismo filtro que el cargador (`plan.filter(n > 0)`) para estados limpios:
+ * solo cargado/cargado_parcial con objetos publicados > 0.
+ */
+export function itemsDesdeControl(filas: FilaControlSnapshot[]): ItemSnapshot[] {
+  return filas
+    .filter((f) => (f.estado === "cargado" || f.estado === "cargado_parcial") && f.objetos_publicados > 0)
+    .map((f) => ({ bloque: `${f.municipio}:${f.bloque}`, fuente: f.fuente, edicion: f.edicion, n: f.objetos_publicados }))
+    .sort(compararItemsSnapshot);
 }

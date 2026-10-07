@@ -10,7 +10,7 @@
 import { config } from "dotenv";
 import { readFileSync, existsSync } from "node:fs";
 import { putBloque, type EnvoltorioBloque } from "../../../src/lib/incideas/fase3/r2";
-import { registrarCobertura, registrarSnapshot, calcularSnapshot, controlClient, type EstadoBloque } from "../../../src/lib/incideas/fase3/cobertura";
+import { registrarCobertura, registrarSnapshot, calcularSnapshot, controlClient, CONECTOR_VERSION, type EstadoBloque } from "../../../src/lib/incideas/fase3/cobertura";
 import { obtenerLimite, obtenerHidro, muestraWMS, WMS_INSPIRE_INUND, BBOX_ARRANQUE } from "../fase2a/fuentes";
 import { recortarTramos } from "../fase2a/geo-calc";
 import { reconciliarHidro } from "../fase2a/contrato";
@@ -26,7 +26,6 @@ import { cargarEducacion } from "./conectores/rcd";
 config({ path: ".env.local" });
 
 const MUESTRA = ["03031", "30030", "01030", "38038", "31201", "51001"];
-const CONECTOR_VERSION = "fase3-h2-v1";
 
 function args(): { ines: string[]; go: boolean; aprobar: boolean; solo: string[]; desdeArchivo: string | null; continuar: boolean; edicionOleada: string | null } {
   const a = process.argv.slice(2);

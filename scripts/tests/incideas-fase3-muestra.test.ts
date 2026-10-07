@@ -12,7 +12,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { claveBloque } from "../../src/lib/incideas/fase3/r2";
-import { calcularSnapshot } from "../../src/lib/incideas/fase3/cobertura";
+import { calcularSnapshot, itemsDesdeControl, type FilaControlSnapshot } from "../../src/lib/incideas/fase3/cobertura";
 import { bboxParaServicio } from "../incideas/fase2a/contrato";
 import { urlGetFeature } from "../incideas/fase2a/wfs";
 import { filaAPublico } from "../incideas/fase3/conectores/regcess";
@@ -34,6 +34,56 @@ test("Snapshot: determinista, con prefijo y cambia con los datos", () => {
   assert.notEqual(a, c);
   assert.match(a, /^incideas:snap:[0-9a-f]+$/);
 });
+
+test("Sello desde control: filtro, orden canónico y determinismo", () => {
+  const filas: FilaControlSnapshot[] = [
+    { municipio: "03031", bloque: "hidrografia", fuente: "ign-hidro", edicion: "2026-10-01", estado: "cargado", objetos_publicados: 5 },
+    { municipio: "03031", bloque: "sanidad", fuente: "regcess", edicion: "2026-10-01", estado: "cargado", objetos_publicados: 2 },
+    { municipio: "03031", bloque: "sanidad", fuente: "navarra-sanidad", edicion: "2026-01-01", estado: "cargado", objetos_publicados: 1 },
+    { municipio: "03031", bloque: "combustible", fuente: "minetur-carburantes", edicion: "e1", estado: "cero_resultados", objetos_publicados: 0 },
+    { municipio: "03031", bloque: "educacion", fuente: "rcd", edicion: "e1", estado: "fuente_caida", objetos_publicados: 0 },
+    { municipio: "02001", bloque: "limites", fuente: "ign-au", edicion: "continua", estado: "cargado", objetos_publicados: 1 },
+    { municipio: "02001", bloque: "depuradoras", fuente: "prtr", edicion: "d1", estado: "cargado_parcial", objetos_publicados: 3 },
+  ];
+  const esperado = [
+    { bloque: "02001:limites", fuente: "ign-au", edicion: "continua", n: 1 },
+    { bloque: "02001:depuradoras", fuente: "prtr", edicion: "d1", n: 3 },
+    { bloque: "03031:sanidad", fuente: "regcess", edicion: "2026-10-01", n: 2 },
+    { bloque: "03031:sanidad", fuente: "navarra-sanidad", edicion: "2026-01-01", n: 1 },
+    { bloque: "03031:hidrografia", fuente: "ign-hidro", edicion: "2026-10-01", n: 5 },
+  ];
+  const items = itemsDesdeControl(filas);
+  assert.deepEqual(items, esperado);
+  // Mismo control en otro orden -> mismo id (el sello es estable).
+  const desordenadas = [...filas].reverse();
+  assert.equal(calcularSnapshot(itemsDesdeControl(desordenadas), "v1"), calcularSnapshot(items, "v1"));
+});
+
+test("Sello desde control: mismos pares que el cargador (estado limpio)", () => {
+  // Mismo estado lógico por las dos vías: el plan del cargador (solo n>0) y
+  // las filas que ese plan habría escrito en el control. La equivalencia es
+  // de contenido (mismos pares y cifras); el orden lo fija el sello.
+  const plan = [
+    { ine: "03031", bloque: "limites", fuente: "ign-au", edicion: "continua", n: 1 },
+    { ine: "03031", bloque: "sanidad", fuente: "regcess", edicion: "2026-10-01", n: 2 },
+    { ine: "03031", bloque: "hidrografia", fuente: "ign-hidro", edicion: "IGR-v0", n: 5 },
+    { ine: "03031", bloque: "inundabilidad", fuente: "snczi-inspire", edicion: "continua", n: 1 },
+    { ine: "03031", bloque: "inundabilidad", fuente: "patricova", edicion: "vigente", n: 4 },
+    { ine: "03031", bloque: "combustible", fuente: "minetur-carburantes", edicion: "e1", n: 0 },
+  ];
+  const itemsCargador = plan
+    .filter((p) => p.n > 0)
+    .map((p) => ({ bloque: `${p.ine}:${p.bloque}`, fuente: p.fuente, edicion: p.edicion, n: p.n }));
+  const filasControl: FilaControlSnapshot[] = plan
+    .filter((p) => p.n > 0)
+    .map((p) => ({ municipio: p.ine, bloque: p.bloque, fuente: p.fuente, edicion: p.edicion, estado: "cargado", objetos_publicados: p.n }));
+  const norm = (xs: Array<{ bloque: string; fuente: string; edicion: string; n: number }>): string[] =>
+    xs.map((x) => JSON.stringify(x)).sort();
+  assert.deepEqual(norm(itemsDesdeControl(filasControl)), norm(itemsCargador));
+  // Para este plan el orden canónico coincide con el de carga (bloques 1..11).
+  assert.deepEqual(itemsDesdeControl(filasControl), itemsCargador);
+});
+
 
 test("Ejes MITECO: WMS 1.1.1 lon/lat y 1.3.0 lat/lon; nunca CQL_FILTER", () => {
   const bb = { minLon: -0.2, minLat: 38.5, maxLon: -0.08, maxLat: 38.6 };

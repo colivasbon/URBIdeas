@@ -99,6 +99,31 @@ test("Estados del contrato: los 7, sin más", () => {
   for (const e of estados) assert.match(mig, new RegExp(`'${e}'`), `estado ${e} en el CHECK`);
 });
 
+test("Fase 3: la escritura por municipio no queda anidada en el bloque PATRICOVA-CV", () => {
+  // Regresión real: `await escribirLote(items, envs)` llegó a quedar dentro
+  // del if de esComunitatValenciana; como el bucle solo escribe ahí, los
+  // municipios sin PATRICOVA (todo el resto de España) no escribían nada.
+  const src = readFileSync(join(RAIZ, "scripts", "incideas", "fase3", "cargar-muestra.ts"), "utf8");
+  const iCv = src.indexOf("if (await esComunitatValenciana(np.provincia))");
+  const iWrite = src.indexOf("await escribirLote(items, envs)");
+  assert.ok(iCv > 0, "no se encuentra el bloque PATRICOVA-CV");
+  assert.ok(iWrite > iCv, "no se encuentra la escritura por municipio");
+  let nivel = 0;
+  let iFinCv = -1;
+  for (let i = src.indexOf("{", iCv); i < src.length; i++) {
+    if (src[i] === "{") nivel++;
+    else if (src[i] === "}") {
+      nivel--;
+      if (nivel === 0) {
+        iFinCv = i;
+        break;
+      }
+    }
+  }
+  assert.ok(iFinCv > 0, "el bloque PATRICOVA-CV no cierra");
+  assert.ok(iWrite > iFinCv, "escribirLote debe ejecutarse para todo municipio, no solo dentro del bloque CV");
+});
+
 test("Fase 3 no escribe en SOCideas ni en municipios.poblacion", () => {
   const dir = join(RAIZ, "scripts", "incideas", "fase3");
   const ficheros: string[] = [];

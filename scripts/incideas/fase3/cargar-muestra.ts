@@ -488,15 +488,17 @@ async function main(): Promise<void> {
         }
       }
       await sleep(500);
-      // Escritura inmediata por municipio (libera envoltorios: con cientos
-      // de municipios el proceso agota el heap si se acumula todo).
-      if (go) {
-        const items = plan.filter((p) => p.ine === ine);
-        const envs = paraSubir.filter((p) => p.item.ine === ine);
-        await escribirLote(items, envs);
-        for (let i = paraSubir.length - 1; i >= 0; i--) {
-          if (paraSubir[i].item.ine === ine) paraSubir.splice(i, 1);
-        }
+    }
+    // Escritura inmediata por municipio, también fuera de la Comunitat
+    // Valenciana (libera envoltorios: con cientos de municipios el proceso
+    // agota el heap si se acumula todo). La versión anterior la anidó por
+    // error en el bloque PATRICOVA-CV y el resto de España no escribía.
+    if (go) {
+      const items = plan.filter((p) => p.ine === ine);
+      const envs = paraSubir.filter((p) => p.item.ine === ine);
+      await escribirLote(items, envs);
+      for (let i = paraSubir.length - 1; i >= 0; i--) {
+        if (paraSubir[i].item.ine === ine) paraSubir.splice(i, 1);
       }
     }
   }

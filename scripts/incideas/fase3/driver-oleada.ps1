@@ -42,7 +42,7 @@ foreach ($loteRuta in Get-Content -LiteralPath $Orden) {
   $code = $LASTEXITCODE
   Anota ("FIN {0} error={1}" -f $lote, $code)
   if ($code -ne 0) {
-    Anota "ERROR en $lote: sin .hecho; el driver se detiene (relanzar reanuda con --continuar)"
+    Anota "ERROR en ${lote}: sin .hecho; el driver se detiene (relanzar reanuda con --continuar)"
     exit $code
   }
   New-Item -ItemType File -Path $hecho -Force | Out-Null

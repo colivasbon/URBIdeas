@@ -369,13 +369,23 @@ async function main(): Promise<void> {
           let totalSrv = 0;
           let descargados = 0;
           for (const tipo of ["hy-p:Watercourse", "hy-n:WatercourseLink"] as const) {
-            let capa = await obtenerHidro(tipo, bb);
+            let capa: Awaited<ReturnType<typeof obtenerHidro>> | null = null;
+            let ultimoError: unknown = null;
             // El total del servidor fluctúa entre peticiones (observado:
-            // 291→0→144 en el mismo BBOX): ante un cero, un reintento.
-            if ((capa.totalServidor ?? 0) === 0) {
-              await sleep(3000);
-              capa = await obtenerHidro(tipo, bb);
+            // 291→0→144 en el mismo BBOX) y la red falla en oleadas: hasta
+            // 3 intentos con espera creciente antes de aceptar un cero o
+            // marcar la fuente como caída.
+            for (let intento = 0; intento < 3; intento++) {
+              if (intento > 0) await sleep(3000 * intento);
+              try {
+                capa = await obtenerHidro(tipo, bb);
+                if ((capa.totalServidor ?? 0) > 0) break;
+              } catch (e: unknown) {
+                ultimoError = e;
+                capa = null;
+              }
             }
+            if (!capa) throw ultimoError ?? new Error("hidrografía sin respuesta tras reintentos");
             totalSrv += capa.totalServidor ?? 0;
             descargados += capa.objetos.length;
             const rec = recortarTramos(
@@ -391,7 +401,7 @@ async function main(): Promise<void> {
           }
           const completa = totalSrv > 0 && descargados >= totalSrv;
           const vacioTotal = totalSrv === 0 && descargados === 0;
-          plan.push({ ine, bloque: "hidrografia", fuente: "ign-hidro", edicion: "IGR-v0", estado: vacioTotal ? "cero_resultados" : completa ? "cargado" : "cargado_parcial", n: tramos.length, nota: vacioTotal ? "El servidor responde 0 coincidencias (fluctúa entre peticiones; reintentado una vez)." : `${descargados}/${totalSrv} miembros del BBOX.` });
+          plan.push({ ine, bloque: "hidrografia", fuente: "ign-hidro", edicion: "IGR-v0", estado: vacioTotal ? "cero_resultados" : completa ? "cargado" : "cargado_parcial", n: tramos.length, nota: vacioTotal ? "El servidor responde 0 coincidencias (fluctúa entre peticiones; hasta 3 intentos)." : `${descargados}/${totalSrv} miembros del BBOX.` });
           if (tramos.length > 0) {
             paraSubir.push({ item: plan[plan.length - 1], env: env("hidrografia", ine, "ign-hidro", "IGR-v0", "CC BY 4.0", "https://servicios.idee.es/wfs-inspire/hidrografia", null, tramos) });
           }

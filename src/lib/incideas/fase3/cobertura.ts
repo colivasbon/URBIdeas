@@ -72,6 +72,18 @@ export async function registrarCobertura(r: RegistroCobertura): Promise<void> {
       .eq("fuente", r.fuente)
       .neq("edicion", r.edicion);
     if (e2) throw new Error(`cobertura limpieza: ${e2.message}`);
+  } else if (r.estado !== "fuente_caida") {
+    // Resultado definitivo no exitoso (cero/sin cobertura/no aplicable):
+    // retira marcadores de fallo anteriores del mismo triple; la versión
+    // válida anterior, si existe, se conserva.
+    const { error: e2 } = await c
+      .from("incideas_cobertura")
+      .delete()
+      .eq("municipio", r.municipio)
+      .eq("bloque", r.bloque)
+      .eq("fuente", r.fuente)
+      .eq("estado", "fuente_caida");
+    if (e2) throw new Error(`cobertura limpieza de fallos: ${e2.message}`);
   }
 }
 

@@ -171,6 +171,15 @@ export function incideasNavConfig(ctx: IncideasContext = {}): ProductNavbarConfi
         ],
       },
       {
+        id: "pai",
+        label: "PAI",
+        items: [
+          { label: "Herramientas PAI", href: "/incideas/pai", description: "Planes de Autoprotección de instalaciones" },
+          { label: "Análisis de entorno", href: "/incideas/pai/entorno", description: "KMZ o punto: distancias y tabla de entorno" },
+          { label: "Riesgo intrínseco", href: "/incideas/pai/riesgo-intrinseco", description: "Carga de fuego por sectores (R.D. 164/2025)" },
+        ],
+      },
+      {
         id: "metodologia",
         label: "Datos y metodología",
         items: [

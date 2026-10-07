@@ -1,0 +1,1074 @@
+{
+ "generado_en": "2026-10-05T09:12:52.632Z",
+ "codigo_ine": "03031",
+ "hash_plantilla": "608056542F653ADED3F2332543ED07A39B1C619FF300654C5CDB9EE5F6C0019D",
+ "copia_sha256": "a97b5246ae935c5f77c9b1f8cae10edd767cbc8ca75b93c10e9230bdc6677c9d",
+ "recuentos": {
+  "registros_actuales": 157,
+  "vigentes": 53,
+  "bajas_historicas": 104,
+  "claves_nuevas": 53,
+  "altas": 0,
+  "revision": 0,
+  "fusiones": 0,
+  "reactivaciones": 0,
+  "renombrados": 0,
+  "retiradas": 0,
+  "retiradas_artefacto": 0,
+  "retiradas_legitimas": 0,
+  "sin_cambio": 53
+ },
+ "movimientos": [
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|1|El Calvari",
+   "identidad": "partida|1|El Calvari",
+   "id": "caf706d7-11cb-4935-82e4-d8e9b7e9149a",
+   "detalle": "sin cambios; áreas: 10"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|1|El Campo",
+   "identidad": "partida|1|El Campo",
+   "id": "c771d7d8-4431-40cf-9bb0-f619f4fea38d",
+   "detalle": "sin cambios; áreas: 10"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|1|El Castell – Barri antic",
+   "identidad": "partida|1|El Castell – Barri antic",
+   "id": "0db024b2-78e1-4cfe-9896-9eeefdcc4e79",
+   "detalle": "sin cambios; áreas: 10"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|1|La Caseta",
+   "identidad": "partida|1|La Caseta",
+   "id": "0690761e-7bdb-4887-968b-00f0dae5ba3d",
+   "detalle": "sin cambios; áreas: 10"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|1|Pla de Maravall",
+   "identidad": "partida|1|Pla de Maravall",
+   "id": "5623ce99-7c3a-44be-bc8a-95ecaed2e4e8",
+   "detalle": "sin cambios; áreas: 10"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|2|Cabanes",
+   "identidad": "partida|2|Cabanes",
+   "id": "4791bead-e97b-4c13-966b-0b4c0603f7a9",
+   "detalle": "sin cambios; áreas: 9"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|2|El Pi",
+   "identidad": "partida|2|El Pi",
+   "id": "2cbac46d-11bc-4b6f-bf4b-0c582781692d",
+   "detalle": "sin cambios; áreas: 9"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|2|El Saladar",
+   "identidad": "partida|2|El Saladar",
+   "id": "d54efaa9-de3d-44ca-a92d-100fed253052",
+   "detalle": "sin cambios; áreas: 9, 10, 12"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|2|Foia de Sant Josep",
+   "identidad": "partida|2|Foia de Sant Josep",
+   "id": "0fc7aab6-797f-4176-9538-64b92dad21d4",
+   "detalle": "sin cambios; áreas: 9"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|2|La Torreta",
+   "identidad": "partida|2|La Torreta",
+   "id": "3a9670e5-3833-471c-b860-389aae5fba2c",
+   "detalle": "sin cambios; áreas: 9, 12"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|2|Pla de Baió",
+   "identidad": "partida|2|Pla de Baió",
+   "id": "f8c9386b-0ba3-4107-9224-8967650327af",
+   "detalle": "sin cambios; áreas: 9"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|2|Pla de l'Assgador",
+   "identidad": "partida|2|Pla de l'Assgador",
+   "id": "b9b69c6e-45df-4a04-8adb-cc3f8d9aa0d0",
+   "detalle": "sin cambios; áreas: 9, 13"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|2|Pla del Quarter",
+   "identidad": "partida|2|Pla del Quarter",
+   "id": "fc772537-74bb-403a-bb81-d36eca40e568",
+   "detalle": "sin cambios; áreas: 3, 13"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|2|Racó de l'Oix",
+   "identidad": "partida|2|Racó de l'Oix",
+   "id": "e6e11b74-661e-4fb6-bccc-4718f6cf1d5e",
+   "detalle": "sin cambios; áreas: 9"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|2|Sanç",
+   "identidad": "partida|2|Sanç",
+   "id": "38c01ff5-cd67-484c-afe8-482267420e28",
+   "detalle": "sin cambios; áreas: 3"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|2|Serra Gelada",
+   "identidad": "partida|2|Serra Gelada",
+   "id": "d2d043c3-3e95-41aa-9780-3cf1ab6e984a",
+   "detalle": "sin cambios; áreas: 6, 9, 13"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|Armanello",
+   "identidad": "partida|3|Armanello",
+   "id": "8a63b707-d0fe-455b-ae92-017e27632896",
+   "detalle": "sin cambios; áreas: 12"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|Cabut",
+   "identidad": "partida|3|Cabut",
+   "id": "e66e3c5f-7e0c-426b-bd3f-049e0069c4c2",
+   "detalle": "sin cambios; áreas: 3"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|Derramador",
+   "identidad": "partida|3|Derramador",
+   "id": "7034afa0-5950-44ca-b218-9cbfacb5eb05",
+   "detalle": "sin cambios; áreas: 12"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|El Planet",
+   "identidad": "partida|3|El Planet",
+   "id": "cfd51091-3e6d-4a61-96a5-64a6ca6fe105",
+   "detalle": "sin cambios; áreas: 1, 12"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|El Saltet",
+   "identidad": "partida|3|El Saltet",
+   "id": "32489335-1866-44f9-96bf-71840d610b36",
+   "detalle": "sin cambios; áreas: 3"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|Fluixà",
+   "identidad": "partida|3|Fluixà",
+   "id": "29ecb5b3-35c5-4f06-9193-e35f06b99e66",
+   "detalle": "sin cambios; áreas: 7, 8, 10"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|Foia Manera",
+   "identidad": "partida|3|Foia Manera",
+   "id": "4c1c75c1-2560-418d-ab07-9f718cd48411",
+   "detalle": "sin cambios; áreas: 9, 12"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|L’Almafrà",
+   "identidad": "partida|3|L’Almafrà",
+   "id": "99420185-fe0d-4d66-81e6-057b3f787ac8",
+   "detalle": "sin cambios; áreas: 3"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|La Lloma",
+   "identidad": "partida|3|La Lloma",
+   "id": "56393ddc-2d81-443f-909c-9ff936c68de8",
+   "detalle": "sin cambios; áreas: 3, 12"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|La Mitja Llengua",
+   "identidad": "partida|3|La Mitja Llengua",
+   "id": "e4d141d8-e23d-4c0f-9317-a8e9d77a8718",
+   "detalle": "sin cambios; áreas: 3"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|Les Coves",
+   "identidad": "partida|3|Les Coves",
+   "id": "38bf4427-c27e-492c-95f1-40b0a5249d5f",
+   "detalle": "sin cambios; áreas: 3"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|Marxasso",
+   "identidad": "partida|3|Marxasso",
+   "id": "a4e2e2ea-a756-43d8-80dc-19a2da2987b2",
+   "detalle": "sin cambios; áreas: 12"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|Palaciet",
+   "identidad": "partida|3|Palaciet",
+   "id": "324d2100-27bc-4cab-ad90-3a3a515095fc",
+   "detalle": "sin cambios; áreas: 12"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|Pla de Marc",
+   "identidad": "partida|3|Pla de Marc",
+   "id": "5e4d19fe-17dd-44e2-9886-e26a433cdd8c",
+   "detalle": "sin cambios; áreas: 3, 12"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|Salt de l’Aigua",
+   "identidad": "partida|3|Salt de l’Aigua",
+   "id": "643952a5-a5f3-41d0-96ff-9962039885cb",
+   "detalle": "sin cambios; áreas: 7"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|3|Tolls",
+   "identidad": "partida|3|Tolls",
+   "id": "2583f85c-5456-4103-bf98-bc6f1c98c5d4",
+   "detalle": "sin cambios; áreas: 2"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Alt de Rajadell",
+   "identidad": "partida|4|Alt de Rajadell",
+   "id": "d16c5cf0-1c8c-4305-9ff6-73b06f24acc6",
+   "detalle": "sin cambios; áreas: 4, 5"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Alt de Vives",
+   "identidad": "partida|4|Alt de Vives",
+   "id": "d60abd0b-d1e4-49a7-9552-59d5d2ce4ae9",
+   "detalle": "sin cambios; áreas: 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Coloma Carreres",
+   "identidad": "partida|4|Coloma Carreres",
+   "id": "e8cce855-258c-4ddc-99e2-d424e3029da5",
+   "detalle": "sin cambios; áreas: 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|El Morgoig",
+   "identidad": "partida|4|El Morgoig",
+   "id": "8e0ef935-14cb-4504-a368-f3c0b16ec770",
+   "detalle": "sin cambios; áreas: 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Foia del Bol",
+   "identidad": "partida|4|Foia del Bol",
+   "id": "1a69316d-fed9-4d36-a53e-494a8f370845",
+   "detalle": "sin cambios; áreas: 2, 5, 10"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Foia del Ca",
+   "identidad": "partida|4|Foia del Ca",
+   "id": "d58bcc0e-53dc-4d5b-9944-f4d337dc8fd4",
+   "detalle": "sin cambios; áreas: 1, 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Foia del Veradder",
+   "identidad": "partida|4|Foia del Veradder",
+   "id": "a5ae52ab-8bcf-4bbe-a0fb-7db77c4c64aa",
+   "detalle": "sin cambios; áreas: 1, 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Foietes",
+   "identidad": "partida|4|Foietes",
+   "id": "1c900937-e432-4b4e-b3b2-ca8e44db1f9d",
+   "detalle": "sin cambios; áreas: 1, 2"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Iborra",
+   "identidad": "partida|4|Iborra",
+   "id": "44e11350-a23e-4b18-ab32-ae76785660d3",
+   "detalle": "sin cambios; áreas: 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|La Cala",
+   "identidad": "partida|4|La Cala",
+   "id": "45b0417d-b2cf-4048-8c94-3f01f4aa4b46",
+   "detalle": "sin cambios; áreas: 5"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|La Cortina",
+   "identidad": "partida|4|La Cortina",
+   "id": "8946092f-b792-4d2f-b1f2-83c3f9b896e8",
+   "detalle": "sin cambios; áreas: 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Les Bastides",
+   "identidad": "partida|4|Les Bastides",
+   "id": "534ed666-955e-4420-b359-34c3adbf38eb",
+   "detalle": "sin cambios; áreas: 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Lliriet",
+   "identidad": "partida|4|Lliriet",
+   "id": "059bc149-5bd1-4024-beea-7b9f65b86270",
+   "detalle": "sin cambios; áreas: 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Lliriet de Thous",
+   "identidad": "partida|4|Lliriet de Thous",
+   "id": "e8449e2c-7c27-4336-8423-1b4ac5f3a14d",
+   "detalle": "sin cambios; áreas: 1, 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Moralet",
+   "identidad": "partida|4|Moralet",
+   "id": "551e0eeb-e0d0-400d-b665-ee04d75834c6",
+   "detalle": "sin cambios; áreas: 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Murtal",
+   "identidad": "partida|4|Murtal",
+   "id": "af4310e3-c32a-480d-b2d4-42ebb85a5584",
+   "detalle": "sin cambios; áreas: 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Pla de Caiola",
+   "identidad": "partida|4|Pla de Caiola",
+   "id": "d4182f82-4936-4863-99bd-dab249454d27",
+   "detalle": "sin cambios; áreas: 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Pla de Patiño",
+   "identidad": "partida|4|Pla de Patiño",
+   "id": "d9defde0-e48e-4477-9fd2-2e06963787b1",
+   "detalle": "sin cambios; áreas: 1"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Pla del Rabosot",
+   "identidad": "partida|4|Pla del Rabosot",
+   "id": "64bbb487-3858-4beb-a96a-4969114e2a75",
+   "detalle": "sin cambios; áreas: 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Tapiades",
+   "identidad": "partida|4|Tapiades",
+   "id": "fe182fb5-c775-495e-a30b-d12dc45cfb81",
+   "detalle": "sin cambios; áreas: 11"
+  },
+  {
+   "tipo": "sin_cambio",
+   "clave": "partida|4|Xixo",
+   "identidad": "partida|4|Xixo",
+   "id": "c62ac4df-0174-4d22-8ab3-91f707245f32",
+   "detalle": "sin cambios; áreas: 2, 5"
+  }
+ ],
+ "entidades": [
+  {
+   "clave": "partida|1|El Calvari",
+   "nombre": "El Calvari",
+   "distrito": "1",
+   "areas": [
+    "10"
+   ],
+   "filas_hoja": [
+    2,
+    91
+   ]
+  },
+  {
+   "clave": "partida|1|El Campo",
+   "nombre": "El Campo",
+   "distrito": "1",
+   "areas": [
+    "10"
+   ],
+   "filas_hoja": [
+    3,
+    92
+   ]
+  },
+  {
+   "clave": "partida|1|El Castell – Barri antic",
+   "nombre": "El Castell – Barri antic",
+   "distrito": "1",
+   "areas": [
+    "10"
+   ],
+   "filas_hoja": [
+    4,
+    93
+   ]
+  },
+  {
+   "clave": "partida|1|La Caseta",
+   "nombre": "La Caseta",
+   "distrito": "1",
+   "areas": [
+    "10"
+   ],
+   "filas_hoja": [
+    5,
+    109
+   ]
+  },
+  {
+   "clave": "partida|1|Pla de Maravall",
+   "nombre": "Pla de Maravall",
+   "distrito": "1",
+   "areas": [
+    "10"
+   ],
+   "filas_hoja": [
+    6,
+    125
+   ]
+  },
+  {
+   "clave": "partida|2|Cabanes",
+   "nombre": "Cabanes",
+   "distrito": "2",
+   "areas": [
+    "9"
+   ],
+   "filas_hoja": [
+    7,
+    87
+   ]
+  },
+  {
+   "clave": "partida|2|El Pi",
+   "nombre": "El Pi",
+   "distrito": "2",
+   "areas": [
+    "9"
+   ],
+   "filas_hoja": [
+    8,
+    95
+   ]
+  },
+  {
+   "clave": "partida|2|El Saladar",
+   "nombre": "El Saladar",
+   "distrito": "2",
+   "areas": [
+    "9",
+    "10",
+    "12"
+   ],
+   "filas_hoja": [
+    9,
+    10,
+    11,
+    97
+   ]
+  },
+  {
+   "clave": "partida|2|Foia de Sant Josep",
+   "nombre": "Foia de Sant Josep",
+   "distrito": "2",
+   "areas": [
+    "9"
+   ],
+   "filas_hoja": [
+    12,
+    100
+   ]
+  },
+  {
+   "clave": "partida|2|La Torreta",
+   "nombre": "La Torreta",
+   "distrito": "2",
+   "areas": [
+    "9",
+    "12"
+   ],
+   "filas_hoja": [
+    13,
+    14,
+    113
+   ]
+  },
+  {
+   "clave": "partida|2|Pla de Baió",
+   "nombre": "Pla de Baió",
+   "distrito": "2",
+   "areas": [
+    "9"
+   ],
+   "filas_hoja": [
+    15,
+    122
+   ]
+  },
+  {
+   "clave": "partida|2|Pla de l'Assgador",
+   "nombre": "Pla de l'Assgador",
+   "distrito": "2",
+   "areas": [
+    "9",
+    "13"
+   ],
+   "filas_hoja": [
+    16,
+    17,
+    124
+   ]
+  },
+  {
+   "clave": "partida|2|Pla del Quarter",
+   "nombre": "Pla del Quarter",
+   "distrito": "2",
+   "areas": [
+    "3",
+    "13"
+   ],
+   "filas_hoja": [
+    18,
+    19,
+    128
+   ]
+  },
+  {
+   "clave": "partida|2|Racó de l'Oix",
+   "nombre": "Racó de l'Oix",
+   "distrito": "2",
+   "areas": [
+    "9"
+   ],
+   "filas_hoja": [
+    20,
+    130
+   ]
+  },
+  {
+   "clave": "partida|2|Sanç",
+   "nombre": "Sanç",
+   "distrito": "2",
+   "areas": [
+    "3"
+   ],
+   "filas_hoja": [
+    21,
+    132
+   ]
+  },
+  {
+   "clave": "partida|2|Serra Gelada",
+   "nombre": "Serra Gelada",
+   "distrito": "2",
+   "areas": [
+    "6",
+    "9",
+    "13"
+   ],
+   "filas_hoja": [
+    22,
+    23,
+    24,
+    133
+   ]
+  },
+  {
+   "clave": "partida|3|Armanello",
+   "nombre": "Armanello",
+   "distrito": "3",
+   "areas": [
+    "12"
+   ],
+   "filas_hoja": [
+    25,
+    86
+   ]
+  },
+  {
+   "clave": "partida|3|Cabut",
+   "nombre": "Cabut",
+   "distrito": "3",
+   "areas": [
+    "3"
+   ],
+   "filas_hoja": [
+    26,
+    88
+   ]
+  },
+  {
+   "clave": "partida|3|Derramador",
+   "nombre": "Derramador",
+   "distrito": "3",
+   "areas": [
+    "12"
+   ],
+   "filas_hoja": [
+    27,
+    90
+   ]
+  },
+  {
+   "clave": "partida|3|El Planet",
+   "nombre": "El Planet",
+   "distrito": "3",
+   "areas": [
+    "1",
+    "12"
+   ],
+   "filas_hoja": [
+    28,
+    29,
+    96
+   ]
+  },
+  {
+   "clave": "partida|3|El Saltet",
+   "nombre": "El Saltet",
+   "distrito": "3",
+   "areas": [
+    "3"
+   ],
+   "filas_hoja": [
+    30,
+    98
+   ]
+  },
+  {
+   "clave": "partida|3|Fluixà",
+   "nombre": "Fluixà",
+   "distrito": "3",
+   "areas": [
+    "7",
+    "8",
+    "10"
+   ],
+   "filas_hoja": [
+    31,
+    32,
+    33,
+    99
+   ]
+  },
+  {
+   "clave": "partida|3|Foia Manera",
+   "nombre": "Foia Manera",
+   "distrito": "3",
+   "areas": [
+    "9",
+    "12"
+   ],
+   "filas_hoja": [
+    34,
+    35,
+    104
+   ]
+  },
+  {
+   "clave": "partida|3|L’Almafrà",
+   "nombre": "L’Almafrà",
+   "distrito": "3",
+   "areas": [
+    "3"
+   ],
+   "filas_hoja": [
+    36,
+    107
+   ]
+  },
+  {
+   "clave": "partida|3|La Lloma",
+   "nombre": "La Lloma",
+   "distrito": "3",
+   "areas": [
+    "3",
+    "12"
+   ],
+   "filas_hoja": [
+    37,
+    38,
+    111
+   ]
+  },
+  {
+   "clave": "partida|3|La Mitja Llengua",
+   "nombre": "La Mitja Llengua",
+   "distrito": "3",
+   "areas": [
+    "3"
+   ],
+   "filas_hoja": [
+    39,
+    112
+   ]
+  },
+  {
+   "clave": "partida|3|Les Coves",
+   "nombre": "Les Coves",
+   "distrito": "3",
+   "areas": [
+    "3"
+   ],
+   "filas_hoja": [
+    40,
+    115
+   ]
+  },
+  {
+   "clave": "partida|3|Marxasso",
+   "nombre": "Marxasso",
+   "distrito": "3",
+   "areas": [
+    "12"
+   ],
+   "filas_hoja": [
+    41,
+    118
+   ]
+  },
+  {
+   "clave": "partida|3|Palaciet",
+   "nombre": "Palaciet",
+   "distrito": "3",
+   "areas": [
+    "12"
+   ],
+   "filas_hoja": [
+    42,
+    121
+   ]
+  },
+  {
+   "clave": "partida|3|Pla de Marc",
+   "nombre": "Pla de Marc",
+   "distrito": "3",
+   "areas": [
+    "3",
+    "12"
+   ],
+   "filas_hoja": [
+    43,
+    44,
+    126
+   ]
+  },
+  {
+   "clave": "partida|3|Salt de l’Aigua",
+   "nombre": "Salt de l’Aigua",
+   "distrito": "3",
+   "areas": [
+    "7"
+   ],
+   "filas_hoja": [
+    45,
+    131
+   ]
+  },
+  {
+   "clave": "partida|3|Tolls",
+   "nombre": "Tolls",
+   "distrito": "3",
+   "areas": [
+    "2"
+   ],
+   "filas_hoja": [
+    46,
+    135
+   ]
+  },
+  {
+   "clave": "partida|4|Alt de Rajadell",
+   "nombre": "Alt de Rajadell",
+   "distrito": "4",
+   "areas": [
+    "4",
+    "5"
+   ],
+   "filas_hoja": [
+    47,
+    48,
+    84
+   ]
+  },
+  {
+   "clave": "partida|4|Alt de Vives",
+   "nombre": "Alt de Vives",
+   "distrito": "4",
+   "areas": [
+    "11"
+   ],
+   "filas_hoja": [
+    49,
+    85
+   ]
+  },
+  {
+   "clave": "partida|4|Coloma Carreres",
+   "nombre": "Coloma Carreres",
+   "distrito": "4",
+   "areas": [
+    "11"
+   ],
+   "filas_hoja": [
+    50,
+    89
+   ]
+  },
+  {
+   "clave": "partida|4|El Morgoig",
+   "nombre": "El Morgoig",
+   "distrito": "4",
+   "areas": [
+    "11"
+   ],
+   "filas_hoja": [
+    51,
+    94
+   ]
+  },
+  {
+   "clave": "partida|4|Foia del Bol",
+   "nombre": "Foia del Bol",
+   "distrito": "4",
+   "areas": [
+    "2",
+    "5",
+    "10"
+   ],
+   "filas_hoja": [
+    52,
+    53,
+    54,
+    101
+   ]
+  },
+  {
+   "clave": "partida|4|Foia del Ca",
+   "nombre": "Foia del Ca",
+   "distrito": "4",
+   "areas": [
+    "1",
+    "11"
+   ],
+   "filas_hoja": [
+    55,
+    56,
+    102
+   ]
+  },
+  {
+   "clave": "partida|4|Foia del Veradder",
+   "nombre": "Foia del Veradder",
+   "distrito": "4",
+   "areas": [
+    "1",
+    "11"
+   ],
+   "filas_hoja": [
+    57,
+    58,
+    103
+   ]
+  },
+  {
+   "clave": "partida|4|Foietes",
+   "nombre": "Foietes",
+   "distrito": "4",
+   "areas": [
+    "1",
+    "2"
+   ],
+   "filas_hoja": [
+    59,
+    60,
+    105
+   ]
+  },
+  {
+   "clave": "partida|4|Iborra",
+   "nombre": "Iborra",
+   "distrito": "4",
+   "areas": [
+    "11"
+   ],
+   "filas_hoja": [
+    61,
+    106
+   ]
+  },
+  {
+   "clave": "partida|4|La Cala",
+   "nombre": "La Cala",
+   "distrito": "4",
+   "areas": [
+    "5"
+   ],
+   "filas_hoja": [
+    62,
+    108
+   ]
+  },
+  {
+   "clave": "partida|4|La Cortina",
+   "nombre": "La Cortina",
+   "distrito": "4",
+   "areas": [
+    "11"
+   ],
+   "filas_hoja": [
+    63,
+    110
+   ]
+  },
+  {
+   "clave": "partida|4|Les Bastides",
+   "nombre": "Les Bastides",
+   "distrito": "4",
+   "areas": [
+    "11"
+   ],
+   "filas_hoja": [
+    64,
+    114
+   ]
+  },
+  {
+   "clave": "partida|4|Lliriet",
+   "nombre": "Lliriet",
+   "distrito": "4",
+   "areas": [
+    "11"
+   ],
+   "filas_hoja": [
+    65,
+    116
+   ]
+  },
+  {
+   "clave": "partida|4|Lliriet de Thous",
+   "nombre": "Lliriet de Thous",
+   "distrito": "4",
+   "areas": [
+    "1",
+    "11"
+   ],
+   "filas_hoja": [
+    66,
+    67,
+    117
+   ]
+  },
+  {
+   "clave": "partida|4|Moralet",
+   "nombre": "Moralet",
+   "distrito": "4",
+   "areas": [
+    "11"
+   ],
+   "filas_hoja": [
+    68,
+    119
+   ]
+  },
+  {
+   "clave": "partida|4|Murtal",
+   "nombre": "Murtal",
+   "distrito": "4",
+   "areas": [
+    "11"
+   ],
+   "filas_hoja": [
+    69,
+    120
+   ]
+  },
+  {
+   "clave": "partida|4|Pla de Caiola",
+   "nombre": "Pla de Caiola",
+   "distrito": "4",
+   "areas": [
+    "11"
+   ],
+   "filas_hoja": [
+    70,
+    123
+   ]
+  },
+  {
+   "clave": "partida|4|Pla de Patiño",
+   "nombre": "Pla de Patiño",
+   "distrito": "4",
+   "areas": [
+    "1"
+   ],
+   "filas_hoja": [
+    71,
+    127
+   ]
+  },
+  {
+   "clave": "partida|4|Pla del Rabosot",
+   "nombre": "Pla del Rabosot",
+   "distrito": "4",
+   "areas": [
+    "11"
+   ],
+   "filas_hoja": [
+    72,
+    129
+   ]
+  },
+  {
+   "clave": "partida|4|Tapiades",
+   "nombre": "Tapiades",
+   "distrito": "4",
+   "areas": [
+    "11"
+   ],
+   "filas_hoja": [
+    73,
+    134
+   ]
+  },
+  {
+   "clave": "partida|4|Xixo",
+   "nombre": "Xixo",
+   "distrito": "4",
+   "areas": [
+    "2",
+    "5"
+   ],
+   "filas_hoja": [
+    74,
+    75,
+    136
+   ]
+  }
+ ]
+}

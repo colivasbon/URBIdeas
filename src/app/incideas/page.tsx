@@ -99,19 +99,43 @@ export default function IncideasHub() {
                 un entorno de carga, revisión y mantenimiento para la información que debe obtenerse
                 mediante ayuntamientos, operadores o trabajo de campo.
               </p>
-              <p className="mt-4 max-w-[40ch] text-sm text-[var(--text-secondary)]">
+              <p className="mt-8 max-w-[40ch] text-sm text-[var(--text-secondary)]">
                 No es un generador automático de planes de emergencia. Es un sistema de información,
                 preparación técnica, control de calidad y exportación.
               </p>
             </div>
-            <div className="rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 sm:p-6">
-              <h2 className="type-h4 text-[var(--text-primary)]">Buscar un municipio</h2>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                Por nombre, por código INE o acotando por comunidad y provincia.
-              </p>
-              <div className="mt-5">
-                <IncideasSearch />
+            <div className="space-y-5">
+              <div className="rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 sm:p-6">
+                <h2 className="type-h4 text-[var(--text-primary)]">Buscar un municipio</h2>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                  Por nombre, por código INE o acotando por comunidad y provincia.
+                </p>
+                <div className="mt-5">
+                  <IncideasSearch />
+                </div>
               </div>
+
+              <section aria-labelledby="pai-acceso" className="rounded-[6px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 sm:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 id="pai-acceso" className="type-h4 text-[var(--text-primary)]">Planes de Autoprotección</h2>
+                  <Badge variant="success">Nuevo</Badge>
+                </div>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                  Datos de entorno y riesgo intrínseco para PAI de instalaciones, con cobertura en toda España.
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <Link href="/incideas/pai/entorno" className="group rounded-[6px] border border-[var(--border-subtle)] p-4 transition-colors hover:border-[var(--border-default)] hover:bg-[var(--surface-hover)]">
+                    <p className="font-semibold text-[var(--text-primary)]">Análisis de entorno</p>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Dibuja o carga el ámbito: distancias a servicios de emergencia, sanidad, agua, viario y espacios protegidos.</p>
+                    <p className="mt-3 text-sm font-medium text-[var(--moss-ink)] group-hover:underline">Abrir</p>
+                  </Link>
+                  <Link href="/incideas/pai/riesgo-intrinseco" className="group rounded-[6px] border border-[var(--border-subtle)] p-4 transition-colors hover:border-[var(--border-default)] hover:bg-[var(--surface-hover)]">
+                    <p className="font-semibold text-[var(--text-primary)]">Riesgo intrínseco</p>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Carga de fuego por sectores según R.D. 164/2025, con tablas para Word y XLSX.</p>
+                    <p className="mt-3 text-sm font-medium text-[var(--moss-ink)] group-hover:underline">Abrir</p>
+                  </Link>
+                </div>
+              </section>
             </div>
           </div>
         </section>

@@ -1,0 +1,146 @@
+/* Estilos de los elementos Leaflet del visor de análisis de entorno (identidad IDEAS). */
+
+.punto {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3e665c;
+  border: 3px solid #f1f1f1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.origen {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.origen::before,
+.origen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid #86b73d;
+  background: rgba(134, 183, 61, 0.18);
+  animation: expandir 2.2s ease-out infinite;
+}
+
+.origen::after {
+  animation-delay: 1.1s;
+}
+
+.origenNucleo {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: #86b73d;
+  border: 2px solid #f1f1f1;
+  box-shadow: 0 0 0 1px rgba(60, 64, 62, 0.4);
+}
+
+@keyframes expandir {
+  from {
+    transform: scale(0.3);
+    opacity: 0.95;
+  }
+  to {
+    transform: scale(3.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .origen::before,
+  .origen::after {
+    animation: none;
+    opacity: 0.5;
+    transform: scale(2);
+  }
+}
+
+/* Etiquetas sobre las mediciones */
+.etiqueta {
+  background: #3c403e;
+  color: #f1f1f1;
+  border: 0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-family: var(--font-poppins, Poppins), system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 1.35;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+}
+
+.etiqueta::before {
+  display: none;
+}
+
+.etiqueta strong {
+  font-weight: 600;
+}
+
+.corta {
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-weight: 500;
+  opacity: 0.94;
+}
+
+/* Cursor de dibujo más nítido */
+.mapaDibujando :global(.leaflet-container),
+.mapaDibujando {
+  cursor: crosshair;
+}
+
+/* Controles Leaflet integrados con el tema */
+.mapa :global(.leaflet-bar a),
+.mapa :global(.leaflet-bar a:hover) {
+  border-radius: 6px;
+}
+
+.mapa :global(.leaflet-bar) {
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+.mapa :global(.leaflet-control-scale-line) {
+  background: rgba(241, 241, 241, 0.88);
+  color: #3c403e;
+  border-color: #3c403e;
+  font-family: inherit;
+  font-size: 10.5px;
+}
+
+.mapa :global(.leaflet-control-attribution) {
+  background: rgba(241, 241, 241, 0.82);
+  color: #3c403e;
+  font-size: 10px;
+}
+
+.mapa :global(.leaflet-control-attribution a) {
+  color: #3e665c;
+}
+
+/* Marcadores de vértice de geoman con los colores de la marca */
+.mapa :global(.marker-icon) {
+  border: 2px solid #3e665c;
+  background-color: #f1f1f1;
+  border-radius: 50%;
+}
+
+.mapa :global(.marker-icon-middle) {
+  border-color: #86b73d;
+}
+
+.pantallaCompleta {
+  background: var(--bg-base, #f1f1f1);
+  padding: 12px;
+  overflow: auto;
+}
+
+.pantallaCompleta::backdrop {
+  background: var(--bg-base, #f1f1f1);
+}

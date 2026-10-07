@@ -38,7 +38,7 @@ foreach ($loteRuta in Get-Content -LiteralPath $Orden) {
   $hecho = [System.IO.Path]::ChangeExtension($lote, ".hecho")
   if (Test-Path -LiteralPath $hecho) { Anota "salto $lote (ya hecho)"; continue }
   Anota "INICIO $lote"
-  & npx tsx scripts/incideas/fase3/cargar-muestra.ts --desde-archivo $lote --continuar --go --edicion-oleada $Edicion *>> $Log
+  & npx tsx scripts/incideas/fase3/cargar-muestra.ts --desde-archivo $lote --continuar --go --edicion-oleada $Edicion 2>&1 | Out-File -LiteralPath $Log -Append -Encoding utf8
   $code = $LASTEXITCODE
   Anota ("FIN {0} error={1}" -f $lote, $code)
   if ($code -ne 0) {
@@ -52,13 +52,13 @@ Anota "FIN driver: todos los lotes procesados"
 if ($SinCierre) { Anota "Cierre omitido (-SinCierre)"; exit 0 }
 
 Anota "CIERRE: QA completa"
-& npx tsx scripts/tests/incideas-fase3-qa.ts *>> $Log
+& npx tsx scripts/tests/incideas-fase3-qa.ts 2>&1 | Out-File -LiteralPath $Log -Append -Encoding utf8
 $qa = $LASTEXITCODE
 Anota ("CIERRE: QA error={0}" -f $qa)
 if ($qa -ne 0) { Anota "CIERRE: QA bloquea; NO se sella. Reintentar fallos y relanzar"; exit $qa }
 
 Anota "CIERRE: sello de snapshot (aprobada)"
-& npx tsx scripts/incideas/fase3/sellar-snapshot.ts --aprobar --nota ("Oleada {0} completada; QA sin bloqueos" -f $Edicion) *>> $Log
+& npx tsx scripts/incideas/fase3/sellar-snapshot.ts --aprobar --nota ("Oleada {0} completada; QA sin bloqueos" -f $Edicion) 2>&1 | Out-File -LiteralPath $Log -Append -Encoding utf8
 $sello = $LASTEXITCODE
 Anota ("CIERRE: sello error={0}" -f $sello)
 exit $sello

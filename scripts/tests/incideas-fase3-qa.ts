@@ -3,6 +3,17 @@
 // Verifica sin piedad: R2 frente a control, privacidad de lo público,
 // geometrías, snapshot, archivos que abren de verdad, no-regresión y árbol
 // limpio. Uso: npx tsx scripts/tests/incideas-fase3-qa.ts [--ine 03031]
+// [--prefijos 03,12,46]
+//
+// Notas de escala y falsos positivos (oleada CV):
+// - El control se pagina (el límite por defecto de PostgREST es 1.000 filas:
+//   sin paginar, la QA auditaba solo el primer millar).
+// - La regla de teléfono exige etiqueta de contacto con límite de palabra y
+//   un candidato plausible (9-15 dígitos con separadores o prefijo +): evita
+//   IDs numéricos (NAP «2024000484»), fechas («2026-10-06») y marcas que
+//   contienen «movil» («Movilsa»).
+// - Se bloquea si queda algún par en `fuente_caida` en el ámbito auditado:
+//   una oleada no se sella con fuentes caídas.
 
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
@@ -39,12 +50,39 @@ async function main(): Promise<void> {
   const sb = createClient(url, key);
 
   // 1. Control frente a R2: cada fila 'cargado' debe abrir su JSON con n coincidente.
-  const { data: cob, error } = await sb.from("incideas_cobertura").select("municipio,bloque,fuente,edicion,estado,objetos_publicados");
-  if (error) bloquea(`No se lee incideas_cobertura: ${error.message}`);
-  const filas = (cob ?? []) as Array<Record<string, unknown>>;
+  const filas: Array<Record<string, unknown>> = [];
+  const PAGINA = 1000;
+  for (let desde = 0; ; desde += PAGINA) {
+    const { data: pagina, error: errorPagina } = await sb
+      .from("incideas_cobertura")
+      .select("municipio,bloque,fuente,edicion,estado,objetos_publicados")
+      .order("municipio")
+      .order("bloque")
+      .range(desde, desde + PAGINA - 1);
+    if (errorPagina) {
+      bloquea(`No se lee incideas_cobertura: ${errorPagina.message}`);
+      break;
+    }
+    filas.push(...((pagina ?? []) as Array<Record<string, unknown>>));
+    if ((pagina ?? []).length < PAGINA) break;
+  }
   const ineFiltro = arg("--ine");
-  const muestra = ineFiltro ? filas.filter((f) => f["municipio"] === ineFiltro) : filas;
+  const prefFiltro = arg("--prefijos");
+  const prefijos = prefFiltro ? prefFiltro.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  const muestra = filas.filter(
+    (f) =>
+      (!ineFiltro || f["municipio"] === ineFiltro) &&
+      (prefijos.length === 0 || prefijos.some((p) => String(f["municipio"]).startsWith(p)))
+  );
   if (muestra.length === 0) bloquea("Control vacío: nada que auditar.");
+  const caidas = muestra.filter((f) => f["estado"] === "fuente_caida");
+  if (caidas.length > 0) {
+    bloquea(
+      `${caidas.length} pares en fuente_caida en el ámbito auditado (reintentar antes de sellar): ` +
+        caidas.slice(0, 5).map((f) => `${String(f["municipio"])}/${String(f["bloque"])}`).join(", ") +
+        (caidas.length > 5 ? ", …" : "")
+    );
+  }
   let revisadas = 0;
   for (const f of muestra) {
     const ine = String(f["municipio"]);
@@ -67,10 +105,18 @@ async function main(): Promise<void> {
     if (env.bloque !== bloque || env.municipio_ine !== ine) {
       bloquea(`${ine}/${bloque}: el envoltorio R2 no coincide (bloque/municipio).`);
     }
-    // 2. Privacidad: patrones sensibles en lo público.
+    // 2. Privacidad: teléfonos solo si hay etiqueta de contacto (palabra
+    // completa) y un candidato plausible: 9-15 dígitos con separadores o
+    // prefijo +. Así no saltan IDs numéricos, fechas ISO ni «Movilsa».
     const texto = JSON.stringify(env.objetos ?? []).slice(0, 400000);
-    if (/\+?\d[\d .()-]{8,}\d/.test(texto) && /telf|telefono|movil|contacto/i.test(texto)) {
-      bloquea(`${ine}/${bloque}: posible teléfono en datos públicos.`);
+    if (/\b(telf?|tel[eé]fonos?|m[oó]viles?|contacto)\b/i.test(texto)) {
+      const candidatos = texto.match(/\+?\d[\d .()-]{6,}\d/g) ?? [];
+      const sospechoso = candidatos.find((c) => {
+        const digitos = c.replace(/\D/g, "");
+        if (digitos.length < 9 || digitos.length > 15) return false;
+        return c.startsWith("+") || /[ .()-]/.test(c);
+      });
+      if (sospechoso) bloquea(`${ine}/${bloque}: posible teléfono en datos públicos («${sospechoso.slice(0, 24)}»).`);
     }
     if (/\b\d{8}[A-Za-z]\b/.test(texto)) bloquea(`${ine}/${bloque}: posible DNI en datos públicos.`);
     // 3. Geometrías del bloque límites: anillos cerrados y finitos.

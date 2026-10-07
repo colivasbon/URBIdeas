@@ -33,6 +33,7 @@
     "fase2a:murcia": "npx tsx scripts/incideas/fase2a/pipeline.ts --ine 30030",
     "fase2a:test": "npx tsx --test scripts/tests/fase2a-contrato.test.ts",
     "fase3:muestra": "npx tsx scripts/incideas/fase3/cargar-muestra.ts",
+    "fase3:lotes": "npx tsx scripts/incideas/fase3/generar-lotes.ts",
     "fase3:sello": "npx tsx scripts/incideas/fase3/sellar-snapshot.ts",
     "fase3:test": "npx tsx --test scripts/tests/incideas-fase3-muestra.test.ts"
   },

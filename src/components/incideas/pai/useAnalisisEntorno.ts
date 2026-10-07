@@ -111,6 +111,12 @@ async function descargarIepnb(ids: IdIepnb[], g: GeoJSON.Geometry, signal: Abort
       }
     })
   );
+  // Presupuesto total de ~3,5 MB para el cuerpo: se descartan primero las capas más pesadas.
+  let total = 0;
+  for (const id of Object.keys(salida).sort((a, b) => JSON.stringify(salida[a as IdIepnb]).length - JSON.stringify(salida[b as IdIepnb]).length) as IdIepnb[]) {
+    total += JSON.stringify(salida[id]).length;
+    if (total > 3_500_000) delete salida[id];
+  }
   return salida;
 }
 

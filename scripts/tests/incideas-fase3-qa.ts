@@ -8,10 +8,10 @@
 // Notas de escala y falsos positivos (oleada CV):
 // - El control se pagina (el límite por defecto de PostgREST es 1.000 filas:
 //   sin paginar, la QA auditaba solo el primer millar).
-// - La regla de teléfono exige etiqueta de contacto con límite de palabra y
-//   un candidato plausible (9-15 dígitos con separadores o prefijo +): evita
-//   IDs numéricos (NAP «2024000484»), fechas («2026-10-06») y marcas que
-//   contienen «movil» («Movilsa»).
+// - La regla de teléfono exige etiqueta de contacto a ≤60 caracteres y una
+//   forma plausible (9-15 dígitos con ≥2 separadores o prefijo +34/0034):
+//   evita IDs numéricos (NAP «2024000484»), fechas («2026-10-06»), decimales
+//   («hectares»:3.82177378) y palabras sueltas («móviles» de caravanas).
 // - Se bloquea si queda algún par en `fuente_caida` en el ámbito auditado:
 //   una oleada no se sella con fuentes caídas.
 
@@ -105,19 +105,28 @@ async function main(): Promise<void> {
     if (env.bloque !== bloque || env.municipio_ine !== ine) {
       bloquea(`${ine}/${bloque}: el envoltorio R2 no coincide (bloque/municipio).`);
     }
-    // 2. Privacidad: teléfonos solo si hay etiqueta de contacto (palabra
-    // completa) y un candidato plausible: 9-15 dígitos con separadores o
-    // prefijo +. Así no saltan IDs numéricos, fechas ISO ni «Movilsa».
+    // 2. Privacidad: teléfonos solo con etiqueta de contacto a menos de 60
+    // caracteres y forma plausible (9-15 dígitos con ≥2 separadores o
+    // prefijo +34/0034). Así no saltan IDs numéricos, decimales de área
+    // («hectares»:3.82177378), fechas ISO ni palabras sueltas («móviles» de
+    // caravanas, «Movilsa»).
     const texto = JSON.stringify(env.objetos ?? []).slice(0, 400000);
-    if (/\b(telf?|tel[eé]fonos?|m[oó]viles?|contacto)\b/i.test(texto)) {
-      const candidatos = texto.match(/\+?\d[\d .()-]{6,}\d/g) ?? [];
-      const sospechoso = candidatos.find((c) => {
-        const digitos = c.replace(/\D/g, "");
-        if (digitos.length < 9 || digitos.length > 15) return false;
-        return c.startsWith("+") || /[ .()-]/.test(c);
-      });
-      if (sospechoso) bloquea(`${ine}/${bloque}: posible teléfono en datos públicos («${sospechoso.slice(0, 24)}»).`);
+    const CONTACTO = /tel[eé]fonos?|telf|contacto|m[oó]vil/i;
+    let sospechoso: string | null = null;
+    for (const m of texto.matchAll(/\+?\d[\d .()-]{6,}\d/g)) {
+      const c = m[0];
+      const digitos = c.replace(/\D/g, "");
+      if (digitos.length < 9 || digitos.length > 15) continue;
+      const separadores = (c.match(/[ .()-]/g) ?? []).length;
+      if (!c.startsWith("+") && !/^0034/.test(c) && separadores < 2) continue;
+      const i = m.index ?? 0;
+      const ventana = texto.slice(Math.max(0, i - 60), i + c.length + 60);
+      if (CONTACTO.test(ventana)) {
+        sospechoso = c;
+        break;
+      }
     }
+    if (sospechoso) bloquea(`${ine}/${bloque}: posible teléfono en datos públicos («${sospechoso.slice(0, 24)}»).`);
     if (/\b\d{8}[A-Za-z]\b/.test(texto)) bloquea(`${ine}/${bloque}: posible DNI en datos públicos.`);
     // 3. Geometrías del bloque límites: anillos cerrados y finitos.
     if (bloque === "limites") {

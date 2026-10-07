@@ -4,6 +4,8 @@ import { analizarEntorno, type EventoEntorno } from "@/lib/incideas/pai/entorno"
 export const dynamic = "force-dynamic";
 // Overpass + WFS del IEPNB + WMS del SNCZI en paralelo: 30-60 s habituales.
 export const maxDuration = 300;
+// El geoserver del IEPNB rechaza (403) las IP de los centros de datos de EE. UU.: se ejecuta en Europa.
+export const preferredRegion = ["cdg1", "fra1", "lhr1"];
 
 const TIPOS = new Set(["Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon", "GeometryCollection"]);
 

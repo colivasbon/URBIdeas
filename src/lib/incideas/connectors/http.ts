@@ -34,7 +34,8 @@ export async function fetchConReintentos(
       });
       clearTimeout(timer);
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status} ${res.statusText} en ${url}`);
+        const cuerpo = res.status === 403 ? (await res.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 200) : "";
+        throw new Error(`HTTP ${res.status} ${res.statusText} en ${url.split("?")[0]}${cuerpo ? ` · ${cuerpo}` : ""}`);
       }
       return res;
     } catch (err) {

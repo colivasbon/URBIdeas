@@ -1,3 +1,4 @@
+import type { IdIepnb } from "@/lib/incideas/pai/iepnbCapas";
 import { NextRequest, NextResponse } from "next/server";
 import { analizarEntorno, type EventoEntorno } from "@/lib/incideas/pai/entorno";
 
@@ -27,7 +28,7 @@ function enEspana(g: GeoJSON.Geometry): boolean {
  * devuelve el resultado completo en JSON.
  */
 export async function POST(request: NextRequest) {
-  let body: { geometry?: GeoJSON.Geometry };
+  let body: { geometry?: GeoJSON.Geometry; iepnb?: Partial<Record<IdIepnb, GeoJSON.Feature[]>> };
   try {
     body = await request.json();
   } catch {
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
           }
         };
         try {
-          await analizarEntorno(g, enviar);
+          await analizarEntorno(g, enviar, body.iepnb);
         } catch (err) {
           enviar({ tipo: "error", mensaje: err instanceof Error ? err.message : "Error en el análisis" });
         } finally {

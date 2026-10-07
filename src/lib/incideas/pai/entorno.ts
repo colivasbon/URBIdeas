@@ -13,6 +13,7 @@
 //
 // Solo servidor (usa el decodificador PNG con zlib).
 
+import type { IdIepnb } from "./iepnbCapas";
 import { OVERPASS_ENDPOINTS, type OverpassElement } from "../connectors/overpass";
 import { fetchConReintentos, USER_AGENT } from "../connectors/http";
 import {
@@ -516,7 +517,12 @@ type ElementoOSM = OverpassElement & { geometry?: { lat: number; lon: number }[]
  * notifican por `onEvento` (progreso y mediciones) para poder dibujarlas en el mapa sin esperar
  * a la más lenta. El resultado completo se devuelve (y se emite como evento `fin`) al terminar.
  */
-export async function analizarEntorno(ambitoGeoJSON: GeoJSON.Geometry, onEvento?: (e: EventoEntorno) => void): Promise<ResultadoEntorno> {
+export async function analizarEntorno(
+  ambitoGeoJSON: GeoJSON.Geometry,
+  onEvento?: (e: EventoEntorno) => void,
+  /** Capas IEPNB descargadas por el navegador cuando el servidor es rechazado (403). */
+  iepnb?: Partial<Record<IdIepnb, GeoJSON.Feature[]>>
+): Promise<ResultadoEntorno> {
   const emitir = (e: EventoEntorno) => {
     try {
       onEvento?.(e);
@@ -949,12 +955,12 @@ export async function analizarEntorno(ambitoGeoJSON: GeoJSON.Geometry, onEvento?
     pMedios,
     fuente("osm-entorno", () => osmConCache(consultaOSMEntorno(centro[1], centro[0], radioAmbito), `E:${claveOSM}`)).then(procesarEntorno),
     fuente("osm-viario", () => osmConCache(consultaOSMViario(centro[1], centro[0], radioAmbito), `V:${claveOSM}`)).then(procesarViario),
-    fuente("enp", () => wfsIEPNB("ENP:enp", bboxAlrededor(ctx, CRITERIOS.radioEspacios), 200)).then(procesarEnp),
-    fuente("rn2000", () => wfsIEPNB("RN2000:rn2000", bboxAlrededor(ctx, CRITERIOS.radioEspacios), 200)).then(procesarRn),
-    fuente("mfe", () =>
-      wfsIEPNB("foto_fija_mfe:ff_uso", bboxAlrededor(ctx, CRITERIOS.radioForestal), 3000, ["descr_clamfe", "agrupacion_clamfe", "descr_forarb", "nm_fccarb", "geom"])
+    fuente("enp", async () => iepnb?.enp ?? wfsIEPNB("ENP:enp", bboxAlrededor(ctx, CRITERIOS.radioEspacios), 200)).then(procesarEnp),
+    fuente("rn2000", async () => iepnb?.rn2000 ?? wfsIEPNB("RN2000:rn2000", bboxAlrededor(ctx, CRITERIOS.radioEspacios), 200)).then(procesarRn),
+    fuente("mfe", async () =>
+      iepnb?.mfe ?? wfsIEPNB("foto_fija_mfe:ff_uso", bboxAlrededor(ctx, CRITERIOS.radioForestal), 3000, ["descr_clamfe", "agrupacion_clamfe", "descr_forarb", "nm_fccarb", "geom"])
     ).then((feats) => ({ feats, r: procesarMfe(feats) })),
-    fuente("montes", () => wfsIEPNB("propiedad_montes:propiedad_montes", bboxAlrededor(ctx, CRITERIOS.radioMontes), 1500)).then(procesarMontes),
+    fuente("montes", async () => iepnb?.montes ?? wfsIEPNB("propiedad_montes:propiedad_montes", bboxAlrededor(ctx, CRITERIOS.radioMontes), 1500)).then(procesarMontes),
     fuente("snczi", () => zonaInundableMasCercana(ctx)).then((inundable) => ({ inundable, arpsi: procesarInundable(inundable) })),
     fuente("catastro", () => catastro(centro[1], centro[0])).then((p) => {
       if (p) emitir({ tipo: "ubicacion", datos: { parcelas: p } });

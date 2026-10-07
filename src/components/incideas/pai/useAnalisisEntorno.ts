@@ -71,6 +71,26 @@ function bboxGeometria(g: GeoJSON.Geometry): [number, number, number, number] {
   return [w, s, e, n];
 }
 
+// Vercel rechaza cuerpos > 4,5 MB (413): se redondea a ~10 m y se aclaran los vértices antes de reenviar.
+const LIMITE_BYTES = 1_000_000;
+const r4 = (n: number) => Math.round(n * 1e4) / 1e4;
+function aligerarCoords(c: unknown): unknown {
+  if (!Array.isArray(c)) return c;
+  if (typeof c[0] === "number") return [r4(c[0]), r4(c[1] as number)];
+  if (Array.isArray(c[0]) && typeof (c[0] as unknown[])[0] === "number") {
+    const pts = c as number[][];
+    const paso = Math.max(1, Math.floor(pts.length / 300));
+    const sel = pts.filter((_, i) => i % paso === 0 || i === pts.length - 1);
+    return sel.map((p) => [r4(p[0]), r4(p[1])]);
+  }
+  return c.map(aligerarCoords);
+}
+function aligerar(f: GeoJSON.Feature): GeoJSON.Feature {
+  const g = f.geometry as { type: string; coordinates?: unknown } | null;
+  if (!g?.coordinates) return f;
+  return { ...f, geometry: { ...g, coordinates: aligerarCoords(g.coordinates) } as GeoJSON.Geometry };
+}
+
 async function descargarIepnb(ids: IdIepnb[], g: GeoJSON.Geometry, signal: AbortSignal) {
   const [w, s, e, n] = bboxGeometria(g);
   const cos = Math.cos((((s + n) / 2) * Math.PI) / 180);
@@ -82,7 +102,10 @@ async function descargarIepnb(ids: IdIepnb[], g: GeoJSON.Geometry, signal: Abort
       const dLng = c.radio / (GRADOS_M * cos);
       try {
         const r = await fetch(`${URL_WFS_IEPNB}?${paramsWfsIepnb(c, [w - dLng, s - dLat, e + dLng, n + dLat])}`, { signal });
-        if (r.ok) salida[id] = ((await r.json()) as GeoJSON.FeatureCollection).features ?? [];
+        if (r.ok) {
+          const feats = (((await r.json()) as GeoJSON.FeatureCollection).features ?? []).map(aligerar);
+          if (JSON.stringify(feats).length < LIMITE_BYTES) salida[id] = feats;
+        }
       } catch {
         // Se mantiene el aviso del servidor para esa capa.
       }
@@ -108,10 +131,11 @@ export function useAnalisisEntorno() {
 
   const analizar = useCallback(
     async (geometry: GeoJSON.Geometry, iepnb?: Partial<Record<IdIepnb, GeoJSON.Feature[]>>) => {
+      // Con `iepnb` es un reintento silencioso: el resultado anterior se mantiene y solo se sustituye si el nuevo termina bien.
       cancelar();
       const ctl = new AbortController();
       controlador.current = ctl;
-      dispatch({ tipo: "empezar", ahora: Date.now() });
+      if (!iepnb) dispatch({ tipo: "empezar", ahora: Date.now() });
       try {
         const r = await fetch("/api/incideas/pai/entorno?stream=1", {
           method: "POST",
@@ -141,7 +165,7 @@ export function useAnalisisEntorno() {
             if (ev.tipo === "error") throw new Error(ev.mensaje);
             if (ev.tipo === "fin") terminado = true;
             if (ev.tipo === "fuente" && ev.estado === "error" && (IDS_IEPNB as string[]).includes(ev.id)) fallidasIepnb.push(ev.id as IdIepnb);
-            dispatch({ tipo: "evento", evento: ev, ahora: Date.now() });
+            if (!iepnb || ev.tipo === "fin") dispatch({ tipo: "evento", evento: ev, ahora: Date.now() });
           }
         }
         if (!terminado) throw new Error("La conexión se cerró antes de terminar el análisis");
@@ -154,7 +178,7 @@ export function useAnalisisEntorno() {
           }
         }
       } catch (err) {
-        if (ctl.signal.aborted) return;
+        if (ctl.signal.aborted || iepnb) return;
         dispatch({ tipo: "error", mensaje: err instanceof Error ? err.message : "Error en el análisis" });
       }
     },

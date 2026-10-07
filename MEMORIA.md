@@ -501,3 +501,44 @@ autonómico genérico CKAN+CSV/GeoJSON. **H5:** 4 plantillas + validador en
 Restricciones: SOCideas intacto (salvo importaciones de lectura),
 `SeccionesAtlas.tsx` ajeno no tocado, `municipios.poblacion` ni leída por
 Fase 2A y solo comparada en Fase 3.
+
+## 11. INCideas Fase 3 — oleada CV completa y sellada (2026-10-07)
+
+Rama `feat/incideas-hidrografia` (fusionada a `main` por fast-forward,
+desplegada). Ámbito: 542 municipios (03/12/46), 3.919 pares cargados; edición
+continua `oleada-cv-01` para combustible/recarga.
+
+**Incidencias y correcciones.** (a) La escritura por municipio había quedado
+anidada en el bloque PATRICOVA-CV: los municipios no-CV no escribían nada;
+corregido con prueba de regresión (`26f8d4c`). (b) El WFS de hidrografía del
+IGN fluctuó (total 291→0→144 en el mismo BBOX; caída masiva 18:03–18:15 del
+06): hasta 3 intentos con espera creciente y limpieza de marcadores
+`fuente_caida` superados (`03b3b0e`). Reintento final de 137 hidro de Alicante
+y 4 educación de Valencia: ok=145, fallos=0; control sin `fuente_caida`.
+
+**QA (paginada, 3.957 pares R2↔control) y sellado.** La QA topaba con el
+límite de 1.000 filas de PostgREST (auditaba solo el primer millar): ahora
+pagina y admite `--prefijos`; bloquea si queda algún `fuente_caida` en el
+ámbito. La regla de teléfono pasó a ventana de contacto (≤60 caracteres) y
+forma estricta (9–15 dígitos con ≥2 separadores o +34/0034) tras falsos
+positivos reales: IDs NAP («2024000484»), decimales de área
+(«hectares»:3.82177378) y palabras sueltas («móviles» de caravanas,
+«Movilsa»). QA final: 0 bloqueos, 0 avisos. Snapshot aprobada:
+`incideas:snap:67f95a51fa5b3e9d` (sello desde control, 542 municipios).
+
+**Herramientas nuevas.** `sellar-snapshot.ts` (aprueba una oleada desde
+`incideas_cobertura` sin re-descargar; orden canónico propio),
+`generar-lotes.ts` (lotes por provincia; complejidad por número de municipios,
+al estar `municipios.poblacion` auditada como no fiable), `driver-oleada.ps1`
+(desatendido: STOP, `.hecho`, `--continuar`, cierre QA+sello). npm:
+`fase3:sello`, `fase3:lotes`. En PowerShell, citar `--prefijos`/`--solo` con
+ceros iniciales (`'03,12,46'`): sin comillas, `03,12,46` llega como `3,12,46`.
+
+## 12. INCideas Fase 3 — oleada 2 en marcha (2026-10-07)
+
+48 lotes por provincia, 7.584 municipios restantes (8.132 − 548 ya en control),
+ordenados por número de municipios creciente (Melilla primero). Forales
+(01/20/48/31), insulares (07/35/38) y ciudades autónomas (51/52) marcados en
+`tmp/oleada2/indice.json`; el cargador ya aplica sus fuentes propias. Driver
+con STOP y cierre automático (QA completa + sello aprobado) al terminar.
+Estimación: ~2–3 días de ejecución desatendida.

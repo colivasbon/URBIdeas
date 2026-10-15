@@ -38,11 +38,13 @@ import { readMunicipalStructureWithBenchmarks } from "@/lib/socideas-population-
 import type { MunicipalStructureWithBenchmarks } from "@/lib/socideas-population-runtime";
 import { leerCatalogoEducativo, leerObjetoEducativo } from "@/lib/socideas-secciones-education-store";
 import { aggregateEducationFormacion, type EducacionFormacionAgregada } from "@/lib/socideas-secciones-education";
+import { normalizarAmbito, ambitosConDatos } from "@/lib/socideas-scope";
+import { AmbitoSelector } from "@/components/socideas/AmbitoSelector";
 import EstructuraSoloBloque from "@/components/socideas/EstructuraSoloBloque";
 import EmptyState from "@/components/ui/EmptyState";
 import PageShell from "@/components/ui/PageShell";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
-import type { PerfilDemografico, PerfilEconomico } from "@/lib/socideas";
+import type { PerfilDemografico, PerfilEconomico, AmbitoTerritorial } from "@/lib/socideas";
 
 export const dynamic = "force-dynamic";
 
@@ -129,6 +131,9 @@ export default async function SocideasFicha({
   // sigue aceptando y mapea a la hoja 03.
   const hojaActiva = resolveFichaSheet(primero(sp.hoja), primero(sp.categoria));
   const hojaMeta = fichaSheetByKey(hojaActiva);
+  // Ámbito territorial solicitado (`?ambito=`). Por defecto municipio. La
+  // disponibilidad real por indicador la decide el envelope (ver AmbitoSelector).
+  const ambitoSel: AmbitoTerritorial = normalizarAmbito(primero(sp.ambito)) ?? "municipio";
   // UNA sola lectura del perfil (antes se hacían dos: base + filtrada; la
   // validación de filtros la repite el cliente sobre `disponibles`). La
   // comprobación de frescura contra el INE solo se lanza en la hoja de
@@ -307,6 +312,21 @@ export default async function SocideasFicha({
           <div>
             <SheetHeader sheet={hojaMeta} />
 
+            {hojaActiva !== "proyecto" && hojaActiva !== "fuentes" && (
+              <AmbitoSelector
+                codigoINE={municipio.codigo_ine}
+                hoja={hojaActiva}
+                ambito={ambitoSel}
+                disponibles={
+                  hojaActiva === "demografia"
+                    ? ambitosConDatos(perfil.valores, "population_total")
+                    : hojaActiva === "economia"
+                    ? ambitosConDatos((economia?.valores ?? []) as Parameters<typeof ambitosConDatos>[0], "gini")
+                    : (["municipio"] as AmbitoTerritorial[])
+                }
+              />
+            )}
+
             {hojaActiva === "proyecto" && <ProyectoSheet codigoINE={municipio.codigo_ine} />}
 
             {hojaActiva === "demografia" &&
@@ -370,7 +390,7 @@ export default async function SocideasFicha({
 
             {hojaActiva === "economia" &&
               (economia ? (
-                <EconomiaFicha codigoINE={municipio.codigo_ine} initial={economia} ineLayers={ineLayers} />
+                <EconomiaFicha codigoINE={municipio.codigo_ine} initial={economia} ineLayers={ineLayers} ambito={ambitoSel} />
               ) : (
                 <EmptyState
                   title="Bloque económico no disponible"

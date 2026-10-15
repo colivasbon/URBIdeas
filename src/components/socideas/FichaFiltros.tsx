@@ -50,6 +50,7 @@ import {
 } from "./ficha-ui";
 import type { AmbitoTerritorial, PerfilDemografico, IndicatorValue } from "@/lib/socideas";
 import { AMBITOS } from "@/lib/socideas";
+import { normalizarAmbito } from "@/lib/socideas-scope";
 
 type SexoModo = "total" | "hombres" | "mujeres" | "comparar";
 type PirModo = "abs" | "pct";
@@ -64,6 +65,7 @@ interface FiltrosUI {
   pirModo: PirModo;
   estRef: EstructuraRefKey;
   estModo: EstructuraModo;
+  ambito: AmbitoTerritorial;
 }
 
 const DEFAULT_COMPARAR: AmbitoTerritorial[] = ["municipio"];
@@ -113,6 +115,7 @@ function filtrosIniciales(sp: URLSearchParams, d: PerfilDemografico["disponibles
     pirModo,
     estRef: isEstructuraRefKey(estRefRaw) ? estRefRaw : "none",
     estModo: isEstructuraModo(estModoRaw) ? estModoRaw : "perfil",
+    ambito: normalizarAmbito(sp.get("ambito")) ?? "municipio",
   };
 }
 
@@ -127,6 +130,7 @@ function aURL(codigoINE: string, f: FiltrosUI, def: FiltrosUI): string {
   if (f.pirModo !== "abs") p.set("pir_modo", f.pirModo);
   if (f.estRef !== def.estRef) p.set("est_ref", f.estRef);
   if (f.estModo !== def.estModo) p.set("est_modo", f.estModo);
+  if (f.ambito !== def.ambito) p.set("ambito", f.ambito);
   // Preserva el estado validado del explorador (x_*) sin tocar su semántica.
   if (typeof window !== "undefined") {
     for (const [k, v] of new URLSearchParams(window.location.search)) {
@@ -175,6 +179,7 @@ export default function FichaFiltros({
     pirModo: "abs",
     estRef: "espana",
     estModo: "perfil",
+    ambito: "municipio",
   };
   const [filtros, setFiltros] = useState<FiltrosUI>(() => filtrosIniciales(sp, initial.disponibles));
 
@@ -676,21 +681,33 @@ function derivarPerfil(base: PerfilDemografico, filtros: FiltrosUI): PerfilDemog
   if (desde !== null && hasta !== null && desde > hasta) { desde = null; hasta = null; }
   const pirAnioEff = filtros.pirAnio !== null && d.piramide_anios.includes(filtros.pirAnio) ? filtros.pirAnio : (d.piramide_anios.length > 0 ? d.piramide_anios[d.piramide_anios.length - 1] : null);
   const ambitosEff = filtros.comparar.length > 0 ? filtros.comparar : [...AMBITOS] as AmbitoTerritorial[];
+  const amb = filtros.ambito;
+  const esMuni = amb === "municipio";
   const valores = base.valores;
   const bySlug = (slug: string) => valores.filter((v) => slugOf(v) === slug);
+  const inAmbito = (a: string) => (v: IndicatorValue) => (v.dimensiones?.ambito ?? "municipio") === a;
   const latestIn = (anio: number | null, slug: string): IndicatorValue | null => {
     const list = bySlug(slug).filter((v) => isMunicipioAmbito(v) && v.valor_numerico !== null && (anio === null || v.anio_referencia === anio));
     list.sort((a, b) => (b.anio_referencia ?? 0) - (a.anio_referencia ?? 0));
     return (list[0] as IndicatorValue) ?? null;
   };
-  const total = latestIn(anioEff, "population_total");
-  const hombres = latestIn(anioEff, "population_male");
-  const mujeres = latestIn(anioEff, "population_female");
-  const evoAll = bySlug("population_evolution").filter((v) => isMunicipioAmbito(v) && v.valor_numerico !== null).sort((a,b)=>(a.anio_referencia??0)-(b.anio_referencia??0));
+  const lastInAmbito = (slug: string, a: string, anio: number | null): IndicatorValue | null => {
+    const list = bySlug(slug).filter((v) => inAmbito(a)(v) && v.valor_numerico !== null && (anio === null || v.anio_referencia === anio));
+    list.sort((x, y) => (y.anio_referencia ?? 0) - (x.anio_referencia ?? 0));
+    return (list[0] as IndicatorValue) ?? null;
+  };
+  // Población al ámbito elegido. Sexos y pirámide solo existen a nivel municipal:
+  // fuera de municipio se muestran como ND honesto (nunca 0 ni interpolado).
+  const total = esMuni ? latestIn(anioEff, "population_total") : lastInAmbito("population_total", amb, anioEff);
+  const hombres = esMuni ? latestIn(anioEff, "population_male") : null;
+  const mujeres = esMuni ? latestIn(anioEff, "population_female") : null;
+  const evoAll = (esMuni
+    ? bySlug("population_evolution").filter((v) => isMunicipioAmbito(v) && v.valor_numerico !== null)
+    : bySlug("population_total").filter((v) => inAmbito(amb)(v) && v.valor_numerico !== null)
+  ).sort((a, b) => (a.anio_referencia ?? 0) - (b.anio_referencia ?? 0));
   const inRange = (a:number, lo:number|null, hi:number|null) => (lo===null||a>=lo)&&(hi===null||a<=hi);
   const evolucion = evoAll.filter((v)=> inRange(v.anio_referencia??0, desde, hasta)) as PerfilDemografico["evolucion"];
   const serie = (list: IndicatorValue[]) => list.filter((v)=> v.valor_numerico!==null).sort((a,b)=>(a.anio_referencia??0)-(b.anio_referencia??0));
-  const inAmbito = (amb:string)=>(v:IndicatorValue)=> v.dimensiones?.ambito===amb;
   const comparativas = {
     provincia: ambitosEff.includes("provincia") ? serie(bySlug("population_total").filter(inAmbito("provincia"))).filter((v)=>inRange(v.anio_referencia??0, desde, hasta)) as PerfilDemografico["evolucion"] : [],
     ccaa: ambitosEff.includes("ccaa") ? serie(bySlug("population_total").filter(inAmbito("ccaa"))).filter((v)=>inRange(v.anio_referencia??0, desde, hasta)) as PerfilDemografico["evolucion"] : [],
@@ -707,7 +724,7 @@ function derivarPerfil(base: PerfilDemografico, filtros: FiltrosUI): PerfilDemog
     ageMap2.set(tramo, e);
   }
   const TRAMO_ORDER = ["0-4","5-9","10-14","15-19","20-24","25-29","30-34","35-39","40-44","45-49","50-54","55-59","60-64","65-69","70-74","75-79","80-84","85-89","90-94","95-99","100+"];
-  const grupos = TRAMO_ORDER.filter(t=> ageMap2.has(t)).map(t=> ({ tramo:t, hombres: ageMap2.get(t)!.hombres, mujeres: ageMap2.get(t)!.mujeres }));
+  const grupos = esMuni ? TRAMO_ORDER.filter(t=> ageMap2.has(t)).map(t=> ({ tramo:t, hombres: ageMap2.get(t)!.hombres, mujeres: ageMap2.get(t)!.mujeres })) : [];
   const evoByYear = new Map(evoAll.map(v=> [v.anio_referencia, v.valor_numerico as number]));
   const lastShown = evolucion.length>0 ? (evolucion[evolucion.length-1].anio_referencia ?? null) : null;
   const refYear = anioEff ?? lastShown;
@@ -733,9 +750,11 @@ function derivarPerfil(base: PerfilDemografico, filtros: FiltrosUI): PerfilDemog
   const supCli = areaCli?.valor_numerico ?? null;
   const anioSupCli = areaCli?.anio_referencia ?? ANIO_SUPERFICIE;
   const calcCli = calcDensity({ poblacion: popCli, anioPoblacion: anioPopCli, superficieKm2: supCli, anioSuperficie: anioSupCli });
-  const densidadCli = calcCli.valor !== null
-    ? { valor: calcCli.valor, pendiente: null as string | null, superficieKm2: supCli, poblacion: popCli, anioPoblacion: anioPopCli, anioSuperficie: anioSupCli, avisoAnios: calcCli.avisoAnios }
-    : { valor: null as number | null, pendiente: densityPendingReason(popCli, supCli), superficieKm2: supCli, poblacion: popCli, anioPoblacion: anioPopCli, anioSuperficie: anioSupCli, avisoAnios: false };
+  const densidadCli = !esMuni
+    ? { valor: null as number | null, pendiente: "La densidad solo se publica a nivel municipal (requiere la superficie del municipio).", superficieKm2: null, poblacion: popCli, anioPoblacion: anioPopCli, anioSuperficie: null, avisoAnios: false }
+    : calcCli.valor !== null
+      ? { valor: calcCli.valor, pendiente: null as string | null, superficieKm2: supCli, poblacion: popCli, anioPoblacion: anioPopCli, anioSuperficie: anioSupCli, avisoAnios: calcCli.avisoAnios }
+      : { valor: null as number | null, pendiente: densityPendingReason(popCli, supCli), superficieKm2: supCli, poblacion: popCli, anioPoblacion: anioPopCli, anioSuperficie: anioSupCli, avisoAnios: false };
   return {
     ...base,
     total: total as PerfilDemografico["total"],
@@ -743,7 +762,7 @@ function derivarPerfil(base: PerfilDemografico, filtros: FiltrosUI): PerfilDemog
     mujeres: mujeres as PerfilDemografico["mujeres"],
     evolucion,
     comparativas,
-    piramide: { anio: pirAnioEff, grupos },
+    piramide: { anio: esMuni ? pirAnioEff : null, grupos },
     derivados: {
       cambio_5y: pctChange(5),
       cambio_10y: pctChange(10),

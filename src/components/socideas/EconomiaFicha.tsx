@@ -31,7 +31,8 @@ import SourceMethodologyNotice from "./SourceMethodologyNotice";
 import ConprelSeccion from "./ConprelSeccion";
 import { isConprelUiEnabled } from "@/lib/conprel-flag";
 import { buildConprelPresentacion } from "@/lib/conprel-presentation";
-import type { IndicatorValue, PerfilEconomico } from "@/lib/socideas";
+import type { IndicatorValue, PerfilEconomico, AmbitoTerritorial } from "@/lib/socideas";
+import { AMBITO_LABEL, ambitoTieneDatos } from "@/lib/socideas-scope";
 import { ParoRegistradoBlock, AfiliacionBlock } from "./LaborBlocks";
 import {
   buildAfiliacionPresentation,
@@ -82,12 +83,15 @@ export default function EconomiaFicha({
   codigoINE,
   initial,
   ineLayers = null,
+  ambito = "municipio",
 }: {
   codigoINE: string;
   initial: PerfilEconomico;
   ineLayers?: MunicipalIneLayersV1 | null;
+  ambito?: AmbitoTerritorial;
 }) {
   const { valores, municipio } = initial;
+  const ambitoLabel = AMBITO_LABEL[ambito];
   // Sector agrario real desde la capa INE lateral (Censo Agrario 2020, PC-Axis).
   const agLayer = ineLayers?.layers.agriculture ?? null;
 
@@ -98,7 +102,7 @@ export default function EconomiaFicha({
   };
 
   const rentaOk = hasData(RENTA_SLUGS);
-  const desigOk = hasData(DESIGUALDAD_SLUGS);
+  const desigOk = ambitoTieneDatos(valores, "gini", ambito) || ambitoTieneDatos(valores, "p80_p20", ambito);
   const empOk = hasData(EMPRESAS_SLUGS);
   const agrOk = hasData(AGR_SLUGS);
   const ganOk = hasData(GAN_SLUGS);
@@ -162,8 +166,8 @@ export default function EconomiaFicha({
   const rentaNetaPersona = ultimo(valores, "renta_neta_media_persona");
   const rentaNetaHogar = ultimo(valores, "renta_neta_media_hogar");
   const empTotal = ultimo(valores, "empresas_total");
-  const gini = ultimo(valores, "gini");
-  const p80 = ultimo(valores, "p80_p20");
+  const gini = ultimo(valores, "gini", ambito);
+  const p80 = ultimo(valores, "p80_p20", ambito);
   const irpfBruta = ultimo(valores, "irpf_renta_bruta_media");
   const irpfDisp = ultimo(valores, "irpf_renta_disponible_media");
   const rentaBrutaHogar = ultimo(valores, "renta_bruta_media_hogar");
@@ -222,10 +226,10 @@ export default function EconomiaFicha({
   ].filter((s) => s.exp !== null || s.cab !== null);
 
   const giniSerie: SerieEvo[] = [
-    { clave: "gini", etiqueta: `${municipio.nombre} (municipio)`, color: CHART.municipio, puntos: serie(valores, "gini") },
+    { clave: "gini", etiqueta: `${ambitoLabel}`, color: CHART.municipio, puntos: serie(valores, "gini", ambito) },
   ];
   const p80Serie: SerieEvo[] = [
-    { clave: "p80", etiqueta: `${municipio.nombre} (municipio)`, color: CHART.municipio, puntos: serie(valores, "p80_p20") },
+    { clave: "p80", etiqueta: `${ambitoLabel}`, color: CHART.municipio, puntos: serie(valores, "p80_p20", ambito) },
   ];
   const rentaNetaSerie = serie(valores, "renta_neta_media_persona");
   const rentaHogarSerie = serie(valores, "renta_neta_media_hogar");
@@ -324,6 +328,12 @@ export default function EconomiaFicha({
 
   return (
     <div>
+      {ambito !== "municipio" && (
+        <p className="mb-4 max-w-[80ch] rounded-[6px] border border-[var(--border-default)] px-4 py-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
+          Ámbito seleccionado: <strong>{ambitoLabel}</strong>. Los indicadores publicados a este nivel (renta ADRH: Gini y P80/P20) se muestran aquí; el resto permanece a nivel de{" "}
+          <strong>{municipio.nombre}</strong> porque la fuente oficial solo lo difunde por municipio.
+        </p>
+      )}
       {/* Visión general: solo KPIs reales */}
       <section aria-label="Visión general de la economía" className="border-t border-[var(--border-subtle)] py-10">
         <h2 className="type-h3 text-[var(--text-primary)]">Visión general</h2>
@@ -511,7 +521,7 @@ export default function EconomiaFicha({
             Fuente: INE, Atlas de Distribución de Renta de los Hogares. Último año: <span className="tabular-nums">{gini?.anio_referencia ?? "—"}</span>.
           </p>
           <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-6 lg:grid-cols-2">
-            <ComparadorPeriodos serie={serie(valores, "gini")} unidad="puntos" titulo="Comparador del Índice de Gini" />
+            <ComparadorPeriodos serie={serie(valores, "gini", ambito)} unidad="puntos" titulo="Comparador del Índice de Gini" />
           <Metodologia
             nombre="Gini y P80/P20 (ADRH)"
             definicion="El Índice de Gini (0-100) mide la desigualdad de la renta por unidad de consumo; el ratio P80/P20 compara el percentil 80 con el 20."

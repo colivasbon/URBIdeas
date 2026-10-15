@@ -423,9 +423,90 @@ export function educationIndicatorsWithData(obj: EducationMunicipalObject): stri
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Objetos por municipio — FORMA ANTIGUA (fixtures). Pendiente de eliminar junto
-// con SeccionesEducationExtension y socideas-test-data-local.
+// Agregado municipal del bloque "formación" (uso en libro y ficha)
+//
+// Suma las secciones observadas por indicador. Los porcentajes se RECALCULAN
+// sobre el total municipal (nunca se promedian los % por sección). Si alguna
+// sección queda ND/sin cobertura (secreto < 50 hab.), la suma es COTA INFERIOR
+// y el campo `parcial` lo advierte. Universo: población residente total de la
+// sección (no restringido a 16+), distinto del Censo 2021. Puro, sin I/O.
 // ─────────────────────────────────────────────────────────────────────────────
+
+const FORMACION_TOTAL_ID = 'edu_personas_total'
+const FORMACION_IDS = [
+  'edu_personas_primaria_inferior',
+  'edu_personas_primera_etapa_secundaria',
+  'edu_personas_segunda_etapa_postsecundaria',
+  'edu_personas_educacion_superior',
+] as const
+
+export interface EducacionFormacionCategoria {
+  indicador: string
+  etiqueta: string
+  personas: number | null
+  pct: number | null
+  /** true si alguna sección quedó ND/sin cobertura (suma = cota inferior). */
+  parcial: boolean
+}
+
+export interface EducacionFormacionAgregada {
+  period: number
+  total: number | null
+  categorias: EducacionFormacionCategoria[]
+  secciones: number
+  seccionesConDatos: number
+  seccionesSuprimidas: number
+  nd: number
+  operation: string
+  sourceTable: number
+  retrievedAt: string
+}
+
+export function aggregateEducationFormacion(obj: EducationMunicipalObject): EducacionFormacionAgregada {
+  const sum = (id: string): { personas: number | null; parcial: boolean } => {
+    let acc = 0
+    let alguna = false
+    let noPublicado = 0
+    for (const s of obj.sections) {
+      const o = s.values[id]
+      if (!o) continue
+      if (typeof o.value === 'number' && (o.status === 'observado' || o.status === 'derivado_verificable')) {
+        acc += o.value
+        alguna = true
+      } else if (o.status === 'no_difundido' || o.status === 'sin_cobertura') {
+        noPublicado += 1
+      }
+    }
+    return { personas: alguna ? acc : null, parcial: noPublicado > 0 }
+  }
+  const total = sum(FORMACION_TOTAL_ID).personas
+  const categorias = FORMACION_IDS.map((id) => {
+    const { personas, parcial } = sum(id)
+    const pct =
+      personas !== null && total !== null && total > 0
+        ? Math.round((personas / total) * 1000) / 10
+        : null
+    return {
+      indicador: id,
+      etiqueta: EDUCATION_INDICATORS.find((i) => i.id === id)?.sourceLabel ?? id,
+      personas,
+      pct,
+      parcial,
+    }
+  })
+  return {
+    period: obj.period,
+    total,
+    categorias,
+    secciones: obj.coverage?.result_sections ?? obj.sections.length,
+    seccionesConDatos: obj.coverage?.sections_with_data ?? 0,
+    seccionesSuprimidas: obj.coverage?.sections_suppressed ?? 0,
+    nd: obj.coverage?.nd ?? 0,
+    operation: obj.source?.operation ?? '1254736176992',
+    sourceTable: obj.source?.education_table ?? 0,
+    retrievedAt: obj.source?.retrieved_at ?? '',
+  }
+}
 
 /** @deprecated Usar `EducationMunicipalObject`. */
 export interface EducationSectionValue {

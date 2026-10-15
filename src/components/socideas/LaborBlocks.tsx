@@ -195,6 +195,7 @@ export function ParoRegistradoBlock({ data }: { data: ParoPresentationData }) {
 
 export function AfiliacionBlock({ data }: { data: AfiliacionPresentationData }) {
   const ok = (data.status === "observed" || data.status === "partial") && data.total !== null;
+  const totalValor = data.totalCota && data.total !== null ? `≥ ${fmt(data.total)}` : fmt(data.total);
   return (
     <section aria-label="Afiliación a la Seguridad Social" className="border-t border-[var(--border-subtle)] py-10">
       <h2 className="type-h3 text-[var(--text-primary)]">Afiliación a la Seguridad Social</h2>
@@ -207,9 +208,14 @@ export function AfiliacionBlock({ data }: { data: AfiliacionPresentationData }) 
       ) : (
         <div className="mt-4">
           <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
-            <StatCard etiqueta="Total afiliados" valor={fmt(data.total)} detalle={`TGSS, ${data.tableId}, ${data.etiquetaPeriodo}`} />
+            <StatCard etiqueta="Total afiliados" valor={totalValor} detalle={`TGSS, ${data.tableId}, ${data.etiquetaPeriodo}${data.totalCota ? " · cota inferior" : ""}`} />
             <StatCard etiqueta="Régimen General" valor={fmt(data.regimenes.general)} detalle={`TGSS, ${data.tableId}, ${data.etiquetaPeriodo}`} />
           </div>
+          {data.totalCota && (
+            <p className="mt-2 max-w-[70ch] text-[13px] leading-relaxed text-[var(--text-secondary)]">
+              El total se publica como <strong>cota inferior (≥)</strong>: al menos un régimen (p. ej. Hogar) permanece bajo secreto estadístico, por lo que la suma exacta no está disponible.
+            </p>
+          )}
           <h3 className="type-h4 mt-10 text-[var(--text-primary)]">Por régimen</h3>
           <div className="mt-4 grid max-w-[48rem] grid-cols-1 gap-3">
             {REGIMEN_LABELS.map((r) => {

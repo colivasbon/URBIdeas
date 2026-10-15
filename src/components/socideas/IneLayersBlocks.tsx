@@ -15,6 +15,7 @@ import type {
   IneValue,
   MunicipalIneLayersV1,
 } from "@/lib/socideas-ine-layers";
+import type { EducacionFormacionAgregada } from "@/lib/socideas-secciones-education";
 
 function fmtNum(n: number): string {
   return n.toLocaleString("es-ES");
@@ -117,6 +118,49 @@ export function EducacionBlock({ data }: { data: NonNullable<MunicipalIneLayersV
       <p className={NOTE}>
         La categoría «No aplicable: menor de 15 años» se conserva en la fuente y no se suma a las
         categorías educativas.
+      </p>
+    </section>
+  );
+}
+
+/** Nivel educativo del Censo Anual de Población (agregado por sección censal).
+ *  Fuente distinta al Censo 2021: se muestra en su propio bloque, sin mezclar. */
+export function EducacionAnualBlock({ data }: { data: EducacionFormacionAgregada }) {
+  const cota = data.categorias.some((c) => c.parcial) || data.seccionesSuprimidas > 0;
+  const pctES = (n: number): string => `${n.toLocaleString("es-ES", { maximumFractionDigits: 1 })}`;
+  return (
+    <section
+      aria-label={`Nivel educativo · Censo Anual de Población ${data.period}`}
+      className="border-t border-[var(--border-subtle)] py-10"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="type-h3 text-[var(--text-primary)]">
+          Nivel educativo · Censo Anual de Población {data.period}
+        </h2>
+        <DataStatusBadge estado={cota ? "parcial" : "consolidado"} />
+      </div>
+      <p className={LEDE}>
+        Nivel de formación más alto alcanzado, agregado municipal sobre secciones censales.
+      </p>
+      <div className={`mt-6 ${FIGURE_ROW} sm:grid-cols-2 lg:grid-cols-4`}>
+        {data.categorias.map((c) => (
+          <StatCard
+            key={c.indicador}
+            etiqueta={c.etiqueta}
+            valor={c.personas === null ? "ND" : fmtNum(c.personas)}
+            detalle={c.pct !== null ? `${pctES(c.pct)} %` : "ND"}
+          />
+        ))}
+      </div>
+      <p className={SOURCE_NOTE}>
+        Fuente: INE, Censo Anual de Población · Educación, tabla {data.sourceTable}. Periodo:{" "}
+        <span className="tabular-nums">{data.period}</span>. Agregado sobre {data.secciones} secciones
+        censales ({data.seccionesSuprimidas} suprimidas por secreto &lt; 50 hab.). Universo: población
+        residente total de la sección (no restringido a 15+).
+        {cota ? " Suma = cota inferior: alguna sección no difundida (ND)." : ""}
+      </p>
+      <p className={NOTE}>
+        «ND» = valor no difundido o no disponible en la fuente oficial; nunca equivale a 0.
       </p>
     </section>
   );

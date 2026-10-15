@@ -38,6 +38,12 @@ import {
 } from './socideas-elections'
 import { AEAT_EDM_IRPF, INE_INSTITUTION, registrySource } from './socideas-source-registry'
 import {
+  aggregateEducationFormacion,
+  isEducationMunicipalObject,
+  type EducationMunicipalObject,
+} from './socideas-secciones-education'
+import { LABOR_REGIMENES, resolveLaborTotal, type LaborTotalResuelto } from './socideas-labor-envelope'
+import {
   ELECTORAL_SIGLAS_NORMALIZATION,
   normalizarSiglasElectoral,
   type AutonomicasCircunscripcionPayload,
@@ -143,6 +149,14 @@ export interface ViviendaPayload {
   hogaresUnipersonales: number | null
   superficieMediaM2: number | null
   antiguedadMedia: number | null
+  /** Secciones censales usadas en el agregado (si procede de agregado por secciones). */
+  secciones?: number | null
+  /** Secciones suprimidas por secreto (< 100 hab.) excluidas del agregado. */
+  seccionesSuprimidas?: number | null
+  /** true si el agregado es cota inferior (hay secciones sin publicar). */
+  cotaInferior?: boolean | null
+  /** Nota de trazabilidad del agregado (se añade a la nota del bloque). */
+  notaAgregacion?: string | null
 }
 
 export interface ServicioMunicipalItem {
@@ -210,6 +224,8 @@ export interface SocideasBookInputV2 {
   gal?: GalMunicipio | null
   /** Enriquecimiento Wikipedia/Wikidata (resumen, bienes patrimoniales) (v2.3). */
   wikipedia?: WikipediaEnrichment | null
+  /** Censo Anual de Población (educación por sección censal), objeto R2 ya publicado. */
+  educacionAnual?: EducationMunicipalObject | null
 }
 
 // ============================================================================
@@ -730,6 +746,13 @@ export const INDICATOR_LIBRARY: Readonly<Record<string, IndicatorMeta>> = {
     unidad: 'personas', tipo_valor: 'entero', source_slug: 'ine_censo_2021', organismo: INE_INSTITUTION,
     operacion: 'Censo de Población y Viviendas 2021 · tabla 55249', license: LIC_INE, capability: 'nacional',
     comparabilidad: 'Censo decenal; no serie anual. Desagregación por sexo incluida.', area: 'servicios',
+  },
+  nivel_educativo_censo_anual: {
+    nombre: 'Nivel educativo (Censo Anual de Población)', descripcion: 'Nivel de formación más alto alcanzado, agregado por sección censal (Censo Anual de Población).',
+    unidad: 'personas', tipo_valor: 'entero', source_slug: 'ine_censo_anual', organismo: INE_INSTITUTION,
+    operacion: 'Censo Anual de Población · Educación y Relación con la actividad', license: LIC_INE, capability: 'nacional',
+    comparabilidad: 'Serie anual por sección censal. Universo: población residente total de la sección (no 16+). Secciones < 50 hab. suprimidas; el agregado municipal es cota inferior.',
+    area: 'servicios',
   },
   centros_docentes: {
     nombre: 'Centros docentes', descripcion: 'Centros educativos no universitarios en el municipio.',
@@ -2617,6 +2640,49 @@ function buildServiciosSheet(input: SocideasBookInputV2): BookTableV2[] {
     }
   }
 
+  // Nivel educativo — Censo Anual de Población (por sección censal). Fuente
+  // publicada en R2 (`education/normalized/{period}/{ine}`), distinta del Censo
+  // 2021: se presenta en tabla propia, sin mezclar operaciones ni universos.
+  const eduAnual =
+    input.educacionAnual && isEducationMunicipalObject(input.educacionAnual) ? input.educacionAnual : null
+  if (eduAnual) {
+    const agg = aggregateEducationFormacion(eduAnual)
+    const conDatos = agg.categorias.filter((c) => c.personas !== null)
+    if (conDatos.length > 0) {
+      const cotaInferior = conDatos.some((c) => c.parcial) || agg.seccionesSuprimidas > 0
+      const filas: ExportCell[][] = [
+        [label('Total'), num(agg.total), pct(agg.total !== null ? 100 : null)],
+        ...agg.categorias.map((c) => [label(c.etiqueta), num(c.personas), pct(c.pct)]),
+      ]
+      bloques.push(
+        table({
+          id: 'nivel-educativo-censo-anual',
+          titulo: `Nivel educativo — Censo Anual de Población ${agg.period} (agregado por sección censal)`,
+          hoja: '05_SOCIAL_EDUCACIÓN_SERVICIOS',
+          columnas: ['Nivel educativo', 'Personas', '%'],
+          filas,
+          fuente: `Instituto Nacional de Estadística · Censo Anual de Población · Educación (tabla ${agg.sourceTable})`,
+          periodo: String(agg.period),
+          cobertura: ctxMunicipio(input),
+          note:
+            `Agregado municipal sobre ${agg.secciones} secciones censales (${agg.seccionesSuprimidas} suprimidas por secreto < 50 hab.). ` +
+            `Porcentajes recalculados sobre el total municipal. Universo: población residente total de la sección (no restringido a 16+).` +
+            (cotaInferior ? ' Suma = cota inferior: alguna sección no difundida (ND).' : ''),
+          indicadores: [
+            ind('nivel_educativo_censo_anual', {
+              periodo: String(agg.period),
+              availability: cotaInferior ? 'partial' : 'available',
+              tableId: agg.sourceTable ? String(agg.sourceTable) : null,
+              dimensiones: ['nivel'],
+              fechaExtraccion: agg.retrievedAt || null,
+            }),
+          ],
+          tablaExcel: 'tbl_soc_educacion_censo_anual',
+        }),
+      )
+    }
+  }
+
   // Centros docentes: payload verificado o estado estructurado con operación candidata
   bloques.push(
     pendingTable(
@@ -2708,7 +2774,10 @@ function buildViviendaSheet(input: SocideasBookInputV2): BookTableV2[] {
         fuente: v.fuenteLabel,
         periodo: v.periodo,
         cobertura: ctxMunicipio(input),
-        note: 'Vivienda convencional ≠ hogar ≠ inmueble catastral: cada magnitud conserva su definición.',
+        note: [
+          'Vivienda convencional ≠ hogar ≠ inmueble catastral: cada magnitud conserva su definición.',
+          v.notaAgregacion ?? null,
+        ].filter(Boolean).join(' '),
         indicadores: [
           ind('vivienda_censo', { periodo: v.periodo, availability: 'available', tableId: v.tableId ?? null, dimensiones: ['uso', 'tamano', 'tenencia'] }),
         ],
@@ -3290,11 +3359,35 @@ function buildResumenSheet(
   push('Índice de envejecimiento', num(perfil?.derivados.indice_envejecimiento ?? null, 1), 'ratio', String(perfil?.total?.anio_referencia ?? '—'), perfil?.derivados.indice_envejecimiento !== null ? 'Disponible' : 'No difundido')
   push('Densidad de población', num(perfil?.densidad.valor ?? null, 1), 'hab./km²', String(perfil?.densidad.anioSuperficie ?? '—'), perfil?.densidad.valor !== null ? 'Cálculo SOCideas' : 'Pendiente')
 
+  // Claves meta de `dimensiones` que NO son desglose (presentes en todas las
+  // filas). Cualquier otra clave con valor real (distinto de '' y 'total') marca
+  // una fila desagregada (sexo/tramo_edad/sector/régimen...).
+  const META_DIM_KEYS = new Set(['ambito', 'periodo', 'estado', 'secreto', 'serie'])
+  const tieneDesglose = (dim?: Record<string, string> | null): boolean =>
+    dim != null &&
+    Object.entries(dim).some(([k, val]) => !META_DIM_KEYS.has(k) && val != null && val !== '' && val !== 'total')
+
+  // "Último valor" del indicador. El total es la fila sin dimensión de desglose:
+  // para SEPE/TGSS evita presentar como total una fila por sexo/sector/régimen
+  // (bug real: el resumen mostraba paro por sector y afiliación por régimen en
+  // lugar del total). Renta, empresas (sector='total') y gini no tienen desglose,
+  // así que su selección de siempre no cambia. Desempate por período (mensual).
   const ultimoEco = (slug: string): { v: IndicatorValue | null; anio: number | null } => {
-    const list = valores
-      .filter((v) => slugOf(v) === slug && isPublishableValue(slug, v.valor_numerico) && (v.dimensiones?.ambito ?? 'municipio') === 'municipio')
-      .sort((a, b) => (a.anio_referencia ?? 0) - (b.anio_referencia ?? 0))
-    const last = list[list.length - 1] ?? null
+    const candidatos = valores.filter(
+      (v) => slugOf(v) === slug && isPublishableValue(slug, v.valor_numerico) && (v.dimensiones?.ambito ?? 'municipio') === 'municipio',
+    )
+    // Total = fila sin dimensión de desglose (ver META_DIM_KEYS). Si no existe
+    // esa fila (p. ej. afiliación TGSS cuyo total exacto no se publica por
+    // secreto de un régimen), se devuelve null = ND, jamás una fila desglosada
+    // (régimen/sexo/sector) ni 0. Renta, empresas (sector='total') y gini no
+    // tienen desglose, así que su selección de siempre no cambia.
+    const totales = candidatos.filter((v) => !tieneDesglose(v.dimensiones))
+    const lista = totales.sort(
+      (a, b) =>
+        (a.anio_referencia ?? 0) - (b.anio_referencia ?? 0) ||
+        (a.dimensiones?.periodo ?? '').localeCompare(b.dimensiones?.periodo ?? ''),
+    )
+    const last = lista[lista.length - 1] ?? null
     return { v: last, anio: last?.anio_referencia ?? null }
   }
   const rnp = ultimoEco('renta_neta_media_persona')
@@ -3303,10 +3396,22 @@ function buildResumenSheet(
   push('Índice de Gini', num(gini.v?.valor_numerico ?? null, 1), 'Índice', String(gini.anio ?? '—'), gini.v ? 'Disponible (ADRH)' : 'No difundido')
   const p80 = ultimoEco('p80_p20')
   push('Ratio P80/P20', num(p80.v?.valor_numerico ?? null, 1), 'ratio', String(p80.anio ?? '—'), p80.v ? 'Disponible (ADRH)' : 'No difundido')
-  const paro = ultimoEco('paro_registrado')
-  push('Paro registrado (último mes)', num(paro.v?.valor_numerico ?? null), 'personas', String(paro.v?.dimensiones?.periodo ?? '—'), paro.v ? 'Disponible (SEPE)' : 'No difundido')
-  const afi = ultimoEco('afiliacion_total')
-  push('Afiliación (último mes)', num(afi.v?.valor_numerico ?? null), 'personas', String(afi.v?.dimensiones?.periodo ?? '—'), afi.v ? 'Disponible (TGSS)' : 'No difundido')
+  // Paro/afiliación: total exacto o COTA INFERIOR derivada de los desgloses
+  // publicados (p. ej. TGSS sin fila total porque un régimen quedó secreto).
+  // ND≠0: nunca una fila desglosada ni 0; la cota se etiqueta "≥".
+  const laborPeriodosResumen = [...new Set(
+    valores
+      .filter((v) => slugOf(v) === 'paro_registrado' || slugOf(v) === 'afiliacion_total')
+      .map((v) => v.dimensiones?.periodo)
+      .filter((p): p is string => typeof p === 'string' && /^\d{4}-\d{2}$/.test(p)),
+  )].sort()
+  const laborPeriodoResumen = laborPeriodosResumen[laborPeriodosResumen.length - 1] ?? null
+  const laborResumenCell = (r: LaborTotalResuelto | null): ExportCell =>
+    r === null ? num(null) : r.cota ? { text: `≥ ${num(r.valor).text}`, numeric: null } : num(r.valor)
+  const paroR = resolveLaborTotal(valores as Parameters<typeof resolveLaborTotal>[0], { slug: 'paro_registrado', desglose: ['sexo', 'tramo_edad', 'sector'], periodo: laborPeriodoResumen })
+  push('Paro registrado (último mes)', laborResumenCell(paroR), 'personas', laborPeriodoResumen ?? '—', paroR ? (paroR.cota ? 'Cota inferior (SEPE)' : 'Disponible (SEPE)') : 'No difundido')
+  const afiR = resolveLaborTotal(valores as Parameters<typeof resolveLaborTotal>[0], { slug: 'afiliacion_total', desglose: ['regimen'], canonico: LABOR_REGIMENES, periodo: laborPeriodoResumen })
+  push('Afiliación (último mes)', laborResumenCell(afiR), 'personas', laborPeriodoResumen ?? '—', afiR ? (afiR.cota ? 'Cota inferior (TGSS)' : 'Disponible (TGSS)') : 'No difundido')
   const emp = ultimoEco('empresas_total')
   push('Empresas con sede', num(emp.v?.valor_numerico ?? null), 'empresas', String(emp.anio ?? '—'), emp.v ? 'Disponible (DIRCE)' : 'No difundido')
   const elec = buildElectoralPresentation(valores, input.municipio)

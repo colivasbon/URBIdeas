@@ -10,7 +10,11 @@
 // no depender de ese fallback.
 
 import type { LaborRegimen, LaborSector } from './socideas-labor-envelope'
-import { LABOR_REGIMENES, LABOR_SECTORS } from './socideas-labor-envelope'
+import { LABOR_REGIMENES, LABOR_SECTORS, resolveLaborTotal } from './socideas-labor-envelope'
+
+// Ejes de desglose de las series laborales. `cell(rows, p, {})` pide el TOTAL,
+// que es la fila SIN ninguno de estos ejes; no debe hacer match vacío.
+const DESGLOSE_LABORAL = ['sexo', 'tramo_edad', 'sector', 'regimen']
 
 export type LaborStatus = 'observed' | 'suppressed' | 'missing' | 'partial'
 
@@ -54,6 +58,8 @@ export interface AfiliacionPresentationData {
   etiquetaPeriodo: string
   notaTemporal: string
   total: number | null
+  /** true si `total` es cota inferior (≥) por secreto de algún régimen. */
+  totalCota: boolean
   regimenes: Record<LaborRegimen, number | null>
   status: LaborStatus
   tableId: string
@@ -197,7 +203,15 @@ function cell(
   const hit = rows.find((r) => {
     const d = r.dimensiones ?? {}
     if (d.periodo !== periodo || d.ambito !== 'municipio') return false
-    return Object.entries(extra).every(([k, v]) => d[k] === v)
+    const entries = Object.entries(extra)
+    if (entries.length === 0) {
+      // extra vacío = petición de TOTAL: exige fila sin eje de desglose.
+      return !DESGLOSE_LABORAL.some((k) => {
+        const v = (d as Record<string, string | undefined>)[k]
+        return v != null && v !== ''
+      })
+    }
+    return entries.every(([k, v]) => d[k] === v)
   })
   return typeof hit?.valor_numerico === 'number' ? hit.valor_numerico : null
 }
@@ -256,7 +270,9 @@ export function buildAfiliacionPresentation(
   if (cands.length === 0) return null
   const periodo = latestPeriodo(cands) ?? 'desconocido'
   const inPeriod = cands.filter((r) => r.dimensiones?.periodo === periodo)
-  const total = cell(inPeriod, periodo, {})
+  const resTotal = resolveLaborTotal(cands, { slug: 'afiliacion_total', desglose: ['regimen'], canonico: LABOR_REGIMENES, periodo })
+  const total = resTotal ? resTotal.valor : null
+  const totalCota = resTotal ? resTotal.cota : false
   const regimenes = Object.fromEntries(
     LABOR_REGIMENES.map((r) => [r, cell(inPeriod, periodo, { regimen: r })]),
   ) as Record<LaborRegimen, number | null>
@@ -266,6 +282,7 @@ export function buildAfiliacionPresentation(
     etiquetaPeriodo: etiquetaPeriodoLabor(periodo),
     notaTemporal: NOTA_TEMPORAL,
     total,
+    totalCota,
     regimenes,
     status: statusOf([total, ...Object.values(regimenes)]),
     tableId,

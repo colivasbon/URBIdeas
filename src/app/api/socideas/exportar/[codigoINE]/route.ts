@@ -14,6 +14,8 @@ import { readElectoralProvincial } from '@/lib/socideas-electoral-provincial-sto
 import { readAsociacionesMunicipio } from '@/lib/socideas-asociaciones'
 import { readGalMunicipio } from '@/lib/socideas-gal'
 import { readWikipediaEnrichment } from '@/lib/wikipedia-enrichment'
+import { leerCatalogoEducativo, leerObjetoEducativo } from '@/lib/socideas-secciones-education-store'
+import { leerVivienda } from '@/lib/socideas-vivienda-store'
 
 export const dynamic = 'force-dynamic'
 
@@ -209,13 +211,21 @@ export async function GET(
     //    sigue adelante. Ninguno escribe nada.
     const provinciaCodigo =
       perfilDemo?.municipio.provincia_codigo_ine ?? perfilEco?.municipio.provincia_codigo_ine ?? null
-    const [electoralProvincial, asociaciones, gal, wikipedia] = await Promise.all([
+    const [electoralProvincial, asociaciones, gal, wikipedia, educacionAnual] = await Promise.all([
       provinciaCodigo
         ? readElectoralProvincial(provinciaCodigo.slice(0, 2)).catch(() => null)
         : Promise.resolve(null),
       readAsociacionesMunicipio(supabase, codigoINE).catch(() => null),
       readGalMunicipio(supabase, codigoINE).catch(() => null),
       readWikipediaEnrichment(codigoINE).catch(() => null),
+      // Censo Anual de Población (educación por sección censal): periodo por
+      // defecto del catálogo publicado. Degrada a null si no está publicado.
+      leerCatalogoEducativo()
+        .then((c) => (c ? leerObjetoEducativo(codigoINE, c.period) : null))
+        .catch((e) => {
+          console.warn('[SOCIDEAS_XLSX_EXPORT_LAYER_SKIP]', { ineCode, requestId, layer: 'education_censo_anual', errorMessageSafe: String(e?.message).slice(0, 200) })
+          return null
+        }),
     ])
     console.log('[SOCIDEAS_XLSX_EXPORT_STAGE]', {
       ineCode, requestId, stage: 'load_v23_layers',
@@ -260,6 +270,11 @@ export async function GET(
       asociaciones: asociaciones ?? null,
       gal: gal ?? null,
       wikipedia: wikipedia ?? null,
+      educacionAnual: educacionAnual ?? null,
+      vivienda: await leerVivienda(codigoINE).catch((e) => {
+        console.warn('[SOCIDEAS_XLSX_EXPORT_LAYER_SKIP]', { ineCode, requestId, layer: 'vivienda', errorMessageSafe: String(e?.message).slice(0, 200) })
+        return null
+      }),
     })
     const totalBlocks = book.sheets.reduce((a, s) => a + s.bloques.length, 0)
     const bloquesConDatos = book.sheets

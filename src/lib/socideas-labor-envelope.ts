@@ -492,3 +492,54 @@ export function describeMonthlyPlan(anio: number, mes: number): LaborMonthlyPlan
     loteTamano: 500,
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Total mensual exacto o COTA INFERIOR (puro, sin I/O)
+//
+// Regla ND≠0: si el total exacto no está publicado (p. ej. TGSS eliminó la fila
+// total porque un régimen quedó bajo secreto), NO se muestra 0 ni una fila
+// desglosada como total. Se deriva una COTA INFERIOR = suma de los desgloses
+// publicados, marcada con `cota: true`, y se advierte de lo que falta.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface LaborTotalResuelto {
+  valor: number
+  /** true = cota inferior (falta al menos un desglose canónico por secreto). */
+  cota: boolean
+}
+
+interface FilaLabor {
+  indicator?: { slug?: string } | null
+  valor_numerico?: number | null
+  dimensiones?: Record<string, string> | null
+}
+
+export function resolveLaborTotal(
+  rows: FilaLabor[],
+  opts: { slug: string; desglose: string[]; canonico?: readonly string[]; periodo?: string | null },
+): LaborTotalResuelto | null {
+  const { slug, desglose, canonico, periodo } = opts
+  const sinDesglose = (r: FilaLabor): boolean =>
+    desglose.every((k) => {
+      const v = r.dimensiones?.[k]
+      return v === undefined || v === null || v === ''
+    })
+  const muni = rows.filter(
+    (r) =>
+      r.indicator?.slug === slug &&
+      typeof r.valor_numerico === 'number' &&
+      (r.dimensiones?.ambito ?? 'municipio') === 'municipio' &&
+      (periodo == null || r.dimensiones?.periodo === periodo),
+  )
+  const total = muni.find(sinDesglose)
+  if (total) return { valor: total.valor_numerico as number, cota: false }
+  const partes = muni.filter((r) => !sinDesglose(r))
+  if (partes.length === 0) return null
+  const valor = partes.reduce((a, r) => a + (r.valor_numerico as number), 0)
+  let cota = false
+  if (canonico && desglose.length === 1) {
+    const key = desglose[0]
+    cota = canonico.some((c) => !partes.some((r) => r.dimensiones?.[key] === c))
+  }
+  return { valor, cota }
+}

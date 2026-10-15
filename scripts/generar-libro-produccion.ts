@@ -11,6 +11,8 @@ import { readElectoralProvincial } from '../src/lib/socideas-electoral-provincia
 import { readAsociacionesMunicipio } from '../src/lib/socideas-asociaciones'
 import { readGalMunicipio } from '../src/lib/socideas-gal'
 import { readWikipediaEnrichment } from '../src/lib/wikipedia-enrichment'
+import { leerCatalogoEducativo, leerObjetoEducativo } from '../src/lib/socideas-secciones-education-store'
+import { leerVivienda } from '../src/lib/socideas-vivienda-store'
 import { writeFileSync } from 'fs'
 
 async function main() {
@@ -28,11 +30,14 @@ async function main() {
   ])
 
   const provinciaCodigo = demo?.municipio?.provincia_codigo_ine ?? eco?.municipio?.provincia_codigo_ine ?? null
-  const [electoralProvincial, asociaciones, gal, wikipedia] = await Promise.all([
+  const [electoralProvincial, asociaciones, gal, wikipedia, educacionAnual] = await Promise.all([
     provinciaCodigo ? readElectoralProvincial(provinciaCodigo.slice(0, 2)).catch(() => null) : Promise.resolve(null),
     readAsociacionesMunicipio(supabase, codigoINE).catch(() => null),
     readGalMunicipio(supabase, codigoINE).catch(() => null),
     readWikipediaEnrichment(codigoINE).catch(() => null),
+    leerCatalogoEducativo()
+      .then((c) => (c ? leerObjetoEducativo(codigoINE, c.period) : null))
+      .catch(() => null),
   ])
 
   const book = assembleSocideasBookV2({
@@ -53,6 +58,8 @@ async function main() {
     asociaciones: asociaciones ?? null,
     gal: gal ?? null,
     wikipedia: wikipedia ?? null,
+    educacionAnual: educacionAnual ?? null,
+    vivienda: (await leerVivienda(codigoINE).catch(() => null)) ?? null,
   })
 
   const buffer = await buildSocideasBookXlsx(book)

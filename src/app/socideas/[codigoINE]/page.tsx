@@ -36,6 +36,8 @@ import { readTemporaryMunicipalData } from "@/lib/socideas-temporary-data";
 import type { TemporaryMunicipalData } from "@/lib/socideas-temporary-data";
 import { readMunicipalStructureWithBenchmarks } from "@/lib/socideas-population-runtime";
 import type { MunicipalStructureWithBenchmarks } from "@/lib/socideas-population-runtime";
+import { leerCatalogoEducativo, leerObjetoEducativo } from "@/lib/socideas-secciones-education-store";
+import { aggregateEducationFormacion, type EducacionFormacionAgregada } from "@/lib/socideas-secciones-education";
 import EstructuraSoloBloque from "@/components/socideas/EstructuraSoloBloque";
 import EmptyState from "@/components/ui/EmptyState";
 import PageShell from "@/components/ui/PageShell";
@@ -181,6 +183,15 @@ export default async function SocideasFicha({
       ? readMunicipalStructureWithBenchmarks(codigoINE).catch(() => null)
       : Promise.resolve(null) as Promise<MunicipalStructureWithBenchmarks | null>,
   ]);
+  // Censo Anual de Población (educación por sección censal): se lee solo en la
+  // hoja sociocultural. Degrada a null si no está publicado; nunca rompe.
+  let educacionAnual: EducacionFormacionAgregada | null = null;
+  if (hojaActiva === "sociocultural") {
+    const obj = await leerCatalogoEducativo()
+      .then((c) => (c ? leerObjetoEducativo(codigoINE, c.period) : null))
+      .catch(() => null);
+    if (obj) educacionAnual = aggregateEducationFormacion(obj);
+  }
   // Capas v2.3 (asociaciones, GAL, Wikipedia y resultados de circunscripción).
   // Se leen SOLO en las hojas que las muestran y siempre en paralelo: cada
   // lectura degrada a `null` sin romper la ficha. Ninguna escribe nada.
@@ -367,7 +378,9 @@ export default async function SocideasFicha({
                 />
               ))}
 
-            {hojaActiva === "sociocultural" && <SocioculturalSheet ineLayers={ineLayers} />}
+            {hojaActiva === "sociocultural" && (
+              <SocioculturalSheet ineLayers={ineLayers} educacionAnual={educacionAnual} />
+            )}
 
             {hojaActiva === "patrimonio" && (
               <PatrimonioSheet

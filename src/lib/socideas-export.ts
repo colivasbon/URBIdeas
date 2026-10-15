@@ -5,6 +5,7 @@
 import type { IndicatorValue, PerfilDemografico, PerfilEconomico } from "./socideas";
 import { isPublishableValue, isRealValue } from "./socideas-availability";
 import { etiquetaPeriodoLabor } from "./socideas-labor-summary";
+import { LABOR_REGIMENES, resolveLaborTotal } from "./socideas-labor-envelope";
 import {
   AEAT_EDM_IRPF,
   OP_ADRH,
@@ -826,6 +827,40 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
     );
     return typeof hit?.valor_numerico === "number" ? hit.valor_numerico : null;
   };
+  // Total mensual = fila SIN eje de desglose. `laborCell(slug, p, {})` usaría un
+  // `.every` vacío (siempre true) y devolvería la PRIMERA fila del período (p. ej.
+  // un régimen), no el total. Bug real: TGSS etiquetaba el Régimen General (186)
+  // como "Total afiliados". Este helper exige ausencia de desglose y devuelve
+  // null (ND) si el total exacto no está publicado (secreto estadístico).
+  const DESGLOSE_LABORAL = ["sexo", "tramo_edad", "sector", "regimen"];
+  const laborTotalCell = (slug: string, periodo: string): number | null => {
+    const hit = laborRows.find(
+      (v) =>
+        slugOf(v) === slug &&
+        v.dimensiones?.periodo === periodo &&
+        (v.dimensiones?.ambito ?? "municipio") === "municipio" &&
+        !DESGLOSE_LABORAL.some((k) => {
+          const val = v.dimensiones?.[k];
+          return val != null && val !== "";
+        }),
+    );
+    return typeof hit?.valor_numerico === "number" ? hit.valor_numerico : null;
+  };
+  // Total mensual exacto o cota inferior derivada de los desgloses publicados.
+  // `cota: true` (p. ej. TGSS sin fila total porque un régimen quedó secreto) se
+  // muestra como "≥ N", nunca como 0 ni confundiendo un desglose con el total.
+  const laborTotalResuelto = (slug: string): { v: number | null; cota: boolean } => {
+    if (!laborPeriodo) return { v: null, cota: false };
+    const r = resolveLaborTotal(laborRows, {
+      slug,
+      desglose: slug === "afiliacion_total" ? ["regimen"] : ["sexo", "tramo_edad", "sector"],
+      canonico: slug === "afiliacion_total" ? LABOR_REGIMENES : undefined,
+      periodo: laborPeriodo,
+    });
+    return r ? { v: r.valor, cota: r.cota } : { v: null, cota: false };
+  };
+  const filaTotal = (v: number | null, cota: boolean): ExportCell =>
+    cell(v === null ? "ND" : cota ? `≥ ${fmtES(v)}` : fmtES(v), cota ? null : v);
   const laborPeriodos = [...new Set(
     laborRows
       .map((v) => v.dimensiones?.periodo)
@@ -840,7 +875,7 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
   if (laborTiene("paro_registrado") && laborPeriodo) {
     const primero = laborRows.find((v) => slugOf(v) === "paro_registrado" && v.dimensiones?.periodo === laborPeriodo);
     const paroRows: [string, number | null][] = [
-      ["Total parados registrados", laborCell("paro_registrado", laborPeriodo, {})],
+      ["Total parados registrados", laborTotalCell("paro_registrado", laborPeriodo)],
       ["Hombres", laborCell("paro_registrado", laborPeriodo, { sexo: "hombres" })],
       ["Mujeres", laborCell("paro_registrado", laborPeriodo, { sexo: "mujeres" })],
       ["Hombres menores de 25", laborCell("paro_registrado", laborPeriodo, { sexo: "hombres", tramo_edad: "<25" })],
@@ -888,8 +923,9 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
 
   if (laborTiene("afiliacion_total") && laborPeriodo) {
     const primero = laborRows.find((v) => slugOf(v) === "afiliacion_total" && v.dimensiones?.periodo === laborPeriodo);
-    const afiliRows: [string, number | null][] = [
-      ["Total afiliados", laborCell("afiliacion_total", laborPeriodo, {})],
+    const afilT = laborTotalResuelto("afiliacion_total");
+    const afiliRows: [string, number | null, boolean?][] = [
+      ["Total afiliados", afilT.v, afilT.cota],
       ["Régimen General", laborCell("afiliacion_total", laborPeriodo, { regimen: "general" })],
       ["S. E. Agrario", laborCell("afiliacion_total", laborPeriodo, { regimen: "agrario" })],
       ["S. E. Hogar", laborCell("afiliacion_total", laborPeriodo, { regimen: "hogar" })],
@@ -902,14 +938,16 @@ export function buildEconomiaTables(perfil: PerfilEconomico): ExportTable[] {
       titulo: "Afiliación a la Seguridad Social — TGSS",
       hoja: "03_CONTEXTO_ECONÓMICO",
       columnas: ["Concepto", "Personas"],
-      filas: afiliRows.map(([label, v]) => [cell(label), cell(v === null ? "ND" : fmtES(v), v)]),
+      filas: afiliRows.map(([label, v, cota]) => [cell(label), filaTotal(v, cota ?? false)]),
       fuente: fuenteDe(primero) || "TGSS · Afiliación por municipios (último día del mes)",
       periodo: `${laborEtiqueta} (dato mensual)`,
       cobertura: `Municipio ${perfil.municipio.nombre}`,
       estado: "Consolidado (coyuntura mensual)",
       comparisonMode: "municipal_only",
       availability: "available",
-      note: "Afiliados el último día del mes; no comparable con bloques anuales. ND = rango de secreto, nunca 0.",
+      note:
+        "Afiliados el último día del mes; no comparable con bloques anuales. ND = rango de secreto, nunca 0." +
+        (afilT.cota ? " Total = cota inferior (≥): algún régimen quedó bajo secreto estadístico." : ""),
     });
   } else {
     tablas.push({

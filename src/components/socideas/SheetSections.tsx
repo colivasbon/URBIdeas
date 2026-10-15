@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BloqueElectoral } from "./ElectoralBlocks";
 import { ElectoralProvincialBloques } from "./ElectoralProvincialBloques";
-import { EducacionBlock } from "./IneLayersBlocks";
+import { EducacionBlock, EducacionAnualBlock } from "./IneLayersBlocks";
 import { SheetPlaceholder, FreshnessLine } from "./SheetShell";
 import { SheetStatusGlyph } from "./DataStatusBadge";
 import { PatrimonioBloque } from "./PatrimonioBloque";
@@ -15,6 +15,7 @@ import type { WikipediaEnrichment } from "@/lib/wikipedia-enrichment";
 import type { GalMunicipio } from "@/lib/socideas-gal";
 import type { IndicatorValue } from "@/lib/socideas";
 import type { MunicipalIneLayersV1 } from "@/lib/socideas-ine-layers";
+import type { EducacionFormacionAgregada } from "@/lib/socideas-secciones-education";
 
 function hrefHoja(codigoINE: string, key: FichaSheetKey): string {
   if (key === "demografia") return `/socideas/${codigoINE}`;
@@ -145,7 +146,13 @@ export function PatrimonioSheet({
 }
 
 /** Hoja 04: contexto sociocultural (nivel educativo + servicios pendientes). */
-export function SocioculturalSheet({ ineLayers }: { ineLayers: MunicipalIneLayersV1 | null }) {
+export function SocioculturalSheet({
+  ineLayers,
+  educacionAnual,
+}: {
+  ineLayers: MunicipalIneLayersV1 | null;
+  educacionAnual?: EducacionFormacionAgregada | null;
+}) {
   const education = ineLayers?.layers.education ?? null;
   return (
     <div>
@@ -158,6 +165,7 @@ export function SocioculturalSheet({ ineLayers }: { ineLayers: MunicipalIneLayer
           badge="Pendiente de incorporación"
         />
       )}
+      {educacionAnual ? <EducacionAnualBlock data={educacionAnual} /> : null}
       <SheetPlaceholder
         title="Centros educativos, formación profesional y servicios"
         description="Pendiente de integración desde registros administrativos y catálogos oficiales. Nada se rellena con valores provisionales."

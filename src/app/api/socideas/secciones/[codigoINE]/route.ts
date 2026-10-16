@@ -46,6 +46,7 @@ import type {
   PoliticalCoverageFile,
   PoliticalMunicipalObject,
 } from '@/lib/socideas-secciones-political'
+import { elegirConvocatoria } from '@/lib/socideas-secciones-dataset'
 
 export const dynamic = 'force-dynamic'
 
@@ -175,7 +176,7 @@ export async function GET(
 
   // ── 3. Política ─────────────────────────────────────────────────────────
   const catPol: PoliticalCatalog | null = await leerCatalogoPolitico().catch(() => null)
-  const eleccion = elegirConvocatoria(catPol, electionParam)
+  const eleccion = elegirConvocatoria(catPol, electionParam, ine)
   let objetoPol: PoliticalMunicipalObject | null = null
   let coberturaPol: PoliticalCoverageFile | null = null
   let entradaCobertura: Parameters<typeof fusionarPolitica>[1]['coverage'] = null
@@ -235,6 +236,7 @@ export async function GET(
       ...atlasBootstrapDe(base.compacto),
       indicators: catalogo.indicadores,
       cobertura: catalogo.cobertura,
+      sourceChecksums: catalogo.sourceChecksums,
     }
     via = dominios.length > 0 ? 'R2+dominios' : 'R2'
   } else if (dominios.length > 0) {
@@ -567,26 +569,4 @@ function periodoPorDefectoDeCatalogo(
     .map((c) => c.periodoPorDefecto)
     .filter((p): p is number => typeof p === 'number')
   return definidos.length > 0 ? Math.max(...definidos) : null
-}
-
-/** Elige la convocatoria: la pedida si existe en el catálogo; si no, la más
- *  reciente por tipo de elección. Nunca se hardcodea ninguna convocatoria.
- *  Devuelve también el `electionId` del catálogo, que es la clave con la que
- *  se guardan cobertura, manifiesto y catálogo: sin ella, un municipio sin
- *  objeto se etiquetaría como fuente no ingerida, que no es lo ocurrido. */
-function elegirConvocatoria(
-  cat: PoliticalCatalog | null,
-  pedido: string | undefined,
-): { electionId: string; electionType: ElectionType; electionDate: string } | null {
-  const lista = cat?.elections ?? []
-  if (lista.length === 0) return null
-  if (pedido) {
-    const enc = lista.find((e) => e.electionId === pedido)
-    if (enc) return { electionId: enc.electionId, electionType: enc.electionType, electionDate: enc.electionDate }
-  }
-  const orden = (a: (typeof lista)[number], b: (typeof lista)[number]) =>
-    a.electionDate < b.electionDate ? 1 : a.electionDate > b.electionDate ? -1 : 0
-  const copia = [...lista].sort(orden)
-  const elegida = copia[0] as (typeof lista)[number]
-  return { electionId: elegida.electionId, electionType: elegida.electionType, electionDate: elegida.electionDate }
 }

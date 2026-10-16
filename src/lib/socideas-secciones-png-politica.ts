@@ -229,6 +229,9 @@ export interface ContratoPngPolitica {
   readonly domain: typeof DOMINIO_PNG_POLITICA;
   readonly municipalityCode: string;
   readonly municipalityName: string;
+  /** Provincia; 
+ull si la fuente no la aporta. No es obligatorio. */
+  readonly provinceName: string | null;
   readonly electionId: string | null;
   readonly electionType: ElectionType | null;
   /** Fecha ISO de la convocatoria. `YYYY-MM-DD`. */
@@ -625,6 +628,9 @@ export interface EntradaContratoPngPolitica {
   readonly domain: typeof DOMINIO_PNG_POLITICA;
   readonly municipalityCode: string;
   readonly municipalityName: string;
+  /** Provincia; 
+ull si la fuente no la aporta. No es obligatorio. */
+  readonly provinceName: string | null;
   readonly electionId: string | null;
   readonly electionType: ElectionType | null;
   readonly electionDate: string;
@@ -709,6 +715,9 @@ export function construirContratoPngPolitica(entrada: EntradaContratoPngPolitica
     domain: DOMINIO_PNG_POLITICA,
     municipalityCode: entrada.municipalityCode,
     municipalityName: entrada.municipalityName,
+    // Se normaliza a `null`: una clave con valor `undefined` desaparecería al
+    // pasar por JSON y la firma dejaría de ser estable.
+    provinceName: entrada.provinceName ?? null,
     electionId: entrada.electionId,
     electionType: entrada.electionType,
     electionDate: entrada.electionDate,
@@ -1037,7 +1046,7 @@ export function opcionesComponerDesdeContrato(
     base: base.base,
     indicador: c.indicatorLabel,
     municipio: c.municipalityName,
-    provincia: null,
+    provincia: c.provinceName,
     // El título lo compone el contrato: necesita tipo de proceso y convocatoria.
     anio: anioElectoral(c.electionDate),
     titulo: tituloDeContratoPolitica(c),

@@ -29,6 +29,7 @@ import {
   leerResultadosElectorales,
 } from '@/lib/socideas-secciones-political-store'
 import type { ElectionType, PoliticalCatalog, PoliticalMunicipalObject } from '@/lib/socideas-secciones-political'
+import { elegirConvocatoria } from '@/lib/socideas-secciones-dataset'
 
 export const dynamic = 'force-dynamic'
 
@@ -389,7 +390,7 @@ async function servirPolitica(
     tags: [tag],
     construir: async () => {
       const cat: PoliticalCatalog | null = await leerCatalogoPolitico().catch(() => null)
-      const eleccion = elegirConvocatoria(cat, convocatoriaPedida)
+      const eleccion = elegirConvocatoria(cat, convocatoriaPedida, ine)
       if (!eleccion) throw new BloqueNoDisponible('No hay ninguna convocatoria electoral publicada', 404)
       const obj = await leerResultadosElectorales(ine, eleccion.electionType, eleccion.electionDate).catch(() => null)
       if (!obj) throw new BloqueNoDisponible(`No hay resultados electorales publicados para ${ine}`, 404)
@@ -470,28 +471,9 @@ async function objetoPolitico(
   convocatoriaPedida: string | undefined,
 ): Promise<PoliticalMunicipalObject> {
   const cat: PoliticalCatalog | null = await leerCatalogoPolitico().catch(() => null)
-  const eleccion = elegirConvocatoria(cat, convocatoriaPedida)
+  const eleccion = elegirConvocatoria(cat, convocatoriaPedida, ine)
   if (!eleccion) throw new BloqueNoDisponible('No hay ninguna convocatoria electoral publicada', 404)
   const obj = await leerResultadosElectorales(ine, eleccion.electionType, eleccion.electionDate).catch(() => null)
   if (!obj) throw new BloqueNoDisponible(`No hay resultados electorales publicados para ${ine}`, 404)
   return obj
-}
-
-/** Elige la convocatoria: la pedida si existe en el catálogo; si no, la más
- *  reciente. Nunca se hardcodea ninguna convocatoria. */
-function elegirConvocatoria(
-  cat: PoliticalCatalog | null,
-  pedido: string | undefined,
-): { electionId: string; electionType: ElectionType; electionDate: string } | null {
-  const lista = cat?.elections ?? []
-  if (lista.length === 0) return null
-  if (pedido) {
-    const enc = lista.find((e) => e.electionId === pedido)
-    if (enc) return { electionId: enc.electionId, electionType: enc.electionType, electionDate: enc.electionDate }
-  }
-  const copia = [...lista].sort((a, b) =>
-    a.electionDate < b.electionDate ? 1 : a.electionDate > b.electionDate ? -1 : 0,
-  )
-  const elegida = copia[0] as (typeof lista)[number]
-  return { electionId: elegida.electionId, electionType: elegida.electionType, electionDate: elegida.electionDate }
 }

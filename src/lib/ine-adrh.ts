@@ -27,7 +27,7 @@ export const ADRH_PROVINCE_TABLES: Record<string, { gini: number; renta: number 
   '50': { gini: 37724, renta: 31277 }, // Zaragoza
 }
 
-interface AdrhSerie {
+export interface AdrhSerie {
   COD?: string
   Nombre?: string
   FK_Unidad?: number
@@ -63,39 +63,79 @@ export interface AdrhPunto {
   valor: number
 }
 
-/** Serie de comparativa (provincia/CCAA/España) de Gini o P80/P20.
- * Localiza la serie por nombre de territorio + indicador en la tabla 53688. */
-export async function fetchAdrhComparativa(
-  territorio: string,
-  indicador: 'gini' | 'p80_p20',
-  nult?: number,
-): Promise<{ puntos: AdrhPunto[]; serieId?: string; sourceUrl: string }> {
-  const nultParam = nult !== undefined ? `?nult=${nult}&tip=AM` : '?tip=AM'
-  const sourceUrl = `${INE_BASE}/DATOS_TABLA/${ADRH_TABLE_ID}${nultParam}`
-  const payload = (await fetchJson(sourceUrl)) as AdrhSerie[]
-  if (!Array.isArray(payload) || payload.length === 0) {
-    throw new EcoError(`Tabla ADRH ${ADRH_TABLE_ID} sin series`, sourceUrl)
-  }
-  const want = indicador === 'gini' ? 'indice de gini' : 'p80/p20'
-  const norm = (s: string): string =>
-    s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  // Los nombres de CCAA de nuestra BD no siempre coinciden con Tempus3
-  // ("Castilla-La Mancha" vs "Castilla - La Mancha"; "Comunidad de Madrid" vs
-  // "Madrid, Comunidad de"): coincidencia por palabras significativas.
-  const stop = new Set(['de', 'la', 'el', 'las', 'los', 'y', 'del'])
-  const words = norm(territorio).split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !stop.has(w))
-  const found = payload.find((s) => {
-    const name = norm(s.Nombre ?? '')
-    return name.includes(want) && words.every((w) => name.includes(w))
-  })
-  if (!found) {
-    throw new EcoError(`Serie ADRH ${indicador} ausente para ${territorio}`, sourceUrl)
-  }
-  const puntos = (found.Data ?? [])
+/** Indicadores ADRH con serie comparativa por territorio (Tempus3):
+ *  gini / p80_p20 → tabla 53688; renta media (neta/bruta, persona/hogar) → 53689. */
+export type AdrhIndicadorComparativa =
+  | 'gini'
+  | 'p80_p20'
+  | 'renta_neta_media_persona'
+  | 'renta_neta_media_hogar'
+  | 'renta_bruta_media_persona'
+  | 'renta_bruta_media_hogar'
+
+export const ADRH_COMPARATIVA: Record<AdrhIndicadorComparativa, { table: number; want: string }> = {
+  gini: { table: 53688, want: 'indice de gini' },
+  p80_p20: { table: 53688, want: 'p80/p20' },
+  renta_neta_media_persona: { table: 53689, want: 'renta neta media por persona' },
+  renta_neta_media_hogar: { table: 53689, want: 'renta neta media por hogar' },
+  renta_bruta_media_persona: { table: 53689, want: 'renta bruta media por persona' },
+  renta_bruta_media_hogar: { table: 53689, want: 'renta bruta media por hogar' },
+}
+
+const normAdrh = (s: string): string => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+const STOP_ADRH = new Set(['de', 'la', 'el', 'las', 'los', 'y', 'del'])
+
+/** Localiza una serie por territorio + texto del indicador en una tabla ADRH.
+ * La CCAA discrepa entre BD y Tempus3 ("Castilla-La Mancha" vs "Castilla - La
+ * Mancha"; "Comunidad de Madrid" vs "Madrid, Comunidad de"): por palabras. */
+export function matchAdrhSerie(payload: AdrhSerie[], territorio: string, want: string): AdrhSerie | null {
+  const words = normAdrh(territorio).split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP_ADRH.has(w))
+  const target = normAdrh(want)
+  return (
+    payload.find((s) => {
+      const name = normAdrh(s.Nombre ?? '')
+      return name.includes(target) && words.every((w) => name.includes(w))
+    }) ?? null
+  )
+}
+
+/** Puntos publicados (sin secreto) de una serie ADRH, ordenados por año. */
+export function adrhPuntos(serie: AdrhSerie): AdrhPunto[] {
+  return (serie.Data ?? [])
     .filter((d) => typeof d.Anyo === 'number' && typeof d.Valor === 'number' && d.Secreto !== true)
     .map((d) => ({ anio: d.Anyo as number, valor: d.Valor as number }))
     .sort((a, b) => a.anio - b.anio)
-  return { puntos, serieId: found.COD, sourceUrl }
+}
+
+/** Descarga una tabla Tempus3 completa (todas las series). Se hace UNA vez por
+ *  tabla y se reutiliza para todos los territorios/indicadores. */
+export async function fetchAdrhTabla(
+  tableId: number,
+  nult?: number,
+): Promise<{ payload: AdrhSerie[]; sourceUrl: string }> {
+  const nultParam = nult !== undefined ? `?nult=${nult}&tip=AM` : '?tip=AM'
+  const sourceUrl = `${INE_BASE}/DATOS_TABLA/${tableId}${nultParam}`
+  const payload = (await fetchJson(sourceUrl)) as AdrhSerie[]
+  if (!Array.isArray(payload) || payload.length === 0) {
+    throw new EcoError(`Tabla ADRH ${tableId} sin series`, sourceUrl)
+  }
+  return { payload, sourceUrl }
+}
+
+/** Serie de comparativa (provincia/CCAA/España) de Gini, P80/P20 o renta media.
+ * Localiza la serie por nombre de territorio + indicador en la tabla Tempus3. */
+export async function fetchAdrhComparativa(
+  territorio: string,
+  indicador: AdrhIndicadorComparativa,
+  nult?: number,
+): Promise<{ puntos: AdrhPunto[]; serieId?: string; sourceUrl: string }> {
+  const cfg = ADRH_COMPARATIVA[indicador]
+  const { payload, sourceUrl } = await fetchAdrhTabla(cfg.table, nult)
+  const found = matchAdrhSerie(payload, territorio, cfg.want)
+  if (!found) {
+    throw new EcoError(`Serie ADRH ${indicador} ausente para ${territorio}`, sourceUrl)
+  }
+  return { puntos: adrhPuntos(found), serieId: found.COD, sourceUrl }
 }
 
 export interface AdrhMunicipalRow {

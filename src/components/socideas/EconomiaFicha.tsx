@@ -163,14 +163,14 @@ export default function EconomiaFicha({
   }
 
   // ---- Visión general: solo indicadores reales, ordenados por utilidad analítica ----
-  const rentaNetaPersona = ultimo(valores, "renta_neta_media_persona");
-  const rentaNetaHogar = ultimo(valores, "renta_neta_media_hogar");
+  const rentaNetaPersona = ultimo(valores, "renta_neta_media_persona", ambito);
+  const rentaNetaHogar = ultimo(valores, "renta_neta_media_hogar", ambito);
   const empTotal = ultimo(valores, "empresas_total");
   const gini = ultimo(valores, "gini", ambito);
   const p80 = ultimo(valores, "p80_p20", ambito);
   const irpfBruta = ultimo(valores, "irpf_renta_bruta_media");
   const irpfDisp = ultimo(valores, "irpf_renta_disponible_media");
-  const rentaBrutaHogar = ultimo(valores, "renta_bruta_media_hogar");
+  const rentaBrutaHogar = ultimo(valores, "renta_bruta_media_hogar", ambito);
 
   const candidatos = [
     rentaNetaPersona && isRealValue(rentaNetaPersona.valor_numerico)
@@ -231,8 +231,8 @@ export default function EconomiaFicha({
   const p80Serie: SerieEvo[] = [
     { clave: "p80", etiqueta: `${ambitoLabel}`, color: CHART.municipio, puntos: serie(valores, "p80_p20", ambito) },
   ];
-  const rentaNetaSerie = serie(valores, "renta_neta_media_persona");
-  const rentaHogarSerie = serie(valores, "renta_neta_media_hogar");
+  const rentaNetaSerie = serie(valores, "renta_neta_media_persona", ambito);
+  const rentaHogarSerie = serie(valores, "renta_neta_media_hogar", ambito);
   // Comparativo de renta: solo series ADRH homogéneas (€) con ≥2 puntos reales
   // dentro de la ventana de los controles integrados. Sin interpolar ni rellenar.
   const inRentaWindow = (p: { anio: number }): boolean =>
@@ -489,13 +489,13 @@ export default function EconomiaFicha({
             <Metodologia
               nombre="Renta neta media por persona (ADRH)"
               definicion="Renta neta media por persona del Atlas de Distribución de Renta de los Hogares."
-              fuente={fuenteDe(ultimo(valores, "renta_neta_media_persona")) || "INE, ADRH"}
-              periodo={String(ultimo(valores, "renta_neta_media_persona")?.anio_referencia ?? "—")}
-              cobertura={`Municipio ${municipio.nombre}`}
+              fuente={fuenteDe(ultimo(valores, "renta_neta_media_persona", ambito)) || "INE, ADRH"}
+              periodo={String(ultimo(valores, "renta_neta_media_persona", ambito)?.anio_referencia ?? "—")}
+              cobertura={ambito === "municipio" ? `Municipio ${municipio.nombre}` : `Ámbito ${ambitoLabel}`}
               estado="Consolidado"
               limitacion="No equivale a la renta por declaración (AEAT)."
             />
-            <FuenteOficial url={ultimo(valores, "renta_neta_media_persona")?.source_url} />
+            <FuenteOficial url={ultimo(valores, "renta_neta_media_persona", ambito)?.source_url} />
           </div>
         </section>
       )}

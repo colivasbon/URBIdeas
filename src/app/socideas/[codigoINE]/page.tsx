@@ -39,6 +39,7 @@ import type { MunicipalStructureWithBenchmarks } from "@/lib/socideas-population
 import { leerCatalogoEducativo, leerObjetoEducativo } from "@/lib/socideas-secciones-education-store";
 import { aggregateEducationFormacion, type EducacionFormacionAgregada } from "@/lib/socideas-secciones-education";
 import { normalizarAmbito, ambitosConDatos } from "@/lib/socideas-scope";
+import { leerComparativas, comparativasComoValores, fusionarValoresComparativas } from "@/lib/socideas-comparativas";
 import { AmbitoSelector } from "@/components/socideas/AmbitoSelector";
 import EstructuraSoloBloque from "@/components/socideas/EstructuraSoloBloque";
 import EmptyState from "@/components/ui/EmptyState";
@@ -142,7 +143,7 @@ export default async function SocideasFicha({
   // La barra operativa necesita el resumen de AMBOS bloques. La lectura R2 del
   // envelope está deduplicada por React.cache en el mismo request (ver
   // socideas-r2:getMunicipioEnvelopeForRequest): no añade lecturas nuevas.
-  const economia = await getEconomia(codigoINE);
+  const economiaBase = await getEconomia(codigoINE);
 
   if (!perfil) {
     return (
@@ -169,6 +170,23 @@ export default async function SocideasFicha({
   }
 
   const { municipio } = perfil;
+
+  // Comparativas territoriales ADRH (provincia/CCAA/España) por provincia: se
+  // fusionan con los valores del envelope para que la ficha muestre renta y
+  // desigualdad al ámbito elegido. Dedupe por slug|ámbito|año (no duplica las
+  // que el envelope ya trae). Sin objeto publicado, no se añade nada.
+  let economia = economiaBase;
+  const prov2 = municipio.provincia_codigo_ine ? municipio.provincia_codigo_ine.slice(0, 2) : null;
+  if (economia && prov2) {
+    const cmp = await leerComparativas(prov2).catch(() => null);
+    if (cmp) {
+      economia = {
+        ...economia,
+        valores: fusionarValoresComparativas(economia.valores, comparativasComoValores(cmp, codigoINE)),
+      };
+    }
+  }
+
   const mapHref =
     municipio.centroide_lat !== null && municipio.centroide_lng !== null
       ? `/urbideas/mapa?lat=${municipio.centroide_lat.toFixed(4)}&lng=${municipio.centroide_lng.toFixed(4)}&zoom=12`

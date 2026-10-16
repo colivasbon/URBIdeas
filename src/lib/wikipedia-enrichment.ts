@@ -41,7 +41,7 @@ export interface WikidataEnrichment {
   /** Presente SOLO si Commons confirma una licencia libre del fichero. */
   mainImage?: string
   mainImageLicense?: string
-  /** P300 (código INE declarado en Wikidata), si existe. */
+  /** P772 (código INE de municipio en Wikidata; respaldo P300), si existe. */
   ineCode?: string
   /** P1566 (GeoNames), si existe. */
   geoNamesId?: string
@@ -320,7 +320,7 @@ export function commonsFileFromThumbUrl(url: string): string | null {
  * fichero → licencia; los ficheros ausentes o no consultados no aparecen
  * (interpretados después como «sin licencia acreditada» → sin imagen).
  */
-async function checkCommonsLicenses(
+export async function checkCommonsLicenses(
   fileTitles: readonly string[],
 ): Promise<{ ok: boolean; licenses: Map<string, CommonsLicense> }> {
   const licenses = new Map<string, CommonsLicense>()
@@ -387,11 +387,11 @@ function articleText(summary: SummaryResponse): string {
   return `${description} ${extract}`.replace(/\s+/g, ' ').trim()
 }
 
-const TERRITORY_RE = /\b(municipio|concejo|ciudad|villa|localidad|pueblo|entidad local|distrito municipal)\b/i
-const SPAIN_SIGNAL_RE = /espana|espanol|comunidad autonomica|comunidad autonoma|autonomica|peninsula iberica/i
+export const TERRITORY_RE = /\b(municipio|concejo|ciudad|villa|localidad|pueblo|entidad local|distrito municipal)\b/i
+export const SPAIN_SIGNAL_RE = /espana|espanol|comunidad autonomica|comunidad autonoma|autonomica|peninsula iberica/i
 
 /** Calificadores que indican que el artículo NO es el municipio español. */
-const FOREIGN_QUALIFIER_RE =
+export const FOREIGN_QUALIFIER_RE =
   /m[eé]xico|chile|argentin|colombi|per[uú]|bolivi|ecuador|venezuel|guinea|brasil|portugal|francia|italia|canad[aá]|estados unidos|filipin|desambigu/i
 
 function qualifierInsideParens(title: string): string {
@@ -436,15 +436,15 @@ function validateArticle(
   if (text === '') return { accepted: false, reason: 'sin_resumen' }
   if (!TERRITORY_RE.test(text)) return { accepted: false, reason: 'no_es_termino_territorial' }
 
-  // P300 solo veta/acepta cuando es un código INE municipal (5 dígitos):
-  // hay entidades con P300 no numérico (p. ej. «ES-CE» para Ceuta) que no
-  // deben descartar un artículo correcto.
-  const p300 = claimString(entity, 'P300')
+  // Código INE declarado en Wikidata: P772 («INE municipality code») es el
+  // correcto; P300 se mantiene como respaldo. Solo veta/acepta cuando es un
+  // código INE municipal (5 dígitos).
+  const p300 = claimString(entity, 'P772') ?? claimString(entity, 'P300')
   const p300Ine = p300 !== undefined && /^\d{5}$/.test(p300) ? p300.trim() : null
   if (p300Ine !== null && p300Ine !== ineCode.trim()) {
-    return { accepted: false, reason: `p300_no_coincide:${p300Ine}` }
+    return { accepted: false, reason: `ine_no_coincide:${p300Ine}` }
   }
-  if (p300Ine !== null) return { accepted: true, reason: 'p300_ine' }
+  if (p300Ine !== null) return { accepted: true, reason: 'p772_ine' }
 
   // Validación por QID: si el artículo tiene wikibase_item y la entidad
   // tiene P300 que coincide con el INE, se acepta aunque la validación
@@ -522,7 +522,7 @@ function buildWikidata(entity: WbEntity, licenses: Map<string, CommonsLicense>):
   if (coords !== undefined) wd.coordinates = coords
   const founded = claimYear(entity, 'P571')
   if (founded !== undefined) wd.founded = founded
-  const ineCode = claimString(entity, 'P300')
+  const ineCode = claimString(entity, 'P772') ?? claimString(entity, 'P300')
   if (ineCode !== undefined) wd.ineCode = ineCode
   const geoNames = claimString(entity, 'P1566')
   if (geoNames !== undefined) wd.geoNamesId = geoNames

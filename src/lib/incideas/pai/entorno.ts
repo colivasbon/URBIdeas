@@ -670,9 +670,13 @@ export async function analizarEntorno(
     const guardias = ordenar(policias.filter(esGC).map((e) => medio(e, "guardia_civil", "Puesto de la Guardia Civil"))).slice(0, 2);
     const policia = ordenar(policias.filter((e) => !esGC(e)).map((e) => medio(e, "policia", "Policía"))).slice(0, 2);
     const hospitales = ordenar(conTag("amenity", /^hospital$/).map((e) => medio(e, "hospital", "Hospital"))).slice(0, 2);
-    const centrosSalud = ordenar(
-      [...conTag("amenity", /^(clinic|doctors)$/), ...conTag("healthcare", /^centre$/)].map((e) => medio(e, "centro_salud", "Centro de salud"))
-    ).slice(0, 3);
+    // Solo asistencia pública: se descartan mutuas y consultas privadas; si OSM no etiqueta ningún centro de salud, se admite el resto.
+    const esMutua = (e: OverpassElement) =>
+      /mutua|mutual|fremap|asepeyo|ibermutua|umivale|egarsat|ceca|universal/i.test(`${e.tags?.name ?? ""} ${e.tags?.operator ?? ""} ${e.tags?.brand ?? ""}`);
+    const candidatosSalud = [...conTag("amenity", /^(clinic|doctors)$/), ...conTag("healthcare", /^centre$/)].filter((e) => !esMutua(e));
+    const esCentroSalud = (e: OverpassElement) => /centro de salud|consultorio|ambulatorio|centro m[eé]dico|c\.s\./i.test(e.tags?.name ?? "") || e.tags?.healthcare === "centre";
+    const saludPublica = candidatosSalud.filter(esCentroSalud);
+    const centrosSalud = ordenar((saludPublica.length ? saludPublica : candidatosSalud).map((e) => medio(e, "centro_salud", "Centro de salud"))).slice(0, 3);
     const mediosExternos = [...bomberos.slice(0, 2), guardias[0], policia[0], centrosSalud[0], hospitales[0]].filter((x): x is ElementoCercano => !!x);
 
     publicar("seguridad", [...bomberos, ...guardias, ...policia]);

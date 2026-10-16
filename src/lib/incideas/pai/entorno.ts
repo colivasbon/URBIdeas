@@ -391,7 +391,14 @@ async function rutaOSRM(desde: Pos, hasta: Pos): Promise<{ km: number; minutos: 
 // El Overpass público es muy irregular (la misma consulta tarda entre 5 s y más de 2 min según la
 // carga). Se lanza al servidor principal y, si no responde en unos segundos, se lanza también a
 // los espejos; gana la primera respuesta válida y se cancela el resto.
-const ESPEJOS_OVERPASS = [...OVERPASS_ENDPOINTS, "https://overpass.private.coffee/api/interpreter"];
+// overpass.openstreetmap.fr sirve el planeta completo y suele estar libre cuando los demás se saturan.
+const ESPEJOS_OVERPASS = [
+  ...OVERPASS_ENDPOINTS,
+  "https://overpass.openstreetmap.fr/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+];
+// Errores de saturación: el servidor principal suele responder si se le reintenta poco después.
+const SATURADO = /HTTP (429|502|503|504)/;
 const RETRASO_ESPEJO_MS = 7000;
 const TIMEOUT_OVERPASS_MS = 75000;
 const CACHE_OSM_TTL_MS = 30 * 60 * 1000;
@@ -435,8 +442,19 @@ export async function overpassEscalonado(query: string, retrasoMs = RETRASO_ESPE
         (e) => {
           if (resuelto) return;
           errores.push(e instanceof Error ? e.message : String(e));
-          if (++fallidos === ESPEJOS_OVERPASS.length) reject(new Error(`Overpass no disponible (${errores.join("; ")})`));
-          else arrancar(i + 1);
+          if (++fallidos < ESPEJOS_OVERPASS.length) return arrancar(i + 1);
+          if (!errores.some((m) => SATURADO.test(m))) return reject(new Error(`Overpass no disponible (${errores.join("; ")})`));
+          // Todos saturados: un último intento al principal tras una pausa corta.
+          setTimeout(() => {
+            if (resuelto) return;
+            lanzar(ESPEJOS_OVERPASS[0]).then(
+              (els) => {
+                resuelto = true;
+                resolve(els);
+              },
+              (e2) => reject(new Error(`Overpass no disponible (${[...errores, e2 instanceof Error ? e2.message : String(e2)].join("; ")})`))
+            );
+          }, Math.min(retrasoMs, 3000));
         }
       );
     };

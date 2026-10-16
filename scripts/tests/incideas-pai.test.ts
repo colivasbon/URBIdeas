@@ -201,6 +201,14 @@ test("Overpass: si el principal responde rápido no se molesta a los espejos", a
   assert.deepEqual(llamadas, ["overpass-api.de"]);
 });
 
+test("Overpass: con los principales saturados responde el espejo de openstreetmap.fr", async () => {
+  const { r } = await conFetchSimulado(
+    { "overpass-api.de": { status: 502, cuerpo: "at capacity" }, "overpass.kumi.systems": { status: 500, cuerpo: "err" }, "overpass.openstreetmap.fr": OK(4) },
+    () => overpassEscalonado("q", 50)
+  );
+  assert.equal(r.length, 4);
+});
+
 test("Overpass: si todos fallan, rechaza con el detalle", async () => {
   await assert.rejects(
     conFetchSimulado({}, () => overpassEscalonado("q", 50)),
